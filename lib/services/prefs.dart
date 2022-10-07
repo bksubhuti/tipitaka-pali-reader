@@ -22,6 +22,8 @@ const String wordDistancePref = 'wordDistance';
 const String isPeuPref = "isPeuOn";
 const String isDpdPref = "isDpdOn";
 const String selectedPageColorPref = "selectedPageColor";
+const String databaseDirPathPref = "databaseDirPath";
+const String saveClickToClipboardPref = "saveClickToClipbard";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -41,6 +43,8 @@ const int defaultWordDistance = 10;
 const bool defaultIsPeuOn = true;
 const bool defaultIsDpdOn = true;
 int defaultSelectedPageColor = Colors.white.value;
+const String defaultDatabaseDirPath = "";
+const bool defaultSaveClickToClipboard = false;
 
 class Prefs {
   // prevent object creation
@@ -121,4 +125,14 @@ class Prefs {
       instance.getInt(selectedPageColorPref) ?? defaultSelectedPageColor;
   static set selectedPageColor(int value) =>
       instance.setInt(selectedPageColorPref, value);
+
+  static String get databaseDirPath =>
+      instance.getString(databaseDirPathPref) ?? defaultDatabaseDirPath;
+  static set databaseDirPath(String value) =>
+      instance.setString(databaseDirPathPref, value);
+
+  static bool get saveClickToClipboard =>
+      instance.getBool(saveClickToClipboardPref) ?? defaultSaveClickToClipboard;
+  static set saveClickToClipboard(bool value) =>
+      instance.setBool(saveClickToClipboardPref, value);
 }

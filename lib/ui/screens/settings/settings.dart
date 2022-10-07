@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 
 import 'script_setting_view.dart';
+import 'general_settings_view.dart';
 
 class SettingPage extends StatelessWidget {
   const SettingPage({Key? key}) : super(key: key);
@@ -28,6 +29,7 @@ class SettingPage extends StatelessWidget {
               DarkModeSettingView(),
               LanguageSettingView(),
               ScriptSettingView(),
+              GeneralSettingsView(),
             ],
           ),
         ));

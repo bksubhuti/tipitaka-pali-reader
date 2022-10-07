@@ -46,94 +46,9 @@ class UpperRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        IconButton(
-            onPressed: () => _openGotoDialog(context),
-            icon: const Icon(Icons.directions_walk_outlined)),
         const Expanded(child: BookSlider()),
-        IconButton(
-            onPressed: () => _openTocDialog(context),
-            icon: const Icon(Icons.list_outlined)),
       ],
     );
-  }
-
-  void _openGotoDialog(BuildContext context) async {
-    final vm = context.read<ReaderViewController>();
-    final firstParagraph = await vm.getFirstParagraph();
-    final lastParagraph = await vm.getLastParagraph();
-    final gotoResult = await showGeneralDialog<GotoDialogResult>(
-      context: context,
-      transitionDuration: const Duration(milliseconds: 300),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(scale: animation, child: child),
-        );
-      },
-      pageBuilder: (context, animation, secondaryAnimation) => GotoDialog(
-        firstPage: vm.book.firstPage!,
-        lastPage: vm.book.lastPage!,
-        firstParagraph: firstParagraph,
-        lastParagraph: lastParagraph,
-      ),
-    );
-    if (gotoResult != null) {
-      final int pageNumber = gotoResult.type == GotoType.page
-          ? gotoResult.number
-          : await vm.getPageNumber(gotoResult.number);
-      vm.onGoto(pageNumber: pageNumber);
-      // vm.gotoPage(pageNumber.toDouble());
-    }
-  }
-
-  void _openTocDialog(BuildContext context) async {
-    final vm = context.read<ReaderViewController>();
-
-    const sideSheetWidth = 400.0;
-    final toc = await showGeneralDialog<Toc>(
-      context: context,
-      barrierLabel: 'TOC',
-      barrierDismissible: true,
-      transitionDuration: const Duration(milliseconds: 300),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return SlideTransition(
-          position:
-              Tween(begin: const Offset(1, 0), end: const Offset(0, 0)).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeInOutSine),
-          ),
-          child: child,
-        );
-      },
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Align(
-          alignment: Alignment.centerRight,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-              width: MediaQuery.of(context).size.width > 600
-                  ? sideSheetWidth
-                  : double.infinity,
-              decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.background,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  )),
-              child: TocDialog(bookID: vm.book.id),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (toc != null) {
-      // not only goto page
-      // but also to highlight toc and scroll to it
-      vm.onGoto(pageNumber: toc.pageNumber);
-      // vm.gotoPageAndScroll(toc.pageNumber.toDouble(), toc.name);
-    }
   }
 }
 
@@ -146,6 +61,9 @@ class LowerRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
+          IconButton(
+              onPressed: () => _openGotoDialog(context),
+              icon: const Icon(Icons.directions_walk_outlined)),
           IconButton(
               onPressed: () => _onMATButtomClicked(context),
               icon: const Icon(Icons.comment_outlined)),
@@ -162,6 +80,9 @@ class LowerRow extends StatelessWidget {
             IconButton(
                 onPressed: () => _openSettingPage(context),
                 icon: const Icon(Icons.settings_outlined)),
+          IconButton(
+              onPressed: () => _openTocDialog(context),
+              icon: const Icon(Icons.list_outlined)),
         ],
       ),
     );
@@ -317,5 +238,84 @@ class LowerRow extends StatelessWidget {
             ],
           );
         });
+  }
+
+  void _openGotoDialog(BuildContext context) async {
+    final vm = context.read<ReaderViewController>();
+    final firstParagraph = await vm.getFirstParagraph();
+    final lastParagraph = await vm.getLastParagraph();
+    final gotoResult = await showGeneralDialog<GotoDialogResult>(
+      context: context,
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: animation, child: child),
+        );
+      },
+      pageBuilder: (context, animation, secondaryAnimation) => GotoDialog(
+        firstPage: vm.book.firstPage!,
+        lastPage: vm.book.lastPage!,
+        firstParagraph: firstParagraph,
+        lastParagraph: lastParagraph,
+      ),
+    );
+    if (gotoResult != null) {
+      final int pageNumber = gotoResult.type == GotoType.page
+          ? gotoResult.number
+          : await vm.getPageNumber(gotoResult.number);
+      vm.onGoto(pageNumber: pageNumber);
+      // vm.gotoPage(pageNumber.toDouble());
+    }
+  }
+
+  void _openTocDialog(BuildContext context) async {
+    final vm = context.read<ReaderViewController>();
+
+    const sideSheetWidth = 400.0;
+    final toc = await showGeneralDialog<Toc>(
+      context: context,
+      barrierLabel: 'TOC',
+      barrierDismissible: true,
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position:
+              Tween(begin: const Offset(1, 0), end: const Offset(0, 0)).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeInOutSine),
+          ),
+          child: child,
+        );
+      },
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+              width: MediaQuery.of(context).size.width > 600
+                  ? sideSheetWidth
+                  : double.infinity,
+              decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  )),
+              child: TocDialog(bookID: vm.book.id),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (toc != null) {
+      // not only goto page
+      // but also to highlight toc and scroll to it
+      vm.onGoto(pageNumber: toc.pageNumber);
+      // vm.gotoPageAndScroll(toc.pageNumber.toDouble(), toc.name);
+    }
   }
 }
