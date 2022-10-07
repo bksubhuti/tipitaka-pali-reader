@@ -64,6 +64,12 @@ dependencies:
   huge_listview: ^2.0.2
   beautiful_soup_dart: ^0.3.0
   msix: ^2.8.18
+  http: ^0.13.5
+  internet_connection_checker: ^0.0.1+4
+  archive: ^3.3.1
+  url_launcher: ^6.1.5
+  devicelocale: ^0.5.5
+  
   
 
 dev_dependencies:

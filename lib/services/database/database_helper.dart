@@ -6,6 +6,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/data/constants.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 class DatabaseHelper {
   DatabaseHelper._internal();
@@ -33,6 +34,7 @@ class DatabaseHelper {
       dbPath = docDirPath.path;
     }
     var path = join(dbPath, DatabaseInfo.fileName);
+    Prefs.databaseDirPath = dbPath;
 
     // myLogger.i('opening Database ...');
     return await openDatabase(path);
