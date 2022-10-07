@@ -45,8 +45,8 @@ class UpperRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      children: [
-        const Expanded(child: BookSlider()),
+      children: const [
+        Expanded(child: BookSlider()),
       ],
     );
   }
@@ -68,11 +68,11 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _onMATButtomClicked(context),
               icon: const Icon(Icons.comment_outlined)),
           IconButton(
-              onPressed: () => _onIncreaseButtonClicked(context),
-              icon: const Icon(Icons.add_circle_outline)),
-          IconButton(
               onPressed: () => _onDecreaseButtonClicked(context),
               icon: const Icon(Icons.remove_circle_outline)),
+          IconButton(
+              onPressed: () => _onIncreaseButtonClicked(context),
+              icon: const Icon(Icons.add_circle_outline)),
           IconButton(
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined)),
