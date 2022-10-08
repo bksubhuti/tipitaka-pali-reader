@@ -2,7 +2,7 @@ const String highlightTagName = 'highlight';
 
 class DatabaseInfo {
   DatabaseInfo._();
-  static const int version = 14;
+  static const int version = 15;
   static const String fileName = 'tipitaka_pali.db';
 }
 
@@ -21,8 +21,8 @@ class AssetsFile {
     'tipitaka_pali_part.ah',
     'tipitaka_pali_part.ai',
     'tipitaka_pali_part.aj',
-//    'tipitaka_pali_part.ak',
-//    'tipitaka_pali_part.al',
+    'tipitaka_pali_part.ak',
+    'tipitaka_pali_part.al',
   ];
 }
 

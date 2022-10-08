@@ -107,7 +107,7 @@ class LowerRow extends StatelessWidget {
     final vm = context.read<ReaderViewController>();
     final note = await showGeneralDialog<String>(
       context: context,
-      transitionDuration: Duration(milliseconds: Prefs.animationSpeed.rount()),
+      transitionDuration: Duration(milliseconds: Prefs.animationSpeed.round()),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
           opacity: animation,

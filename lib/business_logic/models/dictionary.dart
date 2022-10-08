@@ -32,8 +32,8 @@ class Dictionary {
   factory Dictionary.fromJson(Map<dynamic, dynamic> json) {
     return Dictionary(
       word: json["word"] ?? "n/a",
-      definition: json["defintion"] ?? "n/a",
-      bookID: json["book_id"] ?? 0,
+      definition: json["definition"] ?? "n/a",
+      bookID: json['book_id'] ?? 0,
     );
   }
 
