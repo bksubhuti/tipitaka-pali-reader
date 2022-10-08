@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/vertical_book_slider.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 import '../../../../business_logic/models/page_content.dart';
 import '../../../../providers/navigation_provider.dart';
@@ -183,7 +183,7 @@ class _DesktopBookViewState extends State<DesktopBookView> {
       context: context,
       barrierLabel: 'TOC',
       barrierDismissible: true,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: Duration(milliseconds: Prefs.animationSpeed.round()),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
           position: Tween(begin: const Offset(-1, 0), end: const Offset(0, 0))

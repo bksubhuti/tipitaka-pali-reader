@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sliding_sheet/sliding_sheet.dart';
 
-import '../../../../app.dart';
 import '../../../../business_logic/models/page_content.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
@@ -67,7 +66,7 @@ class _MobileBookViewState extends State<MobileBookView> {
               pageNumber: pageContent.pageNumber!,
               htmlContent: htmlContent,
               script: script,
-                        highlightedWord: _needToHighlight(index),
+              highlightedWord: _needToHighlight(index),
               onClick: onClickedWord,
             ),
           ),
@@ -91,7 +90,7 @@ class _MobileBookViewState extends State<MobileBookView> {
     }
     return null;
   }
-  
+
   void _listenPageChange() {
     int pageIndex = readerViewController.currentPage.value -
         readerViewController.book.firstPage!;

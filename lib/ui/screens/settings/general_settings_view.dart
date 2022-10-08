@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 
-import '../../../business_logic/view_models/script_settings_view_model.dart';
-import 'select_script_language.dart';
-import 'download_view.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import '../../widgets/colored_text.dart';
 
@@ -21,9 +16,10 @@ class GeneralSettingsView extends StatefulWidget {
 
 class _GeneralSettingsViewState extends State<GeneralSettingsView> {
   bool _clipboard = Prefs.saveClickToClipboard;
+  double _currentSliderValue = 1;
   @override
   void initState() {
-    _clipboard = Prefs.saveClickToClipboard; // TODO: implement initState
+    _clipboard = Prefs.saveClickToClipboard;
     super.initState();
   }
 
@@ -33,36 +29,47 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
       elevation: 8,
       child: ExpansionTile(
         leading: const Icon(Icons.settings),
-        title: Text("General", style: Theme.of(context).textTheme.headline6),
+        title: Text(AppLocalizations.of(context)!.generalSettings,
+            style: Theme.of(context).textTheme.headline6),
         children: [
-          DictionaryToClipboardSwitch(),
-          SizedBox(
+          _getDictionaryToClipboardSwitch(),
+          const SizedBox(
+            height: 20,
+          ),
+          _getAnimationsSwitch(),
+          const SizedBox(
             height: 20,
           ),
           //DownloadTile(context),
           //QuotesOrRestore(),
-          AboutTile(context),
+          _getAboutTile(context),
         ],
       ),
     );
   }
 
-  Widget AnimationsSwitch() {
+  Widget _getAnimationsSwitch() {
     return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        title: const Text("Animations"),
-        trailing: Switch(
-          onChanged: (value) => {
-            //prefs
-          },
-          value: true,
-        ),
-      ),
-    );
+        padding: const EdgeInsets.only(left: 32.0),
+        child: Column(
+          children: [
+            Slider(
+              value: Prefs.animationSpeed,
+              max: 800,
+              divisions: 20,
+              label: _currentSliderValue.round().toString(),
+              onChanged: (double value) {
+                setState(() {
+                  Prefs.animationSpeed = _currentSliderValue = value;
+                });
+              },
+            ),
+            ColoredText(AppLocalizations.of(context)!.animationSpeed),
+          ],
+        ));
   }
 
-  Widget DictionaryToClipboardSwitch() {
+  Widget _getDictionaryToClipboardSwitch() {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
       child: ListTile(
@@ -79,7 +86,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
     );
   }
 
-  Widget DownloadTile(context) {
+  Widget _getDownloadTile(context) {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
       child: ElevatedButton(
@@ -93,7 +100,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
     );
   }
 
-  Widget QuotesOrRestore() {
+  Widget _getQuotesOrRestore() {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
       child: ListTile(
@@ -108,7 +115,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
     );
   }
 
-  Widget AboutTile(BuildContext context) {
+  Widget _getAboutTile(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(left: 32.0),
       child: ListTile(

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/providers/font_provider.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 import '../../../../app.dart';
 import '../../../../business_logic/models/book.dart';
@@ -63,26 +64,33 @@ class LowerRow extends StatelessWidget {
         children: [
           IconButton(
               onPressed: () => _openGotoDialog(context),
-              icon: const Icon(Icons.directions_walk_outlined)),
+              icon: const Icon(Icons.directions_walk_outlined),
+              tooltip: AppLocalizations.of(context)!.gotoPageParagraph),
           IconButton(
               onPressed: () => _onMATButtomClicked(context),
-              icon: const Icon(Icons.comment_outlined)),
+              icon: const Icon(Icons.comment_outlined),
+              tooltip: AppLocalizations.of(context)!.openLinkedBook),
           IconButton(
               onPressed: () => _onDecreaseButtonClicked(context),
-              icon: const Icon(Icons.remove_circle_outline)),
+              icon: const Icon(Icons.remove_circle_outline),
+              tooltip: AppLocalizations.of(context)!.decreaseFontSize),
           IconButton(
               onPressed: () => _onIncreaseButtonClicked(context),
-              icon: const Icon(Icons.add_circle_outline)),
+              icon: const Icon(Icons.add_circle_outline),
+              tooltip: AppLocalizations.of(context)!.increaseFontSize),
           IconButton(
               onPressed: () => _addBookmark(context),
-              icon: const Icon(Icons.bookmark_add_outlined)),
+              icon: const Icon(Icons.bookmark_add_outlined),
+              tooltip: AppLocalizations.of(context)!.bookmark),
           if (!PlatformInfo.isDesktop)
             IconButton(
                 onPressed: () => _openSettingPage(context),
-                icon: const Icon(Icons.settings_outlined)),
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: AppLocalizations.of(context)!.settings),
           IconButton(
               onPressed: () => _openTocDialog(context),
-              icon: const Icon(Icons.list_outlined)),
+              icon: const Icon(Icons.list_outlined),
+              tooltip: AppLocalizations.of(context)!.table_of_contents),
         ],
       ),
     );
@@ -99,7 +107,7 @@ class LowerRow extends StatelessWidget {
     final vm = context.read<ReaderViewController>();
     final note = await showGeneralDialog<String>(
       context: context,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: Duration(milliseconds: Prefs.animationSpeed.rount()),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
           opacity: animation,
@@ -246,7 +254,7 @@ class LowerRow extends StatelessWidget {
     final lastParagraph = await vm.getLastParagraph();
     final gotoResult = await showGeneralDialog<GotoDialogResult>(
       context: context,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: Duration(milliseconds: Prefs.animationSpeed.round()),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
           opacity: animation,
@@ -277,7 +285,7 @@ class LowerRow extends StatelessWidget {
       context: context,
       barrierLabel: 'TOC',
       barrierDismissible: true,
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: Duration(milliseconds: Prefs.animationSpeed.round()),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
           position:

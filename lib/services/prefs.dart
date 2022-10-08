@@ -24,6 +24,7 @@ const String isDpdPref = "isDpdOn";
 const String selectedPageColorPref = "selectedPageColor";
 const String databaseDirPathPref = "databaseDirPath";
 const String saveClickToClipboardPref = "saveClickToClipbard";
+const String animationSpeedPref = "animationSpeed";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -45,6 +46,7 @@ const bool defaultIsDpdOn = true;
 int defaultSelectedPageColor = Colors.white.value;
 const String defaultDatabaseDirPath = "";
 const bool defaultSaveClickToClipboard = false;
+const double defaultAnimationSpeed = 400;
 
 class Prefs {
   // prevent object creation
@@ -135,4 +137,9 @@ class Prefs {
       instance.getBool(saveClickToClipboardPref) ?? defaultSaveClickToClipboard;
   static set saveClickToClipboard(bool value) =>
       instance.setBool(saveClickToClipboardPref, value);
+
+  static double get animationSpeed =>
+      instance.getDouble(animationSpeedPref) ?? defaultAnimationSpeed;
+  static set animationSpeed(double value) =>
+      instance.setDouble(animationSpeedPref, value);
 }

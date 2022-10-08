@@ -37,7 +37,15 @@
   "exact":                "Exact",
   "prefix":               "Prefix",
   "distance":             "Distance",
-  "anywhere":             "anywhere"
+  "anywhere":             "anywhere",
+  "openingBook":          "Openning Books",
+  "animations":           "Animations",
+  "generalSettings":      "General",
+  "increaseFontSize":     "Increase font size",
+  "decreaseFontSize":     "Decrease font size",
+  "openLinkedBook":       "Open linked book",
+  "gotoPageParagraph":     "Goto page or paragraph"
+
 }
 
 

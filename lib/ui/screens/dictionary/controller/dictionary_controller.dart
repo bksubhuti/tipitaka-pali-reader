@@ -7,6 +7,8 @@ import '../../../../services/database/database_helper.dart';
 import '../../../../services/database/dictionary_service.dart';
 import '../../../../services/repositories/dictionary_repo.dart';
 import 'dictionary_state.dart';
+import 'package:flutter/services.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 // global variable
 ValueNotifier<String?> globalLookupWord = ValueNotifier<String?>(null);
@@ -77,6 +79,10 @@ class DictionaryController with ChangeNotifier {
   }
 
   Future<String> loadDefinition(String word) async {
+    // use only if setting is good in prefs
+    if (Prefs.saveClickToClipboard == true) {
+      await Clipboard.setData(ClipboardData(text: word));
+    }
     switch (_currentAlgorithmMode) {
       case DictAlgorithm.Auto:
         return await searchAuto(word);
@@ -99,7 +105,7 @@ class DictionaryController with ChangeNotifier {
     if (definition.isEmpty) definition = await searchWithDPR(word);
     final after = DateTime.now();
     final differnt = after.difference(before);
-    print('compute time: $differnt');
+    debugPrint('compute time: $differnt');
 
     return definition;
   }

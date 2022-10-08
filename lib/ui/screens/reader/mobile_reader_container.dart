@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/ui/screens/reader/reader.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/openning_book_list_view.dart';
 import 'package:tipitaka_pali/ui/widgets/tab_count_icon.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 import '../../../business_logic/models/book.dart';
 import '../../../services/provider/script_language_provider.dart';
@@ -90,7 +91,8 @@ class _MobileReaderContrainerState extends State<MobileReaderContrainer> {
   Future<int?> _openOpenningBookListView(BuildContext context) async {
     return await showGeneralDialog<int>(
         context: context,
-        transitionDuration: const Duration(milliseconds: 300),
+        transitionDuration:
+            Duration(milliseconds: Prefs.animationSpeed.round()),
         transitionBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,

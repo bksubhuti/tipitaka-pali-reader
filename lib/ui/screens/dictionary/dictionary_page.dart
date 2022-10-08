@@ -15,7 +15,7 @@ class DictionaryPage extends StatefulWidget {
 
 class _DictionaryPageState extends State<DictionaryPage>
     with AutomaticKeepAliveClientMixin {
-  List<String> _words = [];
+  final List<String> _words = [];
   String _lastWord = "";
 
   @override
@@ -44,7 +44,7 @@ class _DictionaryPageState extends State<DictionaryPage>
             child: Column(children: [
               Row(
                 children: [
-                  Expanded(child: const DictionarySearchField()),
+                  const Expanded(child: DictionarySearchField()),
                   const SizedBox(width: 8), // padding
                   IconButton(
                     padding: EdgeInsets.zero,

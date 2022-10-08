@@ -103,14 +103,14 @@ class MmPali {
     });
 
     _consonants.forEach((key, value) {
-      text = text.replaceAll(value, key + 'a');
+      text = text.replaceAll(value, '${key}a');
     });
 
     // text = text.replaceAll('a' + 'ါ', 'ā');
     // text = text.replaceAll('a' + 'ေါ', 'o');
     text = text.replaceAll('ါ', 'ာ');
     _dependentVowels.forEach((key, value) {
-      text = text.replaceAll('a' + value, key);
+      text = text.replaceAll('a$value', key);
     });
 
     text = text.replaceAll('ံ', 'ṃ');
@@ -135,7 +135,7 @@ class MmPali {
       text = text.replaceAll(key, value + _virama);
     });
 
-    text = text.replaceAll(_virama + 'a', '');
+    text = text.replaceAll('${_virama}a', '');
     _dependentVowels.forEach((key, value) {
       text = text.replaceAll(_virama + key, value);
     });
