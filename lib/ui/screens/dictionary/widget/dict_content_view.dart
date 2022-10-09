@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../services/prefs.dart';
 import '../controller/dictionary_controller.dart';
@@ -26,6 +27,26 @@ class DictionaryContentView extends StatelessWidget {
                 child: SelectionArea(
                   child: HtmlWidget(
                     content,
+                    customWidgetBuilder: (element) {
+                      final href = element.attributes['href'];
+                      if (href != null) {
+                        return InkWell(
+                          onTap: () {
+                            launchUrl(Uri.parse(href));
+
+                            debugPrint('will launch $href.');
+                          },
+                          child: Text(
+                            element.text,
+                            style: const TextStyle(
+                                decoration: TextDecoration.underline,
+                                color: Colors.blue,
+                                fontSize: 12),
+                          ),
+                        );
+                      }
+                      return null;
+                    },
                     textStyle: TextStyle(
                         fontSize: Prefs.fontSize.toDouble(),
                         color: context.watch<ThemeChangeNotifier>().isDarkMode
