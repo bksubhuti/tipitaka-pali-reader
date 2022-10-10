@@ -82,15 +82,15 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined),
               tooltip: AppLocalizations.of(context)!.bookmark),
+          IconButton(
+              onPressed: () => _openTocDialog(context),
+              icon: const Icon(Icons.list_outlined),
+              tooltip: AppLocalizations.of(context)!.table_of_contents),
           if (!PlatformInfo.isDesktop)
             IconButton(
                 onPressed: () => _openSettingPage(context),
                 icon: const Icon(Icons.settings_outlined),
                 tooltip: AppLocalizations.of(context)!.settings),
-          IconButton(
-              onPressed: () => _openTocDialog(context),
-              icon: const Icon(Icons.list_outlined),
-              tooltip: AppLocalizations.of(context)!.table_of_contents),
         ],
       ),
     );

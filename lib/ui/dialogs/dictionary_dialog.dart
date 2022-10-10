@@ -24,9 +24,8 @@ class DictionaryDialog extends StatelessWidget {
             if (dc.lookupWord != _lastWord) {
               _words.add(dc.lookupWord!);
               _lastWord = dc.lookupWord!;
-              debugPrint(" added words:  ${_words.toString()}");
+              //debugPrint(" added words:  ${_words.toString()}");
             }
-            debugPrint("consumer called");
           } // if not null
 
           return Material(

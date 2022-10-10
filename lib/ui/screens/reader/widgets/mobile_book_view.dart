@@ -8,6 +8,7 @@ import '../../../../utils/pali_script.dart';
 import '../../../dialogs/dictionary_dialog.dart';
 import '../controller/reader_view_controller.dart';
 import 'pali_page_widget.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 class MobileBookView extends StatefulWidget {
   const MobileBookView({Key? key}) : super(key: key);
@@ -122,6 +123,9 @@ class _MobileBookViewState extends State<MobileBookView> {
         return SlidingSheetDialog(
           elevation: 8,
           cornerRadius: 16,
+          duration: Duration(
+            milliseconds: Prefs.animationSpeed.round(),
+          ),
           // minHeight: 200,
           snapSpec: const SnapSpec(
             snap: true,

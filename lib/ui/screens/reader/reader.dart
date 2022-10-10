@@ -78,8 +78,8 @@ class ReaderView extends StatelessWidget {
                   barContent: const ReaderToolbar(),
                   size: 100,
                   clicker: Container(
-                    width: 32,
-                    height: 20,
+                    width: 42,
+                    height: 30,
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.5),
                       borderRadius: const BorderRadius.only(

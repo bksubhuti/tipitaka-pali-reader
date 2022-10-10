@@ -70,14 +70,9 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
             stripDefs += '<P>'; // style="font-weight: normal;"> [ $word ] : ';
             stripDefs += htmlDefs; //bs.text;
           }
-          // now get the href and convert to button
-          Bs4Element? bsLink = bs.find('a', attrs: {'class': true});
-          if (bsLink != null) {
-            // there was a link.. make button
-            //stripDefs += '<button type="button">Click Me!</button>';
-          }
         }
         stripDefs += '</P>';
+        stripDefs = stripDefs.replaceAll("✎", "");
         order = maps.first['user_order'];
         bookName = maps.first['name'];
       }

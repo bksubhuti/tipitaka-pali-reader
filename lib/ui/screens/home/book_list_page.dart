@@ -11,6 +11,7 @@ import '../../../utils/pali_script.dart';
 import '../../../utils/platform_info.dart';
 import '../../widgets/colored_text.dart';
 import 'openning_books_provider.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 class BookListPage extends StatelessWidget {
   BookListPage({Key? key}) : super(key: key);
@@ -84,6 +85,9 @@ class BookListPage extends StatelessWidget {
           SizedBox(
             height: 250,
             child: DrawerHeader(
+              duration: Duration(
+                milliseconds: Prefs.animationSpeed.round(),
+              ),
               decoration: const BoxDecoration(),
               child: Column(
                 children: [

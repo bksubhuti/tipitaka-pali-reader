@@ -32,16 +32,17 @@ class DictionaryContentView extends StatelessWidget {
                       if (href != null) {
                         return InkWell(
                           onTap: () {
-                            launchUrl(Uri.parse(href));
+                            launchUrl(Uri.parse(href),
+                                mode: LaunchMode.externalApplication);
 
                             debugPrint('will launch $href.');
                           },
-                          child: Text(
-                            element.text,
-                            style: const TextStyle(
+                          child: const Text(
+                            "Submit a correction",
+                            style: TextStyle(
                                 decoration: TextDecoration.underline,
                                 color: Colors.blue,
-                                fontSize: 12),
+                                fontSize: 10),
                           ),
                         );
                       }

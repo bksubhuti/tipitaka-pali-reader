@@ -60,7 +60,24 @@ class _SearchBarState extends State<SearchBar> {
               onSubmitted: (text) => widget.onSubmitted(text),
               onChanged: (text) {
                 final scriptLanguage = ScriptDetector.getLanguage(text);
-                if (scriptLanguage == Script.roman) text = _toUni(text);
+                //if (scriptLanguage == Script.roman) text = _toUni(text);
+
+                if (text.isNotEmpty && scriptLanguage == Script.roman) {
+                  // text controller naturally pushes to the beginning
+                  // fixed to keep natural position
+
+                  // before conversion get cursor position and length
+                  int origTextLen = text.length;
+                  int pos = widget.controller.selection.start;
+                  final uniText = PaliTools.velthuisToUni(velthiusInput: text);
+                  // after conversion get length and add the difference (if any)
+                  int uniTextlen = uniText.length;
+                  widget.controller.text = uniText;
+                  widget.controller.selection = TextSelection.fromPosition(
+                      TextPosition(offset: pos + uniTextlen - origTextLen));
+                  text = uniText;
+                }
+
                 widget.onTextChanged(text);
               },
               decoration: InputDecoration(
