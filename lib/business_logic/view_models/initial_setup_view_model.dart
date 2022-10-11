@@ -55,10 +55,15 @@ class InitialSetupViewModel extends ChangeNotifier {
 
     await deleteDatabase(dbFilePath);
 
-    //Check if parent directory exists
-    try {
-      await Directory(dirname(databasesDirPath)).create(recursive: true);
-    } catch (_) {}
+    // make sure the folder exists
+    if (!await Directory(databasesDirPath).exists()) {
+      debugPrint('creating db folder path: $databasesDirPath');
+      try {
+        await Directory(databasesDirPath).create(recursive: true);
+      } catch (e) {
+        debugPrint('$e');
+      }
+    }
 
     // copying new database from assets
     await _copyFromAssets(dbFilePath);
