@@ -276,11 +276,18 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     }
 
     return '''
-            <p style="color:brown;text-align:right;">${widget.pageNumber}</p>
+            <p style="color:brown;text-align:right;">${_getScriptPageNumber(widget.pageNumber)}</p>
             <div id="page_content">
               $pageContent
             </div>
     ''';
+  }
+
+  String _getScriptPageNumber(int pageNumber) {
+    return PaliScript.getScriptOf(
+      script: context.watch<ScriptLanguageProvider>().currentScript,
+      romanText: (pageNumber.toString()),
+    );
   }
 
   String _addHighlight(String content, String textToHighlight) {
