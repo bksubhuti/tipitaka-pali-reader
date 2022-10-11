@@ -36,5 +36,13 @@
   "font":                 "फॉन्ट",
   "exact":                "संगत",
   "prefix":               "उपसर्ग",
-  "distance":             "अन्तर"
+  "distance":             "अन्तर",
+  "anywhere":             "कहीं पर भी",
+  "openingBook":          "पुस्तकें खोलना",
+  "animationSpeed":       "संचारण गति",
+  "generalSettings":      "सामान्य सेटिंग्स",
+  "increaseFontSize":     "अक्षरका आकार बढ़ाएँ",
+  "decreaseFontSize":     "अक्षरका आकार घटाएँ ",
+  "openLinkedBook":       "संलग्न किताब खोलें",
+  "gotoPageParagraph":     "पृष्ठ या अनुच्छेद पर जाएं"
 }

@@ -36,5 +36,13 @@
   "font":                 "字体",
   "exact":                "精确",
   "prefix":               "前缀",
-  "distance":             "间距"
+  "distance":             "间距",
+  "anywhere":             "任意位置",
+  "openingBook":          "打开的书籍",
+  "animationSpeed":       "动画加速ms",
+  "generalSettings":      "设置",
+  "increaseFontSize":     "字体放大",
+  "decreaseFontSize":     "字体缩小",
+  "openLinkedBook":       "关联书籍",
+  "gotoPageParagraph":     "前往页码或段落"
 }
