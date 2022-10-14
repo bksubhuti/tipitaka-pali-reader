@@ -84,8 +84,12 @@ msix_config:
   publisher_display_name: Bhikkhu Sangha
   identity_name: 26554BhikkhuSangha.TipitakaPaliReader 
   publisher: CN=76DA55C6-0663-4AE1-AE5E-609E9823DC18
-  msix_version: 1.0.1.0
   store: true
+  logo_path: C:\git\tipitaka-pali-reader\assets\icon\icon.png
+  msix_version: 1.1.6.0
+#######  for testing locally  ################
+#  publisher:  CN=76DA55C6-0663-4AE1-AE5E-609E9823DC18, O=Msix Testing... # required
+#  sign_msix: false
 
 
 # For information on the generic Dart part of this file, see the
