@@ -44,5 +44,8 @@
     "increaseFontSize":  "စာလုံးအရွယ်အစားချဲ့ခြင်း",  
     "decreaseFontSize":  "စာလုံးအရွယ်အစားချုံ့ခြင်း", 
     "openLinkedBook":  "ချိတ်ထားသောစာအုပ်ကိုဖွင့်ရန်", 
-    "gotoPageParagraph":  "စာမျက်နှာအပိုဒ်သို့သွားရန်"   
+    "gotoPageParagraph":  "စာမျက်နှာအပိုဒ်သို့သွားရန်",
+    "gotoPageParagraph":    "စာမျက်နှာ သို့မဟုတ် စာပိုဒ်သို့",
+    "scriptLanguage":       "ဘာသာစကား",
+    "dictionaryToClipboard": "အဘိဓာန် ကူးရန်"   
 }

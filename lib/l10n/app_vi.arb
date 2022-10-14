@@ -44,10 +44,7 @@
   "increaseFontSize":     "Tăng phông chữ",
   "decreaseFontSize":     "Giảm phông chữ",
   "openLinkedBook":       "Mở sách liên kết",
-  "gotoPageParagraph":    "Tới trang hay đoạn văn"
-
-
-
-   
-
+  "gotoPageParagraph":    "Tới trang hay đoạn văn",
+  "scriptLanguage":       "Script Language",
+  "dictionaryToClipboard": " Từ điển vào Chỗ Tạm Lưu"
 }

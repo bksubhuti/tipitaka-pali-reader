@@ -44,5 +44,7 @@
   "increaseFontSize":     "字体放大",
   "decreaseFontSize":     "字体缩小",
   "openLinkedBook":       "关联书籍",
-  "gotoPageParagraph":     "前往页码或段落"
+  "gotoPageParagraph":     "前往页码或段落",
+  "scriptLanguage":       "脚本语言",
+  "dictionaryToClipboard": "复制字典内容到剪贴板"
 }

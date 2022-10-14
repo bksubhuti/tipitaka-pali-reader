@@ -59,20 +59,24 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
         htmlDefs = defs[0].definition;
 
         if (htmlDefs.isNotEmpty) {
+          /*
           BeautifulSoup bs = BeautifulSoup(htmlDefs);
           // need to remove summary contents with bs
           // extract div classs dpd should be good.
           Bs4Element? bs4 = bs.find("div", class_: 'dpd');
           if (bs4 != null) {
-            stripDefs += '<P>'; // style="font-weight: normal;"> [ $word ] : ';
+            stripDefs += '<p>'; // style="font-weight: normal;"> [ $word ] : ';
             stripDefs += bs4.toString(); //bs.text;
           } else {
-            stripDefs += '<P>'; // style="font-weight: normal;"> [ $word ] : ';
+            stripDefs += '<p>'; // style="font-weight: normal;"> [ $word ] : ';
             stripDefs += htmlDefs; //bs.text;
           }
         }
-        stripDefs += '</P>';
+        stripDefs += '</p>';
         stripDefs = stripDefs.replaceAll("✎", "");
+        */
+        } // added this extra
+        stripDefs += htmlDefs;
         order = maps.first['user_order'];
         bookName = maps.first['name'];
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
 
 import '../../../business_logic/view_models/script_settings_view_model.dart';
 import 'select_script_language.dart';
@@ -21,12 +22,11 @@ class ScriptSettingView extends StatelessWidget {
                 title: Text(AppLocalizations.of(context)!.paliScript,
                     style: Theme.of(context).textTheme.headline6),
                 children: [
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(left: 32.0),
                     child: ListTile(
-                      title: Text('Script Language'),
-                      trailing: SelectScriptLanguageWidget(
-                      ),
+                      title: Text(AppLocalizations.of(context)!.scriptLanguage),
+                      trailing: SelectScriptLanguageWidget(),
                     ),
                   ),
                   Padding(
