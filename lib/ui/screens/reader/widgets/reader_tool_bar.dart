@@ -47,7 +47,13 @@ class UpperRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: const [
+        SizedBox(
+          width: 45,
+        ),
         Expanded(child: BookSlider()),
+        SizedBox(
+          width: 45,
+        ),
       ],
     );
   }
