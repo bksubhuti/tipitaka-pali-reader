@@ -165,15 +165,18 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   String _changeToInlineStyle(String content) {
     String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
     final styleMaps = <String, String>{
-      r'class="bld"': r'style="font-weight:bold;"',
+      r'class="bld"': 'style="font-weight:bold; color: $styleColor;"',
+      r'class="t5"': 'style="font-weight:bold; color: $styleColor;"',
+      r'class="t1"': 'style="font-weight:bold; color: $styleColor;"',
       r'class="centered"': 'style="text-align:center;color: $styleColor;"',
       r'class="paranum"': 'style="font-weight: bold; color: $styleColor;"',
-      r'class="indent"': r'style="text-indent:1.3em;margin-left:2em;"',
+      r'class="indent"':
+          'style="text-indent:1.3em;margin-left:2em; color: $styleColor;"',
       r'class="bodytext"': 'style="text-indent:1.3em;color: $styleColor;"',
-      r'class="unindented"': r'style=""',
-      r'class="noindentbodytext"': r'style=""',
+      r'class="unindented"': 'style="color: $styleColor;"',
+      r'class="noindentbodytext"': 'style="color: $styleColor;"',
       r'class="book"':
-          r'style="font-size: 1.9em; text-align:center; font-weight: bold;"',
+          'style="font-size: 1.9em; text-align:center; font-weight: bold; color: $styleColor;"',
       r'class="chapter"':
           'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $styleColor;"',
       r'class="nikaya"':
@@ -197,7 +200,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
-
+    debugPrint(content);
     return content;
   }
 
