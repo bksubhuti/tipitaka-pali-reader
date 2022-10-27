@@ -64,7 +64,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           factoryBuilder: () => _myFactory,
           textStyle: TextStyle(
               fontSize: fontSize.toDouble(),
-              inherit: false,
+              inherit: true,
               fontFamily: fontName),
           customStylesBuilder: (element) {
             // if (element.className == 'title' ||
