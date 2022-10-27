@@ -1,0 +1,20 @@
+[
+    {
+        "name": "peu",
+        "release_date": "22.10.2022",
+        "type": "sql",
+        "url": "https://pali.tools/peu.zip"
+    },
+    {
+        "name": "pm1",
+        "release_date": "22.10.2022",
+        "type": "sql",
+        "url": "https://pali.tools/pm1.zip"
+    },
+    {
+        "name": "mn1",
+        "release_date": "28.10.2022",
+        "type": "sql",
+        "url": "https://pali.tools/mn1.zip"
+    }
+]
