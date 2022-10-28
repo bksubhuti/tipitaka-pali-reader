@@ -1,18 +1,24 @@
 [
     {
-        "name": "peu",
+        "name": "peu update (Pali/English) 200k items",
         "release_date": "22.10.2022",
         "type": "sql",
-        "url": "https://pali.tools/peu.zip"
+        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/peu.zip"
     },
     {
-        "name": "pm1",
+        "name": "dpd update (Pali/English)",
         "release_date": "22.10.2022",
         "type": "sql",
-        "url": "https://pali.tools/pm1.zip"
+        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/dpd.zip"
     },
     {
-        "name": "mn1",
+        "name": "တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန်  Pali/Myanmar-1",
+        "release_date": "22.10.2022",
+        "type": "sql",
+        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/pm1.zip"
+    },
+    {
+        "name": "pali/english books",
         "release_date": "28.10.2022",
         "type": "sql",
         "url": "https://pali.tools/mn1.zip"
