@@ -53,7 +53,7 @@ dependencies:
       ref: 1511c92
   flutter_widget_from_html_core: ^0.8.5+3
   fwfh_text_style: ^2.22.8+1
-  styled_text: ^5.1.0
+  styled_text: ^6.0.0
   from_css_color: ^2.0.0
   scrollable_positioned_list: ^0.3.2
   word_selectable_text: ^0.2.0
@@ -63,12 +63,13 @@ dependencies:
     path: packages/slidable_bar
   huge_listview: ^2.0.2
   beautiful_soup_dart: ^0.3.0
-  msix: ^2.8.18
+  msix: ^3.6.6
   http: ^0.13.5
-  internet_connection_checker: ^0.0.1+4
+  internet_connection_checker: ^1.0.0+1
   archive: ^3.3.1
   url_launcher: ^6.1.5
   devicelocale: ^0.5.5
+  dio: ^4.0.6
   
   
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-//import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
+import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 
 import 'package:tipitaka_pali/services/prefs.dart';
 import '../../widgets/colored_text.dart';
@@ -40,6 +40,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           _getAnimationsSwitch(),
           _getHelpTile(context),
           _getAboutTile(context),
+          _getDownloadTile(context),
           //DownloadTile(context),
           //QuotesOrRestore(),
           _getReportIssueTile(context),
@@ -92,10 +93,10 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
       child: ElevatedButton(
           child: const Text('Download Pali/English Books'),
           onPressed: () {
-//            Navigator.push(
-            //            context,
-            //          MaterialPageRoute(builder: (context) => const DownloadView()),
-            //      );
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DownloadView()),
+            );
           }),
     );
   }

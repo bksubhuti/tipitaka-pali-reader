@@ -200,7 +200,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
-    debugPrint(content);
+    //debugPrint(content);
     return content;
   }
 
