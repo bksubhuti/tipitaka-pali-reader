@@ -6,6 +6,7 @@ import '../../../business_logic/models/book.dart';
 import '../../../services/provider/script_language_provider.dart';
 import '../../../services/provider/theme_change_notifier.dart';
 import '../../../utils/pali_script.dart';
+import '../../../utils/platform_info.dart';
 import '../home/openning_books_provider.dart';
 import 'reader.dart';
 
@@ -17,6 +18,9 @@ class ReaderContainer extends StatefulWidget {
 }
 
 class _ReaderContainerState extends State<ReaderContainer> {
+
+  var tabsVisibility = {};
+
   @override
   void initState() {
     super.initState();
@@ -25,6 +29,19 @@ class _ReaderContainerState extends State<ReaderContainer> {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Widget readerAt(int i, List<Map<String, dynamic>> books) {
+    final current = books[i];
+    final book = current['book'] as Book;
+    final currentPage = current['current_page'] as int?;
+    final textToHighlight = current['text_to_highlight'] as String?;
+    var reader = Reader(
+      book: book,
+      initialPage: currentPage,
+      textToHighlight: textToHighlight,
+    );
+    return reader;
   }
 
   @override
@@ -36,13 +53,40 @@ class _ReaderContainerState extends State<ReaderContainer> {
     final openedBookProvider = context.watch<OpenningBooksProvider>();
     final books = openedBookProvider.books;
 
-    final tabDatas = books
-        .map((element) => TabData(
-            text: PaliScript.getScriptOf(
-                script: context.watch<ScriptLanguageProvider>().currentScript,
-                romanText: (element['book'] as Book).name),
-            keepAlive: false))
-        .toList();
+    final tabs = books.asMap().entries.map((entry) {
+      final book = entry.value['book'] as Book;
+      final index = entry.key;
+      // Newly opened tab always becomes visible and hides the last visible book
+      if (index == 0 && !tabsVisibility.containsKey(book.id)) {
+        tabsVisibility[book.id] = true;
+
+        if (books.length > 3) {
+          for (var i = books.length - 1; i > 1; i--) {
+            final revBook = books[i]['book'] as Book;
+            if (tabsVisibility[revBook.id] == true) {
+              tabsVisibility[revBook.id] = false;
+              break;
+            }
+          }
+        }
+      }
+      final isVisible = (tabsVisibility[book.id] ?? false) == true;
+      return TabData(
+          text: PaliScript.getScriptOf(
+              script: context.watch<ScriptLanguageProvider>().currentScript,
+              romanText: book.name),
+          buttons: [
+            TabButton(
+                icon: IconProvider.data(
+                    isVisible ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => {
+                  setState(() {
+                    tabsVisibility[book.id] = !isVisible;
+                  })
+                })
+          ],
+          keepAlive: false);
+    }).toList();
 
     if (books.isEmpty) {
       return Container(
@@ -71,45 +115,70 @@ Etaṃ buddhānasāsanaṃ
 
     // cannot watch two notifiers simultaneity in a single widget
     // so warp in consumer for watching theme change
-    return Consumer<ThemeChangeNotifier>(
-      builder: ((context, themeChangeNotifier, child) {
-        // tabbed view uses custom theme and provide TabbedViewTheme.
-        // need to watch theme change and rebuild TabbedViewTheme with new one
+    return Stack(
+      children: [
+        Consumer<ThemeChangeNotifier>(
+          builder: ((context, themeChangeNotifier, child) {
+            // tabbed view uses custom theme and provide TabbedViewTheme.
+            // need to watch theme change and rebuild TabbedViewTheme with new one
 
-        return TabbedViewTheme(
-          data: themeChangeNotifier.isDarkMode
-              ? TabbedViewThemeData.dark()
-              : TabbedViewThemeData.mobile(
-                  accentColor: Theme.of(context).appBarTheme.backgroundColor ??
-                      Colors.blue,
-                ),
-          // data: TabbedViewThemeData.minimalist(),
-          child: TabbedView(
-            controller: TabbedViewController(tabDatas),
-            contentBuilder: (_, index) {
-              final book = books.elementAt(index)['book'] as Book;
-              final currentPage =
-                  books.elementAt(index)['current_page'] as int?;
-              final textToHighlight =
-                  books.elementAt(index)['text_to_highlight'] as String?;
-              return Reader(
-                book: book,
-                initialPage: currentPage,
-                textToHighlight: textToHighlight,
-              );
-            },
-            onTabClose: (index, tabData) =>
-                context.read<OpenningBooksProvider>().remove(index: index),
-            onTabSelection: (selectedIndex) {
-              if (selectedIndex != null) {
-                context
-                    .read<OpenningBooksProvider>()
-                    .updateSelectedBookIndex(selectedIndex);
-              }
-            },
-          ),
-        );
-      }),
+            return TabbedViewTheme(
+              data: themeChangeNotifier.isDarkMode
+                  ? TabbedViewThemeData.dark()
+                  : TabbedViewThemeData.mobile(
+                accentColor: Theme
+                    .of(context)
+                    .appBarTheme
+                    .backgroundColor ??
+                    Colors.blue,
+              ),
+              // data: TabbedViewThemeData.minimalist(),
+              child: TabbedView(
+                controller: TabbedViewController(tabs),
+                contentBuilder: (_, index) {
+                  if (Mobile.isPhone(context)) {
+                    return readerAt(index, books);
+                  } else {
+                    return Container();
+                  }
+                },
+                onTabClose: (index, tabData) {
+                  tabsVisibility.remove(books[index]['book'].id);
+                  context.read<OpenningBooksProvider>().remove(index: index);
+                },
+                onTabSelection: (selectedIndex) {
+                  if (selectedIndex != null) {
+                    context
+                        .read<OpenningBooksProvider>()
+                        .updateSelectedBookIndex(selectedIndex);
+                  }
+                },
+              ),
+            );
+          }),
+        ),
+        if (!Mobile.isPhone(context)) getColumns(books)
+      ],
     );
   }
+
+  Widget getColumns(List<Map<String, dynamic>> books) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(1, 30, 1, 1),
+      child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: Iterable.generate(books.length)
+              .map((i) {
+                if (tabsVisibility[books[i]['book'].id]) {
+                  return Expanded(child: readerAt(i, books));
+                } else {
+                  return null;
+                }
+              })
+              .where((element) => element != null)
+              .cast<Widget>()
+              .toList()),
+    );
+  }
+
 }
