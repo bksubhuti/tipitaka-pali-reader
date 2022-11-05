@@ -19,20 +19,24 @@ class DownloadView extends StatelessWidget {
             ),
             body: Consumer<DownloadNotifier>(
                 builder: (context, downloadModel, child) {
-              return Column(
-                children: [
-                  const SizedBox(
-                    height: 60,
-                  ),
-                  Text(downloadModel.message),
-                  const SizedBox(
-                    height: 60,
-                  ),
-                  SizedBox(
-                    height: 400,
-                    child: getFutureBuilder(downloadModel),
-                  ),
-                ],
+              return Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      height: 60,
+                    ),
+                    Text(downloadModel.message),
+                    const SizedBox(
+                      height: 60,
+                    ),
+                    SizedBox(
+                      height: 400,
+                      child: getFutureBuilder(downloadModel),
+                    ),
+                  ],
+                ),
               );
             }),
           ),

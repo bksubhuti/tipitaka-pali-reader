@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 import 'package:archive/archive_io.dart';
+import 'package:sqflite_common/sqlite_api.dart';
 
 import '../../../business_logic/models/download_list_item.dart';
 import 'download_notifier.dart';
@@ -14,6 +15,7 @@ import 'package:dio/dio.dart';
 class DownloadService {
   DownloadNotifier downloadNotifier;
   DownloadListItem downloadListItem;
+  int batchAmount = 500;
 
   String _dir = "";
 
@@ -63,52 +65,53 @@ class DownloadService {
           "\nNow downlading file.. ${downloadListItem.size}\nPlease Wait.";
       // now read a file
       String sql = await getSQL();
-      final db = await dbService.database;
+      Database db = await dbService.database;
       await doDeletes(db, sql);
       await doInserts(db, sql);
     }
     downloadNotifier.downloading = false;
   }
 
-  Future<void> doDeletes(db, String sql) async {
+  Future<void> doDeletes(Database db, String sql) async {
     sql = sql.toLowerCase();
     List<String> lines = sql.split("\n");
-    StringBuffer sb = StringBuffer("");
+    //StringBuffer sb = StringBuffer("");
 
-    for (String line in lines) {
-      if (line.contains("delete")) {
-        sb.writeln(line);
+    //String deleteSql = sb.toString();
+      downloadNotifier.message =
+          "\nNow Deleting Records";
+
+    if (lines.isNotEmpty) {
+      var batch = db.batch();
+      for (String line in lines) {
+        if (line.contains("delete")) {
+          db.rawDelete(line);
+        }
       }
-    }
 
-    String deleteSql = sb.toString();
-
-    if (deleteSql.isNotEmpty) {
-      await db.transaction((txn) async {
-        int id1 = await txn.rawDelete(deleteSql);
-        debugPrint('deleted: $id1');
-      });
     }
   }
 
-  Future<void> doInserts(db, String sql) async {
+  Future<void> doInserts(Database db, String sql) async {
     sql = sql.toLowerCase();
     List<String> lines = sql.split("\n");
-    StringBuffer sb = StringBuffer("");
+    var batch = db.batch();
 
+    int counter = 0;
     for (String line in lines) {
       if (line.contains("insert")) {
-        sb.writeln(line);
+        batch.rawInsert(line);
+        counter++;
+        if (counter % batchAmount == 1) {
+          await batch.commit(noResult: true);
+          downloadNotifier.message =
+              "inserted $counter of ${lines.length}: ${(counter / lines.length * 100).toStringAsFixed(0)}%";
+          batch = db.batch();
+        }
       }
     }
-
-    String insertSql = sb.toString();
-    if (insertSql.isNotEmpty) {
-      await db.transaction((txn) async {
-        int id1 = await txn.rawInsert(insertSql);
-        debugPrint('inserted1: $id1');
-      });
-    }
+    await batch.commit(noResult: true);
+    downloadNotifier.message = "Import is complete";
   }
 
   void showDownloadProgress(received, total) {

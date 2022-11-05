@@ -138,7 +138,7 @@ class DatabaseHelper {
         };
         batch.insert('fts_pages', value);
       }
-      await batch.commit();
+      await batch.commit(noResult: true);
       start += batchCount;
       debugPrint('finished: $start rows populating');
       int percent = ((start / count) * 100).round();
