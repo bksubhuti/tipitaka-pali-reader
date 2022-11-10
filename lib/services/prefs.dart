@@ -25,6 +25,8 @@ const String selectedPageColorPref = "selectedPageColor";
 const String databaseDirPathPref = "databaseDirPath";
 const String saveClickToClipboardPref = "saveClickToClipbard";
 const String animationSpeedPref = "animationSpeed";
+const String selectedMainCategoryFiltersPref = "selectedMainCategoryFilters";
+const String selectedSubCategoryFiltersPref = "selectedSubCategoryFilters";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -47,6 +49,10 @@ int defaultSelectedPageColor = Colors.white.value;
 const String defaultDatabaseDirPath = "";
 const bool defaultSaveClickToClipboard = false;
 const double defaultAnimationSpeed = 400;
+const String defaultSelectedMainCategoryFilters =
+    '["mula","annya","attha","tika"]';
+const String defultSelectedSubCategoryFilters =
+    '["_vi","_di","_ma","_sa","_an","_ku","_bi"]';
 
 class Prefs {
   // prevent object creation
@@ -142,4 +148,16 @@ class Prefs {
       instance.getDouble(animationSpeedPref) ?? defaultAnimationSpeed;
   static set animationSpeed(double value) =>
       instance.setDouble(animationSpeedPref, value);
+
+  static String get selectedMainCategoryFilters =>
+      instance.getString(selectedMainCategoryFiltersPref) ??
+      defaultSelectedMainCategoryFilters;
+  static set selectedMainCategoryFilters(String value) =>
+      instance.setString(selectedMainCategoryFiltersPref, value);
+
+  static String get selectedSubCategoryFilters =>
+      instance.getString(selectedSubCategoryFiltersPref) ??
+      defultSelectedSubCategoryFilters;
+  static set selectedSubCategoryFilters(String value) =>
+      instance.setString(selectedSubCategoryFiltersPref, value);
 }

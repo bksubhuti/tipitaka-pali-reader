@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+
+import '../../../../services/prefs.dart';
 
 class SearchFilterController extends ChangeNotifier {
   final Map<String, String> _mainCategoryFilters = const {
@@ -17,33 +20,40 @@ class SearchFilterController extends ChangeNotifier {
     '_bi': 'Abhidhamma'
   };
   Map<String, String> get mainCategoryFilters => _mainCategoryFilters;
+
   Map<String, String> get subCategoryFilters => _subCategoryFilters;
 
-  late final List<String> _selectedMainCategoryFilters;
+  //late List<String> _selectedMainCategoryFilters;
   late final List<String> _selectedSubCategoryFilters;
 
-  List<String> get selectedMainCategoryFilters => _selectedMainCategoryFilters;
-  List<String> get selectedSubCategoryFilters => _selectedSubCategoryFilters;
+  List<String> get selectedMainCategoryFilters =>
+      json.decode(Prefs.selectedMainCategoryFilters).cast<String>();
 
-  SearchFilterController(){
-    _selectedMainCategoryFilters = mainCategoryFilters.keys.toList();
-    _selectedSubCategoryFilters = subCategoryFilters.keys.toList();
-  }
+  List<String> get selectedSubCategoryFilters =>
+      json.decode(Prefs.selectedSubCategoryFilters).cast<String>();
 
   void onMainFilterChange(String filterID, bool isSelected) {
+    List<String> list =
+        json.decode(Prefs.selectedMainCategoryFilters).cast<String>();
     if (isSelected) {
-      _selectedMainCategoryFilters.add(filterID);
+      //_selectedMainCategoryFilters.add(filterID);
+      list.add(filterID);
     } else {
-      _selectedMainCategoryFilters.remove(filterID);
+      list.remove(filterID);
     }
+    Prefs.selectedMainCategoryFilters = json.encode(list);
     notifyListeners();
   }
+
   void onSubFilterChange(String filterID, bool isSelected) {
+    List<String> list =
+        json.decode(Prefs.selectedSubCategoryFilters).cast<String>();
     if (isSelected) {
-      _selectedSubCategoryFilters.add(filterID);
+      list.add(filterID);
     } else {
-      _selectedSubCategoryFilters.remove(filterID);
+      list.remove(filterID);
     }
+    Prefs.selectedSubCategoryFilters = json.encode(list);
     notifyListeners();
   }
 }
