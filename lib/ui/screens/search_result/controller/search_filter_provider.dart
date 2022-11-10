@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 
 import '../../../../services/prefs.dart';
 
@@ -23,37 +22,31 @@ class SearchFilterController extends ChangeNotifier {
 
   Map<String, String> get subCategoryFilters => _subCategoryFilters;
 
-  //late List<String> _selectedMainCategoryFilters;
-  late final List<String> _selectedSubCategoryFilters;
-
   List<String> get selectedMainCategoryFilters =>
-      json.decode(Prefs.selectedMainCategoryFilters).cast<String>();
+      Prefs.selectedMainCategoryFilters;
 
   List<String> get selectedSubCategoryFilters =>
-      json.decode(Prefs.selectedSubCategoryFilters).cast<String>();
+      Prefs.selectedSubCategoryFilters;
 
   void onMainFilterChange(String filterID, bool isSelected) {
-    List<String> list =
-        json.decode(Prefs.selectedMainCategoryFilters).cast<String>();
+    List<String> list = Prefs.selectedMainCategoryFilters;
     if (isSelected) {
-      //_selectedMainCategoryFilters.add(filterID);
       list.add(filterID);
     } else {
       list.remove(filterID);
     }
-    Prefs.selectedMainCategoryFilters = json.encode(list);
+    Prefs.selectedMainCategoryFilters = list;
     notifyListeners();
   }
 
   void onSubFilterChange(String filterID, bool isSelected) {
-    List<String> list =
-        json.decode(Prefs.selectedSubCategoryFilters).cast<String>();
+    List<String> list = Prefs.selectedSubCategoryFilters;
     if (isSelected) {
       list.add(filterID);
     } else {
       list.remove(filterID);
     }
-    Prefs.selectedSubCategoryFilters = json.encode(list);
+    Prefs.selectedSubCategoryFilters = list;
     notifyListeners();
   }
 }
