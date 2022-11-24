@@ -68,6 +68,7 @@ class DownloadService {
       Database db = await dbService.database;
       await doDeletes(db, sql);
       await doInserts(db, sql);
+      await doUpdates(db, sql);
     }
     downloadNotifier.downloading = false;
   }
@@ -78,8 +79,7 @@ class DownloadService {
     //StringBuffer sb = StringBuffer("");
 
     //String deleteSql = sb.toString();
-      downloadNotifier.message =
-          "\nNow Deleting Records";
+    downloadNotifier.message = "\nNow Deleting Records";
 
     if (lines.isNotEmpty) {
       var batch = db.batch();
@@ -88,7 +88,6 @@ class DownloadService {
           db.rawDelete(line);
         }
       }
-
     }
   }
 
@@ -102,7 +101,7 @@ class DownloadService {
       if (line.contains("insert")) {
         batch.rawInsert(line);
         counter++;
-        if (counter % batchAmount == 1) {
+        if (counter %   batchAmount == 1) {
           await batch.commit(noResult: true);
           downloadNotifier.message =
               "inserted $counter of ${lines.length}: ${(counter / lines.length * 100).toStringAsFixed(0)}%";
@@ -111,7 +110,29 @@ class DownloadService {
       }
     }
     await batch.commit(noResult: true);
-    downloadNotifier.message = "Import is complete";
+    downloadNotifier.message = "Insert is complete";
+  }
+
+  Future<void> doUpdates(Database db, String sql) async {
+    sql = sql.toLowerCase();
+    List<String> lines = sql.split("\n");
+    var batch = db.batch();
+
+    int counter = 0;
+    for (String line in lines) {
+      if (line.contains("update")) {
+        batch.rawUpdate(line);
+        counter++;
+        if (counter % batchAmount == 1) {
+          await batch.commit(noResult: true);
+          downloadNotifier.message =
+              "updated $counter of ${lines.length}: ${(counter / lines.length * 100).toStringAsFixed(0)}%";
+          batch = db.batch();
+        }
+      }
+    }
+    await batch.commit(noResult: true);
+    downloadNotifier.message = "Update is complete";
   }
 
   void showDownloadProgress(received, total) {

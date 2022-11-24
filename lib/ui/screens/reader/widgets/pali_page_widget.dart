@@ -167,7 +167,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final styleMaps = <String, String>{
       r'class="bld"': 'style="font-weight:bold; color: $styleColor;"',
       r'class="t5"': 'style="font-weight:bold; color: $styleColor;"',
-      r'class="t1"': 'style="font-weight:bold; color: $styleColor;"',
+      r'class="t1"': 'style=" color: $styleColor;"',
+      r'class="t3"':
+          'style="font-size: 1.7em;font-weight:bold; color: $styleColor;"',
+      r'class="t2"':
+          'style="font-size: 1.7em;font-weight:bold; color: $styleColor;"',
+      r'class="th31"':
+          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $styleColor;"',
       r'class="centered"': 'style="text-align:center;color: $styleColor;"',
       r'class="paranum"': 'style="font-weight: bold; color: $styleColor;"',
       r'class="indent"':
