@@ -1,44 +1,10 @@
 [
     {
-        "name": "peu update (Pali/English) 200k items",
+        "name": "Dictionaries and Pali/English Coming Soon",
         "release_date": "22.10.2022",
         "type": "sql",
-        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/peu.zip",
-        "filename": "peu.sql",
-        "size": "6.8MB"
-    },
-    {
-        "name": "dpd update (Pali/English)",
-        "release_date": "22.10.2022",
-        "type": "sql",
-        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/dpd.zip",
-        "filename": "dpd.sql",
-        "size": "8.1MB"
-    },
-    {
-        "name": "တိပိဋက ပါဠိ-မြန်မာ အဘိဓာန်  Pali/Myanmar-1",
-        "release_date": "22.10.2022",
-        "type": "sql",
-        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/pm1.zip",
-        "filename": "pm1.sql",
-        "size": "7.5MB"
-    },
-    {
-        "name": "pali/english books",
-        "release_date": "28.10.2022",
-        "type": "sql",
-        "url": "https://github.com/dhammacakka/pm12e/raw/main/release/pebooks.zip",
-        "filename": "pebooks.sql",
-        "size": "0.2MB"
-
-    },
-    {
-        "name": "delete peu pm1 dpd dpd_inflections",
-        "release_date": "28.10.2022",
-        "type": "sql",
-        "url": "https://raw.githubusercontent.com/bksubhuti/tipitaka-pali-reader/master/utility/delete4tables.zip",
-        "filename": "delete4tables.sql",
-        "size": "0.1MB"
+        "url": "https://",
+        "filename": "test.sql",
+        "size": "0.0MB"
     }
-
 ]
