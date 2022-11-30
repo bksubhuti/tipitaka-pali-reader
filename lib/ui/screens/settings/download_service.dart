@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 
@@ -66,14 +68,18 @@ class DownloadService {
       // now read a file
       String sql = await getSQL();
       Database db = await dbService.database;
-      await doDeletes(db, sql);
+      final newBooks = await doDeletes(db, sql);
       await doInserts(db, sql);
       await doUpdates(db, sql);
+      downloadNotifier.message = 'Building fts';
+      await doFts(db, newBooks);
     }
     downloadNotifier.downloading = false;
   }
 
-  Future<void> doDeletes(Database db, String sql) async {
+  Future<Set<String>> doDeletes(Database db, String sql) async {
+    Set<String> newBooks = <String>{};
+    RegExp reBookId = RegExp("'.+'");
     sql = sql.toLowerCase();
     List<String> lines = sql.split("\n");
     //StringBuffer sb = StringBuffer("");
@@ -85,10 +91,15 @@ class DownloadService {
       var batch = db.batch();
       for (String line in lines) {
         if (line.contains("delete")) {
+          if (line.contains('delete from books')) {
+            final match = reBookId.firstMatch(line)!;
+            newBooks.add(match[0]!);
+          }
           db.rawDelete(line);
         }
       }
     }
+    return newBooks;
   }
 
   Future<void> doInserts(Database db, String sql) async {
@@ -101,7 +112,7 @@ class DownloadService {
       if (line.contains("insert")) {
         batch.rawInsert(line);
         counter++;
-        if (counter %   batchAmount == 1) {
+        if (counter % batchAmount == 1) {
           await batch.commit(noResult: true);
           downloadNotifier.message =
               "inserted $counter of ${lines.length}: ${(counter / lines.length * 100).toStringAsFixed(0)}%";
@@ -110,6 +121,7 @@ class DownloadService {
       }
     }
     await batch.commit(noResult: true);
+
     downloadNotifier.message = "Insert is complete";
   }
 
@@ -132,7 +144,30 @@ class DownloadService {
       }
     }
     await batch.commit(noResult: true);
+
     downloadNotifier.message = "Update is complete";
+  }
+
+  Future<void> doFts(Database db, Set<String> newBooks) async {
+    var batch = db.batch();
+    for (final bookId in newBooks) {
+      final qureySql =
+          'SELECT id, bookid, page, content, paranum FROM pages WHERE bookid = $bookId';
+      final maps = await db.rawQuery(qureySql);
+      for (var element in maps) {
+        // before populating to fts, need to remove html tag
+        final value = <String, Object?>{
+          'id': element['id'] as int,
+          'bookid': element['bookid'] as String,
+          'page': element['page'] as int,
+          'content': _cleanText(element['content'] as String),
+          'paranum': element['paranum'] as String,
+        };
+        batch.insert('fts_pages', value);
+      }
+      await batch.commit(noResult: true);
+    }
+    downloadNotifier.message = "FTS is complete";
   }
 
   void showDownloadProgress(received, total) {
@@ -181,5 +216,10 @@ class DownloadService {
       }
     }
     downloadNotifier.message = "\nDownloaded ${archive.length} files";
+  }
+
+  String _cleanText(String text) {
+    final regexHtmlTags = RegExp(r'<[^>]*>');
+    return text.replaceAll(regexHtmlTags, '');
   }
 }

@@ -32,7 +32,7 @@ class DownloadView extends StatelessWidget {
                       height: 60,
                     ),
                     SizedBox(
-                      height: 400,
+                      // height: 400,
                       child: getFutureBuilder(downloadModel),
                     ),
                   ],
