@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slidable_bar/slidable_bar.dart';
+import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 
 import '../../../app.dart';
@@ -34,6 +35,7 @@ class Reader extends StatelessWidget {
     // logger.i('textToHighlight in Reader Screen: $textToHighlight');
 
     return ChangeNotifierProvider<ReaderViewController>(
+      key: Key(book.id),
       create: (context) => ReaderViewController(
           context: context,
           bookRepository: BookDatabaseRepository(DatabaseHelper()),
@@ -72,7 +74,7 @@ class ReaderView extends StatelessWidget {
       //     : const ReaderAppBar(),
       body: Consumer<ThemeChangeNotifier>(
           builder: ((context, themeChangeNotifier, child) => Container(
-                color: Color(Prefs.selectedPageColor),
+                color: getChosenColor(),
                 child: SlidableBar(
                   side: Side.bottom,
                   barContent: const ReaderToolbar(),
@@ -103,5 +105,18 @@ class ReaderView extends StatelessWidget {
               ))),
       // bottomNavigationBar: SafeArea(child: ControlBar()),
     );
+  }
+
+  Color getChosenColor() {
+    switch (Prefs.selectedPageColor) {
+      case 0:
+        return (Color(Colors.white.value));
+      case 1:
+        return (const Color(seypia));
+      case 2:
+        return (Color(Colors.black.value));
+      default:
+        return Color(Colors.white.value);
+    }
   }
 }

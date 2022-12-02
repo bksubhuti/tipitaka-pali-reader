@@ -8,11 +8,11 @@
         "size": "0.0MB"
     },
     {
-        "name": "Pali English Sutta 4 Nikaya Books",
-        "release_date": "30.11.2022",
-        "type": "sql",
+        "name": "Pali English 4 Sutta Nikaya Books (dn, mn, sn, and an) and 5 Vinaya Books",
+        "release_date": "2.12.2022",
+        "type": "books index",
         "url": "https://github.com/bksubhuti/tipitaka-pali-reader/raw/master/utility/pali-english-books.zip",
         "filename": "pali-english-books.sql",
-        "size": "4.0MB"
+        "size": "6 MB"
     }
 ]

@@ -66,7 +66,8 @@ class DarkModeSettingView extends StatelessWidget {
         trailing: ToggleButtons(
           color: Colors.red,
           onPressed: (int index) {
-            context.read<ThemeChangeNotifier>().toggleTheme(index);
+            Provider.of<ThemeChangeNotifier>(context, listen: false)
+                .toggleTheme(index);
           },
           isSelected: context.read<ThemeChangeNotifier>().isSelected,
           children: <Widget>[

@@ -95,9 +95,10 @@ class DownloadService {
             final match = reBookId.firstMatch(line)!;
             newBooks.add(match[0]!);
           }
-          db.rawDelete(line);
+          batch.rawDelete(line);
         }
       }
+      await batch.commit();
     }
     return newBooks;
   }
@@ -112,7 +113,7 @@ class DownloadService {
       if (line.contains("insert")) {
         batch.rawInsert(line);
         counter++;
-        if (counter % batchAmount == 1) {
+        if (batchAmount % counter == 1) {
           await batch.commit(noResult: true);
           downloadNotifier.message =
               "inserted $counter of ${lines.length}: ${(counter / lines.length * 100).toStringAsFixed(0)}%";
@@ -149,7 +150,9 @@ class DownloadService {
   }
 
   Future<void> doFts(Database db, Set<String> newBooks) async {
+    int maxWrites = 50;
     var batch = db.batch();
+    int counter = 0;
     for (final bookId in newBooks) {
       final qureySql =
           'SELECT id, bookid, page, content, paranum FROM pages WHERE bookid = $bookId';
@@ -164,7 +167,15 @@ class DownloadService {
           'paranum': element['paranum'] as String,
         };
         batch.insert('fts_pages', value);
+        counter++;
+        if (counter % maxWrites == 1) {
+          await batch.commit(noResult: true);
+          String pcent = (counter / maps.length * 100).toStringAsFixed(0);
+          downloadNotifier.message = "inserted $counter";
+          batch = db.batch();
+        }
       }
+      // commit remainder inserts after the loop stops.
       await batch.commit(noResult: true);
     }
     downloadNotifier.message = "FTS is complete";
