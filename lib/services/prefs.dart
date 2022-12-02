@@ -27,6 +27,7 @@ const String saveClickToClipboardPref = "saveClickToClipbard";
 const String animationSpeedPref = "animationSpeed";
 const String selectedMainCategoryFiltersPref = "selectedMainCategoryFilters";
 const String selectedSubCategoryFiltersPref = "selectedSubCategoryFilters";
+const String tabsVisiblePref = "tabsVisible";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -49,6 +50,7 @@ int defaultSelectedPageColor = 0;
 const String defaultDatabaseDirPath = "";
 const bool defaultSaveClickToClipboard = false;
 const double defaultAnimationSpeed = 400;
+const int defaultTabsVisible = 3;
 List<String> defaultSelectedMainCategoryFilters = [
   "mula",
   "annya",
@@ -171,4 +173,8 @@ class Prefs {
       defultSelectedSubCategoryFilters;
   static set selectedSubCategoryFilters(List<String> value) =>
       instance.setStringList(selectedSubCategoryFiltersPref, value);
+
+  static int get tabsVisible =>
+      instance.getInt(tabsVisiblePref) ?? defaultTabsVisible;
+  static set tabsVisible(int value) => instance.setInt(tabsVisiblePref, value);
 }
