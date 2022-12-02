@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
@@ -92,9 +91,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               }
             }
             if (element.className == 'highlighted') {
+              String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+              Color c = Theme.of(context).primaryColorLight;
               return {
-                'background': 'rgb(255, 114, 20)',
-                'color': 'white',
+                'background': 'rgb(${c.red},${c.green},${c.blue})',
+                'color': styleColor,
               };
             }
             // no style
