@@ -20,6 +20,7 @@ class Reader extends StatelessWidget {
   final Book book;
   final int? initialPage;
   final String? textToHighlight;
+
   const Reader({
     Key? key,
     required this.book,
@@ -99,8 +100,11 @@ class ReaderView extends StatelessWidget {
                   clickerSize: 32,
                   clickerPosition: 0.98,
                   child: PlatformInfo.isDesktop || Mobile.isTablet(context)
-                      ? const DesktopBookView()
-                      : const MobileBookView(),
+                      // don't const these two guys, otherwise theme changes
+                      // won't be reflected, alternatively: get notified about
+                      // changes in the views themselves
+                      ? DesktopBookView()
+                      : MobileBookView(),
                 ),
               ))),
       // bottomNavigationBar: SafeArea(child: ControlBar()),

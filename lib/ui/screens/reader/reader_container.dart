@@ -17,8 +17,36 @@ class ReaderContainer extends StatefulWidget {
   State<ReaderContainer> createState() => _ReaderContainerState();
 }
 
-class _ReaderContainerState extends State<ReaderContainer> {
+class TargetIconProvider implements IconProvider {
+  TargetIconProvider(this.iconData, this.onTap);
 
+  final Function(int index) onTap;
+
+  @override
+  final IconData? iconData;
+
+  @override
+  Widget buildIcon(Color color, double size) {
+    return DragTarget(
+      builder: (
+        BuildContext context,
+        List<dynamic> accepted,
+        List<dynamic> rejected,
+      ) {
+        return Icon(iconData, color: color, size: size);
+      },
+      onAccept: (int index) {
+        debugPrint('accepted $index');
+        onTap(index);
+      },
+    );
+  }
+
+  @override
+  IconPath? get iconPath => null;
+}
+
+class _ReaderContainerState extends State<ReaderContainer> {
   var tabsVisibility = {};
 
   @override
@@ -63,7 +91,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
         if (books.length > 3) {
           for (var i = books.length - 1; i > 1; i--) {
             final revBook = books[i]['book'] as Book;
-            if (tabsVisibility[revBook.id] == true) {
+            if (tabsVisibility.containsKey(revBook.id) &&
+                tabsVisibility[revBook.id] == true) {
               tabsVisibility[revBook.id] = false;
               break;
             }
@@ -77,13 +106,20 @@ class _ReaderContainerState extends State<ReaderContainer> {
               romanText: book.name),
           buttons: [
             TabButton(
-                icon: IconProvider.data(
-                    isVisible ? Icons.visibility : Icons.visibility_off),
+                icon: TargetIconProvider(
+                    isVisible ? Icons.visibility : Icons.visibility_off,
+                    (int sourceIndex) {
+                  debugPrint('Will move $sourceIndex to $index');
+                  final openedBookProvider =
+                  context.read<OpenningBooksProvider>().swap(
+                      sourceIndex,
+                      index);
+                }),
                 onPressed: () => {
-                  setState(() {
-                    tabsVisibility[book.id] = !isVisible;
-                  })
-                })
+                      setState(() {
+                        tabsVisibility[book.id] = !isVisible;
+                      })
+                    })
           ],
           keepAlive: false);
     }).toList();
@@ -126,34 +162,46 @@ Etaṃ buddhānasāsanaṃ
               data: themeChangeNotifier.isDarkMode
                   ? TabbedViewThemeData.dark()
                   : TabbedViewThemeData.mobile(
-                accentColor: Theme
-                    .of(context)
-                    .appBarTheme
-                    .backgroundColor ??
-                    Colors.blue,
-              ),
+                      accentColor:
+                          Theme.of(context).appBarTheme.backgroundColor ??
+                              Colors.blue,
+                    ),
               // data: TabbedViewThemeData.minimalist(),
               child: TabbedView(
-                controller: TabbedViewController(tabs),
-                contentBuilder: (_, index) {
-                  if (Mobile.isPhone(context)) {
-                    return readerAt(index, books);
-                  } else {
-                    return Container();
-                  }
-                },
-                onTabClose: (index, tabData) {
-                  tabsVisibility.remove(books[index]['book'].id);
-                  context.read<OpenningBooksProvider>().remove(index: index);
-                },
-                onTabSelection: (selectedIndex) {
-                  if (selectedIndex != null) {
-                    context
-                        .read<OpenningBooksProvider>()
-                        .updateSelectedBookIndex(selectedIndex);
-                  }
-                },
-              ),
+                  controller: TabbedViewController(tabs),
+                  contentBuilder: (_, index) {
+                    if (Mobile.isPhone(context)) {
+                      return readerAt(index, books);
+                    } else {
+                      return Container();
+                    }
+                  },
+                  onTabClose: (index, tabData) {
+                    tabsVisibility.remove(books[index]['book'].id);
+                    context.read<OpenningBooksProvider>().remove(index: index);
+                  },
+                  onTabSelection: (selectedIndex) {
+                    if (selectedIndex != null) {
+                      context
+                          .read<OpenningBooksProvider>()
+                          .updateSelectedBookIndex(selectedIndex);
+                    }
+                  },
+                  draggableTabBuilder:
+                      (int tabIndex, TabData tab, Widget tabWidget) {
+                    return Draggable<int>(
+                        feedback: Material(
+                            child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(border: Border.all()),
+                                child: Text(tab.text))),
+                        data: tabIndex,
+                        dragAnchorStrategy: (Draggable<Object> draggable,
+                            BuildContext context, Offset position) {
+                          return Offset.zero;
+                        },
+                        child: tabWidget);
+                  }),
             );
           }),
         ),
@@ -169,7 +217,8 @@ Etaṃ buddhānasāsanaṃ
           mainAxisAlignment: MainAxisAlignment.center,
           children: Iterable.generate(books.length)
               .map((i) {
-                if (tabsVisibility[books[i]['book'].id]) {
+                final isVisible = tabsVisibility[books[i]['book'].id] ?? false;
+                if (isVisible) {
                   return Expanded(child: readerAt(i, books));
                 } else {
                   return null;
@@ -180,5 +229,4 @@ Etaṃ buddhānasāsanaṃ
               .toList()),
     );
   }
-
 }
