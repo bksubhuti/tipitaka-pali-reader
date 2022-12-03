@@ -110,7 +110,6 @@ class _ReaderContainerState extends State<ReaderContainer> {
                     isVisible ? Icons.visibility : Icons.visibility_off,
                     (int sourceIndex) {
                   debugPrint('Will move $sourceIndex to $index');
-                  final openedBookProvider =
                   context.read<OpenningBooksProvider>().swap(
                       sourceIndex,
                       index);
