@@ -14,5 +14,70 @@
         "url": "https://github.com/bksubhuti/tipitaka-pali-reader/raw/master/utility/pali-english-books.zip",
         "filename": "pali-english-books.sql",
         "size": "6 MB"
+    },
+    {
+        "name": "Worldnet English to English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/worldnet.zip",
+        "filename": "worldnet.sql",
+        "size": "5.8 MB"
+    },
+    {
+        "name": "German Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/g1.zip",
+        "filename": "g1.sql",
+        "size": "0.5 MB"
+    },
+    {
+        "name": "Hindi Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/h1.zip",
+        "filename": "h1.sql",
+        "size": "0.3 MB"
+    },
+    {
+        "name": "Chinese Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/pc1.zip",
+        "filename": "g1.sql",
+        "size": "0.244 MB"
+    },
+    {
+        "name": "Chinese 2 Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/pc2.zip",
+        "filename": "pc2.sql",
+        "size": "2.0 MB"
+    },
+    {
+        "name": "Indonesian Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/ind1.zip",
+        "filename": "ind1.sql",
+        "size": "0.143 MB"
+    },
+    {
+        "name": "Vietnamese Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/vn1.zip",
+        "filename": "vn1.sql",
+        "size": "0.300 MB"
+    },
+    {
+        "name": "Vietnamese 2 Pali English Dictionary",
+        "release_date": "5.12.2022",
+        "type": "dictionary",
+        "url": "https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/dictionaries/vn2.zip",
+        "filename": "vn2.sql",
+        "size": "0.07 MB"
     }
+        
 ]
