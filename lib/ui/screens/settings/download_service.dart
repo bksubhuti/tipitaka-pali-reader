@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 
@@ -13,6 +14,8 @@ import 'download_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:dio/dio.dart';
+import 'package:tipitaka_pali/services/repositories/page_content_repo.dart';
+import 'package:tipitaka_pali/business_logic/models/page_content.dart';
 
 class DownloadService {
   DownloadNotifier downloadNotifier;
@@ -71,8 +74,12 @@ class DownloadService {
       final newBooks = await doDeletes(db, sql);
       await doInserts(db, sql);
       await doUpdates(db, sql);
-      downloadNotifier.message = 'Building fts';
-      await doFts(db, newBooks);
+
+      if (downloadListItem.type.contains("index")) {
+        downloadNotifier.message = 'Building fts';
+        await doFts(db, newBooks);
+        await makeEnglishWordList();
+      }
     }
     downloadNotifier.downloading = false;
   }
@@ -232,5 +239,86 @@ class DownloadService {
   String _cleanText(String text) {
     final regexHtmlTags = RegExp(r'<[^>]*>');
     return text.replaceAll(regexHtmlTags, '');
+  }
+
+  Future<void> makeEnglishWordList() async {
+    // select * from pages where bookid like "annya_pe%"
+    // build Stringbuffer from  bs t1 which is english
+    // add unique words to list
+    //
+    // delete words table which have -1 count
+    // insert the words to the word table with count -1
+    //  final pageContentRepository =
+    //    PageContentDatabaseRepository(DatabaseHelper());
+    downloadNotifier.message = "Creating unique wordlist\n";
+    Database db = await dbService.database;
+    List<String> uniqueWords = [];
+
+    List<String> categories = [
+      "annya_pe_vinaya",
+      "annya_pe_dn",
+      "annya_pe_mn",
+      "annya_pe_sn",
+      "annya_pe_an"
+    ];
+
+    for (String x in categories) {
+      downloadNotifier.message += "processeing wordlist for $x\n";
+      List<Map> list = await db.rawQuery(
+          '''SELECT pages.id, pages.bookid, pages.page, pages.content, pages.paranum from pages,books,category 
+          WHERE category.id ='$x'
+              AND books.category = category.id
+              AND books.id = pages.bookid;''');
+
+      var pages = list.map((x) => PageContent.fromJson(x)).toList();
+      int lines = 0;
+
+      var englishPages = StringBuffer();
+      // build massive 17k pages of text into string buffer.
+      for (PageContent page in pages) {
+        BeautifulSoup bs = BeautifulSoup(page.content);
+        List<Bs4Element> englishLines = bs.findAll("p");
+        for (Bs4Element bsEnglishLine in englishLines) {
+          if (bsEnglishLine.toString().contains("t1")) {
+            englishPages.write("${bsEnglishLine.text.toLowerCase()} ");
+            lines++;
+          }
+        }
+      }
+
+      String englishPagesString = englishPages.toString();
+
+      List<String> words = englishPagesString.split(RegExp(r"\s"));
+      // Iterate through the words and add them to the wordlist with frequency
+
+      for (var word in words) {
+        String w = word.trim().toLowerCase().toString();
+        w = w.replaceAll(RegExp('[^A-Za-zāīūṃṅñṭṭḍṇḷ]'), '');
+        if (!uniqueWords.contains(w)) {
+          uniqueWords.add(w);
+        }
+      }
+    }
+    downloadNotifier.message = "Adding English wordlist";
+
+    // now delete all words from the table with -1 count
+    await db.rawDelete("Delete from words where frequency = -1");
+    var batch = db.batch();
+    int counter = 0;
+    for (String s in uniqueWords) {
+      batch.rawInsert('''INSERT INTO words (word, frequency) SELECT '$s', -1  
+                          WHERE NOT EXISTS 
+                          (SELECT word from words where word ='$s');''');
+      debugPrint(s);
+      counter++;
+      if (counter % 100 == 1) {
+        await batch.commit();
+        batch = db.batch();
+        downloadNotifier.message = "$counter of ${uniqueWords.length}";
+      }
+      await batch.commit();
+//      debugPrint("tesing words:  ${uniqueWords[x]}");
+    }
+    downloadNotifier.message = "English wordlist is complete";
   }
 }

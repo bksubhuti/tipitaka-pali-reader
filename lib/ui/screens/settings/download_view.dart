@@ -33,7 +33,7 @@ class DownloadView extends StatelessWidget {
                     ),
                     SizedBox(
                       // height: 400,
-                      child: getFutureBuilder(downloadModel),
+                      child: getFutureBuilder(context, downloadModel),
                     ),
                   ],
                 ),
@@ -51,37 +51,42 @@ class DownloadView extends StatelessWidget {
     await downloadService.installSqlZip();
   }
 
-  getFutureBuilder(DownloadNotifier downloadModel) {
+  getFutureBuilder(context, DownloadNotifier downloadModel) {
     if (downloadModel.downloading) {
       return const SizedBox.shrink();
     } else {
-      return FutureBuilder(
-        future: http.get(Uri.parse(
-            'https://raw.githubusercontent.com/bksubhuti/tipitaka-pali-reader/master/utility/download_list.json')),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          List<DownloadListItem> dlList =
-              downloadListItemFromJson(snapshot.data!.body);
-          // print(data);
+      return SizedBox(
+        height: MediaQuery.of(context).size.height * 0.65,
+        width: MediaQuery.of(context).size.width * 0.65,
+        child: FutureBuilder(
+          future: http.get(Uri.parse(
+              'https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/download_list.json')),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            List<DownloadListItem> dlList =
+                downloadListItemFromJson(snapshot.data!.body);
+            // print(data);
 
-          // return Text('see');
-          return ListView.builder(
-            shrinkWrap: true,
-            itemCount: dlList.length,
-            itemBuilder: (context, index) {
-              //      print(stores[index][index]['name']);
-              return ListTile(
-                title: Text("${dlList[index].name} ${dlList[index].size}"),
-                leading: Text(dlList[index].releaseDate),
-                onTap: () async {
-                  await getDownload(downloadModel, dlList[index]);
-                },
-              );
-            },
-          );
-        },
+            // return Text('see');
+            return ListView.builder(
+              scrollDirection: Axis.vertical,
+              shrinkWrap: true,
+              itemCount: dlList.length,
+              itemBuilder: (context, index) {
+                //      print(stores[index][index]['name']);
+                return ListTile(
+                  title: Text("${dlList[index].name} ${dlList[index].size}"),
+                  leading: Text(dlList[index].releaseDate),
+                  onTap: () async {
+                    await getDownload(downloadModel, dlList[index]);
+                  },
+                );
+              },
+            );
+          },
+        ),
       );
     }
   }
