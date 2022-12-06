@@ -78,8 +78,8 @@ class DownloadService {
       if (downloadListItem.type.contains("index")) {
         downloadNotifier.message = 'Building fts';
         await doFts(db, newBooks);
+        await makeEnglishWordList();
       }
-      await makeEnglishWordList();
     }
     downloadNotifier.downloading = false;
   }
