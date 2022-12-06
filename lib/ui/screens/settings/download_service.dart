@@ -78,8 +78,8 @@ class DownloadService {
       if (downloadListItem.type.contains("index")) {
         downloadNotifier.message = 'Building fts';
         await doFts(db, newBooks);
-        await makeEnglishWordList();
       }
+      await makeEnglishWordList();
     }
     downloadNotifier.downloading = false;
   }
@@ -273,27 +273,27 @@ class DownloadService {
       var pages = list.map((x) => PageContent.fromJson(x)).toList();
       int lines = 0;
 
-      var englishPages = StringBuffer();
+      var englishPagesBuffer = StringBuffer();
       // build massive 17k pages of text into string buffer.
       for (PageContent page in pages) {
         BeautifulSoup bs = BeautifulSoup(page.content);
         List<Bs4Element> englishLines = bs.findAll("p");
         for (Bs4Element bsEnglishLine in englishLines) {
           if (bsEnglishLine.toString().contains("t1")) {
-            englishPages.write("${bsEnglishLine.text.toLowerCase()} ");
+            englishPagesBuffer.write("${bsEnglishLine.text.toLowerCase()} ");
             lines++;
           }
         }
       }
 
-      String englishPagesString = englishPages.toString();
+      String englishPagesString = englishPagesBuffer.toString();
 
-      List<String> words = englishPagesString.split(RegExp(r"\s"));
+      List<String> words = englishPagesString.split(RegExp(r"[\s—]+"));
       // Iterate through the words and add them to the wordlist with frequency
 
       for (var word in words) {
         String w = word.trim().toLowerCase().toString();
-        w = w.replaceAll(RegExp('[^A-Za-zāīūṃṅñṭṭḍṇḷ]'), '');
+        w = w.replaceAll(RegExp('[^A-Za-zāīūṃṅñṭṭḍṇḷ\-]'), '');
         if (!uniqueWords.contains(w)) {
           uniqueWords.add(w);
         }
@@ -309,7 +309,6 @@ class DownloadService {
       batch.rawInsert('''INSERT INTO words (word, frequency) SELECT '$s', -1  
                           WHERE NOT EXISTS 
                           (SELECT word from words where word ='$s');''');
-      debugPrint(s);
       counter++;
       if (counter % 100 == 1) {
         await batch.commit();
@@ -317,7 +316,6 @@ class DownloadService {
         downloadNotifier.message = "$counter of ${uniqueWords.length}";
       }
       await batch.commit();
-//      debugPrint("tesing words:  ${uniqueWords[x]}");
     }
     downloadNotifier.message = "English wordlist is complete";
   }
