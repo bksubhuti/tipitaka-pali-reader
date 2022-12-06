@@ -64,7 +64,8 @@ List<String> defultSelectedSubCategoryFilters = [
   "_sa",
   "_an",
   "_ku",
-  "_bi"
+  "_bi",
+  "_pe"
 ];
 
 class Prefs {

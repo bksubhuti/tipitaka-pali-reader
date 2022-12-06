@@ -36,7 +36,7 @@ class SuggestionListTile extends StatelessWidget {
       trailing: Text(
           PaliScript.getScriptOf(
               script: context.read<ScriptLanguageProvider>().currentScript,
-              romanText: frequency.toString()),
+              romanText: (frequency == -1) ? " " : frequency.toString()),
           style: const TextStyle(fontSize: 18)),
       onTap: onTap,
     );

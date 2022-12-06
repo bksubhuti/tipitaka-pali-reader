@@ -16,7 +16,8 @@ class SearchFilterController extends ChangeNotifier {
     '_sa': 'Saṃyutta',
     '_an': 'Aṅguttara',
     '_ku': 'Khuddaka',
-    '_bi': 'Abhidhamma'
+    '_bi': 'Abhidhamma',
+    '_pe': 'English'
   };
   Map<String, String> get mainCategoryFilters => _mainCategoryFilters;
 

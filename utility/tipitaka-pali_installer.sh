@@ -72,6 +72,7 @@ chmod +x $appimages $desktopfile
 cp -v $desktopfile $desktopdir
 
 install_dep
+db_download
 
 # application-desktop file with commands
 # desktop-file-install tipitaka_pali_reader.desktop  --dir=$HOME/.local/share/applications  
