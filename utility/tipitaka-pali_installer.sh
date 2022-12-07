@@ -4,7 +4,8 @@ basename=tipitaka_pali_reader
 appimages=${basename}.AppImage
 icons=${basename}.png
 desktopfile=${basename}.desktop
-tpr_dep="libsqlite3-dev fuse"   
+tpr_dep="libsqlite3-dev fuse p7zip"   
+db_drive_url="https://drive.google.com/u/0/uc?id=1CX4deXtPYANZu1DnPbD566ZXCjp3ckaK&export=download"
 
 install_dep(){
 if [ "$EUID" -ne 0 ]
@@ -26,6 +27,12 @@ do
             echo    "$app_dep installed"
     fi
 done
+}
+
+db_download(){
+ curl -L "${db_drive_url}" > tipitaka_pali.7z
+ 7za e tipitaka_pali.7z
+ du -sh tipitaka_pali.db
 }
 
 # System
