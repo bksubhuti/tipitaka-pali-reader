@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../services/prefs.dart';
+
 class SearchFilterController extends ChangeNotifier {
   final Map<String, String> _mainCategoryFilters = const {
     'mula': 'Mūla',
@@ -14,36 +16,38 @@ class SearchFilterController extends ChangeNotifier {
     '_sa': 'Saṃyutta',
     '_an': 'Aṅguttara',
     '_ku': 'Khuddaka',
-    '_bi': 'Abhidhamma'
+    '_bi': 'Abhidhamma',
+    '_pe': 'English'
   };
   Map<String, String> get mainCategoryFilters => _mainCategoryFilters;
+
   Map<String, String> get subCategoryFilters => _subCategoryFilters;
 
-  late final List<String> _selectedMainCategoryFilters;
-  late final List<String> _selectedSubCategoryFilters;
+  List<String> get selectedMainCategoryFilters =>
+      Prefs.selectedMainCategoryFilters;
 
-  List<String> get selectedMainCategoryFilters => _selectedMainCategoryFilters;
-  List<String> get selectedSubCategoryFilters => _selectedSubCategoryFilters;
-
-  SearchFilterController(){
-    _selectedMainCategoryFilters = mainCategoryFilters.keys.toList();
-    _selectedSubCategoryFilters = subCategoryFilters.keys.toList();
-  }
+  List<String> get selectedSubCategoryFilters =>
+      Prefs.selectedSubCategoryFilters;
 
   void onMainFilterChange(String filterID, bool isSelected) {
+    List<String> list = Prefs.selectedMainCategoryFilters;
     if (isSelected) {
-      _selectedMainCategoryFilters.add(filterID);
+      list.add(filterID);
     } else {
-      _selectedMainCategoryFilters.remove(filterID);
+      list.remove(filterID);
     }
+    Prefs.selectedMainCategoryFilters = list;
     notifyListeners();
   }
+
   void onSubFilterChange(String filterID, bool isSelected) {
+    List<String> list = Prefs.selectedSubCategoryFilters;
     if (isSelected) {
-      _selectedSubCategoryFilters.add(filterID);
+      list.add(filterID);
     } else {
-      _selectedSubCategoryFilters.remove(filterID);
+      list.remove(filterID);
     }
+    Prefs.selectedSubCategoryFilters = list;
     notifyListeners();
   }
 }

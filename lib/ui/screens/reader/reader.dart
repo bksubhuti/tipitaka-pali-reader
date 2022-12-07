@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slidable_bar/slidable_bar.dart';
+import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 
 import '../../../app.dart';
@@ -19,6 +20,7 @@ class Reader extends StatelessWidget {
   final Book book;
   final int? initialPage;
   final String? textToHighlight;
+
   const Reader({
     Key? key,
     required this.book,
@@ -34,6 +36,7 @@ class Reader extends StatelessWidget {
     // logger.i('textToHighlight in Reader Screen: $textToHighlight');
 
     return ChangeNotifierProvider<ReaderViewController>(
+      key: Key(book.id),
       create: (context) => ReaderViewController(
           context: context,
           bookRepository: BookDatabaseRepository(DatabaseHelper()),
@@ -72,14 +75,14 @@ class ReaderView extends StatelessWidget {
       //     : const ReaderAppBar(),
       body: Consumer<ThemeChangeNotifier>(
           builder: ((context, themeChangeNotifier, child) => Container(
-                color: Color(Prefs.selectedPageColor),
+                color: getChosenColor(),
                 child: SlidableBar(
                   side: Side.bottom,
                   barContent: const ReaderToolbar(),
                   size: 100,
                   clicker: Container(
-                    width: 32,
-                    height: 20,
+                    width: 42,
+                    height: 30,
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.5),
                       borderRadius: const BorderRadius.only(
@@ -97,11 +100,27 @@ class ReaderView extends StatelessWidget {
                   clickerSize: 32,
                   clickerPosition: 0.98,
                   child: PlatformInfo.isDesktop || Mobile.isTablet(context)
-                      ? const DesktopBookView()
-                      : const MobileBookView(),
+                      // don't const these two guys, otherwise theme changes
+                      // won't be reflected, alternatively: get notified about
+                      // changes in the views themselves
+                      ? DesktopBookView()
+                      : MobileBookView(),
                 ),
               ))),
       // bottomNavigationBar: SafeArea(child: ControlBar()),
     );
+  }
+
+  Color getChosenColor() {
+    switch (Prefs.selectedPageColor) {
+      case 0:
+        return (Color(Colors.white.value));
+      case 1:
+        return (const Color(seypia));
+      case 2:
+        return (Color(Colors.black.value));
+      default:
+        return Color(Colors.white.value);
+    }
   }
 }

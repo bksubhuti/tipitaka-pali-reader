@@ -44,4 +44,11 @@ class OpenningBooksProvider extends ChangeNotifier {
     notifyListeners();
     }
   }
+
+  void swap(int source, int target) {
+    var tmp = books[source];
+    books[source] = books[target];
+    books[target] = tmp;
+    notifyListeners();
+  }
 }

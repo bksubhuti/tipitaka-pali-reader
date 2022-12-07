@@ -36,9 +36,15 @@
   "font":                 "Font",
   "exact":                "Tìm chính xác",
   "prefix":               "Tìm tiền tố",
-  "distance":             "Tìm cách khoảng"
-
-
-   
-
+  "distance":             "Tìm cách khoảng",
+    "anywhere":           "Bất cứ đâu",
+  "openingBook":          "Mở sách",
+  "animationSpeed":       "Tốc độ hoạt ảnh  ms",
+  "generalSettings":      "Tổng Quát",
+  "increaseFontSize":     "Tăng phông chữ",
+  "decreaseFontSize":     "Giảm phông chữ",
+  "openLinkedBook":       "Mở sách liên kết",
+  "gotoPageParagraph":    "Tới trang hay đoạn văn",
+  "scriptLanguage":       "Script Language",
+  "dictionaryToClipboard": " Từ điển vào Chỗ Tạm Lưu"
 }

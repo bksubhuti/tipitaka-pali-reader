@@ -36,12 +36,17 @@
   "font":                 "අකුරු",
   "exact":                "හරියටම",
   "prefix":               "උපසර්ගය",
-  "distance":             "දුර"
-
-
-
-   
-
+  "distance":             "දුර",
+  "anywhere":             "ඕනෑම කොටසක්", 
+  "openingBook":          "පොත් විවර කිරීම",
+  "animationSpeed":       "Animation Speed in ms",
+  "generalSettings":      "සාමාන්‍ය සැකසුම්",
+  "increaseFontSize":     "අකුරු විශාලත්වය වැඩි කරන්න",
+  "decreaseFontSize":     "අකුරු විශාලත්වය අඩු කරන්න",
+  "openLinkedBook":       "සබැඳි පොත විවර කරන්න",
+  "gotoPageParagraph":    "පිටුව හෝ පරිච්චේදය වෙත",
+  "scriptLanguage":       "අකුරු වර්ගය",
+  "dictionaryToClipboard":   "ශබ්දකෝෂය copy කරගන්න"
 }
 
 

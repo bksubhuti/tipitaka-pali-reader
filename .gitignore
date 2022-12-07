@@ -12,7 +12,7 @@
 *.db
 *.7z
 tipitaka_pali_part*
-# pubspec.lock
+pubspec.lock
 
 
 # IntelliJ related

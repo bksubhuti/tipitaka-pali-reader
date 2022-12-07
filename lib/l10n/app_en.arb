@@ -37,7 +37,18 @@
   "exact":                "Exact",
   "prefix":               "Prefix",
   "distance":             "Distance",
-  "anywhere":             "anywhere"
+  "anywhere":             "Any Part",
+  "openingBook":          "Openning Books",
+  "animationSpeed":       "Animation Speed in ms",
+  "generalSettings":      "General",
+  "increaseFontSize":     "Increase font size",
+  "decreaseFontSize":     "Decrease font size",
+  "openLinkedBook":       "Open linked book",
+  "gotoPageParagraph":    "Goto page or paragraph",
+  "scriptLanguage":       "Script Language",
+  "dictionaryToClipboard": "Dictionary to Clipboard",
+  "help":                  "Help",
+  "reportIssue":           "Report Issue"
 }
 
 

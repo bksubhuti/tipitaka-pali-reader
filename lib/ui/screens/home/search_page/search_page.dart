@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 import '../../../../business_logic/view_models/search_page_view_model.dart';
 import '../widgets/search_bar.dart';
@@ -89,7 +90,8 @@ class _SearchPageState extends State<SearchPage> {
                     ],
                   ),
                   AnimatedSize(
-                    duration: const Duration(milliseconds: 300),
+                    duration:
+                        Duration(milliseconds: Prefs.animationSpeed.round()),
                     child: isShowingSearchModeView
                         ? SearchModeView(
                             mode: vm.queryMode,

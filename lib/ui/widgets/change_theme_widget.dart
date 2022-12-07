@@ -11,7 +11,7 @@ class ChangeThemeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     //final themeProvider = Provider.of<ThemeChangeNotifier>(context);
 
-// This code is not used.. old code 
+// This code is not used.. old code
 // now use 3 state button
     return Switch(
       value: Prefs.darkThemeOn,
@@ -21,7 +21,7 @@ class ChangeThemeWidget extends StatelessWidget {
         final provider =
             Provider.of<ThemeChangeNotifier>(context, listen: false);
         Prefs.darkThemeOn = value;
-        provider.toggleTheme(1); // not used.. old cod
+        provider.toggleTheme(Prefs.selectedPageColor); // not used.. old cod
       },
     );
   }

@@ -5,6 +5,8 @@ import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import '../../../../business_logic/models/book.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
+import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class OpenningBookListView extends StatelessWidget {
   const OpenningBookListView({super.key});
@@ -21,7 +23,7 @@ class OpenningBookListView extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close),
         ),
-        title: Text('Openning Books'),
+        title: ColoredText(AppLocalizations.of(context)!.openingBook),
       ),
       body: ListView.builder(
           itemCount: openningBooks.length,

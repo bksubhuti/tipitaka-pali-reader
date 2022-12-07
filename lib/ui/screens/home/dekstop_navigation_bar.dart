@@ -31,6 +31,7 @@ class DeskTopNavigationBar extends StatelessWidget {
         fit: BoxFit.scaleDown,
       ),
       useIndicator: true,
+      labelType: NavigationRailLabelType.none,
       destinations: [
         NavigationRailDestination(
           icon: const Icon(Icons.home_outlined),

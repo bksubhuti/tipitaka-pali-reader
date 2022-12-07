@@ -7,6 +7,7 @@ import '../reader/reader_container.dart';
 import 'dekstop_navigation_bar.dart';
 import 'navigation_pane.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 class DesktopHomeView extends StatefulWidget {
   const DesktopHomeView({Key? key}) : super(key: key);
@@ -32,7 +33,7 @@ class _DesktopHomeViewState extends State<DesktopHomeView>
 
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: Duration(milliseconds: Prefs.animationSpeed.round()),
     );
 
     _tween = Tween(begin: 1.0, end: 0.0);

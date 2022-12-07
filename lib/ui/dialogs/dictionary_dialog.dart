@@ -10,7 +10,7 @@ class DictionaryDialog extends StatelessWidget {
   final String? word;
 
   DictionaryDialog({Key? key, this.word}) : super(key: key);
-  List<String> _words = [];
+  final List<String> _words = [];
   String _lastWord = "";
 
   @override
@@ -24,9 +24,8 @@ class DictionaryDialog extends StatelessWidget {
             if (dc.lookupWord != _lastWord) {
               _words.add(dc.lookupWord!);
               _lastWord = dc.lookupWord!;
-              debugPrint(" added words:  ${_words.toString()}");
+              //debugPrint(" added words:  ${_words.toString()}");
             }
-            debugPrint("consumer called");
           } // if not null
 
           return Material(
@@ -48,7 +47,7 @@ class DictionaryDialog extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       icon: const Icon(Icons.arrow_back, color: Colors.black),
                       onPressed: () async {
-                        if (_words.length > 0) {
+                        if (_words.isNotEmpty) {
                           // i think this should be handled by the state, but I'm
                           // sure the notifier is always the same object, so I
                           // handle here in the ui.

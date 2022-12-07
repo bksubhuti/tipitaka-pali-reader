@@ -22,6 +22,12 @@ const String wordDistancePref = 'wordDistance';
 const String isPeuPref = "isPeuOn";
 const String isDpdPref = "isDpdOn";
 const String selectedPageColorPref = "selectedPageColor";
+const String databaseDirPathPref = "databaseDirPath";
+const String saveClickToClipboardPref = "saveClickToClipbard";
+const String animationSpeedPref = "animationSpeed";
+const String selectedMainCategoryFiltersPref = "selectedMainCategoryFilters";
+const String selectedSubCategoryFiltersPref = "selectedSubCategoryFilters";
+const String tabsVisiblePref = "tabsVisible";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -40,7 +46,27 @@ const int defaultQueryModeIndex = 0;
 const int defaultWordDistance = 10;
 const bool defaultIsPeuOn = true;
 const bool defaultIsDpdOn = true;
-int defaultSelectedPageColor = Colors.white.value;
+int defaultSelectedPageColor = 0;
+const String defaultDatabaseDirPath = "";
+const bool defaultSaveClickToClipboard = false;
+const double defaultAnimationSpeed = 400;
+const int defaultTabsVisible = 3;
+List<String> defaultSelectedMainCategoryFilters = [
+  "mula",
+  "annya",
+  "attha",
+  "tika"
+];
+List<String> defultSelectedSubCategoryFilters = [
+  "_vi",
+  "_di",
+  "_ma",
+  "_sa",
+  "_an",
+  "_ku",
+  "_bi",
+  "_pe"
+];
 
 class Prefs {
   // prevent object creation
@@ -121,4 +147,35 @@ class Prefs {
       instance.getInt(selectedPageColorPref) ?? defaultSelectedPageColor;
   static set selectedPageColor(int value) =>
       instance.setInt(selectedPageColorPref, value);
+
+  static String get databaseDirPath =>
+      instance.getString(databaseDirPathPref) ?? defaultDatabaseDirPath;
+  static set databaseDirPath(String value) =>
+      instance.setString(databaseDirPathPref, value);
+
+  static bool get saveClickToClipboard =>
+      instance.getBool(saveClickToClipboardPref) ?? defaultSaveClickToClipboard;
+  static set saveClickToClipboard(bool value) =>
+      instance.setBool(saveClickToClipboardPref, value);
+
+  static double get animationSpeed =>
+      instance.getDouble(animationSpeedPref) ?? defaultAnimationSpeed;
+  static set animationSpeed(double value) =>
+      instance.setDouble(animationSpeedPref, value);
+
+  static List<String> get selectedMainCategoryFilters =>
+      instance.getStringList(selectedMainCategoryFiltersPref) ??
+      defaultSelectedMainCategoryFilters;
+  static set selectedMainCategoryFilters(List<String> value) =>
+      instance.setStringList(selectedMainCategoryFiltersPref, value);
+
+  static List<String> get selectedSubCategoryFilters =>
+      instance.getStringList(selectedSubCategoryFiltersPref) ??
+      defultSelectedSubCategoryFilters;
+  static set selectedSubCategoryFilters(List<String> value) =>
+      instance.setStringList(selectedSubCategoryFiltersPref, value);
+
+  static int get tabsVisible =>
+      instance.getInt(tabsVisiblePref) ?? defaultTabsVisible;
+  static set tabsVisible(int value) => instance.setInt(tabsVisiblePref, value);
 }

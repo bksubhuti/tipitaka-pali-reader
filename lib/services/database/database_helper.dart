@@ -6,6 +6,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/data/constants.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 class DatabaseHelper {
   DatabaseHelper._internal();
@@ -33,6 +34,7 @@ class DatabaseHelper {
       dbPath = docDirPath.path;
     }
     var path = join(dbPath, DatabaseInfo.fileName);
+    Prefs.databaseDirPath = dbPath;
 
     // myLogger.i('opening Database ...');
     return await openDatabase(path);
@@ -117,11 +119,11 @@ class DatabaseHelper {
         await dbInstance.rawQuery('SELECT count(*) cnt FROM pages');
     final int count = mapsOfCount.first['cnt'] as int;
     int start = 1;
-
+    int batchCount = 500;
     while (start < count) {
       final maps = await dbInstance.rawQuery('''
           SELECT id, bookid, page, content, paranum FROM pages
-          WHERE id BETWEEN $start AND ${start + 1000}
+          WHERE id BETWEEN $start AND ${start + batchCount}
           ''');
 
       Batch batch = dbInstance.batch();
@@ -136,8 +138,8 @@ class DatabaseHelper {
         };
         batch.insert('fts_pages', value);
       }
-      await batch.commit();
-      start += 1000;
+      await batch.commit(noResult: true);
+      start += batchCount;
       debugPrint('finished: $start rows populating');
       int percent = ((start / count) * 100).round();
 

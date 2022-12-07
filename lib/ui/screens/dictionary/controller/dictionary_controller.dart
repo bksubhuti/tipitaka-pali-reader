@@ -7,6 +7,8 @@ import '../../../../services/database/database_helper.dart';
 import '../../../../services/database/dictionary_service.dart';
 import '../../../../services/repositories/dictionary_repo.dart';
 import 'dictionary_state.dart';
+import 'package:flutter/services.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 // global variable
 ValueNotifier<String?> globalLookupWord = ValueNotifier<String?>(null);
@@ -77,6 +79,10 @@ class DictionaryController with ChangeNotifier {
   }
 
   Future<String> loadDefinition(String word) async {
+    // use only if setting is good in prefs
+    if (Prefs.saveClickToClipboard == true) {
+      await Clipboard.setData(ClipboardData(text: word));
+    }
     switch (_currentAlgorithmMode) {
       case DictAlgorithm.Auto:
         return await searchAuto(word);
@@ -99,7 +105,7 @@ class DictionaryController with ChangeNotifier {
     if (definition.isEmpty) definition = await searchWithDPR(word);
     final after = DateTime.now();
     final differnt = after.difference(before);
-    print('compute time: $differnt');
+    debugPrint('compute time: $differnt');
 
     return definition;
   }
@@ -110,13 +116,18 @@ class DictionaryController with ChangeNotifier {
         DictionarySerice(DictionaryDatabaseRepository(DatabaseHelper()));
     final definitions =
         await dictionaryProvider.getDefinition(word, isAlreadyStem: false);
-    final String dpdHeadWord = await dictionaryProvider.getDpdHeadwords(word);
 
-    if (dpdHeadWord.isNotEmpty) {
-      Definition dpdDefinition =
-          await dictionaryProvider.getDpdDefinition(dpdHeadWord);
-      definitions.insert(0, dpdDefinition);
-      definitions.sort((a, b) => a.userOrder.compareTo(b.userOrder));
+    // check to see if dpd is used.
+    // separate table and process for dpd
+    if (Prefs.isDpdOn) {
+      final String dpdHeadWord = await dictionaryProvider.getDpdHeadwords(word);
+
+      if (dpdHeadWord.isNotEmpty) {
+        Definition dpdDefinition =
+            await dictionaryProvider.getDpdDefinition(dpdHeadWord);
+        definitions.insert(0, dpdDefinition);
+        definitions.sort((a, b) => a.userOrder.compareTo(b.userOrder));
+      }
     }
     if (definitions.isEmpty) return '';
 
@@ -125,26 +136,27 @@ class DictionaryController with ChangeNotifier {
 
   Future<String> searchWithDPR(String word) async {
     // looking up using dpr breakup words
+    List<Definition> definitions = [];
     final dictionaryProvider =
         DictionarySerice(DictionaryDatabaseRepository(DatabaseHelper()));
-
     // frist dpr_stem will be used for stem
     // stem is single word mostly
     final String dprStem = await dictionaryProvider.getDprStem(word);
-    final String dpdHeadWord = await dictionaryProvider.getDpdHeadwords(word);
-    if (dprStem.isNotEmpty || dpdHeadWord.isNotEmpty) {
-      Definition dpdDefinition =
-          await dictionaryProvider.getDpdDefinition(dpdHeadWord);
-
-      List<Definition> definitions =
+    if (dprStem.isNotEmpty) {
+      definitions =
           await dictionaryProvider.getDefinition(dprStem, isAlreadyStem: true);
+    }
 
-      debugPrint(dpdDefinition.definition);
-
-      definitions.insert(0, dpdDefinition);
-      definitions.sort((a, b) => a.userOrder.compareTo(b.userOrder));
+    if (Prefs.isDpdOn) {
+      final String dpdHeadWord = await dictionaryProvider.getDpdHeadwords(word);
+      if (dpdHeadWord.isNotEmpty) {
+        Definition dpdDefinition =
+            await dictionaryProvider.getDpdDefinition(dpdHeadWord);
+        definitions.insert(0, dpdDefinition);
+      }
 
       if (definitions.isNotEmpty) {
+        definitions.sort((a, b) => a.userOrder.compareTo(b.userOrder));
         return _formatDefinitions(definitions);
       }
     }

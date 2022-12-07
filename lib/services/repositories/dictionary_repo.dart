@@ -1,6 +1,7 @@
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/business_logic/models/definition.dart';
+import 'package:tipitaka_pali/business_logic/models/dictionary.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
@@ -58,11 +59,24 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
         htmlDefs = defs[0].definition;
 
         if (htmlDefs.isNotEmpty) {
+          /*
           BeautifulSoup bs = BeautifulSoup(htmlDefs);
-          stripDefs += '<p style="font-weight: normal;"> [ $word ] : ';
-          stripDefs += bs.text;
+          // need to remove summary contents with bs
+          // extract div classs dpd should be good.
+          Bs4Element? bs4 = bs.find("div", class_: 'dpd');
+          if (bs4 != null) {
+            stripDefs += '<p>'; // style="font-weight: normal;"> [ $word ] : ';
+            stripDefs += bs4.toString(); //bs.text;
+          } else {
+            stripDefs += '<p>'; // style="font-weight: normal;"> [ $word ] : ';
+            stripDefs += htmlDefs; //bs.text;
+          }
         }
-        stripDefs += '</P>';
+        stripDefs += '</p>';
+        stripDefs = stripDefs.replaceAll("✎", "");
+        */
+        } // added this extra
+        stripDefs += htmlDefs;
         order = maps.first['user_order'];
         bookName = maps.first['name'];
       }
@@ -220,5 +234,47 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
         "<p> [ $foundWord+${fullWord.substring(foundWord.length)} ] ${bs.text}";
 
     return newdef;
+  }
+
+  Future fixOtherDictionaries() async {
+    List<Dictionary> dictionaries = await getOtherDictionaries();
+    final db = await databaseHelper.database;
+    int counter = 0;
+    if (dictionaries.isNotEmpty) {
+      for (Dictionary dict in dictionaries) {
+        // modify the definition
+        BeautifulSoup bs = BeautifulSoup(dict.definition);
+        String newDef = '<p class="definition">${bs.text}</p>';
+        String word = dict.word!.replaceAll(",", "");
+        // change single quote into double single quote for sql req
+        newDef = newDef.replaceAll('\'', '\'\'');
+        word = word.replaceAll('\'', '\'\'');
+
+        String sql = '''
+                Update dictionary
+                Set definition = '$newDef'
+                Where word = '$word' AND book_id = ${dict.bookID}    
+          ''';
+        // definition = '${dict.definition}'  AND
+        //debugPrint("${dict.word} ${dict.bookID}");
+        await db.rawUpdate(sql);
+        counter++;
+        if ((counter % 50) == 1) {
+          debugPrint(
+              "working $counter of ${dictionaries.length}: $word with ${dict.bookID}");
+        }
+      }
+    }
+  }
+
+  Future<List<Dictionary>> getOtherDictionaries() async {
+    final db = await databaseHelper.database;
+    const sql = '''
+      SELECT word, definition, book_id from dictionary
+      WHERE book_id > 69
+    ''';
+
+    List<Map> list = await db.rawQuery(sql);
+    return list.map((dictionary) => Dictionary.fromJson(dictionary)).toList();
   }
 }

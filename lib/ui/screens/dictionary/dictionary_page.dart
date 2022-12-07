@@ -15,7 +15,7 @@ class DictionaryPage extends StatefulWidget {
 
 class _DictionaryPageState extends State<DictionaryPage>
     with AutomaticKeepAliveClientMixin {
-  List<String> _words = [];
+  final List<String> _words = [];
   String _lastWord = "";
 
   @override
@@ -35,16 +35,15 @@ class _DictionaryPageState extends State<DictionaryPage>
             if (dc.lookupWord != _lastWord) {
               _words.add(dc.lookupWord!);
               _lastWord = dc.lookupWord!;
-              debugPrint(" added words:  ${_words.toString()}");
+              // debugPrint(" added words:  ${_words.toString()}");
             }
-            debugPrint("consumer called");
           } // if not null
           return Padding(
             padding: const EdgeInsets.all(8),
             child: Column(children: [
               Row(
                 children: [
-                  Expanded(child: const DictionarySearchField()),
+                  const Expanded(child: DictionarySearchField()),
                   const SizedBox(width: 8), // padding
                   IconButton(
                     padding: EdgeInsets.zero,

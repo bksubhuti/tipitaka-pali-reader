@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
@@ -64,7 +63,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           factoryBuilder: () => _myFactory,
           textStyle: TextStyle(
               fontSize: fontSize.toDouble(),
-              inherit: false,
+              inherit: true,
               fontFamily: fontName),
           customStylesBuilder: (element) {
             // if (element.className == 'title' ||
@@ -92,9 +91,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               }
             }
             if (element.className == 'highlighted') {
+              String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+              Color c = Theme.of(context).primaryColorLight;
               return {
-                'background': 'rgb(255, 114, 20)',
-                'color': 'white',
+                'background': 'rgb(${c.red},${c.green},${c.blue})',
+                'color': styleColor,
               };
             }
             // no style
@@ -165,15 +166,24 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   String _changeToInlineStyle(String content) {
     String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
     final styleMaps = <String, String>{
-      r'class="bld"': r'style="font-weight:bold;"',
+      r'class="bld"': 'style="font-weight:bold; color: $styleColor;"',
+      r'class="t5"': 'style="font-weight:bold; color: $styleColor;"',
+      r'class="t1"': 'style=" color: $styleColor;"',
+      r'class="t3"':
+          'style="font-size: 1.7em;font-weight:bold; color: $styleColor;"',
+      r'class="t2"':
+          'style="font-size: 1.7em;font-weight:bold; color: $styleColor;"',
+      r'class="th31"':
+          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $styleColor;"',
       r'class="centered"': 'style="text-align:center;color: $styleColor;"',
       r'class="paranum"': 'style="font-weight: bold; color: $styleColor;"',
-      r'class="indent"': r'style="text-indent:1.3em;margin-left:2em;"',
+      r'class="indent"':
+          'style="text-indent:1.3em;margin-left:2em; color: $styleColor;"',
       r'class="bodytext"': 'style="text-indent:1.3em;color: $styleColor;"',
-      r'class="unindented"': r'style=""',
-      r'class="noindentbodytext"': r'style=""',
+      r'class="unindented"': 'style="color: $styleColor;"',
+      r'class="noindentbodytext"': 'style="color: $styleColor;"',
       r'class="book"':
-          r'style="font-size: 1.9em; text-align:center; font-weight: bold;"',
+          'style="font-size: 1.9em; text-align:center; font-weight: bold; color: $styleColor;"',
       r'class="chapter"':
           'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $styleColor;"',
       r'class="nikaya"':
@@ -197,7 +207,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
-
+    //debugPrint(content);
     return content;
   }
 
@@ -276,11 +286,18 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     }
 
     return '''
-            <p style="color:brown;text-align:right;">${widget.pageNumber}</p>
+            <p style="color:brown;text-align:right;">${_getScriptPageNumber(widget.pageNumber)}</p>
             <div id="page_content">
               $pageContent
             </div>
     ''';
+  }
+
+  String _getScriptPageNumber(int pageNumber) {
+    return PaliScript.getScriptOf(
+      script: context.watch<ScriptLanguageProvider>().currentScript,
+      romanText: (pageNumber.toString()),
+    );
   }
 
   String _addHighlight(String content, String textToHighlight) {

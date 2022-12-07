@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
 import 'package:tipitaka_pali/ui/screens/home/book_list_page.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
 import '../../../../app.dart';
 import '../controller/reader_view_controller.dart';
@@ -38,7 +39,8 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
   void _openBookShelfDialog(BuildContext context) async {
     final book = await showGeneralDialog<Book>(
         context: context,
-        transitionDuration: const Duration(milliseconds: 300),
+        transitionDuration:
+            Duration(milliseconds: Prefs.animationSpeed.round()),
         transitionBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,

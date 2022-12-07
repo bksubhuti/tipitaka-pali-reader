@@ -1,9 +1,5 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:huge_listview/huge_listview.dart';
 import 'package:provider/provider.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../../business_logic/models/search_result.dart';
 import '../../home/widgets/search_result_list_tile.dart';
