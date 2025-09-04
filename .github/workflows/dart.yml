@@ -51,13 +51,23 @@ jobs:
       - name: Build Windows (Release)
         run: flutter build windows --release
 
-      # --- Extra DLLs into Release before MSIX ---
       - name: Download extra DLLs and extract into Release
         shell: pwsh
         run: |
           $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
           Invoke-WebRequest -Uri $dllUrl -OutFile "dlls.tar.gz"
-          tar -xzf "dlls.tar.gz" -C "build/windows/runner/Release"
+      
+          # Find the actual Release dir (Flutter now uses build/windows/x64/runner/Release)
+          if (Test-Path "build/windows/x64/runner/Release") {
+            $releaseDir = "build/windows/x64/runner/Release"
+          } elseif (Test-Path "build/windows/runner/Release") {
+            $releaseDir = "build/windows/runner/Release"
+          } else {
+            throw "Windows Release directory not found. Did the build step succeed?"
+          }
+
+          Write-Host "Using Release dir: $releaseDir"
+          tar -xzf "dlls.tar.gz" -C $releaseDir
           Remove-Item "dlls.tar.gz" -Force
 
       # --- Create MSIX (unsigned) ---
