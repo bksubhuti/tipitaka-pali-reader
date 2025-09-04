@@ -20,7 +20,7 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      # --- Download DB zip (PowerShell, no line continuation) ---
+      # --- Download DB zip ---
       - name: Download database zip
         shell: pwsh
         run: |
@@ -56,8 +56,7 @@ jobs:
         run: |
           $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
           Invoke-WebRequest -Uri $dllUrl -OutFile "dlls.tar.gz"
-      
-          # Find the actual Release dir (Flutter now uses build/windows/x64/runner/Release)
+
           if (Test-Path "build/windows/x64/runner/Release") {
             $releaseDir = "build/windows/x64/runner/Release"
           } elseif (Test-Path "build/windows/runner/Release") {
@@ -70,35 +69,40 @@ jobs:
           tar -xzf "dlls.tar.gz" -C $releaseDir
           Remove-Item "dlls.tar.gz" -Force
           
-      - name: Prepare MSIX input path (copy files)
+      # --- Copy into legacy msix path ---
+      - name: Prepare MSIX input path
         shell: pwsh
         run: |
           $src = "build/windows/x64/runner/Release"
           $dst = "build/windows/runner/Release"
-      
+
           if (-not (Test-Path $src)) {
             throw "Expected $src to exist. Did the Windows build succeed?"
           }
-      
+
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Copy-Item -Recurse -Force "$src\*" "$dst\"
-      
+
           Write-Host "Copied files to legacy msix path:"
           Get-ChildItem $dst
-      
-      # --- Create MSIX (unsigned) ---
-      - name: Create MSIX (unsigned)
-        run: flutter pub run msix:create --build-windows false
 
+      # --- Verify files before MSIX ---
+      - name: Verify Release files
+        shell: pwsh
+        run: |
+          Write-Host "Listing files in build/windows/runner/Release"
+          Get-ChildItem -Recurse build/windows/runner/Release
+
+      # --- Create MSIX (unsigned) ---
+      - name: Create MSIX (unsigned, verbose)
+        run: flutter pub run msix:create --build-windows false --output-path build/msix --output-name tipitaka
 
       # --- Artifacts ---
       - name: Upload MSIX
         uses: actions/upload-artifact@v4
         with:
           name: windows-msix
-          path: |
-            **/*.msix
-            build/windows/**/*.msix
+          path: build/msix/*.msix
 
       - name: Upload Windows Release folder
         uses: actions/upload-artifact@v4
