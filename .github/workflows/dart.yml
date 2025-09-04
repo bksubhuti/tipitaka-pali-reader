@@ -19,7 +19,7 @@ jobs:
 
       - name: Flutter doctor
         run: flutter doctor -v
-        
+
       - name: Download zip file
         run: |
           curl -L -o assets/database/tipitaka_pali.zip \
