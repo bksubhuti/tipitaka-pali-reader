@@ -20,37 +20,45 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      - name: Download zip file
+      # --- Download DB zip (PowerShell, no line continuation) ---
+      - name: Download database zip
+        shell: pwsh
         run: |
-          curl -L -o assets/database/tipitaka_pali.zip \
-          "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
+          New-Item -ItemType Directory -Force -Path "assets\database" | Out-Null
+          $url = "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
+          Invoke-WebRequest -Uri $url -OutFile "assets\database\tipitaka_pali.zip"
 
-      - name: Extract zip file
-        run: unzip -o assets/database/tipitaka_pali.zip -d assets/database/
-
-      - name: Delete zip file
-        run: rm -f assets/database/tipitaka_pali.zip
-
-      - name: Run split.sh script inside assets/database
+      - name: Extract database zip
+        shell: pwsh
         run: |
+          Expand-Archive -Path "assets\database\tipitaka_pali.zip" -DestinationPath "assets\database" -Force
+          Remove-Item "assets\database\tipitaka_pali.zip" -Force
+
+      # --- Split the big DB into parts (Bash) ---
+      - name: Run split.sh
+        shell: bash
+        run: |
+          set -euo pipefail
           cd assets/database
           chmod +x split.sh
-          sh split.sh
+          ./split.sh
+          ls -l tipitaka_pali_part.* || true
 
       # --- Build Windows ---
+      - name: Flutter pub get
+        run: flutter pub get
+
       - name: Build Windows (Release)
-        run: |
-          flutter pub get
-          flutter build windows --release
+        run: flutter build windows --release
 
       # --- Extra DLLs into Release before MSIX ---
       - name: Download extra DLLs and extract into Release
         shell: pwsh
         run: |
           $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
-          curl.exe -L $dllUrl -o dlls.tar.gz
-          tar -xzf dlls.tar.gz -C build/windows/runner/Release
-          Remove-Item dlls.tar.gz -Force
+          Invoke-WebRequest -Uri $dllUrl -OutFile "dlls.tar.gz"
+          tar -xzf "dlls.tar.gz" -C "build/windows/runner/Release"
+          Remove-Item "dlls.tar.gz" -Force
 
       # --- Create MSIX (unsigned) ---
       - name: Create MSIX (unsigned)
