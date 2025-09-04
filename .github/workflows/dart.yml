@@ -88,7 +88,7 @@ jobs:
       
       # --- Create MSIX (unsigned) ---
       - name: Create MSIX (unsigned)
-        run: flutter pub run msix:create
+        run: flutter pub run msix:create --skip-build
 
       # --- Artifacts ---
       - name: Upload MSIX
