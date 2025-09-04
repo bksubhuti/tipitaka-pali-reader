@@ -69,26 +69,22 @@ jobs:
           Write-Host "Using Release dir: $releaseDir"
           tar -xzf "dlls.tar.gz" -C $releaseDir
           Remove-Item "dlls.tar.gz" -Force
-
-      - name: Prepare MSIX input path (compat symlink)
+          
+      - name: Prepare MSIX input path (copy files)
         shell: pwsh
         run: |
-          $new = "build/windows/x64/runner/Release"
-          $old = "build/windows/runner/Release"
+          $src = "build/windows/x64/runner/Release"
+          $dst = "build/windows/runner/Release"
       
-          if (-not (Test-Path $new)) {
-            throw "Expected $new to exist. Did the Windows build succeed?"
+          if (-not (Test-Path $src)) {
+            throw "Expected $src to exist. Did the Windows build succeed?"
           }
       
-          if (Test-Path $old) {
-            Write-Host "Old path already exists: $old"
-          } else {
-            Write-Host "Creating junction: $old -> $new"
-            cmd /c mklink /J "$old" "$new" | Out-Null
-          }
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Copy-Item -Recurse -Force "$src\*" "$dst\"
       
-          Write-Host "Verifying contents visible via old path:"
-          Get-ChildItem "$old"
+          Write-Host "Copied files to legacy msix path:"
+          Get-ChildItem $dst
       
       # --- Create MSIX (unsigned) ---
       - name: Create MSIX (unsigned)
