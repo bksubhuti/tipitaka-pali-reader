@@ -8,9 +8,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.32.5'
@@ -18,19 +20,49 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
+      # --- DB: download, unzip, split ---
+      - name: Prepare assets dir
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path assets\database | Out-Null
+
+      - name: Download DB zip
+        shell: pwsh
+        run: |
+          $url = "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
+          curl.exe -L $url -o assets\database\tipitaka_pali.zip
+
+      - name: Extract DB zip
+        shell: pwsh
+        run: Expand-Archive -Path assets\database\tipitaka_pali.zip -DestinationPath assets\database -Force
+
+      - name: Remove DB zip
+        shell: pwsh
+        run: Remove-Item assets\database\tipitaka_pali.zip -Force
+
+      - name: Run split.sh (produces tipitaka_pali_part.aa, ab, ...)
+        # Git Bash is on windows-latest runners; use it to run the script
+        run: bash assets/database/split.sh
+
+      # --- Build Windows ---
       - name: Build Windows (Release)
         run: |
           flutter pub get
           flutter build windows --release
 
-      - name: Download extra DLLs
+      # --- Extra DLLs into Release before MSIX ---
+      - name: Download extra DLLs and extract into Release
+        shell: pwsh
         run: |
-          curl -L -o dlls.tar.gz "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
+          $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
+          curl.exe -L $dllUrl -o dlls.tar.gz
           tar -xzf dlls.tar.gz -C build/windows/runner/Release
+          Remove-Item dlls.tar.gz -Force
 
+      # --- Create MSIX (unsigned) ---
       - name: Create MSIX (unsigned)
         run: flutter pub run msix:create
 
+      # --- Artifacts ---
       - name: Upload MSIX
         uses: actions/upload-artifact@v4
         with:
