@@ -70,6 +70,26 @@ jobs:
           tar -xzf "dlls.tar.gz" -C $releaseDir
           Remove-Item "dlls.tar.gz" -Force
 
+      - name: Prepare MSIX input path (compat symlink)
+        shell: pwsh
+        run: |
+          $new = "build/windows/x64/runner/Release"
+          $old = "build/windows/runner/Release"
+      
+          if (-not (Test-Path $new)) {
+            throw "Expected $new to exist. Did the Windows build succeed?"
+          }
+      
+          if (Test-Path $old) {
+            Write-Host "Old path already exists: $old"
+          } else {
+            Write-Host "Creating junction: $old -> $new"
+            cmd /c mklink /J "$old" "$new" | Out-Null
+          }
+      
+          Write-Host "Verifying contents visible via old path:"
+          Get-ChildItem "$old"
+      
       # --- Create MSIX (unsigned) ---
       - name: Create MSIX (unsigned)
         run: flutter pub run msix:create
