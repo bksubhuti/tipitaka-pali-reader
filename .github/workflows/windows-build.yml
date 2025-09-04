@@ -20,28 +20,25 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      # --- DB: download, unzip, split ---
-      - name: Prepare assets dir
-        shell: pwsh
-        run: New-Item -ItemType Directory -Force -Path assets\database | Out-Null
+            - name: Prepare assets directory
+        run: mkdir -p assets/database
 
-      - name: Download DB zip
-        shell: pwsh
+      - name: Download zip file
         run: |
-          $url = "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
-          curl.exe -L $url -o assets\database\tipitaka_pali.zip
+          curl -L -o assets/database/tipitaka_pali.zip \
+          "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
 
-      - name: Extract DB zip
-        shell: pwsh
-        run: Expand-Archive -Path assets\database\tipitaka_pali.zip -DestinationPath assets\database -Force
+      - name: Extract zip file
+        run: unzip -o assets/database/tipitaka_pali.zip -d assets/database/
 
-      - name: Remove DB zip
-        shell: pwsh
-        run: Remove-Item assets\database\tipitaka_pali.zip -Force
+      - name: Delete zip file
+        run: rm -f assets/database/tipitaka_pali.zip
 
-      - name: Run split.sh (produces tipitaka_pali_part.aa, ab, ...)
-        # Git Bash is on windows-latest runners; use it to run the script
-        run: bash assets/database/split.sh
+      - name: Run split.sh script inside assets/database
+        run: |
+          cd assets/database
+          chmod +x split.sh
+          sh split.sh
 
       # --- Build Windows ---
       - name: Build Windows (Release)
