@@ -91,6 +91,7 @@ dependencies:
   email_validator: ^3.0.0
   epubx: ^4.0.0
   characters: ^1.3.0
+  msix: ^3.7.0
 
 dev_dependencies:
   flutter_test:
