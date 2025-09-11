@@ -1,0 +1,111 @@
+name: Build Windows (MSIX)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows-msix:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.32.5'
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # --- Download DB zip ---
+      - name: Download database zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "assets\database" | Out-Null
+          $url = "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
+          Invoke-WebRequest -Uri $url -OutFile "assets\database\tipitaka_pali.zip"
+
+      - name: Extract database zip
+        shell: pwsh
+        run: |
+          Expand-Archive -Path "assets\database\tipitaka_pali.zip" -DestinationPath "assets\database" -Force
+          Remove-Item "assets\database\tipitaka_pali.zip" -Force
+
+      # --- Split the big DB into parts (Bash) ---
+      - name: Run split.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd assets/database
+          chmod +x split.sh
+          ./split.sh
+          ls -l tipitaka_pali_part.* || true
+
+      # --- Build Windows ---
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Windows (Release)
+        run: flutter build windows --release
+
+      - name: Download extra DLLs and extract into Release
+        shell: pwsh
+        run: |
+          $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
+          Invoke-WebRequest -Uri $dllUrl -OutFile "dlls.tar.gz"
+
+          if (Test-Path "build/windows/x64/runner/Release") {
+            $releaseDir = "build/windows/x64/runner/Release"
+          } elseif (Test-Path "build/windows/runner/Release") {
+            $releaseDir = "build/windows/runner/Release"
+          } else {
+            throw "Windows Release directory not found. Did the build step succeed?"
+          }
+
+          Write-Host "Using Release dir: $releaseDir"
+          tar -xzf "dlls.tar.gz" -C $releaseDir
+          Remove-Item "dlls.tar.gz" -Force
+          
+      # --- Copy into legacy msix path ---
+      - name: Prepare MSIX input path
+        shell: pwsh
+        run: |
+          $src = "build/windows/x64/runner/Release"
+          $dst = "build/windows/runner/Release"
+
+          if (-not (Test-Path $src)) {
+            throw "Expected $src to exist. Did the Windows build succeed?"
+          }
+
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          Copy-Item -Recurse -Force "$src\*" "$dst\"
+
+          Write-Host "Copied files to legacy msix path:"
+          Get-ChildItem $dst
+
+      # --- Verify files before MSIX ---
+      - name: Verify Release files
+        shell: pwsh
+        run: |
+          Write-Host "Listing files in build/windows/runner/Release"
+          Get-ChildItem -Recurse build/windows/runner/Release
+
+      # --- Create MSIX (unsigned) ---
+      - name: Create MSIX (unsigned, verbose)
+        run: flutter pub run msix:create --build-windows false --output-path build/msix --output-name tipitaka
+
+      # --- Artifacts ---
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix
+          path: build/msix/*.msix
+
+      - name: Upload Windows Release folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: build/windows/runner/Release

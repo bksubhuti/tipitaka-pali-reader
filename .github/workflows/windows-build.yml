@@ -1,101 +1,75 @@
-name: Manually run msix build and submission
+name: Build Windows (MSIX)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
+  build-windows-msix:
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Set up Flutter
       - name: Install Flutter
-        uses: subosito/flutter-action@v1
+        uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
-          flutter-version: 3.10.x
+          channel: stable
+          flutter-version: '3.32.5'
 
-      # Linux specific setup
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt update
-          # sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libfuse2 -y
+      - name: Flutter doctor
+        run: flutter doctor -v
 
-      # Download the zip file
+            - name: Prepare assets directory
+        run: mkdir -p assets/database
+
       - name: Download zip file
-        run: curl -L -o assets/database/tipitaka_pali.zip https://dl.dropboxusercontent.com/s/svnrlo29dnblyad/tipitaka_pali.zip?dl=0
+        run: |
+          curl -L -o assets/database/tipitaka_pali.zip \
+          "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
 
-      # Extract the zip file
       - name: Extract zip file
-        run: unzip assets/database/tipitaka_pali.zip -d assets/database/
+        run: unzip -o assets/database/tipitaka_pali.zip -d assets/database/
 
-      # Delete the original zip file
       - name: Delete zip file
-        run: rm assets/database/tipitaka_pali.zip
+        run: rm -f assets/database/tipitaka_pali.zip
 
-      # Run the split.sh script
-      - name: Run split.sh script
-        run: bash assets/database/split.sh
+      - name: Run split.sh script inside assets/database
+        run: |
+          cd assets/database
+          chmod +x split.sh
+          sh split.sh
 
-      # Flutter build for Windows
-      - name: Build Flutter project (Windows)
-        if: matrix.os == 'windows-latest'
+      # --- Build Windows ---
+      - name: Build Windows (Release)
         run: |
           flutter pub get
-          flutter build windows --release # For Windows
-          
-      - name: Download SQLite DLL
+          flutter build windows --release
+
+      # --- Extra DLLs into Release before MSIX ---
+      - name: Download extra DLLs and extract into Release
+        shell: pwsh
         run: |
-          curl -sSL -o sqlite.zip https://www.sqlite.org/2023/sqlite-dll-win64-x64-3420000.zip
+          $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
+          curl.exe -L $dllUrl -o dlls.tar.gz
+          tar -xzf dlls.tar.gz -C build/windows/runner/Release
+          Remove-Item dlls.tar.gz -Force
 
-      - name: Extract SQLite DLL
-        run: unzip sqlite.zip
+      # --- Create MSIX (unsigned) ---
+      - name: Create MSIX (unsigned)
+        run: flutter pub run msix:create
 
-      - name: Copy SQLite DLL to Build Release (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          copy sqlite3.dll build\windows\runner\Release\
-          
-      - name: Build MSIX Release
-        run:  |
-          dart  run msix:create
+      # --- Artifacts ---
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix
+          path: |
+            **/*.msix
+            build/windows/**/*.msix
 
-      # Upload Windows build
-      - name: Upload Windows build
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v2
+      - name: Upload Windows Release folder
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: build/windows/runner/Release
-          
-      - name: Upload to Microsoft Store
-        if: matrix.os == 'windows-latest' # Only run this for Windows builds
-        run: |
-          # Step 1: Obtain Azure AD Access Token
-          $response = Invoke-WebRequest -Method POST -Uri "https://login.microsoftonline.com/${{ secrets.AZURE_TENANT_ID }}/oauth2/token" -Body "grant_type=client_credentials&client_id=${{ secrets.AZURE_CLIENT_ID }}&client_secret=${{ secrets.AZURE_CLIENT_SECRET }}&resource=https://manage.devcenter.microsoft.com"
-          $access_token = ($response.Content | ConvertFrom-Json).access_token
-
-          # Step 2: Get App ID (replace with your App ID)
-          $appID = "26554BhikkhuSangha.TipitakaPaliReader"
-
-          # Step 3: Create a new submission
-          $headers = @{
-          "Authorization" = "Bearer $access_token"
-          }
-          $newSubmission = Invoke-WebRequest -Method POST -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appID/submissions" -Headers $headers -ContentType "application/json"
-          $submissionId = ($newSubmission.Content | ConvertFrom-Json).id
-
-          # Step 4: Upload the MSIX package (you need to provide the path to your MSIX file)
-          # Note: Uploading a file might require additional steps. Refer to the Microsoft documentation for detailed steps on how to upload the file.
-
-          # Step 5: Commit the submission
-          Invoke-WebRequest -Method POST -Uri "https://manage.devcenter.microsoft.com/v1.0/my/applications/$appID/submissions/$submissionId/commit" -Headers @{ "Authorization" = "Bearer $access_token" } -ContentType "application/json"
-        shell: pwsh # Use PowerShell Core
-
