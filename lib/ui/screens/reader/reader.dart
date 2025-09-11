@@ -319,6 +319,21 @@ class ReaderView extends StatelessWidget implements Searchable {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              Prefs.useGeminiDirect
+                                  ? 'Gemini 1.5 Flash (Direct)'
+                                  : (Prefs.openRouterModel ?? 'Unknown Model'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color
+                                    ?.withOpacity(0.7),
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             InteractiveHtmlText(
                               html: html ?? '',

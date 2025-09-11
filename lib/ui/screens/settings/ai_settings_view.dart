@@ -56,24 +56,35 @@ class _AiSettingsViewState extends State<AiSettingsView> {
             _modelLabels = data.map((k, v) => MapEntry(k, v.toString()));
             _selectedModel = _modelLabels.containsKey(Prefs.openRouterModel)
                 ? Prefs.openRouterModel
-                : null;
+                : 'deepseek/deepseek-chat-v3-0324:free';
+            Prefs.openRouterModel = _selectedModel!; // persist default
           });
         }
       } else {
         const defaultModels = {
-          'google/gemini-flash-1.5-8b-exp': 'Gemini Flash 1.5',
-          'google/gemini-2.5-pro-exp-03-25:free': 'Gemini Pro 2.5',
-          'deepseek/deepseek-chat-v3-0324:free': 'DeepSeek Chat V3',
-          'nvidia/llama-3.1-nemotron-70b-instruct:free': 'Nvidia Llama 3.1',
-          'openai/gpt-4.1': '\$ OpenAI 4.1 ',
-          'openai/chatgpt-4o-latest': '\$\$ OpenAi 4o',
-          'x-ai/grok-3-beta': '\$\$ Grok 3 Beta',
+          // Free models
+          'google/gemini-2.0-flash-exp:free': 'Gemini Flash 2.0 (Free)',
+          'deepseek/deepseek-chat-v3-0324:free':
+              'DeepSeek -V3 (Free w/ tkn acct)',
+          'meta-llama/llama-4-maverick:free': 'Llama-4 Maverick (Free)',
+          'meta-llama/llama-4-scout:free': 'Llama-4 Scout (Free)',
+          'mistralai/mistral-small-3.1-24b-instruct:free': 'Mistral 3.1 (Free)',
+
+          // Paid models (prices included via raw strings so $ is literal)
+          'openai/gpt-4.1': r'GPT-4.1 ($2/$8)',
+          'openai/chatgpt-4o-latest': r'GPT-4o ($5/$15)',
+          'openai/gpt-5': r'GPT-5 ($1.25/$10)',
+          'x-ai/grok-3-mini': r'Grok 3 Mini ($0.3/$0.5)',
+          'x-ai/grok-4': r'Grok 4 ($3/$15)',
+          'google/gemini-2.5-pro': r'Gemini 2.5 Pro ($1.25/$10)',
         };
+
         await file.writeAsString(json.encode(defaultModels));
         if (mounted) {
           setState(() {
             _modelLabels = defaultModels;
-            _selectedModel = Prefs.openRouterModel;
+            _selectedModel = 'google/gemini-2.0-flash-exp:free';
+            Prefs.openRouterModel = _selectedModel!;
           });
         }
       }

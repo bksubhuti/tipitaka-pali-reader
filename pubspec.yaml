@@ -44,7 +44,7 @@ dependencies:
   sqflite_common_ffi: ^2.3.3
   wtf_sliding_sheet: ^1.1.3
   flutter_typeahead: ^5.2.0
-  flutter_widget_from_html_core: ^0.16.0
+  flutter_widget_from_html_core: ^0.17.0
   # fwfh_text_style: ^2.22.8+1
   styled_text: ^8.1.0
   from_css_color: ^2.0.0
@@ -82,7 +82,7 @@ dependencies:
   flutter_speed_dial: ^7.0.0
   scroll_to_index: ^3.0.1
   firedart: ^0.9.7
-  flutter_dotenv: ^5.1.0
+  flutter_dotenv: ^6.0.0
   im_stepper: ^1.0.1+1
   permission_handler: ^12.0.0+1
   encrypt: ^5.0.3
@@ -91,7 +91,7 @@ dependencies:
   email_validator: ^3.0.0
   epubx: ^4.0.0
   characters: ^1.3.0
-  msix: ^3.7.0
+#  msix: ^3.7.0
 
 dev_dependencies:
   flutter_test:
