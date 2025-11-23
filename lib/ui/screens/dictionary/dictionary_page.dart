@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/repositories/dictionary_repo.dart';
 import 'package:tipitaka_pali/ui/widgets/get_velthuis_help_widget.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 
 import '../../../business_logic/models/dictionary_history.dart';
 import '../../../services/repositories/dictionary_history_repo.dart';
@@ -23,6 +25,44 @@ class DictionaryPage extends StatefulWidget {
 
 class _DictionaryPageState extends State<DictionaryPage>
     with AutomaticKeepAliveClientMixin {
+  late final FocusNode focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    focusNode = FocusNode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestFocus();
+      context.read<NavigationProvider>().addListener(_onNavigationChanged);
+    });
+  }
+
+  @override
+  void dispose() {
+    context.read<NavigationProvider>().removeListener(_onNavigationChanged);
+    focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onNavigationChanged() {
+    if (mounted) {
+      _requestFocus();
+    }
+  }
+
+  void _requestFocus() {
+    final currentNavigation =
+        context.read<NavigationProvider>().currentNavigation;
+    if (currentNavigation == 4) {
+      focusNode.requestFocus();
+      if (Mobile.isPhone(context) || Mobile.isTablet(context)) {
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      }
+    } else if (currentNavigation != 3) {
+      focusNode.unfocus();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -62,12 +102,15 @@ class _DictionaryPageState extends State<DictionaryPage>
                 ),
               ],
             ),
-            body: const Padding(
+            body: Padding(
               padding: EdgeInsets.all(8),
               child: Column(children: [
                 Row(
                   children: [
-                    Expanded(child: DictionarySearchField()),
+                    Expanded(
+                        child: DictionarySearchField(
+                      focusNode: focusNode,
+                    )),
                     SizedBox(width: 8), // padding
                     DictionaryAlgorithmModeView(),
                   ],

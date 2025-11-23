@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/routes.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
 import 'package:tipitaka_pali/ui/screens/search_result/search_result_page.dart';
 import 'package:tipitaka_pali/ui/widgets/value_listenser.dart';
 
@@ -12,6 +13,8 @@ import '../../../../services/repositories/search_history_repo.dart';
 import '../../../../utils/pali_script.dart';
 import '../../../../utils/pali_script_converter.dart';
 import '../../../../utils/script_detector.dart';
+import '../../../../utils/platform_info.dart';
+import 'package:flutter/services.dart';
 import '../../../widgets/search_type_segmented_widget.dart';
 import '../widgets/search_bar.dart';
 import 'search_history_view.dart';
@@ -37,21 +40,48 @@ class _SearchPageState extends State<SearchPage>
     with AutomaticKeepAliveClientMixin {
   late final TextEditingController controller;
   late bool isShowingSearchModeView;
+  late final FocusNode focusNode;
 
   @override
   void initState() {
     controller = TextEditingController();
     isShowingSearchModeView = false;
+    focusNode = FocusNode();
     super.initState();
     // globalSearchWord.addListener(() {
     //   setState(() {});
     // });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestFocus();
+      context.read<NavigationProvider>().addListener(_onNavigationChanged);
+    });
+  }
+
+  void _onNavigationChanged() {
+    if (mounted) {
+      _requestFocus();
+    }
+  }
+
+  void _requestFocus() {
+    final currentNavigation =
+        context.read<NavigationProvider>().currentNavigation;
+    if (currentNavigation == 3) {
+      focusNode.requestFocus();
+      if (Mobile.isPhone(context) || Mobile.isTablet(context)) {
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      }
+    } else if (currentNavigation != 4) {
+      focusNode.unfocus();
+    }
   }
 
   @override
   void dispose() {
+    context.read<NavigationProvider>().removeListener(_onNavigationChanged);
     super.dispose();
     controller.dispose();
+    focusNode.dispose();
   }
 
   @override
@@ -127,6 +157,7 @@ class _SearchPageState extends State<SearchPage>
                           child: TprSearchBar(
                             hint: _getHint(vm.queryMode),
                             controller: controller,
+                            focusNode: focusNode,
                             onSubmitted: (value) {
                               _onSubmitted(value, vm);
                             },
@@ -211,15 +242,7 @@ class _SearchPageState extends State<SearchPage>
         TextPosition(offset: controller.text.length));
   }
 
-  Widget _buildEmptyView(BuildContext context) {
-    return GestureDetector(
-      child: Container(color: Colors.transparent),
-      // in android, keyboard can be hide by pressing back button
-      // ios doesn't have back button
-      // so to hide keyboard, provide this
-      onTap: () => FocusScope.of(context).unfocus(),
-    );
-  }
+
 
   String _getHint(QueryMode queryMode) {
     if (queryMode == QueryMode.exact) {
