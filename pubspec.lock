@@ -129,6 +129,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.4"
+  cli_util:
+    dependency: transitive
+    description:
+      name: cli_util
+      sha256: "66f86e916d285c1a93d3b79587d94bd71984a66aac4ff74e524cfa7877f1395c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.5"
   clock:
     dependency: transitive
     description:
@@ -169,6 +177,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
+  console:
+    dependency: transitive
+    description:
+      name: console
+      sha256: e04e7824384c5b39389acdd6dc7d33f3efe6b232f6f16d7626f194f6a01ad69a
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   convert:
     dependency: transitive
     description:
@@ -281,14 +297,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.0.3"
-  epubx:
-    dependency: "direct main"
-    description:
-      name: epubx
-      sha256: "0ab9354efa177c4be52c46f857bc15bf83f83a92667fb673465c8f89fca26db3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.0.0"
   equatable:
     dependency: transitive
     description:
@@ -533,6 +541,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
+  get_it:
+    dependency: transitive
+    description:
+      name: get_it
+      sha256: d85128a5dae4ea777324730dc65edd9c9f43155c109d5cc0a69cab74139fbac1
+      url: "https://pub.dev"
+    source: hosted
+    version: "7.7.0"
   glob:
     dependency: transitive
     description:
@@ -777,10 +793,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: e3641ec5d63ebf0d9b41bd43201a66e3fc79a65db5f61fc181f04cd27aab950c
+      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
       url: "https://pub.dev"
     source: hosted
-    version: "1.16.0"
+    version: "1.17.0"
   mime:
     dependency: transitive
     description:
@@ -797,6 +813,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  msix:
+    dependency: "direct main"
+    description:
+      name: msix
+      sha256: e3de4d9f52543ad6e4b0f534991e1303cbd379d24be28dd241ac60bd9439a201
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.7.0"
   multi_split_view:
     dependency: "direct main"
     description:
@@ -1342,10 +1366,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "522f00f556e73044315fa4585ec3270f1808a4b186c936e612cab0b565ff1e00"
+      sha256: ab2726c1a94d3176a45960b6234466ec367179b87dd74f1611adb1f3b5fb9d55
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.6"
+    version: "0.7.7"
   toggle_switch:
     dependency: "direct main"
     description:
