@@ -15,10 +15,13 @@ import 'package:tipitaka_pali/business_logic/models/bookmark.dart';
 import 'package:tipitaka_pali/business_logic/models/tpr_message.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/user_notifier.dart';
 import 'package:tipitaka_pali/ui/dialogs/show_tpr_message_dlg.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/unsupported_language_classes/ccp_intl.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'providers/font_provider.dart';
 import 'providers/navigation_provider.dart';
@@ -50,18 +53,54 @@ class App extends StatefulWidget {
   _AppState createState() => _AppState();
 }
 
-class _AppState extends State<App> {
+class _AppState extends State<App> with WindowListener {
   StreamSubscription? _sub;
 
   @override
   void initState() {
     super.initState();
+    // Register this class to listen to window events
+    if (PlatformInfo.isDesktop) {
+      windowManager.addListener(this);
+    }
   }
 
   @override
   void dispose() {
+    // Clean up the listener
+    if (PlatformInfo.isDesktop) {
+      windowManager.removeListener(this);
+    }
     _sub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void onWindowResize() {
+    // This triggers whenever the user drags the window edge
+    if (PlatformInfo.isDesktop) {
+      _saveWindowState();
+    }
+  }
+
+  @override
+  void onWindowMove() {
+    // This triggers whenever the user drags the window header
+    if (PlatformInfo.isDesktop) {
+      _saveWindowState();
+    }
+  }
+
+  Future<void> _saveWindowState() async {
+    if (!PlatformInfo.isDesktop) return;
+    // We use standard SharedPreferences here for simple key-value storage
+    // You could use rxPref if you prefer, but this is cleaner for distinct window data.
+    final bounds = await windowManager.getBounds();
+
+    Prefs.windowWidth = bounds.width;
+    Prefs.windowHeight = bounds.height;
+    Prefs.windowX = bounds.topLeft.dx;
+    Prefs.windowY = bounds.topLeft.dy;
   }
 
   @override

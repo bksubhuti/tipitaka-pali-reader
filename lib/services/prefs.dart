@@ -78,6 +78,10 @@ const String openRouterModelPref = 'openRouterModel';
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
 const String useGeminiDirectPref = 'useGeminiDirect';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
+const String windowWidthPref = "windowWidth";
+const String windowHeightPref = "windowHeight";
+const String windowXPref = "windowX";
+const String windowYPref = "windowY";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -138,6 +142,8 @@ const bool defaultHideSanskrit = true;
 const double defaultPanelWidth = 350;
 const String defaultOpenRouterPromptKey = 'line_by_line';
 const String defaultOpenRouterApiKey = "";
+const double defaultWindowWidth = 1000.0;
+const double defaultWindowHeight = 800.0;
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
 Translate sentence by sentence.
@@ -466,6 +472,27 @@ class Prefs {
       instance.getString(geminiDirectApiKeyPref) ?? '';
   static set geminiDirectApiKey(String value) =>
       instance.setString(geminiDirectApiKeyPref, value);
+
+  // Window Size and Position
+  static double get windowWidth =>
+      instance.getDouble(windowWidthPref) ?? defaultWindowWidth;
+  static set windowWidth(double value) =>
+      instance.setDouble(windowWidthPref, value);
+
+  static double get windowHeight =>
+      instance.getDouble(windowHeightPref) ?? defaultWindowHeight;
+  static set windowHeight(double value) =>
+      instance.setDouble(windowHeightPref, value);
+
+  // We return nullable double? for X and Y.
+  // If null, the window manager will know to center the window default.
+  static double? get windowX => instance.getDouble(windowXPref);
+  static set windowX(double? value) =>
+      instance.setDouble(windowXPref, value ?? 0.0);
+
+  static double? get windowY => instance.getDouble(windowYPref);
+  static set windowY(double? value) =>
+      instance.setDouble(windowYPref, value ?? 0.0);
 
   // ===========================================================================
   // Helpers

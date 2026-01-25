@@ -9,6 +9,8 @@ import 'package:devicelocale/devicelocale.dart';
 import 'dart:io' show Platform;
 
 import 'package:tipitaka_pali/services/setup_firestore.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:window_manager/window_manager.dart';
 
 void main() async {
   if (Platform.isWindows || Platform.isLinux) {
@@ -35,6 +37,30 @@ void main() async {
   Prefs.versionNumber = '${info.version}+${info.buildNumber}';
 
   final rxPref = await StreamingSharedPreferences.instance;
+
+  WidgetsFlutterBinding.ensureInitialized();
+  if (PlatformInfo.isDesktop) {
+    // Initialize window manager
+    await windowManager.ensureInitialized();
+
+    // 1. Setup default window properties
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(800, 600), // Fallback default size
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.normal,
+    );
+
+    await windowManager.waitUntilReadyToShow(windowOptions, () async {
+      // 2. Restore saved state
+      await _restoreWindowBounds();
+
+      // 3. Show the window gracefully
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
 
   // check to see if we should have persistence with the search filter chips.
   // if not, (default), then we should reset the filter chips to all selected.
@@ -117,4 +143,18 @@ setScriptAndLanguageByLocal() async {
       } // not null
     } // platform not windows
   } // first time loading
+}
+
+// Helper to restore bounds
+Future<void> _restoreWindowBounds() async {
+  // Check if we have saved data
+  final double width = Prefs.windowWidth;
+  final double height = Prefs.windowHeight;
+  final double? x = Prefs.windowX;
+  final double? y = Prefs.windowY;
+
+  if (x != null && y != null) {
+    // Set the bounds (position + size)
+    await windowManager.setBounds(Rect.fromLTWH(x, y, width, height));
+  }
 }
