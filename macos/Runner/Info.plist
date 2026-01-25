@@ -32,5 +32,16 @@
 	<string>public.app-category.books</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLName</key>
+        <string>net.vipassana.tipitaka_pali</string> <key>CFBundleURLSchemes</key>
+        <array>
+            <string>tipitaka</string>
+        </array>
+    </dict>
+</array>
+
 </dict>
 </plist>

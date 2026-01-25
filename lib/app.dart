@@ -31,6 +31,7 @@ import 'services/provider/script_language_provider.dart';
 import 'services/provider/theme_change_notifier.dart';
 import 'ui/screens/splash_screen.dart';
 import 'package:tipitaka_pali/services/fetch_messages_if_needed.dart';
+import 'package:app_links/app_links.dart';
 
 final Logger myLogger = Logger(
   printer: PrettyPrinter(
@@ -55,6 +56,12 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> with WindowListener {
   StreamSubscription? _sub;
+  // GlobalKey to access context for Dialogs/Navigation
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+//  AppLinks variables
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
@@ -63,6 +70,7 @@ class _AppState extends State<App> with WindowListener {
     if (PlatformInfo.isDesktop) {
       windowManager.addListener(this);
     }
+    _initDeepLinks(); // Call the function
   }
 
   @override
@@ -73,6 +81,73 @@ class _AppState extends State<App> with WindowListener {
     }
     _sub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    // Check for Cold Start
+    final appLink = await _appLinks.getInitialLink();
+    if (appLink != null) {
+      print("Deep Link Received (Cold Start): $appLink"); // Debug Print
+      _handleLink(appLink);
+    }
+
+    // Check for Foreground/Background
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      print("Deep Link Received (Stream): $uri"); // Debug Print
+      _handleLink(uri);
+    });
+  }
+
+  void _handleLink(Uri uri) {
+    // 2. USE THE KEY to get the context.
+    // This allows you to show a dialog from outside the widget tree.
+    final context = _navigatorKey.currentContext;
+
+    if (context != null) {
+      // Small delay to ensure UI is ready
+      Future.delayed(const Duration(milliseconds: 500), () {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Deep Link Detected"),
+            content: Text("Link: ${uri.toString()}"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      });
+    } else {
+      print("Context was null - could not show dialog");
+    }
+  }
+
+  // 6. ADD: The Dialog Box
+  void _showDeepLinkDialog(Uri uri) {
+    // We use _navigatorKey.currentContext because the context of
+    // _AppState is above the MaterialApp and cannot show Dialogs.
+    final context = _navigatorKey.currentContext;
+
+    if (context != null) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Deep Link Detected"),
+          content: Text("Link: ${uri.toString()}\nPath: ${uri.path}"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -145,6 +220,7 @@ class _AppState extends State<App> with WindowListener {
                 context.watch<ScriptLanguageProvider>();
 
             return MaterialApp(
+              navigatorKey: _navigatorKey,
               debugShowCheckedModeBanner: false,
               themeMode: themeChangeNotifier.themeMode,
               theme: themeChangeNotifier.themeData,
