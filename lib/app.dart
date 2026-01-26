@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tipitaka_pali/business_logic/models/sutta.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:logger/logger.dart';
@@ -15,8 +16,10 @@ import 'package:tipitaka_pali/business_logic/models/bookmark.dart';
 import 'package:tipitaka_pali/business_logic/models/tpr_message.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
+import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/user_notifier.dart';
+import 'package:tipitaka_pali/services/repositories/sutta_repository.dart';
 import 'package:tipitaka_pali/ui/dialogs/show_tpr_message_dlg.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/unsupported_language_classes/ccp_intl.dart';
@@ -100,34 +103,64 @@ class _AppState extends State<App> with WindowListener {
     });
   }
 
-  void _handleLink(Uri uri) {
-    // 2. USE THE KEY to get the context.
-    // This allows you to show a dialog from outside the widget tree.
+  Future<void> _handleLink(Uri uri) async {
     final context = _navigatorKey.currentContext;
+    if (context == null) return;
 
-    if (context != null) {
-      // Small delay to ensure UI is ready
-      Future.delayed(const Duration(milliseconds: 500), () {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Deep Link Detected"),
-            content: Text("Link: ${uri.toString()}"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
+    // 1. Try Sutta Shortcut First (e.g., ?sutta=mn118)
+    final String? suttaShortcut = uri.queryParameters['sutta'];
+    if (suttaShortcut != null && suttaShortcut.isNotEmpty) {
+      final suttaRepo = SuttaRepositoryDatabase(DatabaseHelper());
+      final List<Sutta> results = await suttaRepo.getSuttas(suttaShortcut);
+
+      if (results.isNotEmpty) {
+        final sutta = results.first;
+        final suttaBookmark = Bookmark(
+          id: 0,
+          bookID: sutta.bookID,
+          pageNumber: sutta.pageNumber,
+          name: sutta.name,
+          selectedText: '',
         );
-      });
-    } else {
-      print("Context was null - could not show dialog");
+        _executeOpen(context, suttaBookmark);
+        return; // Exit early if sutta is found
+      }
+    }
+
+    // 2. Fallback to Detailed Bookmark Parameters (e.g., ?book_id=...&page_number=...)
+    final String? bookId = uri.queryParameters['book_id'];
+    if (bookId != null && bookId.isNotEmpty) {
+      final String? pageStr = uri.queryParameters['page_number'];
+      final String name = uri.queryParameters['name'] ?? 'Unknown Book';
+      final String selectedText = uri.queryParameters['selected_text'] ?? '';
+
+      final manualBookmark = Bookmark(
+        id: 0,
+        bookID: bookId,
+        pageNumber: int.tryParse(pageStr ?? '1') ?? 1,
+        name: name,
+        selectedText: selectedText,
+      );
+
+      _executeOpen(context, manualBookmark);
     }
   }
 
-  // 6. ADD: The Dialog Box
+// Internal helper to trigger the ViewModel
+  void _executeOpen(BuildContext context, Bookmark bookmark) {
+    Future.delayed(const Duration(milliseconds: 200), () {
+      final vm = Provider.of<BookmarkPageViewModel>(context, listen: false);
+      vm.openBook(bookmark, context);
+    });
+  } // Helper to keep code clean
+
+  void _openVirtualBookmark(BuildContext context, Bookmark bookmark) {
+    Future.delayed(const Duration(milliseconds: 200), () {
+      final vm = Provider.of<BookmarkPageViewModel>(context, listen: false);
+      vm.openBook(bookmark, context);
+    });
+  }
+
   void _showDeepLinkDialog(Uri uri) {
     // We use _navigatorKey.currentContext because the context of
     // _AppState is above the MaterialApp and cannot show Dialogs.

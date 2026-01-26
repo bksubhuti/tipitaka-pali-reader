@@ -53,5 +53,17 @@
 	<string>This app needs access to import EPUB files and export bookmarks.</string>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string> <key>CFBundleURLName</key>
+			<string>com.paauk.tipitakaPaliReader</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tipitaka</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
