@@ -32,7 +32,7 @@ class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     final arguments = settings.arguments;
 
-    late Widget screen;
+    Widget screen = Home();
     switch (settings.name) {
       case splashRoute:
         screen = SplashScreen();
