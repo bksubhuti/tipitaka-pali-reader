@@ -7,12 +7,26 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:devicelocale/devicelocale.dart';
 
 import 'dart:io' show Platform;
+import 'dart:io' show Platform;
 
 import 'package:tipitaka_pali/services/setup_firestore.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:window_manager/window_manager.dart';
 
-void main() async {
+// Global variable to store URL from command line
+String? _initialUrl;
+
+void main(List<String> args) async {
+  // Check for URL in command line arguments
+  if (Platform.isLinux || Platform.isWindows) {
+    for (final arg in args) {
+      if (arg.startsWith('tipitaka://')) {
+        _initialUrl = arg;
+        break;
+      }
+    }
+  }
+
   if (Platform.isWindows || Platform.isLinux) {
     // Initialize FFI
     sqfliteFfiInit();
@@ -71,7 +85,7 @@ void main() async {
     Prefs.selectedSubCategoryFilters = defultSelectedSubCategoryFilters;
   }
 
-  runApp(App(rxPref: rxPref));
+  runApp(App(rxPref: rxPref, initialUrl: _initialUrl));
 }
 
 setScriptAndLanguageByLocal() async {

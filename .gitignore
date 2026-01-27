@@ -121,6 +121,7 @@ unlinked_spec.ds
 #appimage related
 TipitakaPaliReader.AppDir
 *.AppImage
+squashfs-root/
 
 # Coverage
 coverage/
