@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tipitaka_pali/business_logic/models/folder.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 

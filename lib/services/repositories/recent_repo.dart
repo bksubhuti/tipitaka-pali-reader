@@ -1,5 +1,4 @@
-import 'package:sqflite/sql.dart';
-
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tipitaka_pali/business_logic/models/recent.dart';
 import 'package:tipitaka_pali/services/dao/recent_dao.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';

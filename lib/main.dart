@@ -1,3 +1,7 @@
+import 'dart:ffi' as ffi;
+import 'dart:ffi' show DynamicLibrary;
+import 'package:sqlite3/common.dart' as sqlite_common;
+
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -12,7 +16,15 @@ import 'package:tipitaka_pali/services/setup_firestore.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:window_manager/window_manager.dart';
 
-void main() async {
+// Global variable to store URL from command line.. vn bodhrasa
+String? _initialUrl;
+
+void main(List<String> args) async {
+  // Required for async calls in `main`
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize SharedPrefs instance.
+  await Prefs.init();
   if (Platform.isWindows || Platform.isLinux) {
     // Initialize FFI
     sqfliteFfiInit();
@@ -21,30 +33,21 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  // Required for async calls in `main`
-  WidgetsFlutterBinding.ensureInitialized();
-  // Initialize SharedPrefs instance.
-  await Prefs.init();
-  // async calling of setup of firestore below
-  setupFirestore();
+  if (Platform.isLinux || Platform.isWindows) {
+    for (final arg in args) {
+      if (arg.startsWith('tpr.pali.tools://')) {
+        _initialUrl = arg;
+        break;
+      }
+    }
+  }
 
-  // This view is only called one time.
-  // before the select language and before the select script are created
-  // set the prefs to the current local if any OS but Win (not supported.)
-  await setScriptAndLanguageByLocal();
-
-  final info = await PackageInfo.fromPlatform();
-  Prefs.versionNumber = '${info.version}+${info.buildNumber}';
-
-  final rxPref = await StreamingSharedPreferences.instance;
-
-  WidgetsFlutterBinding.ensureInitialized();
   if (PlatformInfo.isDesktop) {
     // Initialize window manager
     await windowManager.ensureInitialized();
+    //Setup default window properties
 
-    // 1. Setup default window properties
-    WindowOptions windowOptions = const WindowOptions(
+    WindowOptions windowOptions = WindowOptions(
       size: Size(800, 600), // Fallback default size
       center: true,
       backgroundColor: Colors.transparent,
@@ -62,6 +65,19 @@ void main() async {
     });
   }
 
+  // async calling of setup of firestore below
+  setupFirestore();
+
+  // This view is only called one time.
+  // before the select language and before the select script are created
+  // set the prefs to the current local if any OS but Win (not supported.)
+  await setScriptAndLanguageByLocal();
+
+  final info = await PackageInfo.fromPlatform();
+  Prefs.versionNumber = '${info.version}+${info.buildNumber}';
+
+  final rxPref = await StreamingSharedPreferences.instance;
+
   // check to see if we should have persistence with the search filter chips.
   // if not, (default), then we should reset the filter chips to all selected.
   // this prevents user from forgetting that they disabled many items and getting
@@ -70,8 +86,7 @@ void main() async {
     Prefs.selectedMainCategoryFilters = defaultSelectedMainCategoryFilters;
     Prefs.selectedSubCategoryFilters = defultSelectedSubCategoryFilters;
   }
-
-  runApp(App(rxPref: rxPref));
+  runApp(App(rxPref: rxPref, initialUrl: _initialUrl));
 }
 
 setScriptAndLanguageByLocal() async {

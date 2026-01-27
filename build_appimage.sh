@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+#set -euo pipefail
 
 # Allow overrides via env vars; sensible defaults for CI
 APPDIR="${APPDIR:-TipitakaPaliReader.AppDir}"

@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common/utils/utils.dart' as Sqflite;
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 
 import '../../business_logic/models/search_history.dart';

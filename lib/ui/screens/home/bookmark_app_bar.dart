@@ -118,7 +118,7 @@ class BookmarkAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   doImport(BuildContext context) async {
-    FilePickerResult? filename = await FilePicker.platform.pickFiles(
+    FilePickerResult? filename = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
       lockParentWindow: true,
