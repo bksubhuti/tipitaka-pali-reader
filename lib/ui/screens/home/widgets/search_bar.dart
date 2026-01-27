@@ -10,12 +10,14 @@ class TprSearchBar extends StatefulWidget {
   final void Function(String) onSubmitted;
   final void Function(String) onTextChanged;
   final String hint;
+  final FocusNode? focusNode;
   const TprSearchBar({
     super.key,
     required this.controller,
     required this.onSubmitted,
     required this.onTextChanged,
     this.hint = 'search',
+    this.focusNode,
   });
 
   @override
@@ -51,7 +53,7 @@ class _TprSearchBarState extends State<TprSearchBar> {
         textInputAction: TextInputAction.search,
         maxLines: 1,
         // this cause the keyboard to endlessly pop up
-        // focusNode: FocusNode()..requestFocus(),
+        focusNode: widget.focusNode,
         onSubmitted: (text) => widget.onSubmitted(text),
         onChanged: (text) {
           final scriptLanguage = ScriptDetector.getLanguage(text);
