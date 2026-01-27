@@ -34,8 +34,33 @@ fi
 mkdir -p "$APPDIR"
 cp -r "$BUNDLE_DIR"/. "$APPDIR"/
 
+# Configure deeplink support for Linux
+echo "🔗 Configuring deeplink support..."
+
+# Update desktop file with MIME type for deeplinks
+if [ -f "$APPDIR/tipitaka_pali_reader.desktop" ]; then
+  # Ensure MimeType is present (add if missing)
+  if ! grep -q "MimeType=x-scheme-handler/tipitaka" "$APPDIR/tipitaka_pali_reader.desktop"; then
+    echo "Adding MimeType for deeplink support..."
+    echo "MimeType=x-scheme-handler/tipitaka;" >> "$APPDIR/tipitaka_pali_reader.desktop"
+  fi
+fi
+
+# Update AppRun to pass arguments to the application
+if [ -f "$APPDIR/AppRun" ]; then
+  # Ensure AppRun passes arguments ($@)
+  if ! grep -q "exec.*\$@" "$APPDIR/AppRun"; then
+    echo "Updating AppRun to pass arguments..."
+    cat > "$APPDIR/AppRun" << 'EOF'
+#!/bin/sh
+cd "$(dirname "$0")"
+exec ./tipitaka_pali_reader "$@"
+EOF
+  fi
+  chmod +x "$APPDIR/AppRun"
+fi
+
 # Ensure run permissions for your app launchers (ignore if absent)
-chmod +x "$APPDIR/AppRun" 2>/dev/null || true
 chmod +x "$APPDIR/tipitaka_pali_reader" 2>/dev/null || true
 
 # Build AppImage

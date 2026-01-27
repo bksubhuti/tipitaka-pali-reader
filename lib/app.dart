@@ -50,8 +50,9 @@ final Logger myLogger = Logger(
 
 class App extends StatefulWidget {
   final StreamingSharedPreferences rxPref;
+  final String? initialUrl;
 
-  const App({required this.rxPref, super.key});
+  const App({required this.rxPref, this.initialUrl, super.key});
 
   @override
   _AppState createState() => _AppState();
@@ -74,6 +75,14 @@ class _AppState extends State<App> with WindowListener {
       windowManager.addListener(this);
     }
     _initDeepLinks(); // Call the function
+
+    // Handle initial URL from command line (for web links on Linux)
+    if (widget.initialUrl != null &&
+        widget.initialUrl!.startsWith('tipitaka://')) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _handleLink(Uri.parse(widget.initialUrl!));
+      });
+    }
   }
 
   @override

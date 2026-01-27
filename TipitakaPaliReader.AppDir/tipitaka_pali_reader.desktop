@@ -7,3 +7,4 @@ Exec=tipitaka_pali_reader %u
 Icon=logo
 Categories=Utility;
 StartupWMClass="tipitaka_pali_reader"
+MimeType=x-scheme-handler/tipitaka;
