@@ -36,9 +36,10 @@
 <array>
     <dict>
         <key>CFBundleURLName</key>
-        <string>net.vipassana.tipitaka_pali</string> <key>CFBundleURLSchemes</key>
+        <string>org.americanmonk.tpp</string>
+        <key>CFBundleURLSchemes</key>
         <array>
-            <string>tipitaka</string>
+            <string>tpr.pali.tools</string>
         </array>
     </dict>
 </array>

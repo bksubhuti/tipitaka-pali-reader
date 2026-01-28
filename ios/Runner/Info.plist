@@ -58,10 +58,10 @@
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string> <key>CFBundleURLName</key>
-			<string>com.paauk.tipitakaPaliReader</string>
+			<string>org.americanmonk.tpp</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>tipitaka</string>
+				<string>tpr.pali.tools</string>
 			</array>
 		</dict>
 	</array>

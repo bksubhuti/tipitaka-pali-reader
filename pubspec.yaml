@@ -15,7 +15,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 2.7.2+99
+version: 2.7.3+100
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -27,6 +27,7 @@ dependencies:
     sdk: flutter # Add this line
   intl: ^0.20.2
   sqlite3: ^2.9.4  
+  sqflite: ^2.4.1
   sqflite_common_ffi: 2.3.7 # Last version fully supporting sqlite3 v2
   sqflite_common: ^2.5.4
   path: ^1.8.2

@@ -9,5 +9,9 @@
   <true/>
   <key>com.apple.security.network.server</key>
   <true/>
+  <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:tpr.pali.tools</string>
+    </array>
 </dict>
 </plist>
