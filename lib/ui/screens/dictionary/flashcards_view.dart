@@ -63,7 +63,7 @@ class FlashCardsView extends StatelessWidget {
     ).convert(rows);
 
     // Pick directory
-    String? dir = await FilePicker.getDirectoryPath();
+    String? dir = await FilePicker.platform.getDirectoryPath();
     if (dir != null) {
       // Create file in the chosen directory
       final file = File(path.join(dir, "anki_flashcards.csv"));
@@ -141,7 +141,7 @@ class FlashCardsView extends StatelessWidget {
 
     if (writeFile) {
       // Pick directory
-      String? dir = await FilePicker.getDirectoryPath();
+      String? dir = await FilePicker.platform.getDirectoryPath();
       if (dir != null) {
         // Create file in the chosen directory
         final file = File(path.join(dir, "tpr_export.md"));

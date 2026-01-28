@@ -28,7 +28,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace "com.paauk.tipitakapalireader"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion "29.0.13599879"
 
     compileOptions {
@@ -43,7 +43,7 @@ android {
     defaultConfig {
         applicationId "com.paauk.tipitakapalireader"
         minSdkVersion = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }

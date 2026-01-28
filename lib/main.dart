@@ -25,7 +25,7 @@ void main(List<String> args) async {
 
   // Initialize SharedPrefs instance.
   await Prefs.init();
-  if (Platform.isWindows || Platform.isLinux) {
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     // Initialize FFI
     sqfliteFfiInit();
 

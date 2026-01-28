@@ -26,9 +26,9 @@ dependencies:
   flutter_localizations: # Add this line
     sdk: flutter # Add this line
   intl: ^0.20.2
-  sqlite3: ^2.9.4  
+  sqlite3: ^3.1.4  
   sqflite: ^2.4.1
-  sqflite_common_ffi: 2.3.7 # Last version fully supporting sqlite3 v2
+  sqflite_common_ffi: ^2.4.0+2 # Last version fully supporting sqlite3 v2
   sqflite_common: ^2.5.4
   path: ^1.8.2
   path_provider: ^2.1.5
@@ -47,7 +47,7 @@ dependencies:
   flutter_typeahead: ^5.2.0
   flutter_widget_from_html_core: ^0.17.0
   # fwfh_text_style: ^2.22.8+1
-  styled_text: ^8.1.0
+  styled_text: ^9.0.0
   from_css_color: ^2.0.0
   scrollable_positioned_list: ^0.3.8
   word_selectable_text: ^0.2.0
@@ -66,13 +66,13 @@ dependencies:
   url_launcher: ^6.3.0
   devicelocale: ^0.8.1
   dio: ^5.5.0
-  share_plus: ^11.0.0
+  share_plus: ^12.0.1
   streaming_shared_preferences: ^2.0.0
   ms_material_color: ^1.0.0
   uuid: ^4.4.2
   # vm_service: ^14.2.4
   el_tooltip: ^2.0.0
-  package_info_plus: ^8.0.0
+  package_info_plus: ^9.0.0
   in_app_review: ^2.0.9
   internet_connection_checker_plus: ^2.5.0
 #  msix: ^3.16.7
@@ -102,6 +102,15 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   freezed: ^3.0.6
   build_runner: ^2.1.2
+  flutter_launcher_icons: "^0.13.1"
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  # This section fixes the "small icon" issue:
+  adaptive_icon_background: "#FFFFFF" # Use your brand color
+  adaptive_icon_foreground: "assets/icon/icon.png"
 
 msix_config:
   display_name: Tipitaka Pali Reader
