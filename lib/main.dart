@@ -1,6 +1,7 @@
 import 'dart:ffi' as ffi;
 import 'dart:ffi' show DynamicLibrary;
-import 'package:sqlite3/common.dart' as sqlite_common;
+import 'package:sqlite3/open.dart' as sqlite_open; // This will work now!
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -22,9 +23,39 @@ String? _initialUrl;
 void main(List<String> args) async {
   // Required for async calls in `main`
   WidgetsFlutterBinding.ensureInitialized();
+  
 
   // Initialize SharedPrefs instance.
   await Prefs.init();
+
+  if (Platform.isWindows) {
+    try {
+      // 1. Force Dart to look for "sqlite3.dll" (the file you have)
+      // instead of "sqlite3.x64.windows.dll" (the file it wants)
+      sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.windows, () {
+        return DynamicLibrary.open('sqlite3.dll');
+      });
+    } catch (e) {
+      print("Could not load sqlite3.dll: $e");
+    }
+  }
+   if (Platform.isLinux) {
+    try {
+      sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
+        // Linux usually stores sqlite here
+        return DynamicLibrary.open('libsqlite3.so.0');
+      });
+    } catch (e) {
+      // If .so.0 fails, try just .so
+      try {
+        sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
+          return DynamicLibrary.open('libsqlite3.so');
+        });
+      } catch (e) {
+        print("Failed to load sqlite3: $e");
+      }
+    }
+  }
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     // Initialize FFI
     sqfliteFfiInit();

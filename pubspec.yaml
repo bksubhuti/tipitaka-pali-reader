@@ -1,20 +1,8 @@
 name: tipitaka_pali
 description: Tipitaka Pali Reader
 
-# The following line prevents the package from being accidentally published to
-# pub.dev using `pub publish`. This is preferred for private packages.
-publish_to: "none" # Remove this line if you wish to publish to pub.dev
+publish_to: "none"
 
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 version: 2.7.3+100
 
 environment:
@@ -23,13 +11,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations: # Add this line
-    sdk: flutter # Add this line
+  flutter_localizations:
+    sdk: flutter
   intl: ^0.20.2
-  sqlite3: ^3.1.4  
-  sqflite: ^2.4.1
-  sqflite_common_ffi: ^2.4.0+2 # Last version fully supporting sqlite3 v2
+  
+  # --- DATABASE FIX SECTION ---
+  sqflite: ^2.3.3
+  # FIXED: Removed '^' to strictly pin this version. 
+  # This matches the older sqlite3 API (dispose vs close) preventing the crash.
+  sqflite_common_ffi: 2.3.3 
   sqflite_common: ^2.5.4
+  # sqlite3 is handled in dependency_overrides below
+  # sqlite3_flutter_libs: ^0.5.0 # Keep commented out
+  # -----------------------------
+
   path: ^1.8.2
   path_provider: ^2.1.5
   shared_preferences: ^2.5.3
@@ -40,13 +35,11 @@ dependencies:
   collection: ^1.18.0
   logger: ^2.4.0
   cupertino_icons: ^1.0.8
-# flex_color_scheme: ^7.1.0  // if using 3.10.6
   flex_color_scheme: ^8.2.0
   freezed_annotation: ^3.0.0
   wtf_sliding_sheet: ^1.1.3
   flutter_typeahead: ^5.2.0
   flutter_widget_from_html_core: ^0.17.0
-  # fwfh_text_style: ^2.22.8+1
   styled_text: ^9.0.0
   from_css_color: ^2.0.0
   scrollable_positioned_list: ^0.3.8
@@ -70,12 +63,10 @@ dependencies:
   streaming_shared_preferences: ^2.0.0
   ms_material_color: ^1.0.0
   uuid: ^4.4.2
-  # vm_service: ^14.2.4
   el_tooltip: ^2.0.0
   package_info_plus: ^9.0.0
   in_app_review: ^2.0.9
   internet_connection_checker_plus: ^2.5.0
-#  msix: ^3.16.7
   flash_card: ^0.1.0
   flashcardplus: ^0.0.2
   csv: ^6.0.0
@@ -94,7 +85,6 @@ dependencies:
   msix: ^3.7.0
   window_manager: ^0.5.1
   app_links: ^7.0.0
-#  msix: ^3.7.0
 
 dev_dependencies:
   flutter_test:
@@ -108,8 +98,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icon/icon.png"
-  # This section fixes the "small icon" issue:
-  adaptive_icon_background: "#FFFFFF" # Use your brand color
+  adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/icon/icon.png"
 
 msix_config:
@@ -119,10 +108,11 @@ msix_config:
   publisher: CN=76DA55C6-0663-4AE1-AE5E-609E9823DC18
   store: true
   logo_path: assets\icon\icon.png
-  msix_version: 1.1.61.0
+  msix_version: 1.1.66.0
+  protocol_activation: tpr.pali.tools
 #######  for testing locally  ################
   #publisher:  CN=76DA55C6-0663-4AE1-AE5E-609E9823DC18, O=Msix Testing... # required
-  #sign_msix: false
+  #sign_msix: true
 
 
 # For information on the generic Dart part of this file, see the
@@ -158,7 +148,6 @@ flutter:
     - assets/images/vecteezy_md.jpg
     - assets/inflectionTemplates.json
     - .env
-
 
   fonts:
     - family: Pyidaungsu
@@ -198,10 +187,7 @@ flutter:
       fonts:
         - asset: assets/fonts/NotoSansChakma-Regular.ttf      
 
-
-# fonts are licenced by bhikkhu Jayasaro.  He says it is okay to distribute and knows the copyrights.
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/custom-fonts/#from-packages
-
 dependency_overrides:
   flutter_lints: ^5.0.0
+  # Keeps sqlite3 on the version that allows 'open.overrideFor'
+  sqlite3: 2.4.0
