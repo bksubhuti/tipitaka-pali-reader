@@ -38,13 +38,8 @@ class InitialSetupService {
 
     late String databasesDirPath;
 
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-      databasesDirPath = await getDatabasesPath();
-    }
-    if (Platform.isLinux || Platform.isWindows) {
-      final docDirPath = await getApplicationSupportDirectory();
-      databasesDirPath = docDirPath.path;
-    }
+    final docDirPath = await getApplicationSupportDirectory();
+    databasesDirPath = docDirPath.path;
     // final databasesDirPath = await getApplicationDocumentsDirectory();
     final dbFilePath = join(databasesDirPath, DatabaseInfo.fileName);
 

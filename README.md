@@ -1,6 +1,6 @@
 # Tipitaka Pali Reader
 
-To get this working, you need to **download the database** from https://drive.google.com/file/d/1SGyUxSkRQHhTucepBq24zCdOzspQGmn8/view?usp=drive_link
+To get this working, you need to **download the database** from https://drive.google.com/file/d/1lOaErcnh5IvtSJPqiXHjG9mN8JxizBT5/view?usp=sharing
 
 
 **Extract into the assets database folder, and then run the script to break it up.  The database will be deleted.  Make sure the zip file or complete unzipped db are not in the assets folder when making for release.. (it is big).**
@@ -30,7 +30,7 @@ Function Requirements Document (FRC)
 * 12.) Put extra books as a basket.. use db instead of hardcode
 * 13.) Add ~~chanting book~~ Theragatha, Therigatha, ~~DhpA (english)~~, JaA (english)  to downloads
 * 14.) System menu so that if anki is installed, we can see it on system menu?
-* 15.) Deep links.. add system menu to have TPR work
+* 15.) Deep links.. add system menu to have TPR work. **partically implemented**
 * 16.) ~~Better dictionary lookup vaharatiiti vaharatii'ti~~
 * 17.) ~~Fix highlight (click to dict) highlights all words~~
 * 18.) Have TOC pop sub menu list before open book
@@ -68,7 +68,7 @@ Normalize the data in the database
 # Phase 4
 firestore implementation **some bookmark features are on cloud**
    ~~clud and multi-device sync for bookmarks~~  **sink not implemented**
-   sticky group highlights
+   sticky group highlights **implemented with icons on each page**
    dictionary submission
    
 

@@ -3,7 +3,7 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/routes.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/flashcard_setup_view.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/text_converter_view.dart';
-//import 'package:tipitaka_pali/ui/screens/settings/book_import_view.dart';
+import 'package:tipitaka_pali/ui/screens/settings/book_import_view.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
 
@@ -46,7 +46,7 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
             height: 10,
           ),
           _getExtensionsTile(context),
-//          _getImportTile(context),
+          _getImportTile(context),
           _getFlashCardExportTile(context),
           _getTextConverterTile(context),
         ],
@@ -76,7 +76,6 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
     );
   }
 
-/*
   Widget _getImportTile(context) {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
@@ -98,7 +97,7 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
       ),
     );
   }
-*/
+
   Widget _getFlashCardExportTile(context) {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),

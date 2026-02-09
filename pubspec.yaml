@@ -21,6 +21,9 @@ dependencies:
   # This matches the older sqlite3 API (dispose vs close) preventing the crash.
   sqflite_common_ffi: 2.3.3 
   sqflite_common: ^2.5.4
+  sqlite3_flutter_libs: ^0.5.0
+
+
   # sqlite3 is handled in dependency_overrides below
   # sqlite3_flutter_libs: ^0.5.0 # Keep commented out
   # -----------------------------

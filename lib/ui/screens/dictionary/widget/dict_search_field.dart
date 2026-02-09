@@ -13,8 +13,10 @@ import '../../../../utils/script_detector.dart';
 import '../controller/dictionary_controller.dart';
 
 class DictionarySearchField extends StatefulWidget {
+  final FocusNode? focusNode;
   const DictionarySearchField({
     super.key,
+    this.focusNode,
   });
 
   @override
@@ -102,7 +104,7 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
       builder: (context, controller, focusNode) {
         return TextField(
           controller: controller,
-          focusNode: focusNode,
+          focusNode: widget.focusNode ?? focusNode,
           autocorrect: false,
           decoration: InputDecoration(
             border: const OutlineInputBorder(

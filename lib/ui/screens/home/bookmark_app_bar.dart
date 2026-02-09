@@ -153,7 +153,6 @@ class BookmarkAppBar extends StatelessWidget implements PreferredSizeWidget {
     final List<Bookmark> bookmarks =
         await BookmarkDatabaseRepository(DatabaseHelper()).getAllBookmark();
 
-    // Clone each bookmark and set folderId to -1
     final modifiedBookmarks = bookmarks.map((bookmark) {
       return Bookmark(
         id: bookmark.id,
@@ -162,32 +161,41 @@ class BookmarkAppBar extends StatelessWidget implements PreferredSizeWidget {
         note: bookmark.note,
         name: bookmark.name,
         selectedText: bookmark.selectedText,
-        folderId: -1, // Set folderId to -1 for compatibility
+        folderId: -1,
         bmkSort: bookmark.bmkSort,
       );
     }).toList();
 
-    // Convert the modified bookmarks list to JSON
     String bookmarksJson = bookmarkToJson(modifiedBookmarks);
 
-    // If on a mobile platform, share it
     if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
-      // Create a temporary file to write the JSON data
+      // ... your existing Mobile/Web share code ...
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/bookmarks_export.json');
-
       await file.writeAsString(bookmarksJson);
       final box = context.findRenderObject() as RenderBox?;
-      // Share the file
-      try {
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          subject: 'Exported Bookmarks',
-          sharePositionOrigin:
-              box!.localToGlobal(Offset.zero) & box.size, // required for ipad
-        );
-      } catch (e) {
-        debugPrint('Error sharing file: $e');
+      await Share.shareXFiles([XFile(file.path)],
+          subject: 'Exported Bookmarks');
+    }
+    // ADD THIS FOR MAC/WINDOWS/LINUX
+    else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Bookmarks',
+        fileName: 'bookmarks_export.json', // Ensure the extension is here
+        // Sometimes leaving 'type' as any or omitting it
+        // helps bypass strict sandbox check on certain macOS versions
+      );
+
+      if (outputFile != null) {
+        final file = File(outputFile);
+        await file.writeAsString(bookmarksJson);
+
+        // Optional: Show a little snackbar to confirm success
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bookmarks exported successfully!')),
+          );
+        }
       }
     }
   }

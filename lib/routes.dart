@@ -75,9 +75,9 @@ class RouteGenerator {
           message: '',
         );
         break;
-//      case '/book-import-view':
-      //      screen = const BookImportView();
-      //    break;
+      case '/book-import-view':
+        screen = const BookImportView();
+        break;
       case '/download-view':
         screen = const DownloadView();
         break;

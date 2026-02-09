@@ -40,12 +40,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
   Future<void> _loadModels() async {
     try {
       Directory dir;
-      if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-        final dbPath = await getDatabasesPath();
-        dir = Directory(dbPath);
-      } else {
-        dir = await getApplicationSupportDirectory();
-      }
+      dir = await getApplicationSupportDirectory();
       final file = File(join(dir.path, 'openrouter_models.json'));
 
       if (await file.exists()) {
@@ -101,12 +96,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
       if (response.statusCode == 200) {
         final newData = json.decode(response.body);
         Directory dir;
-        if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-          final dbPath = await getDatabasesPath();
-          dir = Directory(dbPath);
-        } else {
-          dir = await getApplicationSupportDirectory();
-        }
+        dir = await getApplicationSupportDirectory();
         final file = File(join(dir.path, 'openrouter_models.json'));
         await file.writeAsString(json.encode(newData));
         if (mounted) {

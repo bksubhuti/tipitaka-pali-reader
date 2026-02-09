@@ -12,7 +12,6 @@ abstract class FtsRespository {
 }
 
 class FtsDatabaseRepository implements FtsRespository {
-  // final dao = IndexDao();
   final DatabaseHelper databaseHelper;
 
   FtsDatabaseRepository(this.databaseHelper);
@@ -21,61 +20,80 @@ class FtsDatabaseRepository implements FtsRespository {
   Future<List<SearchResult>> getResults(
       String phrase, QueryMode queryMode, int wordDistance) async {
     final results = <SearchResult>[];
+
+    // 1. SANITIZE INPUT: Prevents SQL Injection crashes (e.g., taṇhā'ti)
+    String safePhrase = phrase.replaceAll("'", "''");
+
     final db = await databaseHelper.database;
 
     late String sql;
+
     if (queryMode == QueryMode.exact) {
+      // CORRECT: Uses safePhrase and proper single quoting
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, sutta_name
+      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '"$phrase"'
+      WHERE fts_pages MATCH '"$safePhrase"'
       ''';
     }
+
     if (queryMode == QueryMode.prefix) {
-      final value = '$phrase '.replaceAll(' ', '* ').trim();
+      final value = '$safePhrase '.replaceAll(' ', '* ').trim();
+
+      // FIX: Changed from '"$value"' to "'$value'"
+      // Standard FTS5 requires single quotes for string literals.
+      // Double quotes are for column names.
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, sutta_name
+      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '"$value"'
+      WHERE fts_pages MATCH '$value'
       ''';
     }
 
     if (queryMode == QueryMode.distance) {
-      // adding * to word to match prefix or suffix query
-      var value = phrase.replaceAllMapped(
-          RegExp(r'([^\s]+)'), ((match) => '*${match.group(1)}*'));
+      // FIX: Use 'safePhrase' here instead of 'phrase'.
+      // If 'phrase' contains an apostrophe, it breaks the SQL string below.
+      var value = safePhrase.replaceAllMapped(
+          RegExp(r'([^\s]+)'), ((match) => '"${match.group(1)}"*'));
+
       value = value.replaceAll(' ', ' NEAR/$wordDistance ');
+
+      // CORRECT: MATCH '$value' is safe because value is built from safePhrase
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, sutta_name,
-      SNIPPET(fts_pages, '<$highlightTagName>', '</$highlightTagName>', '',-15, 25) AS content
-      FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
-        LEFT JOIN sutta_page_shortcut
-            ON fts_pages.bookid = sutta_page_shortcut.book_id
-            AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH "$value"
+      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
+        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+      FROM fts_pages 
+      INNER JOIN books ON fts_pages.bookid = books.id
+      LEFT JOIN sutta_page_shortcut
+          ON fts_pages.bookid = sutta_page_shortcut.book_id
+          AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE fts_pages MATCH '$value'
       ''';
     }
 
     if (queryMode == QueryMode.anywhere) {
+      // CORRECT: Uses safePhrase
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, sutta_name
+      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE content LIKE '%$phrase%'
+      WHERE content LIKE '%$safePhrase%'
       ''';
     }
+
     var maps = await db.rawQuery(sql);
 
-    // debugPrint('query count:${maps.length}');
+    // --- Result Parsing ---
 
+    // Optimization: Create regex once (using safe RegExp.escape)
     var regexMatchWords = _createExactMatch(phrase);
     if (queryMode == QueryMode.prefix) {
       regexMatchWords = _createPrefixMatch(phrase);
@@ -87,63 +105,58 @@ class FtsDatabaseRepository implements FtsRespository {
       final bookName = element['name'] as String;
       final pageNumber = element['page'] as int;
       var content = element['content'] as String;
-      // adding hightlight tag to query words
-      if (queryMode == QueryMode.exact ||
-          queryMode == QueryMode.prefix ||
-          queryMode == QueryMode.anywhere) {
-        content = _buildHighlight(content, phrase);
-      }
+      final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
 
+      // 1. DISTANCE MODE (Already handled by SNIPPET)
       if (queryMode == QueryMode.distance) {
-        final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
-
-        final SearchResult searchResult = SearchResult(
+        results.add(SearchResult(
           id: id,
           book: Book(id: bookId, name: bookName),
           pageNumber: pageNumber,
-          description: content,
+          description: content, // Snippet provided by SQL
           suttaName: suttaName,
-        );
-        results.add(searchResult);
-      } else if (queryMode == QueryMode.exact ||
-          queryMode == QueryMode.prefix ||
-          queryMode == QueryMode.anywhere) {
-        // debugPrint('finding match in page:${allMatches.length}');
+        ));
+        continue; // Skip manual processing
+      }
 
-        final matches = regexMatchWords.allMatches(content);
-        // debugPrint('${matches.length} in $pageNumber of $bookId');
-        // only one match in a page
-        if (matches.length == 1) {
-          final String description = _extractDescription(
-              content, matches.first.start, matches.first.end);
-          final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
+      // 2. OTHER MODES (Manual Highlight & Extract)
 
-          final SearchResult searchResult = SearchResult(
+      // Inject highlight tags (Case Insensitive)
+      content = _buildHighlight(content, phrase);
+
+      final matches = regexMatchWords.allMatches(content);
+
+      // If matches found, process them
+      if (matches.isNotEmpty) {
+        // Loop through matches (or just take the first one if you prefer)
+        // Your logic had a mix of "if length == 1" and "else loop".
+        // A loop handles both cases cleanly.
+        for (var match in matches) {
+          final String description =
+              _extractDescription(content, match.start, match.end);
+
+          results.add(SearchResult(
             id: id,
             book: Book(id: bookId, name: bookName),
             pageNumber: pageNumber,
             description: description,
             suttaName: suttaName,
-          );
-          results.add(searchResult);
-        } else {
-          // multiple matches in single page
-          for (var i = 0, length = matches.length; i < length; i++) {
-            final current = matches.elementAt(i);
-            final String description =
-                _extractDescription(content, current.start, current.end);
-            final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
+          ));
 
-            final SearchResult searchResult = SearchResult(
-              id: id,
-              book: Book(id: bookId, name: bookName),
-              pageNumber: pageNumber,
-              description: description,
-              suttaName: suttaName,
-            );
-            results.add(searchResult);
-          }
+          // NOTE: If you only want 1 result per page, uncomment `break`:
+          // break;
         }
+      } else if (queryMode == QueryMode.anywhere) {
+        // Fallback: If 'anywhere' matched via SQL LIKE but regex failed
+        // (e.g. overlap or special chars), return raw content snippet.
+        results.add(SearchResult(
+          id: id,
+          book: Book(id: bookId, name: bookName),
+          pageNumber: pageNumber,
+          description:
+              _getRightHandSideWords(content, 20), // Grab start of text
+          suttaName: suttaName,
+        ));
       }
     }
 
@@ -164,15 +177,18 @@ class FtsDatabaseRepository implements FtsRespository {
 
   String _geLeftHandSideWords(String text, int count) {
     if (text.isEmpty) return text;
-    // remove alternate pali
     final regexAlternateText = RegExp(r'\[.+?\]');
     text = text.replaceAll(regexAlternateText, '');
+
     final words = <String>[];
     final wordList = text.split(' ');
     final wordCounts = wordList.length;
+
     for (int i = 1; i <= count; i++) {
       final index = wordCounts - i;
-      if (index - i >= 0) {
+      // FIX: Changed condition from (index - i >= 0) to (index >= 0)
+      // The old logic was skipping valid words.
+      if (index >= 0) {
         words.add(wordList[index]);
       }
     }
@@ -181,7 +197,6 @@ class FtsDatabaseRepository implements FtsRespository {
 
   String _getRightHandSideWords(String text, int count) {
     if (text.isEmpty) return text;
-    // remove alternate pali
     final regexAlternateText = RegExp(r'\[.+?\]');
     text = text.replaceAll(regexAlternateText, '');
 
@@ -197,37 +212,27 @@ class FtsDatabaseRepository implements FtsRespository {
   }
 
   RegExp _createExactMatch(String phrase) {
-    // final patterns = <String>[];
-    // final words = phrase.split(' ');
-    // for (var word in words) {
-    //   patterns.add('<$highlightTagName>$word</$highlightTagName>');
-    // }
-    // return RegExp(patterns.join(' '));
-    return RegExp('<$highlightTagName>$phrase</$highlightTagName>');
+    // FIX: Escape input to prevent Regex crash on chars like '(', ')'
+    return RegExp(
+        '<$highlightTagName>${RegExp.escape(phrase)}</$highlightTagName>');
   }
 
   RegExp _createPrefixMatch(String phrase) {
     final patterns = <String>[];
     final words = phrase.split(' ');
     for (var word in words) {
-      patterns.add('<$highlightTagName>$word.*?</$highlightTagName>');
+      // FIX: Escape input here too
+      patterns.add(
+          '<$highlightTagName>${RegExp.escape(word)}.*?</$highlightTagName>');
     }
     return RegExp(patterns.join(' '));
   }
 
   String _buildHighlight(String content, String phrase) {
-    // final words = phrase.split(' ');
-    // for (var word in words) {
-    //   content = content.replaceAllMapped(
-    //       // ignore: unnecessary_string_escapes
-    //       RegExp('($word\S*)'),
-    //       (match) =>
-    //           '<$highlightTagName>${match.group(1)}</$highlightTagName>');
-
-    //   // content.replaceAll(word, '<$_highlightTag>$word</_highlightTag>');
-    // }
-    content = content.replaceAll(
-        phrase, '<$highlightTagName>$phrase</$highlightTagName>');
-    return content;
+    // FIX: Use caseSensitive: false
+    // This allows "Metta" search to highlight "metta" in text.
+    return content.replaceAllMapped(
+        RegExp(RegExp.escape(phrase), caseSensitive: false),
+        (match) => '<$highlightTagName>${match.group(0)}</$highlightTagName>');
   }
 }

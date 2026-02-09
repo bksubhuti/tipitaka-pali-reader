@@ -3,13 +3,17 @@ class Sutta {
   final String bookID;
   final String bookName;
   final int pageNumber;
+  final int endPage; // New field
   final String shortcut;
-  Sutta(
-      {required this.name,
-      required this.bookID,
-      required this.bookName,
-      required this.pageNumber,
-      this.shortcut = ''});
+
+  Sutta({
+    required this.name,
+    required this.bookID,
+    required this.bookName,
+    required this.pageNumber,
+    this.endPage = 0, // Default to 0
+    this.shortcut = '',
+  });
 
   Map<String, dynamic> toMap() {
     return {
@@ -17,6 +21,7 @@ class Sutta {
       'bookID': bookID,
       'bookName': bookName,
       'pageNumber': pageNumber,
+      'endPage': endPage,
       'shortcut': shortcut
     };
   }
@@ -25,15 +30,18 @@ class Sutta {
     return Sutta(
       name: map['name'] ?? '',
       bookID: map['book_id'] ?? '',
+      // Note: Without the JOIN, book_name might be the same as book_id
+      // unless you handle it in the Repo query alias
       bookName: map['book_name'] ?? '',
-      pageNumber: map['page_number']?.toInt() ?? 0,
+      pageNumber: map['start_page']?.toInt() ?? 0,
+      endPage: map['end_page']?.toInt() ?? 0, // Map from DB column
       shortcut: map['shortcut'] ?? '',
     );
   }
 
   @override
   String toString() =>
-      'Sutta(name: $name, bookID: $bookID, pageNumber: $pageNumber)';
+      'Sutta(name: $name, bookID: $bookID, page: $pageNumber-$endPage)';
 
   @override
   bool operator ==(Object other) {
@@ -44,6 +52,7 @@ class Sutta {
         other.bookID == bookID &&
         other.bookName == bookName &&
         other.pageNumber == pageNumber &&
+        other.endPage == endPage &&
         other.shortcut == shortcut;
   }
 
@@ -53,5 +62,6 @@ class Sutta {
       bookID.hashCode ^
       bookName.hashCode ^
       pageNumber.hashCode ^
+      endPage.hashCode ^
       shortcut.hashCode;
 }

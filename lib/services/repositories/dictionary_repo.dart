@@ -546,7 +546,7 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
     String sql = '''
         SELECT headwords 
         FROM dpd_inflections_to_headwords
-        WHERE inflection = "$word";
+        WHERE inflection = '$word';
 ''';
     final List<Map<String, dynamic>> maps = await db.rawQuery(sql);
     // word column is unqiue
@@ -562,7 +562,7 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
     String sql = '''
         SELECT headwords 
         FROM dpd_inflections_to_headwords
-        WHERE headwords Like "$word%";
+        WHERE headwords Like '$word%';
 ''';
     final List<Map<String, dynamic>> maps = await db.rawQuery(sql);
     // word column is unqiue

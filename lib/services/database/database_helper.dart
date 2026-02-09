@@ -24,25 +24,24 @@ class DatabaseHelper {
     return _database!;
   }
 
-// Open Assets Database
+  // Open Assets Database
   _initDatabase() async {
     // myLogger.i('initializing Database');
     late String dbPath;
 
-    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-      dbPath = await getDatabasesPath();
-    }
-    if (Platform.isLinux || Platform.isWindows) {
-      final docDirPath = await getApplicationSupportDirectory();
-      dbPath = docDirPath.path;
-    }
+    final docDirPath = await getApplicationSupportDirectory();
+    dbPath = docDirPath.path;
+
     var path = join(dbPath, DatabaseInfo.fileName);
     Prefs.databaseDirPath = dbPath;
 
     // myLogger.i('opening Database ...');
-    return await openDatabase(path, onOpen: (db) async {
-      await db.execute('PRAGMA foreign_keys = ON;');
-    });
+    return await openDatabase(
+      path,
+      onOpen: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON;');
+      },
+    );
   }
 
   Future close() async {
@@ -76,9 +75,10 @@ class DatabaseHelper {
     await dbInstance.delete('dictionary_books');
   }
 
-  Future<void> restore(
-      {required String tableName,
-      required List<Map<String, Object?>> values}) async {
+  Future<void> restore({
+    required String tableName,
+    required List<Map<String, Object?>> values,
+  }) async {
     final dbInstance = await database;
     for (final value in values) {
       await dbInstance.insert(tableName, value);
@@ -88,8 +88,9 @@ class DatabaseHelper {
   Future<void> buildWordList(updateMessageCallback) async {
     final frequencyMap = <String, int>{};
     final dbInstance = await database;
-    final mapsOfCount =
-        await dbInstance.rawQuery('SELECT count(*) cnt FROM pages');
+    final mapsOfCount = await dbInstance.rawQuery(
+      'SELECT count(*) cnt FROM pages',
+    );
     final int count = mapsOfCount.first['cnt'] as int;
     int start = 1;
     int batchCount = 500; // Updated batch count
@@ -104,10 +105,9 @@ class DatabaseHelper {
         var content = element['content'] as String;
         content = _cleanText(content);
         content = content.toLowerCase();
-        final words = _cleanText(content)
-            .replaceAll(reNewLine, ' ')
-            .replaceAll(reTokenSpace, '')
-            .split(' ');
+        final words = _cleanText(
+          content,
+        ).replaceAll(reNewLine, ' ').replaceAll(reTokenSpace, '').split(' ');
         for (var word in words) {
           word = _cleanWord(word);
           if (word.isNotEmpty) {
@@ -121,13 +121,15 @@ class DatabaseHelper {
       }
       start += batchCount;
       updateMessageCallback(
-          'Processing the word list: ${(start / count * 100).round()}%');
+        'Processing the word list: ${(start / count * 100).round()}%',
+      );
     }
 
     // writing to db
     await dbInstance.execute('DROP TABLE IF EXISTS words');
     await dbInstance.execute(
-        'CREATE TABLE IF NOT EXISTS words (word TEXT COLLATE NOCASE, plain TEXT COLLATE NOCASE, frequency INTEGER)');
+      'CREATE TABLE IF NOT EXISTS words (word TEXT COLLATE NOCASE, plain TEXT COLLATE NOCASE, frequency INTEGER)',
+    );
     updateMessageCallback('Writing wordlist to db ...');
     final before = DateTime.now();
     final length = frequencyMap.length;
@@ -137,7 +139,8 @@ class DatabaseHelper {
     int chunkSize = 10000;
     for (var i = 0; i < length; i += chunkSize) {
       chunks.add(
-          wordlist.sublist(i, i + chunkSize > length ? length : i + chunkSize));
+        wordlist.sublist(i, i + chunkSize > length ? length : i + chunkSize),
+      );
     }
     int chunkIndex = 1;
     final chunkCount = chunks.length;
@@ -146,12 +149,15 @@ class DatabaseHelper {
       buffer.write('INSERT INTO words (word, plain, frequency) VALUES ');
       for (var entry in chunk) {
         buffer.write(
-            '("${entry.key}", "${_toPlain(entry.key)}", ${entry.value}), ');
+          '("${entry.key}", "${_toPlain(entry.key)}", ${entry.value}), ',
+        );
       }
-      await dbInstance
-          .rawInsert(buffer.toString().substring(0, buffer.length - 2));
+      await dbInstance.rawInsert(
+        buffer.toString().substring(0, buffer.length - 2),
+      );
       updateMessageCallback(
-          'Writing wordlist to db: ${((100 / chunkCount) * chunkIndex).round()}%');
+        'Writing wordlist to db: ${((100 / chunkCount) * chunkIndex).round()}%',
+      );
       chunkIndex++;
     }
 
@@ -175,16 +181,21 @@ class DatabaseHelper {
     await dbInstance.execute('DROP INDEX IF EXISTS "toc_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "word_index";');
     // building Index
-    await dbInstance
-        .execute('CREATE INDEX IF NOT EXISTS page_index ON pages ( bookid );');
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS paragraph_index ON paragraphs ( book_id );');
+      'CREATE INDEX IF NOT EXISTS page_index ON pages ( bookid );',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS paragraph_mapping_index ON paragraph_mapping ( base_page_number);');
-    await dbInstance
-        .execute('CREATE INDEX IF NOT EXISTS toc_index ON tocs ( book_id );');
+      'CREATE INDEX IF NOT EXISTS paragraph_index ON paragraphs ( book_id );',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS word_index ON words ( "word", "plain");');
+      'CREATE INDEX IF NOT EXISTS paragraph_mapping_index ON paragraph_mapping ( base_page_number);',
+    );
+    await dbInstance.execute(
+      'CREATE INDEX IF NOT EXISTS toc_index ON tocs ( book_id );',
+    );
+    await dbInstance.execute(
+      'CREATE INDEX IF NOT EXISTS word_index ON words ( "word", "plain");',
+    );
 
     return true;
   }
@@ -194,8 +205,9 @@ class DatabaseHelper {
 
     // Drop indexes if they exist
     await dbInstance.execute('DROP INDEX IF EXISTS "dictionary_index";');
-    await dbInstance
-        .execute('DROP INDEX IF EXISTS "dictionary_book_id_index";');
+    await dbInstance.execute(
+      'DROP INDEX IF EXISTS "dictionary_book_id_index";',
+    );
     await dbInstance.execute('DROP INDEX IF EXISTS "dpd_headwords_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "dpd_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "dpd_grammar_index";');
@@ -203,21 +215,28 @@ class DatabaseHelper {
     await dbInstance.execute('DROP INDEX IF EXISTS "dpd_word_split_index";');
     // building Index
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dictionary_index" ON "dictionary" ("word");');
+      'CREATE INDEX IF NOT EXISTS "dictionary_index" ON "dictionary" ("word");',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dictionary_book_id_index" ON "dictionary" ("word"	ASC,"book_id"	ASC);');
+      'CREATE INDEX IF NOT EXISTS "dictionary_book_id_index" ON "dictionary" ("word"	ASC,"book_id"	ASC);',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dpd_headwords_index" ON "dpd_inflections_to_headwords" ("inflection"	ASC);');
+      'CREATE INDEX IF NOT EXISTS "dpd_headwords_index" ON "dpd_inflections_to_headwords" ("inflection"	ASC);',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dpd_index" ON "dpd" ("word","book_id");');
+      'CREATE INDEX IF NOT EXISTS "dpd_index" ON "dpd" ("word","book_id");',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dpd_grammar_index" ON "dpd_grammar" ("word");');
+      'CREATE INDEX IF NOT EXISTS "dpd_grammar_index" ON "dpd_grammar" ("word");',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dpr_stem_index" ON "dpr_stem" ("word"	ASC);');
+      'CREATE INDEX IF NOT EXISTS "dpr_stem_index" ON "dpr_stem" ("word"	ASC);',
+    );
     await dbInstance.execute(
-        'CREATE INDEX IF NOT EXISTS "dpd_word_split_index" ON "dpd_word_split" ("word");');
+      'CREATE INDEX IF NOT EXISTS "dpd_word_split_index" ON "dpd_word_split" ("word");',
+    );
     await dbInstance.execute(
-      'CREATE INDEX IF NOT EXISTS "sutta_shortcut_index" ON "sutta_page_shortcut" ("book_id", "page_number");',
+      'CREATE INDEX IF NOT EXISTS "sutta_shortcut_index" ON "sutta_page_shortcut" ("book_id", "start_page");',
     );
 
     return true;
@@ -225,12 +244,21 @@ class DatabaseHelper {
 
   Future<bool> buildFts(updateMessageCallback) async {
     final dbInstance = await database;
-    await dbInstance
-        .execute('''CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING FTS4
-         (id, bookid, page, content, paranum)''');
+    await dbInstance.execute(
+      '''CREATE VIRTUAL TABLE fts_pages USING FTS5(
+    id UNINDEXED, 
+    bookid UNINDEXED, 
+    page UNINDEXED, 
+    content, 
+    paranum UNINDEXED, 
+    sutta_name,
+    tokenize = 'porter' 
+);''',
+    );
 
-    final mapsOfCount =
-        await dbInstance.rawQuery('SELECT count(*) cnt FROM pages');
+    final mapsOfCount = await dbInstance.rawQuery(
+      'SELECT count(*) cnt FROM pages',
+    );
     final int count = mapsOfCount.first['cnt'] as int;
     int start = 1;
     int batchCount = 500;
@@ -287,7 +315,7 @@ class DatabaseHelper {
     'i': RegExp(r'ī'),
     'd': RegExp(r'ḍ'),
     'l': RegExp(r'ḷ'),
-    'm': RegExp(r'[ṁṃ]')
+    'm': RegExp(r'[ṁṃ]'),
   };
   String _toPlain(String word) {
     var plain = word.toLowerCase().trim();

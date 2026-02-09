@@ -124,7 +124,9 @@ class _SuttaListDialogState extends State<SuttaListDialog> {
                             minVerticalPadding: 6,
                             contentPadding: const EdgeInsets.symmetric(
                                 vertical: 4, horizontal: 10),
-                            onTap: () => Navigator.pop(context, sutta),
+                            onTap: () {
+                              Navigator.pop(context, sutta);
+                            },
                             title: SubstringHighlight(
                               text: displayTitle,
                               term: displayFilter, // <-- crucial fix here

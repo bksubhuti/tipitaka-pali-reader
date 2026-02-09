@@ -1,10 +1,10 @@
-/*import 'dart:io';
+import 'dart:io';
 
-import 'package:epubx/epubx.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
-import 'package:tipitaka_pali/services/epub_import_service.dart';
+// Make sure this points to where you saved the new service file
+import 'package:tipitaka_pali/services/html_import_service.dart';
 
 class BookImportView extends StatefulWidget {
   const BookImportView({super.key});
@@ -15,31 +15,54 @@ class BookImportView extends StatefulWidget {
 
 class _BookImportViewState extends State<BookImportView> {
   String? _filePath;
-  String? _statusMessage;
+  String _statusMessage = '';
+  bool _isImporting = false; // Add loading state
 
-  Future<void> _pickEpubFile() async {
+  Future<void> _pickHtmlFile() async {
+    // Reset state
+    setState(() {
+      _statusMessage = '';
+      _isImporting = false;
+    });
+
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['epub'],
+      allowedExtensions: ['html', 'htm'], // Changed from epub
     );
 
     if (result != null && result.files.single.path != null) {
+      final path = result.files.single.path!;
+
       setState(() {
-        _filePath = result.files.single.path;
-        _statusMessage = 'EPUB file selected. Ready to import.';
+        _filePath = path;
+        _isImporting = true;
+        _statusMessage = 'Importing ${path.split('/').last}...';
       });
 
-      final EpubImportService epubService = EpubImportService();
+      final HtmlImportService htmlService = HtmlImportService();
 
       try {
-        await epubService.importFile(_filePath!);
-        setState(() {
-          _statusMessage = '✅ Import successful!';
-        });
+        // Run the import
+        await htmlService.importHtmlFile(path);
+
+        if (mounted) {
+          setState(() {
+            _isImporting = false;
+            _statusMessage = '✅ Import successful!';
+          });
+
+          // Optional: Show a snackbar or go back
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Book imported successfully')),
+          );
+        }
       } catch (e) {
-        setState(() {
-          _statusMessage = '❌ Import failed: $e';
-        });
+        if (mounted) {
+          setState(() {
+            _isImporting = false;
+            _statusMessage = '❌ Import failed: $e';
+          });
+        }
       }
     } else {
       setState(() {
@@ -50,35 +73,64 @@ class _BookImportViewState extends State<BookImportView> {
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
+    // Fallback if l10n keys are missing
+    final loc = AppLocalizations.of(context);
+    final title = loc?.importEpub ?? 'Import eBook';
+    final selectMsg =
+        loc?.selectAnEpubFileToImport ?? 'Select an HTML file to import';
+    final selectBtn = loc?.selectFile ?? 'Select File';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(loc.importEpub), // Add this key to localization
+        title: Text(title),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(loc.selectAnEpubFileToImport),
+            Text(selectMsg, style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 16),
+
+            // Import Button
             ElevatedButton.icon(
-              icon: const Icon(Icons.folder_open),
-              label: Text(loc.selectFile),
-              onPressed: _pickEpubFile,
+              icon:
+                  const Icon(Icons.description), // Changed icon to generic doc
+              label: Text(selectBtn),
+              onPressed: _isImporting
+                  ? null
+                  : _pickHtmlFile, // Disable while importing
             ),
+
             const SizedBox(height: 24),
-            if (_filePath != null) Text('📄 $_filePath'),
-            if (_statusMessage != null)
+
+            // Loading Indicator
+            if (_isImporting)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 20.0),
+                child: LinearProgressIndicator(),
+              ),
+
+            // File Path Display
+            if (_filePath != null)
+              Text(
+                '📄 ...${_filePath!.split(Platform.pathSeparator).last}',
+                style: const TextStyle(fontStyle: FontStyle.italic),
+              ),
+
+            // Status Message
+            if (_statusMessage.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 16.0),
                 child: Text(
-                  _statusMessage!,
+                  _statusMessage,
                   style: TextStyle(
-                    color: _statusMessage!.contains('Ready')
+                    fontWeight: FontWeight.bold,
+                    color: _statusMessage.contains('success')
                         ? Colors.green
-                        : Colors.red,
+                        : _statusMessage.contains('failed')
+                            ? Colors.red
+                            : Colors.blue,
                   ),
                 ),
               ),
@@ -88,4 +140,3 @@ class _BookImportViewState extends State<BookImportView> {
     );
   }
 }
-*/

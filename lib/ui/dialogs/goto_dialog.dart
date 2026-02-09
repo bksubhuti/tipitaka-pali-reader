@@ -130,7 +130,7 @@ class _GotoDialogState extends State<GotoDialog> {
           }
         },
         keyboardType: TextInputType.number,
-        autofocus: false,
+        autofocus: true,
       ),
     );
   }

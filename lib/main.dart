@@ -23,11 +23,11 @@ String? _initialUrl;
 void main(List<String> args) async {
   // Required for async calls in `main`
   WidgetsFlutterBinding.ensureInitialized();
-  
 
   // Initialize SharedPrefs instance.
   await Prefs.init();
 
+/*
   if (Platform.isWindows) {
     try {
       // 1. Force Dart to look for "sqlite3.dll" (the file you have)
@@ -56,7 +56,18 @@ void main(List<String> args) async {
       }
     }
   }
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+
+  if (Platform.isMacOS) {
+  sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.macOS, () {
+    return DynamicLibrary.open('/usr/lib/libsqlite3.dylib');
+  });
+}
+*/
+  if (Platform.isWindows ||
+      Platform.isLinux ||
+      Platform.isMacOS ||
+      Platform.isIOS ||
+      Platform.isAndroid) {
     // Initialize FFI
     sqfliteFfiInit();
 
@@ -97,7 +108,7 @@ void main(List<String> args) async {
   }
 
   // async calling of setup of firestore below
-  setupFirestore();
+  await setupFirestore();
 
   // This view is only called one time.
   // before the select language and before the select script are created
