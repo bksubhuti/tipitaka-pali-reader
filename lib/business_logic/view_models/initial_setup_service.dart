@@ -33,120 +33,93 @@ class InitialSetupService {
   }
 
   Future<void> setUp(bool isUpdateMode) async {
-    initialSetupNotifier.setupIsFinished = false;
-    debugPrint('isUpdateMode : $isUpdateMode');
+    _intialSetupNotifier.setupIsFinished = false;
+    debugPrint('--> Setup Starting. Update Mode: $isUpdateMode');
 
-    late String databasesDirPath;
+    // 1. Define the NEW Path (The "FFI" Goal)
+    // We want the DB to live here permanently from now on.
+    final appSupportDir = await getApplicationSupportDirectory();
+    final newDbDir = appSupportDir.path;
+    final newDbPath = join(newDbDir, DatabaseInfo.fileName);
 
-    final docDirPath = await getApplicationSupportDirectory();
-    databasesDirPath = docDirPath.path;
-    // final databasesDirPath = await getApplicationDocumentsDirectory();
-    final dbFilePath = join(databasesDirPath, DatabaseInfo.fileName);
+    // Temp storage for data migration
+    List<Bookmark> bookmarksToRestore = [];
 
-    final recents = <Map<String, Object?>>[];
-    //final bookmarks = <Map<String, Object?>>[];
-    List<Bookmark> bookmarks = [];
-    final dictionaryHistories = <Map<String, Object?>>[];
-    final searchHistories = <Map<String, Object?>>[];
-    final dictionaries = <Map<String, Object?>>[];
-
-    // because a new db is copied.. the extension dpdgrammar is lost
-    setDpdGrammarFlag(true);
-
+    // 2. BACKUP PHASE (Only runs if updating)
     if (isUpdateMode) {
-      // backuping user data to memory
-      // There is a suscpicion that database migration is causing a bug.
-      // so we only backup the bookmarks.
-      //recents.addAll(await databaseHelper.backup(tableName: 'recent'));
-      //bookmarks.addAll(await databaseHelper.backup(tableName: 'bookmark'));
-      final DatabaseHelper databaseHelper = DatabaseHelper();
-      final bmDbRepo = BookmarkDatabaseRepository(databaseHelper);
-      bookmarks = await bmDbRepo.getAllBookmark();
+      debugPrint('--> Starting Backup Phase...');
 
-      // backup history to memory
-      /*try {
-        dictionaryHistories.addAll(
-            await databaseHelper.backup(tableName: 'dictionary_history'));
-        searchHistories
-            .addAll(await databaseHelper.backup(tableName: 'search_history'));
-      } on DatabaseException catch (e) {
-        // Todo: Handle the exception
-        debugPrint('SQLite exception: $e');
-      } catch (e) {
-        debugPrint('Exception: $e');
+      // A. Find the OLD path
+      String oldDbPath = '';
+      if (Prefs.databaseDirPath.isNotEmpty) {
+        // Use the path saved in previous version's prefs
+        oldDbPath = join(Prefs.databaseDirPath, DatabaseInfo.fileName);
+      } else {
+        // Fallback to standard mobile default (safe for old upgrades)
+        final sysDbDir = await getDatabasesPath();
+        oldDbPath = join(sysDbDir, DatabaseInfo.fileName);
       }
-*/
-      //dictionaries
-      //  .addAll(await databaseHelper.backup(tableName: 'dictionary_books'));
 
-      //debugPrint('dictionary books: ${dictionaries.length}');
-      await databaseHelper.close();
-      // deleting old database file
-    }
+      final oldFile = File(oldDbPath);
 
-    await deleteDatabase(dbFilePath);
+      // B. Extract Data
+      if (await oldFile.exists()) {
+        try {
+          // We use standard openDatabase here to read the old file safely
+          // Note: On mobile, this uses standard platform channels.
+          // On Desktop, we might need to ensure FFI is init, but usually safe.
+          var oldDb = await openDatabase(oldDbPath);
 
-    // make sure the folder exists
-    if (!await Directory(databasesDirPath).exists()) {
-      debugPrint('creating db folder path: $databasesDirPath');
-      try {
-        await Directory(databasesDirPath).create(recursive: true);
-      } catch (e) {
-        debugPrint('$e');
+          // Fetch Bookmarks
+          final maps = await oldDb.query('bookmark');
+          bookmarksToRestore = maps.map((x) => Bookmark.fromJson(x)).toList();
+
+          debugPrint('--> Backed up ${bookmarksToRestore.length} bookmarks.');
+          await oldDb.close();
+        } catch (e) {
+          debugPrint('--> ERROR during backup: $e');
+          // If backup fails, we proceed but log it.
+          // We DO NOT delete the old file, so user data is still safe on disk.
+        }
       }
     }
 
-    // copying new database from assets
-    await _copyFromAssets(dbFilePath);
+    // 3. PREPARE DESTINATION
+    // We must delete the file at the NEW location to ensure we copy a clean asset.
+    // (This does not touch the Old Source file)
+    await deleteDatabase(newDbPath);
 
-    final DatabaseHelper databaseHelper = DatabaseHelper();
-
-    // restoring user data
-    /*
-    if (recents.isNotEmpty) {
-      await databaseHelper.restore(tableName: 'recent', values: recents);
-    }
-    */
-    //recents.addAll(await databaseHelper.backup(tableName: 'recent'));
-    //bookmarks.addAll(await databaseHelper.backup(tableName: 'bookmark'));
-    final bmDbRepo = BookmarkDatabaseRepository(databaseHelper);
-
-    // right now the only thing we restore is bookmarks.
-    // the bookmark class handles default values.
-    if (bookmarks.isNotEmpty) {
-      for (Bookmark bm in bookmarks) {
-        bmDbRepo.insert(bm);
-      }
+    // Ensure folder exists
+    if (!await Directory(newDbDir).exists()) {
+      await Directory(newDbDir).create(recursive: true);
     }
 
-// restore history from memory
-/*
-    try {
-      await databaseHelper.restore(
-          tableName: 'dictionary_history', values: dictionaryHistories);
-      await databaseHelper.restore(
-          tableName: 'search_history', values: searchHistories);
-    } on DatabaseException catch (e) {
-      // Todo: Handle the exception
-      debugPrint('SQLite exception: $e');
-    } catch (e) {
-      debugPrint('Exception: $e');
-    }
-    // dictionary_books table is semi-user data
-    // need to delete before restoring
-    if (dictionaries.isNotEmpty) {
-      await databaseHelper.deleteDictionaryData();
-      debugPrint('dictionary books: ${dictionaries.length}');
-      await databaseHelper.restore(
-          tableName: 'dictionary_books', values: dictionaries);
-    }
-    */
+    // 4. COPY ASSETS
+    await _copyFromAssets(newDbPath);
 
-    // save record to shared Preference
+    // 5. UPDATE PREFS
+    // Now that the file is in the new place, update Prefs immediately.
+    // This ensures DatabaseHelper will find it there.
+    Prefs.databaseDirPath = newDbDir;
     Prefs.isDatabaseSaved = true;
     Prefs.databaseVersion = DatabaseInfo.version;
 
-    initialSetupNotifier.setupIsFinished = true;
+    // 6. RESTORE DATA
+    if (bookmarksToRestore.isNotEmpty) {
+      debugPrint('--> Restoring bookmarks to new DB...');
+
+      // Now it is safe to use the Singleton, because Prefs are updated!
+      final dbHelper = DatabaseHelper();
+      final bmRepo = BookmarkDatabaseRepository(dbHelper);
+
+      for (final bm in bookmarksToRestore) {
+        await bmRepo.insert(bm);
+      }
+      debugPrint('--> Restore complete.');
+    }
+
+    // 7. FINISH
+    _intialSetupNotifier.setupIsFinished = true;
   }
 
   Future<void> _copyFromAssets(String dbFilePath) async {

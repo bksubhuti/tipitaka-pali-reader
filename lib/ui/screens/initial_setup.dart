@@ -12,9 +12,7 @@ import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/dialogs/extension_prompt_dialog.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
-import 'package:tipitaka_pali/ui/screens/settings/select_script_language.dart';
 import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
-import 'package:tipitaka_pali/ui/widgets/select_language_widget.dart';
 
 import '../dialogs/reset_dialog.dart';
 
