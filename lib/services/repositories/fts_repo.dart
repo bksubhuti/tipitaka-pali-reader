@@ -57,14 +57,15 @@ class FtsDatabaseRepository implements FtsRespository {
     }
 
     if (queryMode == QueryMode.distance) {
-      // FIX: Use 'safePhrase' here instead of 'phrase'.
-      // If 'phrase' contains an apostrophe, it breaks the SQL string below.
-      var value = safePhrase.replaceAllMapped(
-          RegExp(r'([^\s]+)'), ((match) => '"${match.group(1)}"*'));
+      // 1. Split input into individual words
+      final words = safePhrase.split(' ').where((w) => w.isNotEmpty);
 
-      value = value.replaceAll(' ', ' NEAR/$wordDistance ');
+      // 2. Add quotes and wildcards to each word: "word"*
+      final formattedWords = words.map((w) => '"$w"*').join(' ');
 
-      // CORRECT: MATCH '$value' is safe because value is built from safePhrase
+      // 3. Wrap in the FTS5 NEAR function: NEAR("word1"* "word2"*, distance)
+      final value = 'NEAR($formattedWords, $wordDistance)';
+
       sql = '''
       SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
         SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
@@ -76,7 +77,6 @@ class FtsDatabaseRepository implements FtsRespository {
       WHERE fts_pages MATCH '$value'
       ''';
     }
-
     if (queryMode == QueryMode.anywhere) {
       // CORRECT: Uses safePhrase
       sql = '''
