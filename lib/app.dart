@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -112,11 +113,12 @@ class _AppState extends State<App> with WindowListener {
     });
   }
 
+  // --- UPDATE YOUR _handleLink FUNCTION ---
   Future<void> _handleLink(Uri uri) async {
     final context = _navigatorKey.currentContext;
     if (context == null) return;
 
-    // 1. Try Sutta Shortcut First (e.g., ?sutta=mn118)
+    // 1. Try Sutta Shortcut First
     final String? suttaShortcut = uri.queryParameters['sutta'];
     if (suttaShortcut != null && suttaShortcut.isNotEmpty) {
       final suttaRepo = SuttaRepositoryDatabase(DatabaseHelper());
@@ -130,28 +132,57 @@ class _AppState extends State<App> with WindowListener {
           pageNumber: sutta.pageNumber,
           name: sutta.name,
           selectedText: '',
+          note: '',
         );
         _executeOpen(context, suttaBookmark);
-        return; // Exit early if sutta is found
+        return;
       }
     }
 
-    // 2. Fallback to Detailed Bookmark Parameters (e.g., ?book_id=...&page_number=...)
+    // 2. Fallback to Detailed Bookmark Parameters
     final String? bookId = uri.queryParameters['book_id'];
+
     if (bookId != null && bookId.isNotEmpty) {
       final String? pageStr = uri.queryParameters['page_number'];
       final String name = uri.queryParameters['name'] ?? 'Unknown Book';
-      final String selectedText = uri.queryParameters['selected_text'] ?? '';
+
+      // Decode both the Note and the Selected Text using the helper!
+      final String decodedNote = _decodeSafe(uri.queryParameters['note']);
+      final String decodedText =
+          _decodeSafe(uri.queryParameters['selected_text']);
 
       final manualBookmark = Bookmark(
         id: 0,
         bookID: bookId,
         pageNumber: int.tryParse(pageStr ?? '1') ?? 1,
         name: name,
-        selectedText: selectedText,
+        note: decodedNote, // <-- Passes the decoded note
+        selectedText: decodedText, // <-- Passes the decoded text
       );
 
       _executeOpen(context, manualBookmark);
+    }
+  }
+
+  // --- ADD THIS HELPER FUNCTION ANYWHERE INSIDE _AppState ---
+  String _decodeSafe(String? encodedText) {
+    if (encodedText == null || encodedText.isEmpty) return '';
+    try {
+      // 1. Sanitize: Remove all spaces and existing padding
+      String cleanString = encodedText.replaceAll(RegExp(r'[\s=]+'), '');
+
+      // 2. Re-Pad perfectly
+      int remainder = cleanString.length % 4;
+      if (remainder > 0) {
+        cleanString =
+            cleanString.padRight(cleanString.length + (4 - remainder), '=');
+      }
+
+      // 3. Decode
+      return utf8.decode(base64.decode(cleanString), allowMalformed: true);
+    } catch (e) {
+      debugPrint("Deep Link: Decode failed ($e). Using raw text.");
+      return encodedText; // Fallback to raw text for older links
     }
   }
 

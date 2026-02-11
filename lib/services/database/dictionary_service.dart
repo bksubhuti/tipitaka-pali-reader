@@ -24,7 +24,7 @@ class DictionarySerice {
     if (Prefs.hideSanskrit) {
       definition.definition = removeSanskritItems(definition.definition);
     }
-
+    definition.definition = removeNotes(definition.definition);
     return definition;
   }
 
@@ -101,6 +101,17 @@ class DictionarySerice {
   String removeSanskritItems(String content) {
     final regexPattern = RegExp(
         r'<tr>\s*<th[^>]*>\s*(Sanskrit|Sanskrit Root)\s*</th>\s*<td[^>]*>.*?</td>\s*</tr>',
+        caseSensitive: false,
+        multiLine: true,
+        dotAll: true);
+
+    return content.replaceAll(regexPattern, '');
+  }
+
+  String removeNotes(String content) {
+    // This regex looks for a table row where the header is exactly "Notes"
+    final regexPattern = RegExp(
+        r'<tr>\s*<th[^>]*>\s*Notes\s*</th>\s*<td[^>]*>.*?</td>\s*</tr>',
         caseSensitive: false,
         multiLine: true,
         dotAll: true);

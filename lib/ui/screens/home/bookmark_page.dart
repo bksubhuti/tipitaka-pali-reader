@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,6 +14,7 @@ import 'package:tipitaka_pali/services/repositories/folder_epository%20%7B.dart'
 import 'package:tipitaka_pali/ui/screens/home/bookmark_app_bar.dart';
 import 'package:tipitaka_pali/ui/screens/home/widgets/folder_path_navigator.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'dart:convert'; // Required for base64 encoding
 
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
@@ -416,9 +418,33 @@ class _BookmarkPageState extends State<BookmarkPage>
             child: const Icon(Icons.share),
             label: AppLocalizations.of(context)!.share,
             onTap: () => Share.share(
-              item.toString(),
+              getShareString(item),
               subject: AppLocalizations.of(context)!.share,
             ),
+          ),
+        if (item is Bookmark)
+          SpeedDialChild(
+            child: const Icon(Icons.copy), // Using the copy icon
+            label: AppLocalizations.of(context)!
+                .copy, // Make sure you have 'copy' in your translations
+            onTap: () async {
+              // 1. Generate the text
+              final String textToCopy = getShareString(item);
+
+              // 2. Copy it to the clipboard
+              await Clipboard.setData(ClipboardData(text: textToCopy));
+
+              // 3. Show a quick confirmation popup (SnackBar)
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'Copied to clipboard!'), // Replace with AppLocalizations if needed
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
           ),
         SpeedDialChild(
           child: const Icon(Icons.edit),
@@ -437,5 +463,32 @@ class _BookmarkPageState extends State<BookmarkPage>
         ),
       ],
     );
+  }
+
+  String getShareString(Bookmark bookmark) {
+    return bookmark.toString() + generateShareLink(bookmark);
+  }
+
+  String generateShareLink(Bookmark bookmark) {
+    // Helper function to safely encode text (or return empty if blank)
+    String safeEncode(String? text) {
+      if (text == null || text.trim().isEmpty) return '';
+      return base64Encode(utf8.encode(text));
+    }
+
+    final Uri uri = Uri(
+      scheme: 'https',
+      host: 'tpr.pali.tools',
+      path: '/open',
+      queryParameters: {
+        'book_id': bookmark.bookID,
+        'page_number': bookmark.pageNumber.toString(),
+        'name': bookmark.name,
+        'note': safeEncode(bookmark.note), // Encoded safely!
+        'selected_text': safeEncode(bookmark.selectedText) // Encoded safely!
+      },
+    );
+
+    return "Link:\n ${uri.toString()}";
   }
 }
