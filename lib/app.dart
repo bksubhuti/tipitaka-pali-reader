@@ -52,9 +52,15 @@ final Logger myLogger = Logger(
 class App extends StatefulWidget {
   final StreamingSharedPreferences rxPref;
   final String? initialUrl;
+  final ValueNotifier<String?>? deepLinkNotifier;
 
   //const App({required this.rxPref, this.initialLink, super.key});
-  const App({required this.rxPref, this.initialUrl, super.key});
+  const App({
+    required this.rxPref,
+    this.initialUrl,
+    super.key,
+    this.deepLinkNotifier,
+  });
 
   @override
   _AppState createState() => _AppState();
@@ -84,10 +90,14 @@ class _AppState extends State<App> with WindowListener {
         _handleLink(Uri.parse(widget.initialUrl!));
       });
     }
+    // --- 2. ADDED LISTENER FOR SINGLE INSTANCE (WARM START) ---
+    widget.deepLinkNotifier?.addListener(_onDeepLinkNotifierChanged);
   }
 
   @override
   void dispose() {
+    // --- 3. REMOVE LISTENER ---
+    widget.deepLinkNotifier?.removeListener(_onDeepLinkNotifierChanged);
     // Clean up the listener
     if (PlatformInfo.isDesktop) {
       windowManager.removeListener(this);
@@ -115,6 +125,10 @@ class _AppState extends State<App> with WindowListener {
 
   // --- UPDATE YOUR _handleLink FUNCTION ---
   Future<void> _handleLink(Uri uri) async {
+    // Wait for navigator to be ready if needed
+    if (_navigatorKey.currentContext == null) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
     final context = _navigatorKey.currentContext;
     if (context == null) return;
 
@@ -411,5 +425,28 @@ class _AppState extends State<App> with WindowListener {
       status = await Permission.storage.request();
     }
     return status.isGranted;
+  }
+
+  // --- 4. LISTENER CALLBACK ---
+  void _onDeepLinkNotifierChanged() {
+    final link = widget.deepLinkNotifier?.value;
+    if (link != null) {
+      // bug fix.. works cold, works 2nd time.. not third time.
+      // This "consumes" the event so the same link can be clicked again.
+      // It will trigger this listener again with null, but the check above handles that.
+      widget.deepLinkNotifier?.value = null;
+
+      // Bring window to front
+      if (PlatformInfo.isDesktop) {
+        windowManager.show();
+        windowManager.focus();
+      }
+
+      // Navigate if it's a real link
+      if (link != 'focus' && link.startsWith('tpr.pali.tools://')) {
+        debugPrint("Notifier received link: $link");
+        _handleLink(Uri.parse(link));
+      }
+    }
   }
 }

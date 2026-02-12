@@ -2,6 +2,8 @@ import 'dart:ffi' as ffi;
 import 'dart:ffi' show DynamicLibrary;
 import 'package:sqlite3/open.dart' as sqlite_open; // This will work now!
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -19,10 +21,17 @@ import 'package:window_manager/window_manager.dart';
 
 // Global variable to store URL from command line.. vn bodhrasa
 String? _initialUrl;
+final ValueNotifier<String?> deepLinkNotifier = ValueNotifier(null);
 
 void main(List<String> args) async {
   // Required for async calls in `main`
   WidgetsFlutterBinding.ensureInitialized();
+
+  // If this returns false (because we are the second instance),
+  // the app is already closed by now.
+  if (Platform.isLinux || Platform.isWindows) {
+    await ensureSingleInstance(args);
+  }
 
   // Initialize SharedPrefs instance.
   await Prefs.init();
@@ -86,6 +95,7 @@ void main(List<String> args) async {
 
   if (PlatformInfo.isDesktop) {
     // Initialize window manager
+    // no need twice.. it moved to tops
     await windowManager.ensureInitialized();
     //Setup default window properties
 
@@ -128,7 +138,10 @@ void main(List<String> args) async {
     Prefs.selectedMainCategoryFilters = defaultSelectedMainCategoryFilters;
     Prefs.selectedSubCategoryFilters = defultSelectedSubCategoryFilters;
   }
-  runApp(App(rxPref: rxPref, initialUrl: _initialUrl));
+  runApp(App(
+      rxPref: rxPref,
+      initialUrl: _initialUrl,
+      deepLinkNotifier: deepLinkNotifier));
 }
 
 setScriptAndLanguageByLocal() async {
@@ -213,5 +226,53 @@ Future<void> _restoreWindowBounds() async {
   if (x != null && y != null) {
     // Set the bounds (position + size)
     await windowManager.setBounds(Rect.fromLTWH(x, y, width, height));
+  }
+}
+
+Future<bool> ensureSingleInstance(List<String> args) async {
+  const int appPort = 56789; // Unique port
+
+  try {
+    // Try to bind. If successful, we are the Main Instance.
+    final serverSocket =
+        await ServerSocket.bind(InternetAddress.loopbackIPv4, appPort);
+
+    // Listen for incoming links from future instances
+    serverSocket.listen((Socket client) {
+      client.listen((List<int> data) {
+        final message = utf8.decode(data);
+        if (message.isNotEmpty) {
+          print("Received deep link from second instance: $message");
+
+          // --- FIX: ACTUAL LOGIC CONNECTED HERE ---
+          deepLinkNotifier.value = message;
+          // ----------------------------------------
+        }
+      });
+    });
+
+    return true;
+  } catch (e) {
+    // Port is busy. We are the Second Instance.
+    try {
+      final socket =
+          await Socket.connect(InternetAddress.loopbackIPv4, appPort);
+
+      // Find the actual deep link in the args
+      String message = 'focus';
+      for (final arg in args) {
+        if (arg.startsWith('tpr.pali.tools://')) {
+          message = arg;
+          break;
+        }
+      }
+
+      socket.write(message);
+      await socket.flush();
+      socket.destroy();
+    } catch (_) {}
+
+    // Kill this second instance immediately
+    exit(0);
   }
 }
