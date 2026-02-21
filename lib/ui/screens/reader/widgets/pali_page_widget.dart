@@ -89,6 +89,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   late List<Bookmark> bookmarks;
 
   final GlobalKey _textKey = GlobalKey();
+  final GlobalKey<HtmlWidgetState> _htmlKey = GlobalKey<HtmlWidgetState>();
   int? _pageToHighlight;
 
   @override
@@ -106,6 +107,25 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _myFactory.onTapUrl('#goto');
     });
+  }
+
+  @override
+  void didUpdateWidget(PaliPageWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Auto-scroll to highlightedWord when it changes
+    if (widget.highlightedWord != null &&
+        widget.highlightedWord != oldWidget.highlightedWord &&
+        widget.pageToHighlight == widget.pageNumber) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _htmlKey.currentState?.scrollToAnchor(kGotoID);
+      });
+    }
+    
+    if (widget.highlightedWord != oldWidget.highlightedWord) {
+      highlightedWord = widget.highlightedWord;
+      _pageToHighlight = widget.pageToHighlight;
+    }
   }
 
   int findOccurrencesBefore(String word, RenderParagraph target) {
@@ -227,7 +247,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             }
           },
           child: HtmlWidget(
-            key: _textKey,
+            key: _htmlKey,
             html,
             factoryBuilder: () => _myFactory,
             textStyle: TextStyle(
@@ -668,7 +688,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final hwi = highlightedWordIndex;
     if (!Prefs.multiHighlight && hwi != null) {
       final highlighted =
-          '<span class = "$highlightClass">$textToHighlight</span>';
+          '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
       final matches = textToHighlight.allMatches(content);
       if (matches.length > hwi) {
         final match = matches.elementAt(hwi);
@@ -686,7 +706,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       final pattern = RegExp('(?<=[\\s", ])$textToHighlight(?=[\\s", ])');
       if (content.contains(pattern)) {
         final replace =
-            '<span class = "$highlightClass">$textToHighlight</span>';
+            '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
         content = content.replaceAll(pattern, replace);
 
         // adding id to scroll
