@@ -12,6 +12,7 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
 import 'package:tipitaka_pali/business_logic/models/bookmark.dart';
+import 'package:tipitaka_pali/business_logic/models/found_info.dart';
 import 'package:tipitaka_pali/providers/font_provider.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -31,20 +32,25 @@ class PaliPageWidget extends StatefulWidget {
   final String htmlContent;
   final Script script;
   final String? highlightedWord;
-  final String? searchText;
   final int? pageToHighlight;
+  final double? height;
+  final List<FoundInfo>? founds;
+  final int? currentOccurrence;
   final Book? book;
   final Function(String clickedWord)? onClick;
-  const PaliPageWidget(
-      {super.key,
-      required this.pageNumber,
-      required this.htmlContent,
-      required this.script,
-      this.highlightedWord,
-      this.onClick,
-      this.searchText,
-      this.pageToHighlight,
-      this.book});
+  const PaliPageWidget({
+    super.key,
+    required this.pageNumber,
+    required this.htmlContent,
+    required this.script,
+    this.highlightedWord,
+    this.pageToHighlight,
+    this.height,
+    this.founds,
+    this.currentOccurrence,
+    this.onClick,
+    this.book,
+  });
 
   @override
   State<PaliPageWidget> createState() => _PaliPageWidgetState();
@@ -85,12 +91,18 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   final _myFactory = WidgetFactory();
   String? highlightedWord;
   String? lookupWord;
+  int? lookupWordIndex;
+  String? lookupParagraph;
   int? highlightedWordIndex;
   late List<Bookmark> bookmarks;
+  int? _pageToHighlight;
 
   final GlobalKey _textKey = GlobalKey();
   final GlobalKey<HtmlWidgetState> _htmlKey = GlobalKey<HtmlWidgetState>();
-  int? _pageToHighlight;
+  final GlobalKey _scrollKey = GlobalKey();
+
+  final searchTermCssClass = 'search-term';
+  final currentSearchTermCssClass = 'current-search-term';
 
   @override
   void initState() {
@@ -112,19 +124,34 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   @override
   void didUpdateWidget(PaliPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
-    // Auto-scroll to highlightedWord when it changes
-    if (widget.highlightedWord != null &&
-        widget.highlightedWord != oldWidget.highlightedWord &&
-        widget.pageToHighlight == widget.pageNumber) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Handle search result scroll - uses Scrollable.ensureVisible for better alignment
+      if (widget.founds != null && widget.currentOccurrence != null) {
+        _scrollToCurrentSearchResult();
+      }
+      
+      // Handle highlightedWord scroll - uses scrollToAnchor for id-based targeting
+      if (widget.highlightedWord != null &&
+          widget.highlightedWord != oldWidget.highlightedWord &&
+          widget.pageToHighlight == widget.pageNumber) {
         _htmlKey.currentState?.scrollToAnchor(kGotoID);
-      });
-    }
-    
-    if (widget.highlightedWord != oldWidget.highlightedWord) {
-      highlightedWord = widget.highlightedWord;
-      _pageToHighlight = widget.pageToHighlight;
+      }
+    });
+  }
+
+  void _scrollToCurrentSearchResult() {
+    final currentContext = _scrollKey.currentContext;
+    if (currentContext != null) {
+      final RenderObject? box = currentContext.findRenderObject();
+      if (box != null) {
+        final double yPosition = (box as RenderBox).localToGlobal(Offset.zero).dy;
+        final double effectiveHeight = widget.height ?? MediaQuery.of(context).size.height;
+        final bool isVisible = yPosition >= 0 && yPosition <= (effectiveHeight - 20);
+        if (!isVisible) {
+          Scrollable.ensureVisible(currentContext,
+              alignment: 0.5, duration: const Duration(milliseconds: 100));
+        }
+      }
     }
   }
 
@@ -184,8 +211,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             debugPrint('word under right-click: ${tapped?.plainText}');
           },*/
           onTapUp: (details) {
-            final box =
-                _textKey.currentContext?.findRenderObject()! as RenderBox;
+            final renderObject = _textKey.currentContext?.findRenderObject();
+            if (renderObject == null) return;
+            
+            final box = renderObject as RenderBox;
 
             final result = BoxHitTestResult();
             final offset = box.globalToLocal(details.globalPosition);
@@ -246,14 +275,16 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               }
             }
           },
-          child: HtmlWidget(
-            key: _htmlKey,
-            html,
-            factoryBuilder: () => _myFactory,
-            textStyle: TextStyle(
-                fontSize: fontSize.toDouble(),
-                inherit: true,
-                fontFamily: fontName),
+          child: Container(
+            key: _textKey,
+            child: HtmlWidget(
+              key: _htmlKey,
+              html,
+              factoryBuilder: () => _myFactory,
+              textStyle: TextStyle(
+                  fontSize: fontSize.toDouble(),
+                  inherit: true,
+                  fontFamily: fontName),
             customStylesBuilder: (element) {
               // if (element.className == 'title' ||
               //     element.className == 'book' ||
@@ -329,6 +360,15 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                       icon: const Icon(Icons.note, color: Colors.red)),
                 );
               }
+
+              // Anchor element for scrolling to current search result
+              if (element.localName == 'a' &&
+                  element.className == 'scroll_to_term') {
+                return InlineCustomWidget(
+                  child: SizedBox.shrink(key: _scrollKey),
+                );
+              }
+
               return null;
             },
             onTapUrl: (word) {
@@ -345,6 +385,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             },
           ),
         ),
+          ),
       ),
     );
   }
@@ -379,22 +420,18 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _addUnderline(content, lookupWord!);
     }
 
-    if (highlightedWord != null &&
-        _pageToHighlight != null &&
-        _pageToHighlight == widget.pageNumber) {
+    if (highlightedWord != null) {
       content = _addHighlight(content, highlightedWord!);
+    }
+
+    if (widget.founds != null) {
+      content = _addHighlightToSearchIndex(content);
     }
 
     if (!Prefs.isShowAlternatePali) {
       content = _removeAlternatePali(content);
     }
     content = _formatWithUserSetting(content);
-    if (widget.searchText?.isNotEmpty == true) {
-      var textToHighlight = PaliScript.getScriptOf(
-          script: context.read<ScriptLanguageProvider>().currentScript,
-          romanText: widget.searchText!);
-      content = _addHighlight2(content, textToHighlight, context);
-    }
     // content = _makeClickable(content, script);
     content = _changeToInlineStyle(content);
 
@@ -427,67 +464,41 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     return content;
   }
 
-  String _addHighlight2(
-      String content, String textToHighlight, BuildContext context) {
-    final rvc = Provider.of<ReaderViewController>(context, listen: false);
-    final soup = BeautifulSoup(content);
-    final isDark = context.read<ThemeChangeNotifier>().isDarkMode;
-    final textColor = isDark ? '#000' : '#000';
-    final bgColor = isDark ? '#2994ff' : '#a6d2ff';
-
-    List<ReplaceResult> toReplace = [];
-    final nodes = (soup.body?.nodes ?? []);
-    for (final node in nodes) {
-      _highlightNode(node, textToHighlight, toReplace, textColor);
+  String _addHighlightToSearchIndex(String content) {
+    if (widget.founds == null || widget.founds!.isEmpty) return content;
+    
+    final term = widget.founds!.first.term;
+    // Highlight all occurrences
+    content = content.replaceAll(
+        RegExp(term), '<span class="$searchTermCssClass">$term</span>');
+    
+    // Mark only the current occurrence with anchor for scrolling
+    if (widget.currentOccurrence != null) {
+      content = replaceNthOccurrence(
+        content,
+        '<span class="$searchTermCssClass">$term</span>',
+        '<a class="scroll_to_term"></a><span class="$currentSearchTermCssClass">$term</span>',
+        widget.currentOccurrence!,
+      );
     }
 
-    final highlightAll = rvc.highlightEveryMatch.value;
-    var highlightIndex = 0;
-    toReplace.forEachIndexed((index, result) {
-      for (final newNode in result.newNodes) {
-        if (widget.pageNumber == rvc.currentPage.value &&
-            newNode.data.contains('data-is-highlighted')) {
-          final si = rvc.searchIndexes[rvc.currentSearchResult.value - 1];
-          if (highlightIndex == si.index) {
-            newNode.attributes['style'] =
-                'background: $bgColor; color: $textColor;';
-          } else if (!highlightAll) {
-            newNode.attributes['style'] = 'border: 1px solid transparent;';
-          }
-          highlightIndex++;
-        }
-
-        result.node.parent?.insertBefore(newNode, result.node);
-      }
-
-      result.node.remove();
-    });
-
-    return soup.toString();
+    return content;
   }
 
-  _highlightNode(dom.Node node, String textToHighlight,
-      List<ReplaceResult> toReplace, String textColor) {
-    if (node.nodeType == dom.Node.TEXT_NODE) {
-      if (node.text == null ||
-          node.text?.isEmpty == true ||
-          node.text?.contains(textToHighlight) == false) {
-        return;
+  String replaceNthOccurrence(
+    String content,
+    String pattern,
+    String replacement,
+    int occurrence,
+  ) {
+    int count = 0;
+    return content.replaceAllMapped(RegExp(pattern), (match) {
+      count++;
+      if (count == occurrence) {
+        return replacement;
       }
-
-      final replace =
-          '<span style="background-color: #FFE959 !important; color: $textColor;" class="search-highlight" data-is-highlighted="true">$textToHighlight</span>';
-      final replaced = (node.text ?? '').replaceAll(textToHighlight, replace);
-      final highlighted = BeautifulSoup(replaced);
-
-      List<dom.Node> newNodes =
-          (highlighted.body?.nodes ?? []).toList(growable: false).cast();
-      toReplace.add(ReplaceResult(node, newNodes));
-    } else {
-      for (final nodeChild in node.nodes) {
-        _highlightNode(nodeChild, textToHighlight, toReplace, textColor);
-      }
-    }
+      return match.group(0)!;
+    });
   }
 
   String _makeClickable(String content, Script script) {
@@ -569,6 +580,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="note"': r'style="font-size: 0.8em; color: gray;"',
       r'class = "highlightedSearch"':
           r'style="background: #FFE959; color: #000;"',
+      'class="$searchTermCssClass"':
+          r'style="background: yellow; color: black;"',
+      'class="$currentSearchTermCssClass"':
+          r'style="background: orange; color: black;"',
       // r'class="highlighted"':
       //     r'style="background: rgb(255, 114, 20); color: white;"',
       r'class = "underlined_highlight"': r'style="font-weight: 500; color: ' +

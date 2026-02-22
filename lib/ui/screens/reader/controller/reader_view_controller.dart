@@ -8,6 +8,8 @@ import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
 
 import '../../../../business_logic/models/book.dart';
 import '../../../../business_logic/models/bookmark.dart';
+import '../../../../business_logic/models/found_info.dart';
+import '../../../../business_logic/models/found_state.dart';
 import '../../../../business_logic/models/page_content.dart';
 import '../../../../business_logic/models/paragraph_mapping.dart';
 import '../../../../business_logic/models/recent.dart';
@@ -42,14 +44,11 @@ class ReaderViewController extends ChangeNotifier {
   String? textToHighlight;
   String? selection;
 
+  final ValueNotifier<FoundState> _foundState = ValueNotifier<FoundState>(FoundInitial());
+  ValueListenable<FoundState> get foundState => _foundState;
+
   final ValueNotifier<String> _searchText = ValueNotifier('');
   ValueListenable<String> get searchText => _searchText;
-
-  final ValueNotifier<int> _searchResultCount = ValueNotifier(0);
-  ValueListenable<int> get searchResultCount => _searchResultCount;
-
-  final ValueNotifier<int> _currentSearchResult = ValueNotifier(1);
-  ValueListenable<int> get currentSearchResult => _currentSearchResult;
 
   final ValueNotifier<bool> _highlightEveryMatch = ValueNotifier(true);
   ValueListenable<bool> get highlightEveryMatch => _highlightEveryMatch;
@@ -72,8 +71,6 @@ class ReaderViewController extends ChangeNotifier {
 
   bool get showSearch => _showSearch;
 
-  final List<SearchIndex> searchIndexes = [];
-
   String bookUuid;
 
   // // script features
@@ -90,86 +87,166 @@ class ReaderViewController extends ChangeNotifier {
     required this.bookUuid,
   });
 
-  void search(String text) {
-    _searchText.value = text;
-    searchIndexes.clear();
-
-    if (text.isEmpty) {
+  void onSearchTermChanged(String text) {
+    if (text.isEmpty || text.length < 2) {
+      _foundState.value = FoundInitial();
+      _searchText.value = text;
       _searchResultCount.value = 0;
       _currentSearchResult.value = 0;
       return;
     }
 
-    var totalResults = 0;
-    _currentSearchResult.value = -1;
-
-    // handles empty anchors like <a name="[ID]"></a>
-    final String regexPattern = RegExp.escape(text)
-        .replaceAll(' ', r'(?:\s*<a\s+name="[^"]*"></a>\s*|\s+)');
-    final RegExp regex = RegExp(regexPattern, caseSensitive: false);
-
-    pages.forEachIndexed((index, page) {
-      final matches = regex.allMatches(page.content);
-      final pageMatches = matches.length;
-
-      if (index + 1 == _currentPage.value && _currentSearchResult.value == -1) {
-        _currentSearchResult.value = searchIndexes.length;
-      }
+    _searchText.value = text;
+    int startIndex = 0;
+    final List<FoundInfo> results = <FoundInfo>[];
+    pages.forEachIndexed((pageIndex, page) {
+      final pageMatches = text.allMatches(page.content).length;
       for (int i = 0; i < pageMatches; i++) {
-        searchIndexes.add(SearchIndex(book.firstPage + index, i));
+        results.add(FoundInfo(
+          term: text,
+          index: startIndex++,
+          pageNumber: page.pageNumber!,
+          pageIndex: pageIndex,
+          occurrenceInPage: i + 1,
+        ));
       }
-      totalResults += pageMatches;
     });
-    _searchResultCount.value = totalResults;
-    _currentSearchResult.value = 1;
+    if (results.isEmpty) {
+      _foundState.value = FoundEmpty();
+      _searchResultCount.value = 0;
+      _currentSearchResult.value = 0;
+    } else {
+      _foundState.value = FoundData(founds: results, current: 0);
+      _searchResultCount.value = results.length;
+      _currentSearchResult.value = 1;
+    }
   }
+
+  void onSearchRequested(String term) {
+    debugPrint('on search requested: $term');
+    final currentState = _foundState.value;
+    if (currentState is FoundEmpty || currentState is FoundInitial) {
+      return;
+    }
+    var current = (currentState as FoundData).current;
+
+    if (current == null) {
+      _foundState.value = currentState.copyWith(current: _getNearestIndex());
+      return;
+    }
+  }
+
+  void onClickedNext() {
+    final currentState = _foundState.value;
+    if (currentState is FoundEmpty || currentState is FoundInitial) {
+      return;
+    }
+    var current = (currentState as FoundData).current;
+
+    if (current == null) {
+      _foundState.value = currentState.copyWith(current: _getNearestIndex());
+      return;
+    }
+    if (current == currentState.founds.length - 1) {
+      return;
+    }
+
+    _foundState.value = currentState.copyWith(current: current + 1);
+    _currentSearchResult.value = current + 2; // 1-based index for backward compat
+  }
+
+  void onClickedPrevious() {
+    final currentState = _foundState.value;
+    if (currentState is FoundEmpty || currentState is FoundInitial) {
+      return;
+    }
+    var current = (currentState as FoundData).current;
+
+    if (current == null) {
+      _foundState.value = currentState.copyWith(current: _getNearestIndex());
+      return;
+    }
+    if (current == 0) {
+      return;
+    }
+
+    _foundState.value = currentState.copyWith(current: current - 1);
+    _currentSearchResult.value = current; // 1-based index for backward compat
+  }
+
+  void onClosedSearch() {
+    _foundState.value = FoundInitial();
+  }
+
+  int _getNearestIndex() {
+    final currentState = _foundState.value;
+    if (currentState is! FoundData) return 0;
+    
+    final totalPages = pages.length;
+    int currentPage = _currentPage.value;
+    final indexes = currentState.founds;
+
+    if (indexes.length == 1) {
+      return 0;
+    }
+
+    int index = indexes.indexWhere((element) => element.pageNumber == currentPage);
+    if (index != -1) {
+      return index;
+    }
+
+    // current page does not contain term
+    for (int i = currentPage; i < totalPages + book.firstPage!; i++) {
+      index = indexes.indexWhere((element) => element.pageNumber == i);
+      if (index != -1) {
+        return index;
+      }
+    }
+    for (int i = currentPage; i >= 0 + book.firstPage!; i--) {
+      index = indexes.indexWhere((element) => element.pageNumber == i);
+      if (index != -1) {
+        return index;
+      }
+    }
+    return 0;
+  }
+
+  @Deprecated('Use onSearchTermChanged instead')
+  void search(String text) {
+    onSearchTermChanged(text);
+  }
+
+  @Deprecated('Use onClickedNext instead')
+  void searchDownward() {
+    onClickedNext();
+  }
+
+  @Deprecated('Use onClickedPrevious instead')
+  void searchUpward() {
+    onClickedPrevious();
+  }
+
+  // Backward compatibility for search_widget.dart
+  @Deprecated('Use foundState instead')
+  final ValueNotifier<int> _searchResultCount = ValueNotifier(0);
+  @Deprecated('Use foundState instead')
+  ValueListenable<int> get searchResultCount => _searchResultCount;
+
+  @Deprecated('Use foundState instead')
+  final ValueNotifier<int> _currentSearchResult = ValueNotifier(1);
+  @Deprecated('Use foundState instead')
+  ValueListenable<int> get currentSearchResult => _currentSearchResult;
 
   void showSearchWidget(bool show, {String? searchText}) {
     _showSearch = show;
     if (searchText != null) {
-      _searchText.value = searchText;
-      search(searchText);
-    } else {
-      _searchText.value = '';
+      onSearchTermChanged(searchText);
     }
-    _searchText.value = searchText ?? '';
-
     notifyListeners();
   }
 
   void setHighlightEveryMatch(bool highlight) {
     _highlightEveryMatch.value = highlight;
-  }
-
-  void searchDownward() {
-    var next = _currentSearchResult.value += 1;
-    if (next > _searchResultCount.value) {
-      next = 1;
-    }
-
-    final nextIndex = next - 1;
-    final nextPage = searchIndexes[nextIndex].page;
-
-    if (_currentPage.value != nextPage) {
-      _currentPage.value = nextPage;
-    }
-
-    _currentSearchResult.value = next;
-  }
-
-  void searchUpward() {
-    var next = _currentSearchResult.value -= 1;
-    if (next == 0) {
-      next = _searchResultCount.value;
-    }
-
-    final nextIndex = next - 1;
-    final nextPage = searchIndexes[nextIndex].page;
-    if (_currentPage.value != nextPage) {
-      _currentPage.value = nextPage;
-    }
-
-    _currentSearchResult.value = next;
   }
 
   Future<void> loadDocument() async {

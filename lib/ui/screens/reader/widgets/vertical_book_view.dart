@@ -9,6 +9,8 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/intents.dart';
 
 import '../../../../app.dart';
+import '../../../../business_logic/models/found_info.dart';
+import '../../../../business_logic/models/found_state.dart';
 import '../../../../business_logic/models/page_content.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
@@ -97,28 +99,14 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
     itemPositionsListener.itemPositions.addListener(_listenItemPosition);
     readerViewController.currentPage.addListener(_listenPageChange);
-    readerViewController.searchText.addListener(_onSearchTextChanged);
-    readerViewController.currentSearchResult.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    readerViewController.highlightEveryMatch.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    readerViewController.foundState.addListener(_listenSearchIndexChanged);
   }
 
   @override
   void dispose() {
     itemPositionsListener.itemPositions.removeListener(_listenItemPosition);
     readerViewController.currentPage.removeListener(_listenPageChange);
-    readerViewController.searchText.removeListener(_onSearchTextChanged);
-    readerViewController.currentSearchResult
-        .removeListener(_onSearchTextChanged);
-    readerViewController.highlightEveryMatch
-        .removeListener(_onSearchTextChanged);
+    readerViewController.foundState.removeListener(_listenSearchIndexChanged);
     super.dispose();
   }
 
@@ -245,17 +233,24 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                         readerViewController.pages.length - 1
                                     ? const EdgeInsets.only(bottom: 100.0)
                                     : EdgeInsets.zero,
-                                child: PaliPageWidget(
-                                  pageNumber: pageContent.pageNumber!,
-                                  htmlContent: htmlContent,
-                                  script: script,
-                                  highlightedWord:
-                                      readerViewController.textToHighlight,
-                                  searchText: searchText,
-                                  pageToHighlight:
-                                      readerViewController.pageToHighlight,
-                                  onClick: widget.onClickedWord,
-                                  book: readerViewController.book,
+                                child: ValueListenableBuilder(
+                                  valueListenable: readerViewController.foundState,
+                                  builder: (_, foundState, __) {
+                                    return PaliPageWidget(
+                                      pageNumber: pageContent.pageNumber!,
+                                      htmlContent: htmlContent,
+                                      script: script,
+                                      highlightedWord:
+                                          readerViewController.textToHighlight,
+                                      height: constraints.maxHeight,
+                                      founds: _getFounds(
+                                          pageContent.pageNumber!, foundState),
+                                      currentOccurrence: _getCurrentOccurrence(
+                                          pageContent.pageNumber!, foundState),
+                                      onClick: widget.onClickedWord,
+                                      book: readerViewController.book,
+                                    );
+                                  },
                                 ),
                               );
                               // bookmarks: readerViewController.bookmarks,);
@@ -353,12 +348,6 @@ class _VerticalBookViewState extends State<VerticalBookView>
     }
   }
 
-  void _onSearchTextChanged() {
-    setState(() {
-      searchText = readerViewController.searchText.value;
-    });
-  }
-
   void _listenPageChange() {
     // page change are comming from others ( goto, tocs and slider )
     final firstPage = readerViewController.book.firstPage;
@@ -372,6 +361,58 @@ class _VerticalBookViewState extends State<VerticalBookView>
     if (!pagesInView.contains(pageIndex)) {
       itemScrollController.jumpTo(index: pageIndex);
     }
+  }
+
+  void _listenSearchIndexChanged() {
+    final state = readerViewController.foundState.value;
+    if (state is FoundInitial || state is FoundEmpty) return;
+
+    final founds = (state as FoundData).founds;
+
+    final searchIndex = state.current;
+    if (searchIndex == null) {
+      return;
+    }
+    final currentFound = founds[searchIndex];
+    if (currentFound.pageNumber == readerViewController.currentPage.value) {
+      return;
+    }
+    final itemPositions = itemPositionsListener.itemPositions.value;
+    for (var element in itemPositions) {
+      if (element.index == currentFound.pageIndex) {
+        return;
+      }
+    }
+    myLogger.i('current found: $currentFound');
+    if (mounted) {
+      itemScrollController.scrollTo(
+        index: currentFound.pageIndex,
+        duration: const Duration(milliseconds: 200),
+      );
+    }
+  }
+
+  List<FoundInfo>? _getFounds(int pageNumber, FoundState state) {
+    if (state is FoundInitial || state is FoundEmpty) return null;
+    final founds = (state as FoundData).founds;
+    final temp =
+        founds.where((element) => element.pageNumber == pageNumber).toList();
+    if (temp.isEmpty) {
+      return null;
+    }
+    return temp;
+  }
+
+  int? _getCurrentOccurrence(int pageNumber, FoundState state) {
+    if (state is FoundInitial || state is FoundEmpty) return null;
+    final current = (state as FoundData).current;
+    if (current == null) {
+      return null;
+    }
+    if (state.founds[current].pageNumber != pageNumber) {
+      return null;
+    }
+    return state.founds[current].occurrenceInPage;
   }
 
   @override
