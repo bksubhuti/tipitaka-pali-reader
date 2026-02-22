@@ -44,7 +44,8 @@ class ReaderViewController extends ChangeNotifier {
   String? textToHighlight;
   String? selection;
 
-  final ValueNotifier<FoundState> _foundState = ValueNotifier<FoundState>(FoundInitial());
+  final ValueNotifier<FoundState> _foundState =
+      ValueNotifier<FoundState>(FoundInitial());
   ValueListenable<FoundState> get foundState => _foundState;
 
   final ValueNotifier<String> _searchText = ValueNotifier('');
@@ -97,10 +98,15 @@ class ReaderViewController extends ChangeNotifier {
     }
 
     _searchText.value = text;
+    // Match literal text safely while allowing empty anchor tags between words.
+    final String regexPattern = RegExp.escape(text)
+        .replaceAll(' ', r'(?:\s*<a\s+name="[^"]*"></a>\s*|\s+)');
+    final RegExp regex = RegExp(regexPattern, caseSensitive: false);
+
     int startIndex = 0;
     final List<FoundInfo> results = <FoundInfo>[];
     pages.forEachIndexed((pageIndex, page) {
-      final pageMatches = text.allMatches(page.content).length;
+      final pageMatches = regex.allMatches(page.content).length;
       for (int i = 0; i < pageMatches; i++) {
         results.add(FoundInfo(
           term: text,
@@ -152,7 +158,8 @@ class ReaderViewController extends ChangeNotifier {
     }
 
     _foundState.value = currentState.copyWith(current: current + 1);
-    _currentSearchResult.value = current + 2; // 1-based index for backward compat
+    _currentSearchResult.value =
+        current + 2; // 1-based index for backward compat
   }
 
   void onClickedPrevious() {
@@ -181,7 +188,7 @@ class ReaderViewController extends ChangeNotifier {
   int _getNearestIndex() {
     final currentState = _foundState.value;
     if (currentState is! FoundData) return 0;
-    
+
     final totalPages = pages.length;
     int currentPage = _currentPage.value;
     final indexes = currentState.founds;
@@ -190,7 +197,8 @@ class ReaderViewController extends ChangeNotifier {
       return 0;
     }
 
-    int index = indexes.indexWhere((element) => element.pageNumber == currentPage);
+    int index =
+        indexes.indexWhere((element) => element.pageNumber == currentPage);
     if (index != -1) {
       return index;
     }

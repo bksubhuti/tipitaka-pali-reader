@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -129,7 +127,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (widget.founds != null && widget.currentOccurrence != null) {
         _scrollToCurrentSearchResult();
       }
-      
+
       // Handle highlightedWord scroll - uses scrollToAnchor for id-based targeting
       if (widget.highlightedWord != null &&
           widget.highlightedWord != oldWidget.highlightedWord &&
@@ -144,9 +142,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     if (currentContext != null) {
       final RenderObject? box = currentContext.findRenderObject();
       if (box != null) {
-        final double yPosition = (box as RenderBox).localToGlobal(Offset.zero).dy;
-        final double effectiveHeight = widget.height ?? MediaQuery.of(context).size.height;
-        final bool isVisible = yPosition >= 0 && yPosition <= (effectiveHeight - 20);
+        final double yPosition =
+            (box as RenderBox).localToGlobal(Offset.zero).dy;
+        final double effectiveHeight =
+            widget.height ?? MediaQuery.of(context).size.height;
+        final bool isVisible =
+            yPosition >= 0 && yPosition <= (effectiveHeight - 20);
         if (!isVisible) {
           Scrollable.ensureVisible(currentContext,
               alignment: 0.5, duration: const Duration(milliseconds: 100));
@@ -213,7 +214,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           onTapUp: (details) {
             final renderObject = _textKey.currentContext?.findRenderObject();
             if (renderObject == null) return;
-            
+
             final box = renderObject as RenderBox;
 
             final result = BoxHitTestResult();
@@ -285,107 +286,108 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                   fontSize: fontSize.toDouble(),
                   inherit: true,
                   fontFamily: fontName),
-            customStylesBuilder: (element) {
-              // if (element.className == 'title' ||
-              //     element.className == 'book' ||
-              //     element.className == 'chapter' ||
-              //     element.className == 'subhead' ||
-              //     element.className == 'nikaya') {
-              //   return {
-              //     'text-align': 'center',
-              //     // 'text-decoration': 'none',
-              //   };
-              // }
-              if (element.localName == 'a') {
-                // print('found a tag: ${element.outerHtml}');
-                final isHighlight =
-                    element.parent!.className.contains('search-highlight') ==
-                        true;
-                if (isHighlight) {
-                  return {'color': '#000', 'text-decoration': 'none'};
+              customStylesBuilder: (element) {
+                // if (element.className == 'title' ||
+                //     element.className == 'book' ||
+                //     element.className == 'chapter' ||
+                //     element.className == 'subhead' ||
+                //     element.className == 'nikaya') {
+                //   return {
+                //     'text-align': 'center',
+                //     // 'text-decoration': 'none',
+                //   };
+                // }
+                if (element.localName == 'a') {
+                  // print('found a tag: ${element.outerHtml}');
+                  final isHighlight =
+                      element.parent!.className.contains('search-highlight') ==
+                          true;
+                  if (isHighlight) {
+                    return {'color': '#000', 'text-decoration': 'none'};
+                  }
+
+                  if (context.read<ThemeChangeNotifier>().isDarkMode) {
+                    return {
+                      'color': 'white',
+                      'text-decoration': 'none',
+                    };
+                  } else {
+                    return {
+                      'color': 'black',
+                      'text-decoration': 'none',
+                    };
+                  }
                 }
 
-                if (context.read<ThemeChangeNotifier>().isDarkMode) {
+                if (element.className == 'highlighted') {
+                  String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+                  Color c = Theme.of(context).primaryColorLight;
+
+                  // Converting the Flutter Color object to a CSS hex string for the text color
+                  String colorHex =
+                      '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+
                   return {
-                    'color': 'white',
-                    'text-decoration': 'none',
-                  };
-                } else {
-                  return {
-                    'color': 'black',
-                    'text-decoration': 'none',
+                    'color': 'inherit', // Uses the default text color
+                    'background-color':
+                        colorHex, // Highlights the text with colorHex
+                    //'font-weight': '500', // Sets the font weight to 500
+                    'text-decoration': 'underline', // Underlines the text
+                    'text-decoration-color':
+                        colorHex, // Sets underline color to match colorHex
                   };
                 }
-              }
-
-              if (element.className == 'highlighted') {
-                String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
-                Color c = Theme.of(context).primaryColorLight;
-
-                // Converting the Flutter Color object to a CSS hex string for the text color
-                String colorHex =
-                    '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-
-                return {
-                  'color': 'inherit', // Uses the default text color
-                  'background-color':
-                      colorHex, // Highlights the text with colorHex
-                  //'font-weight': '500', // Sets the font weight to 500
-                  'text-decoration': 'underline', // Underlines the text
-                  'text-decoration-color':
-                      colorHex, // Sets underline color to match colorHex
-                };
-              }
-              // no style
-              return {'text-decoration': 'none'};
-            },
-            customWidgetBuilder: (element) {
-              if (element.localName == 'span' &&
-                  element.className == 'linebreak') {
-                return const InlineCustomWidget(
-                    child: SizedBox(
-                  height: 0.0,
-                  child: Text('\n '),
-                ));
-              }
-
-              if (element.localName == 'a' && element.className == 'bookmark') {
-                final bookmark = element.text;
-                return InlineCustomWidget(
-                  child: IconButton(
-                      onPressed: () {
-                        onClickBookmark(bookmark);
-                      },
-                      tooltip: bookmark,
-                      icon: const Icon(Icons.note, color: Colors.red)),
-                );
-              }
-
-              // Anchor element for scrolling to current search result
-              if (element.localName == 'a' &&
-                  element.className == 'scroll_to_term') {
-                return InlineCustomWidget(
-                  child: SizedBox.shrink(key: _scrollKey),
-                );
-              }
-
-              return null;
-            },
-            onTapUrl: (word) {
-              if (widget.onClick != null) {
-                // #goto is used for scrolling to selected text
-                if (word != '#goto') {
-                  setState(() {
-                    highlightedWord = word;
-                    widget.onClick!(word);
-                  });
+                // no style
+                return {'text-decoration': 'none'};
+              },
+              customWidgetBuilder: (element) {
+                if (element.localName == 'span' &&
+                    element.className == 'linebreak') {
+                  return const InlineCustomWidget(
+                      child: SizedBox(
+                    height: 0.0,
+                    child: Text('\n '),
+                  ));
                 }
-              }
-              return false;
-            },
+
+                if (element.localName == 'a' &&
+                    element.className == 'bookmark') {
+                  final bookmark = element.text;
+                  return InlineCustomWidget(
+                    child: IconButton(
+                        onPressed: () {
+                          onClickBookmark(bookmark);
+                        },
+                        tooltip: bookmark,
+                        icon: const Icon(Icons.note, color: Colors.red)),
+                  );
+                }
+
+                // Anchor element for scrolling to current search result
+                if (element.localName == 'a' &&
+                    element.className == 'scroll_to_term') {
+                  return InlineCustomWidget(
+                    child: SizedBox.shrink(key: _scrollKey),
+                  );
+                }
+
+                return null;
+              },
+              onTapUrl: (word) {
+                if (widget.onClick != null) {
+                  // #goto is used for scrolling to selected text
+                  if (word != '#goto') {
+                    setState(() {
+                      highlightedWord = word;
+                      widget.onClick!(word);
+                    });
+                  }
+                }
+                return false;
+              },
+            ),
           ),
         ),
-          ),
       ),
     );
   }
@@ -466,39 +468,102 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
   String _addHighlightToSearchIndex(String content) {
     if (widget.founds == null || widget.founds!.isEmpty) return content;
-    
-    final term = widget.founds!.first.term;
-    // Highlight all occurrences
-    content = content.replaceAll(
-        RegExp(term), '<span class="$searchTermCssClass">$term</span>');
-    
-    // Mark only the current occurrence with anchor for scrolling
-    if (widget.currentOccurrence != null) {
-      content = replaceNthOccurrence(
-        content,
-        '<span class="$searchTermCssClass">$term</span>',
-        '<a class="scroll_to_term"></a><span class="$currentSearchTermCssClass">$term</span>',
-        widget.currentOccurrence!,
+
+    final termInScript = PaliScript.getScriptOf(
+      script: context.read<ScriptLanguageProvider>().currentScript,
+      romanText: widget.founds!.first.term,
+    );
+    if (termInScript.isEmpty) return content;
+
+    final pattern = RegExp(RegExp.escape(termInScript), caseSensitive: false);
+    final soup = BeautifulSoup(content);
+    final List<ReplaceResult> toReplace = [];
+    var occurrence = 0;
+
+    for (final node in (soup.body?.nodes ?? <dom.Node>[])) {
+      occurrence = _highlightSearchTermInNode(
+        node: node,
+        pattern: pattern,
+        toReplace: toReplace,
+        currentOccurrence: widget.currentOccurrence,
+        occurrence: occurrence,
       );
     }
 
-    return content;
+    for (final result in toReplace) {
+      for (final newNode in result.newNodes) {
+        result.node.parent?.insertBefore(newNode, result.node);
+      }
+      result.node.remove();
+    }
+
+    return soup.toString();
   }
 
-  String replaceNthOccurrence(
-    String content,
-    String pattern,
-    String replacement,
-    int occurrence,
-  ) {
-    int count = 0;
-    return content.replaceAllMapped(RegExp(pattern), (match) {
-      count++;
-      if (count == occurrence) {
-        return replacement;
+  int _highlightSearchTermInNode({
+    required dom.Node node,
+    required RegExp pattern,
+    required List<ReplaceResult> toReplace,
+    required int? currentOccurrence,
+    required int occurrence,
+  }) {
+    if (node.nodeType == dom.Node.TEXT_NODE) {
+      final text = node.text;
+      if (text == null || text.isEmpty) return occurrence;
+
+      final matches = pattern.allMatches(text).toList();
+      if (matches.isEmpty) return occurrence;
+
+      final buffer = StringBuffer();
+      var start = 0;
+      for (final match in matches) {
+        buffer.write(text.substring(start, match.start));
+        occurrence++;
+
+        final matchedText = match.group(0)!;
+        final isCurrent =
+            currentOccurrence != null && occurrence == currentOccurrence;
+        if (isCurrent) {
+          buffer.write('<a class="scroll_to_term"></a>');
+          buffer.write(
+              '<span class="$currentSearchTermCssClass">$matchedText</span>');
+        } else {
+          buffer.write('<span class="$searchTermCssClass">$matchedText</span>');
+        }
+
+        start = match.end;
       }
-      return match.group(0)!;
-    });
+      buffer.write(text.substring(start));
+
+      final highlighted = BeautifulSoup(buffer.toString());
+      final newNodes = (highlighted.body?.nodes ?? <dom.Node>[])
+          .toList(growable: false)
+          .cast<dom.Node>();
+      toReplace.add(ReplaceResult(node, newNodes));
+      return occurrence;
+    }
+
+    if (node is dom.Element) {
+      if (node.localName == 'script' || node.localName == 'style') {
+        return occurrence;
+      }
+      // Avoid highlighting injected bookmark header text.
+      if (node.localName == 'a' && node.className == 'bookmark') {
+        return occurrence;
+      }
+    }
+
+    for (final child in node.nodes) {
+      occurrence = _highlightSearchTermInNode(
+        node: child,
+        pattern: pattern,
+        toReplace: toReplace,
+        currentOccurrence: currentOccurrence,
+        occurrence: occurrence,
+      );
+    }
+
+    return occurrence;
   }
 
   String _makeClickable(String content, Script script) {
