@@ -78,8 +78,14 @@ class DownloadService {
     downloadNotifier.message =
         "\nNow downloading file.. ${downloadListItem.size}\nPlease wait.";
 
-    //final sqlFiles = await downloadZip();
-    final sqlFiles = await getTestZip();
+//////////////////////////////////////////////
+    ///.  For testing with local file, comment out the above downloadZip()
+    /// and uncomment the below getTestZip() to read from local file instead of downloading
+    /// Place the zip in the applicationsupport dir and rename it as any one of the extensions with the same name.
+//////////////////////////////////////////////
+    final sqlFiles = await downloadZip();
+    //final sqlFiles = await getTestZip();
+//////////////////////////////////////////////
 
     // ACCUMULATOR: Keep track of every book added across all files
     final Set<String> allNewBooks = {};
