@@ -112,7 +112,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   @override
   void didUpdateWidget(PaliPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // Auto-scroll to highlightedWord when it changes
     if (widget.highlightedWord != null &&
         widget.highlightedWord != oldWidget.highlightedWord &&
@@ -121,7 +121,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         _htmlKey.currentState?.scrollToAnchor(kGotoID);
       });
     }
-    
+
     if (widget.highlightedWord != oldWidget.highlightedWord) {
       highlightedWord = widget.highlightedWord;
       _pageToHighlight = widget.pageToHighlight;
@@ -246,103 +246,107 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               }
             }
           },
-          child: HtmlWidget(
-            key: _htmlKey,
-            html,
-            factoryBuilder: () => _myFactory,
-            textStyle: TextStyle(
-                fontSize: fontSize.toDouble(),
-                inherit: true,
-                fontFamily: fontName),
-            customStylesBuilder: (element) {
-              // if (element.className == 'title' ||
-              //     element.className == 'book' ||
-              //     element.className == 'chapter' ||
-              //     element.className == 'subhead' ||
-              //     element.className == 'nikaya') {
-              //   return {
-              //     'text-align': 'center',
-              //     // 'text-decoration': 'none',
-              //   };
-              // }
-              if (element.localName == 'a') {
-                // print('found a tag: ${element.outerHtml}');
-                final isHighlight =
-                    element.parent!.className.contains('search-highlight') ==
-                        true;
-                if (isHighlight) {
-                  return {'color': '#000', 'text-decoration': 'none'};
+          child: Container(
+            key: _textKey,
+            child: HtmlWidget(
+              key: _htmlKey,
+              html,
+              factoryBuilder: () => _myFactory,
+              textStyle: TextStyle(
+                  fontSize: fontSize.toDouble(),
+                  inherit: true,
+                  fontFamily: fontName),
+              customStylesBuilder: (element) {
+                // if (element.className == 'title' ||
+                //     element.className == 'book' ||
+                //     element.className == 'chapter' ||
+                //     element.className == 'subhead' ||
+                //     element.className == 'nikaya') {
+                //   return {
+                //     'text-align': 'center',
+                //     // 'text-decoration': 'none',
+                //   };
+                // }
+                if (element.localName == 'a') {
+                  // print('found a tag: ${element.outerHtml}');
+                  final isHighlight =
+                      element.parent!.className.contains('search-highlight') ==
+                          true;
+                  if (isHighlight) {
+                    return {'color': '#000', 'text-decoration': 'none'};
+                  }
+
+                  if (context.read<ThemeChangeNotifier>().isDarkMode) {
+                    return {
+                      'color': 'white',
+                      'text-decoration': 'none',
+                    };
+                  } else {
+                    return {
+                      'color': 'black',
+                      'text-decoration': 'none',
+                    };
+                  }
                 }
 
-                if (context.read<ThemeChangeNotifier>().isDarkMode) {
+                if (element.className == 'highlighted') {
+                  String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+                  Color c = Theme.of(context).primaryColorLight;
+
+                  // Converting the Flutter Color object to a CSS hex string for the text color
+                  String colorHex =
+                      '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+
                   return {
-                    'color': 'white',
-                    'text-decoration': 'none',
-                  };
-                } else {
-                  return {
-                    'color': 'black',
-                    'text-decoration': 'none',
+                    'color': 'inherit', // Uses the default text color
+                    'background-color':
+                        colorHex, // Highlights the text with colorHex
+                    //'font-weight': '500', // Sets the font weight to 500
+                    'text-decoration': 'underline', // Underlines the text
+                    'text-decoration-color':
+                        colorHex, // Sets underline color to match colorHex
                   };
                 }
-              }
-
-              if (element.className == 'highlighted') {
-                String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
-                Color c = Theme.of(context).primaryColorLight;
-
-                // Converting the Flutter Color object to a CSS hex string for the text color
-                String colorHex =
-                    '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-
-                return {
-                  'color': 'inherit', // Uses the default text color
-                  'background-color':
-                      colorHex, // Highlights the text with colorHex
-                  //'font-weight': '500', // Sets the font weight to 500
-                  'text-decoration': 'underline', // Underlines the text
-                  'text-decoration-color':
-                      colorHex, // Sets underline color to match colorHex
-                };
-              }
-              // no style
-              return {'text-decoration': 'none'};
-            },
-            customWidgetBuilder: (element) {
-              if (element.localName == 'span' &&
-                  element.className == 'linebreak') {
-                return const InlineCustomWidget(
-                    child: SizedBox(
-                  height: 0.0,
-                  child: Text('\n '),
-                ));
-              }
-
-              if (element.localName == 'a' && element.className == 'bookmark') {
-                final bookmark = element.text;
-                return InlineCustomWidget(
-                  child: IconButton(
-                      onPressed: () {
-                        onClickBookmark(bookmark);
-                      },
-                      tooltip: bookmark,
-                      icon: const Icon(Icons.note, color: Colors.red)),
-                );
-              }
-              return null;
-            },
-            onTapUrl: (word) {
-              if (widget.onClick != null) {
-                // #goto is used for scrolling to selected text
-                if (word != '#goto') {
-                  setState(() {
-                    highlightedWord = word;
-                    widget.onClick!(word);
-                  });
+                // no style
+                return {'text-decoration': 'none'};
+              },
+              customWidgetBuilder: (element) {
+                if (element.localName == 'span' &&
+                    element.className == 'linebreak') {
+                  return const InlineCustomWidget(
+                      child: SizedBox(
+                    height: 0.0,
+                    child: Text('\n '),
+                  ));
                 }
-              }
-              return false;
-            },
+
+                if (element.localName == 'a' &&
+                    element.className == 'bookmark') {
+                  final bookmark = element.text;
+                  return InlineCustomWidget(
+                    child: IconButton(
+                        onPressed: () {
+                          onClickBookmark(bookmark);
+                        },
+                        tooltip: bookmark,
+                        icon: const Icon(Icons.note, color: Colors.red)),
+                  );
+                }
+                return null;
+              },
+              onTapUrl: (word) {
+                if (widget.onClick != null) {
+                  // #goto is used for scrolling to selected text
+                  if (word != '#goto') {
+                    setState(() {
+                      highlightedWord = word;
+                      widget.onClick!(word);
+                    });
+                  }
+                }
+                return false;
+              },
+            ),
           ),
         ),
       ),
