@@ -60,6 +60,11 @@ class DownloadService {
     return s;
   }
 
+  Future<List<File>> getTestZip() async {
+    var zippedFile = File('$_dir/$_localZipFileName');
+    return await unarchiveAndSave(zippedFile);
+  }
+
   Future<List<File>> downloadZip() async {
     final zippedFile = await downloadFile(_zipPath, _localZipFileName);
     return await unarchiveAndSave(zippedFile);
@@ -67,75 +72,41 @@ class DownloadService {
 
   Future<void> installSqlZip() async {
     initDir();
+    Database db = await dbService.database;
     downloadNotifier.connectionChecking = false;
     downloadNotifier.downloading = true;
     downloadNotifier.message =
         "\nNow downloading file.. ${downloadListItem.size}\nPlease wait.";
 
-    final sqlFiles = await downloadZip();
+    //final sqlFiles = await downloadZip();
+    final sqlFiles = await getTestZip();
 
+    // ACCUMULATOR: Keep track of every book added across all files
+    final Set<String> allNewBooks = {};
+    // --- SPEED BOOST: Turn off foreign key checks during bulk import ---
+    await db.execute("PRAGMA foreign_keys = OFF;");
+
+    // 1. IMPORT LOOP
     for (final sqlFile in sqlFiles) {
-      await processLocalFile(sqlFile);
+      downloadNotifier.message = "Importing ${sqlFile.path.split('/').last}...";
+      final booksInFile = await processLocalFile(sqlFile);
+      allNewBooks.addAll(booksInFile);
     }
 
-    downloadNotifier.downloading = false;
-  }
+// --- Restore normal database safety rules ---
+    await db.execute("PRAGMA foreign_keys = ON;");
 
-  Future<void> processLocalFile(File downloadedFile) async {
-    final dbUpdate = DatabaseUpdate();
-
-    final lineStream = downloadedFile
-        .openRead()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-
-    final reBookId = RegExp("'.+'");
-    final newBooks = <String>{};
-
-    Database db = await dbService.database;
-    await for (final rawLine in lineStream) {
-      final line = rawLine.toLowerCase();
-
-      // do these first
-      if (line.startsWith("drop")) {
-        await db.database.execute(line);
-      } else if (line.startsWith("create")) {
-        await db.database.execute(line);
-      }
-
-      if (line.startsWith("insert")) {
-        dbUpdate.insertLines.add(rawLine);
-        dbUpdate.insertCount++;
-      } else if (line.startsWith("update")) {
-        dbUpdate.updateLines.add(rawLine);
-        dbUpdate.updateCount++;
-      } else if (line.startsWith("delete")) {
-        dbUpdate.deleteLines.add(rawLine);
-        dbUpdate.deleteCount++;
-
-        if (line.contains('delete from books')) {
-          final match = reBookId.firstMatch(rawLine)!;
-          newBooks.add(match[0]!);
-        }
-      }
-      await processEntries(dbUpdate, db, batchAmount);
-    }
-
-    await processEntries(dbUpdate, db, 1);
-
-    if (downloadListItem.type.contains("index")) {
+    // 2. INDEXING LOOP (Runs only once)
+    if (downloadListItem.type.contains("index") && allNewBooks.isNotEmpty) {
       downloadNotifier.message = 'Building fts';
+      Database db = await dbService.database;
 
-      await doFts(db, newBooks);
+      await doFts(db, allNewBooks);
 
       Stopwatch stopwatch = Stopwatch()..start();
-      await makeEnglishWordList2();
+      // Call our new targeted word builder
+      await makeUniversalWordList(allNewBooks);
       debugPrint('Making English Word List took ${stopwatch.elapsed}.');
-
-      // Original:
-      // 15s
-      // Improved:
-      // 6s
     }
 
     if (downloadListItem.type.contains("dpd_grammar")) {
@@ -143,10 +114,10 @@ class DownloadService {
       Prefs.isDpdGrammarOn = true;
     }
 
-    // It costs 10 seconds to regen the indexes.. I'd like to do that.
     downloadNotifier.message = "Rebuilding Index";
     await dbService.buildBothIndexes();
     downloadNotifier.message = "Reloading Extension List";
+    downloadNotifier.downloading = false;
   }
 
   Future processEntries(DatabaseUpdate dbUpdate, Database db, int limit) async {
@@ -263,12 +234,19 @@ class DownloadService {
     int maxWrites = 50;
     var batch = db.batch();
     int counter = 0;
+
     for (final bookId in newBooks) {
-      final qureySql =
-          'SELECT id, bookid, page, content, paranum FROM pages WHERE bookid = $bookId';
-      final maps = await db.rawQuery(qureySql);
+      // 1. SAFEGUARD: Delete old FTS records for this book to prevent ID collisions
+      await db.rawDelete("DELETE FROM fts_pages WHERE bookid = ?", [bookId]);
+
+      // Parameterized query to safely handle IDs like 'vin01m.mul'
+      final querySql =
+          'SELECT id, bookid, page, content, paranum FROM pages WHERE bookid = ?';
+
+      final maps = await db.rawQuery(querySql, [bookId]);
+
       for (var element in maps) {
-        // before populating to fts, need to remove html tag
+        // Remove HTML tags before indexing
         final value = <String, Object?>{
           'id': element['id'] as int,
           'bookid': element['bookid'] as String,
@@ -278,16 +256,20 @@ class DownloadService {
         };
         batch.insert('fts_pages', value);
         counter++;
-        if (counter % maxWrites == 1) {
+
+        // Commit every 50 records and safely REINITIALIZE the batch
+        if (counter % maxWrites == 0) {
           await batch.commit(noResult: true);
-//          String pcent = (counter / maps.length * 100).toStringAsFixed(0);
-          downloadNotifier.message = "inserted $counter";
           batch = db.batch();
+          downloadNotifier.message = "Indexing... $counter FTS pages";
         }
       }
-      // commit remainder inserts after the loop stops.
-      await batch.commit(noResult: true);
     }
+
+    // 2. CRITICAL FIX: The final commit MUST be outside the bookId loop!
+    // This catches the remainder of the pages after all books are processed.
+    await batch.commit(noResult: true);
+
     downloadNotifier.message = "FTS is complete";
   }
 
@@ -445,111 +427,108 @@ class DownloadService {
     final Database db = await dbService.database;
     final uniqueWords = <String>{};
 
-    final List<String> categories = [
-      "annya_pe_vinaya",
-      "annya_pe_dn",
-      "annya_pe_mn",
-      "annya_pe_sn",
-      "annya_pe_an",
-      "annya_pe_kn"
-    ];
+    // 1. DYNAMIC CATEGORY SEARCH
+    // Instead of hardcoding, we find all categories that start with 'annya_pe'
+    final List<Map<String, dynamic>> categoryMaps =
+        await db.rawQuery("SELECT id FROM category WHERE id LIKE 'annya_pe%'");
+    final List<String> categories =
+        categoryMaps.map((m) => m['id'] as String).toList();
+
+    if (categories.isEmpty) {
+      debugPrint("No English categories found to process.");
+      return;
+    }
 
     final commas = List.filled(categories.length, '?').join(', ');
-
     var startId = 0;
     var batchesCount = 0;
+
     while (true) {
       final QueryCursor cursor = await db.rawQueryCursor('''
-        SELECT 
-          pages.id, pages.content, category.id as category
-        FROM 
-          pages
-        JOIN 
-          books on books.id = pages.bookid
-        JOIN 
-          category on category.id = books.category
-        WHERE 
-          pages.id > ? AND
-          category.id IN ($commas)
-        LIMIT 
-          5000
-        ''', [startId, ...categories]);
+      SELECT 
+        pages.id, pages.content, books.category as category
+      FROM 
+        pages
+      JOIN 
+        books on books.id = pages.bookid
+      WHERE 
+        pages.id > ? AND
+        books.category IN ($commas)
+      ORDER BY pages.id ASC
+      LIMIT 5000
+      ''', [startId, ...categories]);
 
       final hasFirst = await cursor.moveNext();
-      if (!hasFirst) {
-        break;
-      }
+      if (!hasFirst) break;
       batchesCount++;
 
-      final allowedLetters = RegExp('[^a-z —āīūṃṅñṭṭḍṇḷ]+');
+      // REGEX: Matches anything that IS NOT a letter or specific diacritic
+      final nonWordChars = RegExp('[^a-zāīūṃṅñṭṭḍṇḷ-]+');
       final wordSplitter = RegExp(r"[\s—]+");
 
       while (true) {
         final content = cursor.current['content'] as String;
         final category = cursor.current['category'] as String;
+        startId = cursor.current['id'] as int;
 
+        // Handle the specific tags used for English text
         final startTag =
             category == 'annya_pe_kn' ? '<p>' : '<span class="t1">';
-        final startTagLen = startTag.length;
         final endTag = category == 'annya_pe_kn' ? '</p>' : '</span>';
-        final endTagLen = endTag.length;
 
-        startId = cursor.current['id'] as int;
         var startFrom = 0;
         while (true) {
           final start = content.indexOf(startTag, startFrom);
-          if (start == -1) {
-            break;
-          }
-          final end = content.indexOf(endTag, start + startTagLen);
-          if (end == -1) {
-            break;
-          }
-          final text = content.substring(start + startTagLen, end);
-          startFrom = end + endTagLen;
+          if (start == -1) break;
 
-          if (text == ' ' || text == ' ' || text == '') {
-            continue;
-          }
+          final end = content.indexOf(endTag, start + startTag.length);
+          if (end == -1) break;
 
-          uniqueWords.addAll(text
+          final rawText = content.substring(start + startTag.length, end);
+          startFrom = end + endTag.length;
+
+          // 2. IMPROVED CLEANING
+          // Clean the text and split into words
+          final words = rawText
               .toLowerCase()
-              .replaceAll(allowedLetters, '')
-              .split(wordSplitter));
+              .replaceAll(nonWordChars, ' ') // Replace junk with space
+              .split(wordSplitter);
+
+          for (var word in words) {
+            final trimmed = word.trim();
+            // Only add if it's not empty and isn't just a dash
+            if (trimmed.isNotEmpty && trimmed != '-') {
+              uniqueWords.add(trimmed);
+            }
+          }
         }
 
         final hasNext = await cursor.moveNext();
-        if (!hasNext) {
-          break;
-        }
+        if (!hasNext) break;
       }
     }
 
-    debugPrint(
-        'Total unique: ${uniqueWords.length}, fetched in $batchesCount batches.');
+    // 3. DATABASE UPDATE
+    downloadNotifier.message = "Adding ${uniqueWords.length} words";
+    await db.rawDelete("DELETE FROM words WHERE frequency = -1");
 
-    downloadNotifier.message = "Adding word list";
-
-    // now delete all words from the table with -1 count
-    await db.rawDelete("Delete from words where frequency = -1");
     var batch = db.batch();
     int counter = 0;
     for (final String word in uniqueWords) {
       batch.rawInsert('''
-          INSERT OR IGNORE INTO 
-          words (word, plain, frequency) 
-          VALUES('$word', '$word', -1)
-          ''');
+        INSERT OR IGNORE INTO 
+        words (word, plain, frequency) 
+        VALUES(?, ?, -1)
+        ''', [word, word]);
+
       counter++;
-      if (counter % 100 == 0) {
-        await batch.commit();
+      if (counter % 500 == 0) {
+        await batch.commit(noResult: true);
         batch = db.batch();
         downloadNotifier.message = "$counter of ${uniqueWords.length}";
       }
     }
-    if (counter % 100 != 0) {
-      await batch.commit();
-    }
+    await batch.commit(noResult: true);
     downloadNotifier.message = "English word list is complete";
   }
 
@@ -565,5 +544,124 @@ class DownloadService {
       }
     }
     return extensions;
+  }
+
+  Future<Set<String>> processLocalFile(File downloadedFile) async {
+    final dbUpdate = DatabaseUpdate();
+
+    final lineStream = downloadedFile
+        .openRead()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    final reBookId = RegExp("'.+'");
+    final newBooks = <String>{};
+
+    Database db = await dbService.database;
+    await for (final rawLine in lineStream) {
+      final line = rawLine.toLowerCase();
+
+      // do these first
+      if (line.startsWith("drop")) {
+        await db.database.execute(line);
+      } else if (line.startsWith("create")) {
+        await db.database.execute(line);
+      }
+
+      if (line.startsWith("insert")) {
+        dbUpdate.insertLines.add(rawLine);
+        dbUpdate.insertCount++;
+      } else if (line.startsWith("update")) {
+        dbUpdate.updateLines.add(rawLine);
+        dbUpdate.updateCount++;
+      } else if (line.startsWith("delete")) {
+        dbUpdate.deleteLines.add(rawLine);
+        dbUpdate.deleteCount++;
+
+        if (line.contains('delete from books')) {
+          final match = reBookId.firstMatch(rawLine)!;
+          // Clean the quotes off the ID before adding it
+          newBooks.add(match[0]!.replaceAll("'", ""));
+        }
+      }
+      await processEntries(dbUpdate, db, batchAmount);
+    }
+
+    await processEntries(dbUpdate, db, 1);
+
+    // Simply return the books we found back to the main install loop
+    return newBooks;
+  }
+
+  Future<void> makeUniversalWordList(Set<String> newBooks) async {
+    if (newBooks.isEmpty) return;
+
+    downloadNotifier.message = "Creating wordlist (All Words)";
+    final Database db = await dbService.database;
+    final uniqueWords = <String>{};
+
+    // Regex to strip ALL HTML tags to catch both Pali and English
+    final htmlTagRegex = RegExp(r'<[^>]*>');
+    // Matches anything that IS NOT a letter or specific diacritic
+    final nonWordChars = RegExp('[^a-zāīūṃṅñṭṭḍṇḷ-]+');
+    final wordSplitter = RegExp(r"[\s—]+");
+
+    int counter = 0;
+
+    // 1. EXTRACT WORDS ONLY FROM NEW BOOKS
+    for (final bookId in newBooks) {
+      final querySql = "SELECT content FROM pages WHERE bookid = '$bookId'";
+      final maps = await db.rawQuery(querySql);
+
+      for (var element in maps) {
+        final content = element['content'] as String;
+
+        // Strip tags completely
+        String plainText = content.replaceAll(htmlTagRegex, ' ');
+
+        if (plainText.isNotEmpty) {
+          final words = plainText
+              .toLowerCase()
+              .replaceAll(nonWordChars, ' ') // Replace junk with space
+              .split(wordSplitter);
+
+          for (var word in words) {
+            final trimmed = word.trim();
+            if (trimmed.length >= 2 && trimmed != '-') {
+              uniqueWords.add(trimmed);
+            }
+          }
+        }
+      }
+    }
+
+    debugPrint('Total unique words found: ${uniqueWords.length}');
+    downloadNotifier.message = "Saving ${uniqueWords.length} words...";
+
+    // 2. INSERT SAFELY (NO DELETIONS)
+    // By using INSERT OR IGNORE, we don't need to delete frequency = -1.
+    // This protects words imported from other extension files.
+    await db.transaction((txn) async {
+      var batch = txn.batch();
+
+      for (final String word in uniqueWords) {
+        batch.rawInsert('''
+            INSERT OR IGNORE INTO 
+            words (word, plain, frequency) 
+            VALUES(?, ?, -1)
+            ''', [word, word]);
+
+        counter++;
+        if (counter % 500 == 0) {
+          batch.commit(noResult: true);
+          batch = txn.batch();
+          downloadNotifier.message =
+              "Saved $counter of ${uniqueWords.length} words";
+        }
+      }
+      batch.commit(noResult: true);
+    });
+
+    downloadNotifier.message = "Word list complete";
   }
 }
