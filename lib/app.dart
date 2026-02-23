@@ -44,7 +44,7 @@ final Logger myLogger = Logger(
     lineLength: 50,
     colors: true,
     printEmojis: true,
-    printTime: false,
+    dateTimeFormat: DateTimeFormat.none,
   ),
   level: kDebugMode ? Level.all : Level.off,
 );
