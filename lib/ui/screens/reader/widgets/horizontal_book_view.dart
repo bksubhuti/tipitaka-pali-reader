@@ -135,6 +135,7 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                     htmlContent: htmlContent,
                     script: script,
                     highlightedWord: readerViewController.textToHighlight,
+                    pageToHighlight: readerViewController.pageToHighlight,
                     height: constraints.maxHeight,
                     founds: _getFounds(pageContent.pageNumber!, foundState),
                     currentOccurrence: _getCurrentOccurrence(

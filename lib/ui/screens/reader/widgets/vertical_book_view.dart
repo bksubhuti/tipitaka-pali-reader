@@ -242,6 +242,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                       script: script,
                                       highlightedWord:
                                           readerViewController.textToHighlight,
+                                      pageToHighlight:
+                                          readerViewController.pageToHighlight,
                                       height: constraints.maxHeight,
                                       founds: _getFounds(
                                           pageContent.pageNumber!, foundState),

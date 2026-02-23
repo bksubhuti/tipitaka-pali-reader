@@ -1,7 +1,5 @@
 import 'package:collection/collection.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
 import 'package:html/dom.dart' as dom;
 
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
@@ -18,10 +16,10 @@ import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:tipitaka_pali/services/repositories/dictionary_history_repo.dart';
 import 'package:tipitaka_pali/utils/font_utils.dart';
 
+import '../../../../utils/pali_script_converter.dart';
 import '../../../../data/constants.dart';
 import '../../../../services/provider/theme_change_notifier.dart';
 import '../../../../utils/pali_script.dart';
-import '../../../../utils/pali_script_converter.dart';
 import '../controller/reader_view_controller.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
@@ -56,37 +54,13 @@ class PaliPageWidget extends StatefulWidget {
 
 final nonPali = RegExp(r'[.,:;\"{}\[\]<>\/\(\) ]+', caseSensitive: false);
 
-/*
-class PaliWidgetFactory extends WidgetFactory {
-  Function(String)? showDialogCallback;
-  @override
-  InlineSpan? buildTextSpan({
-    List<InlineSpan>? children,
-    GestureRecognizer? recognizer,
-    TextStyle? style,
-    String? text,
-  }) {
-    if (text?.isEmpty == true) {
-      if (children == null) {
-        return null;
-      }
-      if (children.length == 1) {
-        return children.first;
-      }
-    }
+// Scroll configuration constants
+const _kScrollDelayDuration = Duration(milliseconds: 50);
+const _kScrollAnimationDuration = Duration(milliseconds: 100);
+const _kScrollVisibilityMargin = 20.0;
+const _kScrollAlignment = 0.5; // Center alignment
 
-    return TextSpan(
-      children: children,
-      mouseCursor: recognizer != null ? SystemMouseCursors.click : null,
-      recognizer: recognizer,
-      style: style,
-      text: text,
-    );
-  }
-}
-*/
 class _PaliPageWidgetState extends State<PaliPageWidget> {
-  final _myFactory = WidgetFactory();
   String? highlightedWord;
   String? lookupWord;
   int? lookupWordIndex;
@@ -98,9 +72,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   final GlobalKey _textKey = GlobalKey();
   final GlobalKey<HtmlWidgetState> _htmlKey = GlobalKey<HtmlWidgetState>();
   final GlobalKey _scrollKey = GlobalKey();
+  final GlobalKey _highlightedWordScrollKey = GlobalKey();
 
   final searchTermCssClass = 'search-term';
   final currentSearchTermCssClass = 'current-search-term';
+  final highlightedWordScrollCssClass = 'scroll_to_highlighted_word';
 
   @override
   void initState() {
@@ -115,7 +91,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         .toList();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _myFactory.onTapUrl('#goto');
+      // Handle highlighted word scroll on initial load
+      if (widget.highlightedWord != null &&
+          widget.pageToHighlight == widget.pageNumber) {
+        _scrollToHighlightedWordResult();
+      }
     });
   }
 
@@ -127,18 +107,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (widget.founds != null && widget.currentOccurrence != null) {
         _scrollToCurrentSearchResult();
       }
-
-      // Handle highlightedWord scroll - uses scrollToAnchor for id-based targeting
-      if (widget.highlightedWord != null &&
-          widget.highlightedWord != oldWidget.highlightedWord &&
-          widget.pageToHighlight == widget.pageNumber) {
-        _htmlKey.currentState?.scrollToAnchor(kGotoID);
-      }
     });
   }
 
   void _scrollToCurrentSearchResult() {
-    final currentContext = _scrollKey.currentContext;
+    _scrollToResultContext(_scrollKey.currentContext);
+  }
+
+  void _scrollToHighlightedWordResult() {
+    Future.delayed(_kScrollDelayDuration, () {
+      if (!mounted) return;
+
+      final context = _highlightedWordScrollKey.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
+      }
+    });
+  }
+
+  void _scrollToResultContext(BuildContext? currentContext,
+      {double alignment = _kScrollAlignment}) {
     if (currentContext != null) {
       final RenderObject? box = currentContext.findRenderObject();
       if (box != null) {
@@ -146,11 +134,15 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             (box as RenderBox).localToGlobal(Offset.zero).dy;
         final double effectiveHeight =
             widget.height ?? MediaQuery.of(context).size.height;
-        final bool isVisible =
-            yPosition >= 0 && yPosition <= (effectiveHeight - 20);
+        final bool isVisible = yPosition >= 0 &&
+            yPosition <= (effectiveHeight - _kScrollVisibilityMargin);
+
         if (!isVisible) {
-          Scrollable.ensureVisible(currentContext,
-              alignment: 0.5, duration: const Duration(milliseconds: 100));
+          Scrollable.ensureVisible(
+            currentContext,
+            alignment: alignment,
+            duration: _kScrollAnimationDuration,
+          );
         }
       }
     }
@@ -197,20 +189,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       child: Container(
         color: Colors.transparent,
         child: GestureDetector(
-          /*onSecondaryTapUp: (details) {
-            final SelectionRegistrar? registrar =
-                SelectionContainer.maybeOf(context);
-            if (registrar is! MultiSelectableSelectionContainerDelegate) {
-              // registrar should be this class if a `SelectionArea` is in the widget tree
-              return;
-            }
-            registrar.dispatchSelectionEvent(const ClearSelectionEvent());
-            registrar.dispatchSelectionEvent(SelectWordSelectionEvent(
-                globalPosition: details.globalPosition));
-            final tapped = registrar.getSelectedContent();
-            // selecting word this way won't trigger the `onSelectionChanged` callback
-            debugPrint('word under right-click: ${tapped?.plainText}');
-          },*/
           onTapUp: (details) {
             final renderObject = _textKey.currentContext?.findRenderObject();
             if (renderObject == null) return;
@@ -233,7 +211,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               final text =
                   target.text.toPlainText(); //.replaceAll('\ufffc', '');
 
-              debugPrint('${_textKey.currentContext?.widget}');
               if (text.isNotEmpty && p.offset < text.length) {
                 final int offset = p.offset;
 
@@ -281,24 +258,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             child: HtmlWidget(
               key: _htmlKey,
               html,
-              factoryBuilder: () => _myFactory,
+              factoryBuilder: () => WidgetFactory(),
               textStyle: TextStyle(
                   fontSize: fontSize.toDouble(),
                   inherit: true,
                   fontFamily: fontName),
               customStylesBuilder: (element) {
-                // if (element.className == 'title' ||
-                //     element.className == 'book' ||
-                //     element.className == 'chapter' ||
-                //     element.className == 'subhead' ||
-                //     element.className == 'nikaya') {
-                //   return {
-                //     'text-align': 'center',
-                //     // 'text-decoration': 'none',
-                //   };
-                // }
                 if (element.localName == 'a') {
-                  // print('found a tag: ${element.outerHtml}');
                   final isHighlight =
                       element.parent!.className.contains('search-highlight') ==
                           true;
@@ -370,6 +336,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                     child: SizedBox.shrink(key: _scrollKey),
                   );
                 }
+                if (element.localName == 'a' &&
+                    element.className == highlightedWordScrollCssClass) {
+                  return InlineCustomWidget(
+                    child: SizedBox.shrink(key: _highlightedWordScrollKey),
+                  );
+                }
 
                 return null;
               },
@@ -424,6 +396,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
     if (highlightedWord != null) {
       content = _addHighlight(content, highlightedWord!);
+      content = _addHighlightedWordScrollAnchor(content);
     }
 
     if (widget.founds != null) {
@@ -434,7 +407,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _removeAlternatePali(content);
     }
     content = _formatWithUserSetting(content);
-    // content = _makeClickable(content, script);
     content = _changeToInlineStyle(content);
 
     return content;
@@ -445,8 +417,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   String _removeAlternatePali(String content) {
-    // format of alternate pali
-    // <span class="note">[bhagavāti (syā.), dī. ni. 1.157, abbhuggatākārena pana sameti]</span>
     return content.replaceAll(RegExp(r'<span class="note">\[.+?\]</span>'), '');
   }
 
@@ -467,7 +437,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   String _addHighlightToSearchIndex(String content) {
-    if (widget.founds == null || widget.founds!.isEmpty) return content;
+    if (widget.founds?.isEmpty ?? true) return content;
 
     final termInScript = PaliScript.getScriptOf(
       script: context.read<ScriptLanguageProvider>().currentScript,
@@ -497,6 +467,19 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       result.node.remove();
     }
 
+    return soup.toString();
+  }
+
+  String _addHighlightedWordScrollAnchor(String content) {
+    final soup = BeautifulSoup(content);
+    final highlightedNode = soup.find('span', id: kGotoID);
+    if (highlightedNode == null) return content;
+
+    final anchor = highlightedNode.newTag(
+      'a',
+      attrs: {'class': highlightedWordScrollCssClass},
+    );
+    highlightedNode.parent?.insertBefore(anchor, highlightedNode);
     return soup.toString();
   }
 
@@ -566,41 +549,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     return occurrence;
   }
 
-  String _makeClickable(String content, Script script) {
-    // pali word not inside html tag
-    // final regexPaliWord = RegExp(r'[a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+(?![^<>]*>)');
-    final regexPaliWord = _getPaliWordRegexp(script);
-    return content.replaceAllMapped(regexPaliWord,
-        (match) => '<a href="${match.group(0)}">${match.group(0)}</a>');
-    /*
-    final regexHtmlTag = RegExp(r'<[^>]+>');
-    final regexPaliWord = RegExp(r'([a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+)');
-    final matches = regexHtmlTag.allMatches(content);
-
-    var formattedContent = '';
-    for (var i = 0, length = matches.length; i < length - 1; i++) {
-      final curretTag = matches.elementAt(i);
-      final nextTag = matches.elementAt(i + 1);
-      // add current tag to formatted content
-      formattedContent += content.substring(curretTag.start, curretTag.end);
-      if (curretTag.end == nextTag.start) continue; // no text data
-      // extract text data
-      var text = content.substring(curretTag.end, nextTag.start);
-      // add a tag to every word to make clickable
-      text = text.replaceAllMapped(regexPaliWord, (match) {
-        String word = match.group(0)!;
-        return '<a href="$word">$word</a>';
-      });
-      // add text to formatted context
-      formattedContent += text;
-    }
-    // add last tag to formatted content
-    formattedContent += content.substring(matches.last.start);
-
-    return formattedContent;
-    */
-  }
-
   String _changeToInlineStyle(String content) {
     Color c = Theme.of(context).primaryColorLight;
 
@@ -649,8 +597,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           r'style="background: yellow; color: black;"',
       'class="$currentSearchTermCssClass"':
           r'style="background: orange; color: black;"',
-      // r'class="highlighted"':
-      //     r'style="background: rgb(255, 114, 20); color: white;"',
       r'class = "underlined_highlight"': r'style="font-weight: 500; color: ' +
           colorHex +
           '; text-decoration: underline; text-decoration-color: ' +
@@ -661,66 +607,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
-    //debugPrint(content);
     return content;
   }
 
-  RegExp _getPaliWordRegexp(Script script) {
-    // only alphabets used for pali
-    // no digit , no puntutation
-    switch (script) {
-      case Script.myanmar:
-        return RegExp('[\u1000-\u103F]+(?![^<>]*>)');
-      case Script.roman:
-        return RegExp(r'[a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+(?![^<>]*>)');
-      case Script.sinhala:
-        return RegExp('[\u0D80-\u0DDF\u0DF2\u0DF3]+(?![^<>]*>)');
-      case Script.devanagari:
-        return RegExp('[\u0900-\u097F]+(?![^<>]*>)');
-      case Script.thai:
-        return RegExp('[\u0E00-\u0E7F\uF700-\uF70F]+(?![^<>]*>)');
-      case Script.laos:
-        return RegExp('[\u0E80-\u0EFF]+(?![^<>]*>)');
-      case Script.khmer:
-        return RegExp('[\u1780-\u17FF]+(?![^<>]*>)');
-      case Script.bengali:
-        return RegExp('[\u0980-\u09FF]+(?![^<>]*>)');
-      case Script.gurmukhi:
-        return RegExp('[\u0A00-\u0A7F]+(?![^<>]*>)');
-      case Script.taitham:
-        return RegExp('[\u1A20-\u1AAF]+(?![^<>]*>)');
-      case Script.gujarati:
-        return RegExp('[\u0A80-\u0AFF]+(?![^<>]*>)');
-      case Script.telugu:
-        return RegExp('[\u0C00-\u0C7F]+(?![^<>]*>)');
-      case Script.kannada:
-        return RegExp('[\u0C80-\u0CFF]+(?![^<>]*>)');
-      case Script.malayalam:
-        return RegExp('[\u0D00-\u0D7F]+(?![^<>]*>)');
-// actual code block [0x11000, 0x1107F]
-// need check
-      case Script.brahmi:
-        return RegExp('[\uD804\uDC00-\uDC7F]+(?![^<>]*>)');
-      case Script.tibetan:
-        return RegExp('[\u0F00-\u0FFF]+(?![^<>]*>)');
-// actual code block [0x11000, 0x1107F]
-//need check
-      case Script.cyrillic:
-        return RegExp('[\u0400-\u04FF\u0300-\u036F]+(?![^<>]*>)');
-
-      default:
-        return RegExp(r'[a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+(?![^<>]*>)');
-    }
-  }
-
   String _formatWithUserSetting(String pageContent) {
-    // return pages[index].content;
-
-    // if (tocHeader != null) {
-    //   pageContent = addIDforScroll(pageContent, tocHeader!);
-    // }
-
-    // showing page number based on user settings
     var publicationKeys = <String>['P', 'T', 'V'];
     if (!Prefs.isShowPtsNumber) publicationKeys.remove('P');
     if (!Prefs.isShowThaiNumber) publicationKeys.remove('T');
@@ -732,13 +622,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             RegExp('<a name="$publicationKey(\\d+)\\.(\\d+)"></a>');
         pageContent = pageContent.replaceAllMapped(publicationFormat, (match) {
           final volume = match.group(1)!;
-          // remove leading zero from page number
           final pageNumber = int.parse(match.group(2)!).toString();
           return '<span style="color:brown;">[$publicationKey $volume.$pageNumber]</span>';
         });
       }
     }
-    // removing <a> tag of publication page number
     pageContent = pageContent.replaceAll(
         RegExp('<a name="[MPTV](\\d+)\\.(\\d+)"></a>'), '');
 
@@ -747,7 +635,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         (index, previousValue, element) =>
             '$previousValue<a id="bookmark_${index + 1}" class="bookmark">${element.toString()}</a>');
 
-    print('bookmark: $bookmarkTags');
     return '''
             <p style="color:brown;text-align:right;">$bookmarkTags ${_getScriptPageNumber(widget.pageNumber)}</p>
             <div id="page_content">
@@ -776,8 +663,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       }
     }
 
-    // TODO - optimize highlight for some query text
-
     textToHighlight = PaliScript.getScriptOf(
         script: context.read<ScriptLanguageProvider>().currentScript,
         romanText: textToHighlight);
@@ -788,10 +673,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         final replace =
             '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
         content = content.replaceAll(pattern, replace);
-
-        // adding id to scroll
-        // content = content.replaceFirst('<span class = "highlighted">',
-        //     '<span id="$kGotoID" class="highlighted">');
         return content;
       }
     }
@@ -802,20 +683,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         final String replace = '<span class = "$highlightClass">$word</span>';
         content = content.replaceAll(word, replace);
       } else {
-        // bolded word case
-        // Log.d("if not found highlight", "yes");
-        // removing ti (တိ) at end
         String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
-        // print('trimmedWord: $trimmedWord');
         final replace = '<span class = "$highlightClass">$trimmedWord</span>';
 
         content = content.replaceAll(trimmedWord, replace);
       }
-      //
     }
 
     if (addId) {
-      // adding id to scroll
       content = content.replaceFirst('<span class = "$highlightClass">',
           '<span id="$kGotoID" class="$highlightClass">');
     }
