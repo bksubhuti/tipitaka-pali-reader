@@ -1,9 +1,5 @@
-import 'dart:math';
-
 import 'package:collection/collection.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
 import 'package:html/dom.dart' as dom;
 
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
@@ -12,6 +8,7 @@ import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
 import 'package:tipitaka_pali/business_logic/models/bookmark.dart';
+import 'package:tipitaka_pali/business_logic/models/found_info.dart';
 import 'package:tipitaka_pali/providers/font_provider.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -19,10 +16,10 @@ import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:tipitaka_pali/services/repositories/dictionary_history_repo.dart';
 import 'package:tipitaka_pali/utils/font_utils.dart';
 
+import '../../../../utils/pali_script_converter.dart';
 import '../../../../data/constants.dart';
 import '../../../../services/provider/theme_change_notifier.dart';
 import '../../../../utils/pali_script.dart';
-import '../../../../utils/pali_script_converter.dart';
 import '../controller/reader_view_controller.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
@@ -31,20 +28,25 @@ class PaliPageWidget extends StatefulWidget {
   final String htmlContent;
   final Script script;
   final String? highlightedWord;
-  final String? searchText;
   final int? pageToHighlight;
+  final double? height;
+  final List<FoundInfo>? founds;
+  final int? currentOccurrence;
   final Book? book;
   final Function(String clickedWord)? onClick;
-  const PaliPageWidget(
-      {super.key,
-      required this.pageNumber,
-      required this.htmlContent,
-      required this.script,
-      this.highlightedWord,
-      this.onClick,
-      this.searchText,
-      this.pageToHighlight,
-      this.book});
+  const PaliPageWidget({
+    super.key,
+    required this.pageNumber,
+    required this.htmlContent,
+    required this.script,
+    this.highlightedWord,
+    this.pageToHighlight,
+    this.height,
+    this.founds,
+    this.currentOccurrence,
+    this.onClick,
+    this.book,
+  });
 
   @override
   State<PaliPageWidget> createState() => _PaliPageWidgetState();
@@ -52,45 +54,29 @@ class PaliPageWidget extends StatefulWidget {
 
 final nonPali = RegExp(r'[.,:;\"{}\[\]<>\/\(\) ]+', caseSensitive: false);
 
-/*
-class PaliWidgetFactory extends WidgetFactory {
-  Function(String)? showDialogCallback;
-  @override
-  InlineSpan? buildTextSpan({
-    List<InlineSpan>? children,
-    GestureRecognizer? recognizer,
-    TextStyle? style,
-    String? text,
-  }) {
-    if (text?.isEmpty == true) {
-      if (children == null) {
-        return null;
-      }
-      if (children.length == 1) {
-        return children.first;
-      }
-    }
+// Scroll configuration constants
+const _kScrollDelayDuration = Duration(milliseconds: 50);
+const _kScrollAnimationDuration = Duration(milliseconds: 100);
+const _kScrollVisibilityMargin = 20.0;
+const _kScrollAlignment = 0.5; // Center alignment
 
-    return TextSpan(
-      children: children,
-      mouseCursor: recognizer != null ? SystemMouseCursors.click : null,
-      recognizer: recognizer,
-      style: style,
-      text: text,
-    );
-  }
-}
-*/
 class _PaliPageWidgetState extends State<PaliPageWidget> {
-  final _myFactory = WidgetFactory();
   String? highlightedWord;
   String? lookupWord;
+  int? lookupWordIndex;
+  String? lookupParagraph;
   int? highlightedWordIndex;
   late List<Bookmark> bookmarks;
+  int? _pageToHighlight;
 
   final GlobalKey _textKey = GlobalKey();
   final GlobalKey<HtmlWidgetState> _htmlKey = GlobalKey<HtmlWidgetState>();
-  int? _pageToHighlight;
+  final GlobalKey _scrollKey = GlobalKey();
+  final GlobalKey _highlightedWordScrollKey = GlobalKey();
+
+  final searchTermCssClass = 'search-term';
+  final currentSearchTermCssClass = 'current-search-term';
+  final highlightedWordScrollCssClass = 'scroll_to_highlighted_word';
 
   @override
   void initState() {
@@ -105,26 +91,60 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         .toList();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _myFactory.onTapUrl('#goto');
+      // Handle highlighted word scroll on initial load
+      if (widget.highlightedWord != null &&
+          widget.pageToHighlight == widget.pageNumber) {
+        _scrollToHighlightedWordResult();
+      }
     });
   }
 
   @override
   void didUpdateWidget(PaliPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Handle search result scroll - uses Scrollable.ensureVisible for better alignment
+      if (widget.founds != null && widget.currentOccurrence != null) {
+        _scrollToCurrentSearchResult();
+      }
+    });
+  }
 
-    // Auto-scroll to highlightedWord when it changes
-    if (widget.highlightedWord != null &&
-        widget.highlightedWord != oldWidget.highlightedWord &&
-        widget.pageToHighlight == widget.pageNumber) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _htmlKey.currentState?.scrollToAnchor(kGotoID);
-      });
-    }
+  void _scrollToCurrentSearchResult() {
+    _scrollToResultContext(_scrollKey.currentContext);
+  }
 
-    if (widget.highlightedWord != oldWidget.highlightedWord) {
-      highlightedWord = widget.highlightedWord;
-      _pageToHighlight = widget.pageToHighlight;
+  void _scrollToHighlightedWordResult() {
+    Future.delayed(_kScrollDelayDuration, () {
+      if (!mounted) return;
+
+      final context = _highlightedWordScrollKey.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
+      }
+    });
+  }
+
+  void _scrollToResultContext(BuildContext? currentContext,
+      {double alignment = _kScrollAlignment}) {
+    if (currentContext != null) {
+      final RenderObject? box = currentContext.findRenderObject();
+      if (box != null) {
+        final double yPosition =
+            (box as RenderBox).localToGlobal(Offset.zero).dy;
+        final double effectiveHeight =
+            widget.height ?? MediaQuery.of(context).size.height;
+        final bool isVisible = yPosition >= 0 &&
+            yPosition <= (effectiveHeight - _kScrollVisibilityMargin);
+
+        if (!isVisible) {
+          Scrollable.ensureVisible(
+            currentContext,
+            alignment: alignment,
+            duration: _kScrollAnimationDuration,
+          );
+        }
+      }
     }
   }
 
@@ -169,23 +189,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       child: Container(
         color: Colors.transparent,
         child: GestureDetector(
-          /*onSecondaryTapUp: (details) {
-            final SelectionRegistrar? registrar =
-                SelectionContainer.maybeOf(context);
-            if (registrar is! MultiSelectableSelectionContainerDelegate) {
-              // registrar should be this class if a `SelectionArea` is in the widget tree
-              return;
-            }
-            registrar.dispatchSelectionEvent(const ClearSelectionEvent());
-            registrar.dispatchSelectionEvent(SelectWordSelectionEvent(
-                globalPosition: details.globalPosition));
-            final tapped = registrar.getSelectedContent();
-            // selecting word this way won't trigger the `onSelectionChanged` callback
-            debugPrint('word under right-click: ${tapped?.plainText}');
-          },*/
           onTapUp: (details) {
-            final box =
-                _textKey.currentContext?.findRenderObject()! as RenderBox;
+            final renderObject = _textKey.currentContext?.findRenderObject();
+            if (renderObject == null) return;
+
+            final box = renderObject as RenderBox;
 
             final result = BoxHitTestResult();
             final offset = box.globalToLocal(details.globalPosition);
@@ -203,7 +211,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               final text =
                   target.text.toPlainText(); //.replaceAll('\ufffc', '');
 
-              debugPrint('${_textKey.currentContext?.widget}');
               if (text.isNotEmpty && p.offset < text.length) {
                 final int offset = p.offset;
 
@@ -251,24 +258,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             child: HtmlWidget(
               key: _htmlKey,
               html,
-              factoryBuilder: () => _myFactory,
+              factoryBuilder: () => WidgetFactory(),
               textStyle: TextStyle(
                   fontSize: fontSize.toDouble(),
                   inherit: true,
                   fontFamily: fontName),
               customStylesBuilder: (element) {
-                // if (element.className == 'title' ||
-                //     element.className == 'book' ||
-                //     element.className == 'chapter' ||
-                //     element.className == 'subhead' ||
-                //     element.className == 'nikaya') {
-                //   return {
-                //     'text-align': 'center',
-                //     // 'text-decoration': 'none',
-                //   };
-                // }
                 if (element.localName == 'a') {
-                  // print('found a tag: ${element.outerHtml}');
                   final isHighlight =
                       element.parent!.className.contains('search-highlight') ==
                           true;
@@ -332,6 +328,21 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                         icon: const Icon(Icons.note, color: Colors.red)),
                   );
                 }
+
+                // Anchor element for scrolling to current search result
+                if (element.localName == 'a' &&
+                    element.className == 'scroll_to_term') {
+                  return InlineCustomWidget(
+                    child: SizedBox.shrink(key: _scrollKey),
+                  );
+                }
+                if (element.localName == 'a' &&
+                    element.className == highlightedWordScrollCssClass) {
+                  return InlineCustomWidget(
+                    child: SizedBox.shrink(key: _highlightedWordScrollKey),
+                  );
+                }
+
                 return null;
               },
               onTapUrl: (word) {
@@ -383,23 +394,19 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _addUnderline(content, lookupWord!);
     }
 
-    if (highlightedWord != null &&
-        _pageToHighlight != null &&
-        _pageToHighlight == widget.pageNumber) {
+    if (highlightedWord != null) {
       content = _addHighlight(content, highlightedWord!);
+      content = _addHighlightedWordScrollAnchor(content);
+    }
+
+    if (widget.founds != null) {
+      content = _addHighlightToSearchIndex(content);
     }
 
     if (!Prefs.isShowAlternatePali) {
       content = _removeAlternatePali(content);
     }
     content = _formatWithUserSetting(content);
-    if (widget.searchText?.isNotEmpty == true) {
-      var textToHighlight = PaliScript.getScriptOf(
-          script: context.read<ScriptLanguageProvider>().currentScript,
-          romanText: widget.searchText!);
-      content = _addHighlight2(content, textToHighlight, context);
-    }
-    // content = _makeClickable(content, script);
     content = _changeToInlineStyle(content);
 
     return content;
@@ -410,8 +417,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   String _removeAlternatePali(String content) {
-    // format of alternate pali
-    // <span class="note">[bhagavāti (syā.), dī. ni. 1.157, abbhuggatākārena pana sameti]</span>
     return content.replaceAll(RegExp(r'<span class="note">\[.+?\]</span>'), '');
   }
 
@@ -431,102 +436,117 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     return content;
   }
 
-  String _addHighlight2(
-      String content, String textToHighlight, BuildContext context) {
-    final rvc = Provider.of<ReaderViewController>(context, listen: false);
-    final soup = BeautifulSoup(content);
-    final isDark = context.read<ThemeChangeNotifier>().isDarkMode;
-    final textColor = isDark ? '#000' : '#000';
-    final bgColor = isDark ? '#2994ff' : '#a6d2ff';
+  String _addHighlightToSearchIndex(String content) {
+    if (widget.founds?.isEmpty ?? true) return content;
 
-    List<ReplaceResult> toReplace = [];
-    final nodes = (soup.body?.nodes ?? []);
-    for (final node in nodes) {
-      _highlightNode(node, textToHighlight, toReplace, textColor);
+    final termInScript = PaliScript.getScriptOf(
+      script: context.read<ScriptLanguageProvider>().currentScript,
+      romanText: widget.founds!.first.term,
+    );
+    if (termInScript.isEmpty) return content;
+
+    final pattern = RegExp(RegExp.escape(termInScript), caseSensitive: false);
+    final soup = BeautifulSoup(content);
+    final List<ReplaceResult> toReplace = [];
+    var occurrence = 0;
+
+    for (final node in (soup.body?.nodes ?? <dom.Node>[])) {
+      occurrence = _highlightSearchTermInNode(
+        node: node,
+        pattern: pattern,
+        toReplace: toReplace,
+        currentOccurrence: widget.currentOccurrence,
+        occurrence: occurrence,
+      );
     }
 
-    final highlightAll = rvc.highlightEveryMatch.value;
-    var highlightIndex = 0;
-    toReplace.forEachIndexed((index, result) {
+    for (final result in toReplace) {
       for (final newNode in result.newNodes) {
-        if (widget.pageNumber == rvc.currentPage.value &&
-            newNode.data.contains('data-is-highlighted')) {
-          final si = rvc.searchIndexes[rvc.currentSearchResult.value - 1];
-          if (highlightIndex == si.index) {
-            newNode.attributes['style'] =
-                'background: $bgColor; color: $textColor;';
-          } else if (!highlightAll) {
-            newNode.attributes['style'] = 'border: 1px solid transparent;';
-          }
-          highlightIndex++;
-        }
-
         result.node.parent?.insertBefore(newNode, result.node);
       }
-
       result.node.remove();
-    });
+    }
 
     return soup.toString();
   }
 
-  _highlightNode(dom.Node node, String textToHighlight,
-      List<ReplaceResult> toReplace, String textColor) {
-    if (node.nodeType == dom.Node.TEXT_NODE) {
-      if (node.text == null ||
-          node.text?.isEmpty == true ||
-          node.text?.contains(textToHighlight) == false) {
-        return;
-      }
+  String _addHighlightedWordScrollAnchor(String content) {
+    final soup = BeautifulSoup(content);
+    final highlightedNode = soup.find('span', id: kGotoID);
+    if (highlightedNode == null) return content;
 
-      final replace =
-          '<span style="background-color: #FFE959 !important; color: $textColor;" class="search-highlight" data-is-highlighted="true">$textToHighlight</span>';
-      final replaced = (node.text ?? '').replaceAll(textToHighlight, replace);
-      final highlighted = BeautifulSoup(replaced);
-
-      List<dom.Node> newNodes =
-          (highlighted.body?.nodes ?? []).toList(growable: false).cast();
-      toReplace.add(ReplaceResult(node, newNodes));
-    } else {
-      for (final nodeChild in node.nodes) {
-        _highlightNode(nodeChild, textToHighlight, toReplace, textColor);
-      }
-    }
+    final anchor = highlightedNode.newTag(
+      'a',
+      attrs: {'class': highlightedWordScrollCssClass},
+    );
+    highlightedNode.parent?.insertBefore(anchor, highlightedNode);
+    return soup.toString();
   }
 
-  String _makeClickable(String content, Script script) {
-    // pali word not inside html tag
-    // final regexPaliWord = RegExp(r'[a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+(?![^<>]*>)');
-    final regexPaliWord = _getPaliWordRegexp(script);
-    return content.replaceAllMapped(regexPaliWord,
-        (match) => '<a href="${match.group(0)}">${match.group(0)}</a>');
-    /*
-    final regexHtmlTag = RegExp(r'<[^>]+>');
-    final regexPaliWord = RegExp(r'([a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+)');
-    final matches = regexHtmlTag.allMatches(content);
+  int _highlightSearchTermInNode({
+    required dom.Node node,
+    required RegExp pattern,
+    required List<ReplaceResult> toReplace,
+    required int? currentOccurrence,
+    required int occurrence,
+  }) {
+    if (node.nodeType == dom.Node.TEXT_NODE) {
+      final text = node.text;
+      if (text == null || text.isEmpty) return occurrence;
 
-    var formattedContent = '';
-    for (var i = 0, length = matches.length; i < length - 1; i++) {
-      final curretTag = matches.elementAt(i);
-      final nextTag = matches.elementAt(i + 1);
-      // add current tag to formatted content
-      formattedContent += content.substring(curretTag.start, curretTag.end);
-      if (curretTag.end == nextTag.start) continue; // no text data
-      // extract text data
-      var text = content.substring(curretTag.end, nextTag.start);
-      // add a tag to every word to make clickable
-      text = text.replaceAllMapped(regexPaliWord, (match) {
-        String word = match.group(0)!;
-        return '<a href="$word">$word</a>';
-      });
-      // add text to formatted context
-      formattedContent += text;
+      final matches = pattern.allMatches(text).toList();
+      if (matches.isEmpty) return occurrence;
+
+      final buffer = StringBuffer();
+      var start = 0;
+      for (final match in matches) {
+        buffer.write(text.substring(start, match.start));
+        occurrence++;
+
+        final matchedText = match.group(0)!;
+        final isCurrent =
+            currentOccurrence != null && occurrence == currentOccurrence;
+        if (isCurrent) {
+          buffer.write('<a class="scroll_to_term"></a>');
+          buffer.write(
+              '<span class="$currentSearchTermCssClass">$matchedText</span>');
+        } else {
+          buffer.write('<span class="$searchTermCssClass">$matchedText</span>');
+        }
+
+        start = match.end;
+      }
+      buffer.write(text.substring(start));
+
+      final highlighted = BeautifulSoup(buffer.toString());
+      final newNodes = (highlighted.body?.nodes ?? <dom.Node>[])
+          .toList(growable: false)
+          .cast<dom.Node>();
+      toReplace.add(ReplaceResult(node, newNodes));
+      return occurrence;
     }
-    // add last tag to formatted content
-    formattedContent += content.substring(matches.last.start);
 
-    return formattedContent;
-    */
+    if (node is dom.Element) {
+      if (node.localName == 'script' || node.localName == 'style') {
+        return occurrence;
+      }
+      // Avoid highlighting injected bookmark header text.
+      if (node.localName == 'a' && node.className == 'bookmark') {
+        return occurrence;
+      }
+    }
+
+    for (final child in node.nodes) {
+      occurrence = _highlightSearchTermInNode(
+        node: child,
+        pattern: pattern,
+        toReplace: toReplace,
+        currentOccurrence: currentOccurrence,
+        occurrence: occurrence,
+      );
+    }
+
+    return occurrence;
   }
 
   String _changeToInlineStyle(String content) {
@@ -573,8 +593,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="note"': r'style="font-size: 0.8em; color: gray;"',
       r'class = "highlightedSearch"':
           r'style="background: #FFE959; color: #000;"',
-      // r'class="highlighted"':
-      //     r'style="background: rgb(255, 114, 20); color: white;"',
+      'class="$searchTermCssClass"':
+          r'style="background: yellow; color: black;"',
+      'class="$currentSearchTermCssClass"':
+          r'style="background: orange; color: black;"',
       r'class = "underlined_highlight"': r'style="font-weight: 500; color: ' +
           colorHex +
           '; text-decoration: underline; text-decoration-color: ' +
@@ -585,66 +607,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
-    //debugPrint(content);
     return content;
   }
 
-  RegExp _getPaliWordRegexp(Script script) {
-    // only alphabets used for pali
-    // no digit , no puntutation
-    switch (script) {
-      case Script.myanmar:
-        return RegExp('[\u1000-\u103F]+(?![^<>]*>)');
-      case Script.roman:
-        return RegExp(r'[a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+(?![^<>]*>)');
-      case Script.sinhala:
-        return RegExp('[\u0D80-\u0DDF\u0DF2\u0DF3]+(?![^<>]*>)');
-      case Script.devanagari:
-        return RegExp('[\u0900-\u097F]+(?![^<>]*>)');
-      case Script.thai:
-        return RegExp('[\u0E00-\u0E7F\uF700-\uF70F]+(?![^<>]*>)');
-      case Script.laos:
-        return RegExp('[\u0E80-\u0EFF]+(?![^<>]*>)');
-      case Script.khmer:
-        return RegExp('[\u1780-\u17FF]+(?![^<>]*>)');
-      case Script.bengali:
-        return RegExp('[\u0980-\u09FF]+(?![^<>]*>)');
-      case Script.gurmukhi:
-        return RegExp('[\u0A00-\u0A7F]+(?![^<>]*>)');
-      case Script.taitham:
-        return RegExp('[\u1A20-\u1AAF]+(?![^<>]*>)');
-      case Script.gujarati:
-        return RegExp('[\u0A80-\u0AFF]+(?![^<>]*>)');
-      case Script.telugu:
-        return RegExp('[\u0C00-\u0C7F]+(?![^<>]*>)');
-      case Script.kannada:
-        return RegExp('[\u0C80-\u0CFF]+(?![^<>]*>)');
-      case Script.malayalam:
-        return RegExp('[\u0D00-\u0D7F]+(?![^<>]*>)');
-// actual code block [0x11000, 0x1107F]
-// need check
-      case Script.brahmi:
-        return RegExp('[\uD804\uDC00-\uDC7F]+(?![^<>]*>)');
-      case Script.tibetan:
-        return RegExp('[\u0F00-\u0FFF]+(?![^<>]*>)');
-// actual code block [0x11000, 0x1107F]
-//need check
-      case Script.cyrillic:
-        return RegExp('[\u0400-\u04FF\u0300-\u036F]+(?![^<>]*>)');
-
-      default:
-        return RegExp(r'[a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ]+(?![^<>]*>)');
-    }
-  }
-
   String _formatWithUserSetting(String pageContent) {
-    // return pages[index].content;
-
-    // if (tocHeader != null) {
-    //   pageContent = addIDforScroll(pageContent, tocHeader!);
-    // }
-
-    // showing page number based on user settings
     var publicationKeys = <String>['P', 'T', 'V'];
     if (!Prefs.isShowPtsNumber) publicationKeys.remove('P');
     if (!Prefs.isShowThaiNumber) publicationKeys.remove('T');
@@ -656,13 +622,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             RegExp('<a name="$publicationKey(\\d+)\\.(\\d+)"></a>');
         pageContent = pageContent.replaceAllMapped(publicationFormat, (match) {
           final volume = match.group(1)!;
-          // remove leading zero from page number
           final pageNumber = int.parse(match.group(2)!).toString();
           return '<span style="color:brown;">[$publicationKey $volume.$pageNumber]</span>';
         });
       }
     }
-    // removing <a> tag of publication page number
     pageContent = pageContent.replaceAll(
         RegExp('<a name="[MPTV](\\d+)\\.(\\d+)"></a>'), '');
 
@@ -671,7 +635,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         (index, previousValue, element) =>
             '$previousValue<a id="bookmark_${index + 1}" class="bookmark">${element.toString()}</a>');
 
-    print('bookmark: $bookmarkTags');
     return '''
             <p style="color:brown;text-align:right;">$bookmarkTags ${_getScriptPageNumber(widget.pageNumber)}</p>
             <div id="page_content">
@@ -700,8 +663,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       }
     }
 
-    // TODO - optimize highlight for some query text
-
     textToHighlight = PaliScript.getScriptOf(
         script: context.read<ScriptLanguageProvider>().currentScript,
         romanText: textToHighlight);
@@ -712,10 +673,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         final replace =
             '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
         content = content.replaceAll(pattern, replace);
-
-        // adding id to scroll
-        // content = content.replaceFirst('<span class = "highlighted">',
-        //     '<span id="$kGotoID" class="highlighted">');
         return content;
       }
     }
@@ -726,20 +683,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         final String replace = '<span class = "$highlightClass">$word</span>';
         content = content.replaceAll(word, replace);
       } else {
-        // bolded word case
-        // Log.d("if not found highlight", "yes");
-        // removing ti (တိ) at end
         String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
-        // print('trimmedWord: $trimmedWord');
         final replace = '<span class = "$highlightClass">$trimmedWord</span>';
 
         content = content.replaceAll(trimmedWord, replace);
       }
-      //
     }
 
     if (addId) {
-      // adding id to scroll
       content = content.replaceFirst('<span class = "$highlightClass">',
           '<span id="$kGotoID" class="$highlightClass">');
     }

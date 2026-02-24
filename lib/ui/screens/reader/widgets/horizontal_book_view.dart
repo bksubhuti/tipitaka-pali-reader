@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../business_logic/models/found_info.dart';
+import '../../../../business_logic/models/found_state.dart';
 import '../../../../business_logic/models/page_content.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
@@ -33,7 +35,6 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
   late final ReaderViewController readerViewController;
   late final PageController pageController;
 
-  String searchText = '';
   SelectedContent? _selectedContent;
 
   @override
@@ -46,27 +47,12 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
             readerViewController.book.firstPage);
 
     readerViewController.currentPage.addListener(_listenPageChange);
-    readerViewController.searchText.addListener(_onSearchTextChanged);
-    readerViewController.currentSearchResult.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    readerViewController.highlightEveryMatch.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
   }
 
   @override
   void dispose() {
     readerViewController.currentPage.removeListener(_listenPageChange);
     pageController.dispose();
-    readerViewController.currentSearchResult
-        .removeListener(_onSearchTextChanged);
-    readerViewController.highlightEveryMatch
-        .removeListener(_onSearchTextChanged);
     super.dispose();
   }
 
@@ -75,25 +61,26 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
     final readerViewController =
         Provider.of<ReaderViewController>(context, listen: false);
 
-    return PageView.builder(
-      controller: pageController,
-      pageSnapping: true,
-      itemCount: readerViewController.pages.length,
-      itemBuilder: (context, index) {
-        final PageContent pageContent = readerViewController.pages[index];
-        final script = context.read<ScriptLanguageProvider>().currentScript;
-        // transciption
-        String htmlContent = PaliScript.getScriptOf(
-          script: script,
-          romanText: pageContent.content,
-          isHtmlText: true,
-        );
+    return LayoutBuilder(builder: (context, constraints) {
+      return PageView.builder(
+        controller: pageController,
+        pageSnapping: true,
+        itemCount: readerViewController.pages.length,
+        itemBuilder: (context, index) {
+          final PageContent pageContent = readerViewController.pages[index];
+          final script = context.read<ScriptLanguageProvider>().currentScript;
+          // transciption
+          String htmlContent = PaliScript.getScriptOf(
+            script: script,
+            romanText: pageContent.content,
+            isHtmlText: true,
+          );
 
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.only(
-                bottom: 100.0), // estimated toolbar height
-            child: SelectionArea(
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                  bottom: 100.0), // estimated toolbar height
+              child: SelectionArea(
               contextMenuBuilder: (context, selectableRegionState) {
                 return AdaptiveTextSelectionToolbar.buttonItems(
                   anchors: selectableRegionState.contextMenuAnchors,
@@ -140,15 +127,24 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                 _selectedContent = value;
                 widget.onSelectionChanged?.call(value?.plainText ?? '');
               },
-              child: PaliPageWidget(
-                  pageNumber: pageContent.pageNumber!,
-                  htmlContent: htmlContent,
-                  script: script,
-                  highlightedWord: readerViewController.textToHighlight,
-                  searchText: searchText,
-                  pageToHighlight: readerViewController.pageToHighlight,
-                  onClick: widget.onClickedWord,
-                  book: readerViewController.book),
+              child: ValueListenableBuilder(
+                valueListenable: readerViewController.foundState,
+                builder: (_, foundState, __) {
+                  return PaliPageWidget(
+                    pageNumber: pageContent.pageNumber!,
+                    htmlContent: htmlContent,
+                    script: script,
+                    highlightedWord: readerViewController.textToHighlight,
+                    pageToHighlight: readerViewController.pageToHighlight,
+                    height: constraints.maxHeight,
+                    founds: _getFounds(pageContent.pageNumber!, foundState),
+                    currentOccurrence: _getCurrentOccurrence(
+                        pageContent.pageNumber!, foundState),
+                    onClick: widget.onClickedWord,
+                    book: readerViewController.book,
+                  );
+                },
+              ),
             ),
           ),
         );
@@ -158,6 +154,7 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
         readerViewController.onGoto(pageNumber: pageNumber);
       },
     );
+    });
   }
 
   // String? _needToHighlight(int index) {
@@ -178,11 +175,26 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
     pageController.jumpToPage(pageIndex);
   }
 
-  void _onSearchTextChanged() {
-    if (mounted) {
-      setState(() {
-        searchText = readerViewController.searchText.value;
-      });
+  List<FoundInfo>? _getFounds(int pageNumber, FoundState state) {
+    if (state is FoundInitial || state is FoundEmpty) return null;
+    final founds = (state as FoundData).founds;
+    final temp =
+        founds.where((element) => element.pageNumber == pageNumber).toList();
+    if (temp.isEmpty) {
+      return null;
     }
+    return temp;
+  }
+
+  int? _getCurrentOccurrence(int pageNumber, FoundState state) {
+    if (state is FoundInitial || state is FoundEmpty) return null;
+    final current = (state as FoundData).current;
+    if (current == null) {
+      return null;
+    }
+    if (state.founds[current].pageNumber != pageNumber) {
+      return null;
+    }
+    return state.founds[current].occurrenceInPage;
   }
 }
