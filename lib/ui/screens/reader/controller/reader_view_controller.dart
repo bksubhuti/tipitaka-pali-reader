@@ -274,7 +274,7 @@ class ReaderViewController extends ChangeNotifier {
 
     // update opened book list
     final openedBookController = context.read<OpenningBooksProvider>();
-    openedBookController.update(newPageNumber: _currentPage.value);
+    openedBookController.update(newPageNumber: _currentPage.value, bookUuid: bookUuid);
     // save to recent table on load of the book.
     // from general book opening and also tapping a search result tile..
     await _saveToRecent();

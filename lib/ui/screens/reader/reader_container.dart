@@ -42,7 +42,6 @@ class _ReaderContainerState extends State<ReaderContainer> {
     final book = current['book'] as Book;
     final currentPage = current['current_page'] as int?;
     final textToHighlight = current['text_to_highlight'] as String?;
-    debugPrint('Reader at... #$i, current page: $currentPage');
 
     var reader = Reader(
       book: book,

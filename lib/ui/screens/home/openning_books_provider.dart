@@ -18,7 +18,6 @@ class OpenningBooksProvider extends ChangeNotifier {
     Prefs.numberBooksOpened++;
     var uuid = const Uuid().v4();
     _selectedBookIndex = Prefs.isNewTabAtEnd ? _books.length : 0;
-    debugPrint('Adding $_selectedBookIndex');
     _books.insert(_selectedBookIndex, {
       'book': book,
       'uuid': uuid,
@@ -53,15 +52,19 @@ class OpenningBooksProvider extends ChangeNotifier {
 
   void update({required int newPageNumber, String? bookUuid}) {
     var current = books[_selectedBookIndex];
+    int targetIndex = _selectedBookIndex;
+    
     if (bookUuid != null) {
-      current = books.firstWhereOrNull((element) => element['uuid'] == bookUuid) ?? current;
+      final foundIndex = books.indexWhere((element) => element['uuid'] == bookUuid);
+      if (foundIndex != -1) {
+        current = books[foundIndex];
+        targetIndex = foundIndex;
+      }
     }
 
     current['current_page'] = newPageNumber;
-    if (bookUuid == null) {
-      // why was this code needed?
-      books[_selectedBookIndex] = current;
-    }
+    // Always save the updated current back to the list at the correct index
+    books[targetIndex] = current;
   }
 
   void updateSelectedBookIndex(int index, {bool forceNotify = false}) {

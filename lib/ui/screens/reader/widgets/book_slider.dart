@@ -33,6 +33,7 @@ class _BookSliderState extends State<BookSlider> {
 
   @override
   void dispose() {
+    readerViewController.currentPage.removeListener(_listenPageChange);
     super.dispose();
   }
 
@@ -59,8 +60,10 @@ class _BookSliderState extends State<BookSlider> {
   }
 
   void _listenPageChange() {
-    setState(() {
-      currentPage = readerViewController.currentPage.value;
-    });
+    if (mounted) {
+      setState(() {
+        currentPage = readerViewController.currentPage.value;
+      });
+    }
   }
 }

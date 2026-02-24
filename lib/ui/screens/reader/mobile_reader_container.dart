@@ -109,8 +109,6 @@ class _MobileReaderContainerState extends State<MobileReaderContainer> {
                         final pageNumber = openedBook['current_page'] as int?;
                         final textToHighlight =
                             openedBook['text_to_highlight'] as String?;
-                        // myLogger.i('openning book index: $index');
-                        // myLogger.i('openning book name: ${book.name}');
 
                         return Reader(
                           key: Key('$index - ${book.id}'),

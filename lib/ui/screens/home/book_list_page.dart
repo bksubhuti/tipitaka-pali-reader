@@ -285,13 +285,20 @@ class BookListPage extends StatelessWidget {
     await Navigator.pushNamed(context, settingRoute);
   }
 
-  _openBook(BuildContext context, ListItem listItem) {
+  _openBook(BuildContext context, ListItem listItem) async {
     if (listItem.runtimeType == BookItem) {
       BookItem bookItem = listItem as BookItem;
       debugPrint('book name: ${bookItem.book.name}');
 
+      final databaseProvider = DatabaseHelper();
+      final firstPage = await BookDatabaseRepository(databaseProvider)
+          .getFirstPage(bookItem.book.id);
+      debugPrint('first page: $firstPage');
       final openningBookProvider = context.read<OpenningBooksProvider>();
-      openningBookProvider.add(book: bookItem.book);
+      openningBookProvider.add(
+        book: bookItem.book,
+        currentPage: firstPage,
+      );
 
       if (Mobile.isPhone(context)) {
         // Navigator.pushNamed(context, readerRoute,
