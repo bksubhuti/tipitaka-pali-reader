@@ -557,9 +557,9 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
     String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
 
-    // Define the visibility based on your static Prefs
+// 2. Update your styling logic
     final translationStyle = Prefs.showTranslation
-        ? "font-size: 0.9em; color: deeppink;"
+        ? "font-size: 0.9em; color: ${_toCssHex(Prefs.translationColor)};"
         : "display: none;";
 
     final styleMaps = <String, String>{
@@ -608,7 +608,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="vietnamese_text"': 'style="$translationStyle"',
       r'class="translation_text"': 'style="$translationStyle"',
       // Pali is usually the main text, but if you want to explicitly style the span:
-      r'class="palitext"': 'style="font-weight:bold; color: blue;"',
+      r'class="palitext"':
+          'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
       //////////////////////////////////////////////////////////////////////////////
       // r'class="highlighted"':
       //     r'style="background: rgb(255, 114, 20); color: white;"',
@@ -758,6 +759,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (text[i] == '.' || text[i] == '?' || text[i] == '!') break;
     }
     return chars.toString().trimRight();
+  }
+
+  // 1. Add this helper function in your class or as a standalone utility
+  String _toCssHex(int colorValue) {
+    // Masks the alpha channel and converts to a 6-character hex string
+    return '#${(colorValue & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
   }
 }
 

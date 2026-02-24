@@ -235,5 +235,8 @@
 "importEpub": "Import EPUB Book",
 "selectAnEpubFileToImport": "Select an EPUB file to import into TPR.",
 "selectFile": "Select File",
-"showTranslations": "Show Translations"
+"showTranslations": "Show Translations",
+"viewSettings": "View",
+"paliTextColor": "Pāḷi Text Color",
+"translationColor": "Translation Color"
 }

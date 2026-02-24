@@ -83,6 +83,8 @@ const String windowHeightPref = "windowHeight";
 const String windowXPref = "windowX";
 const String windowYPref = "windowY";
 const String showTranslationPref = "showTranslation";
+const String paliTextColorPref = "paliTextColor";
+const String translationColorPref = "translationColor";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -146,6 +148,8 @@ const String defaultOpenRouterApiKey = "";
 const double defaultWindowWidth = 1000.0;
 const double defaultWindowHeight = 800.0;
 const bool showtranslation = true;
+const int defaultPaliTextColor = 0xFF000000; // Black
+const int defaultTranslationColor = 0xFF1565C0; // Blue (Colors.blue[800])
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
 Translate sentence by sentence.
@@ -490,6 +494,15 @@ class Prefs {
       instance.getBool(showTranslationPref) ?? showtranslation;
   static set showTranslation(bool value) =>
       instance.setBool(showTranslationPref, value);
+  static int get paliTextColor =>
+      instance.getInt(paliTextColorPref) ?? defaultPaliTextColor;
+  static set paliTextColor(int value) =>
+      instance.setInt(paliTextColorPref, value);
+
+  static int get translationColor =>
+      instance.getInt(translationColorPref) ?? defaultTranslationColor;
+  static set translationColor(int value) =>
+      instance.setInt(translationColorPref, value);
 
   // We return nullable double? for X and Y.
   // If null, the window manager will know to center the window default.

@@ -57,10 +57,11 @@ class FlashCardsView extends StatelessWidget {
       }
     }
 
-    String csv = const ListToCsvConverter(
+    String csv = CsvCodec(
       fieldDelimiter: ';',
-      textEndDelimiter: '"',
-    ).convert(rows);
+      quoteCharacter:
+          '"', // In v7, 'textEndDelimiter' was renamed to 'quoteCharacter'
+    ).encode(rows);
 
     // Pick directory
     String? dir = await FilePicker.platform.getDirectoryPath();

@@ -19,9 +19,9 @@ dependencies:
   sqflite: ^2.3.3
   # FIXED: Removed '^' to strictly pin this version. 
   # This matches the older sqlite3 API (dispose vs close) preventing the crash.
-  sqflite_common_ffi: 2.3.3 
+  sqflite_common_ffi: ^2.4.0+2 
   sqflite_common: ^2.5.4
-  sqlite3_flutter_libs: ^0.5.0
+  sqlite3_flutter_libs: ^0.6.0+eol
 
 
   # sqlite3 is handled in dependency_overrides below
@@ -72,7 +72,7 @@ dependencies:
   internet_connection_checker_plus: ^2.5.0
   flash_card: ^0.1.0
   flashcardplus: ^0.0.2
-  csv: ^6.0.0
+  csv: ^7.1.0
   file_picker: ^10.2.0
   flutter_speed_dial: ^7.0.0
   scroll_to_index: ^3.0.1
@@ -88,6 +88,7 @@ dependencies:
   msix: ^3.7.0
   window_manager: ^0.5.1
   app_links: ^7.0.0
+  flutter_colorpicker: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -95,7 +96,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   freezed: ^3.0.6
   build_runner: ^2.1.2
-  flutter_launcher_icons: "^0.13.1"
+  flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
   android: true
@@ -193,4 +194,4 @@ flutter:
 dependency_overrides:
   flutter_lints: ^5.0.0
   # Keeps sqlite3 on the version that allows 'open.overrideFor'
-  sqlite3: 2.4.0
+#  sqlite3: 2.4.0

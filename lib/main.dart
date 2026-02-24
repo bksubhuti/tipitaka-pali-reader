@@ -1,6 +1,6 @@
 import 'dart:ffi' as ffi;
 import 'dart:ffi' show DynamicLibrary;
-import 'package:sqlite3/open.dart' as sqlite_open; // This will work now!
+//import 'package:sqlite3/open.dart' as sqlite_open; // This will work now!
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 import 'dart:convert';

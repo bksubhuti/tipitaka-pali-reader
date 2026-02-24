@@ -7,6 +7,7 @@ import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import 'package:tipitaka_pali/ui/screens/settings/sync_settings.dart';
 import 'package:tipitaka_pali/ui/screens/settings/theme_settings_view.dart';
 import 'package:tipitaka_pali/ui/screens/settings/tools_settings.dart';
+import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/ui/widgets/select_dictionary_widget.dart';
 import 'package:tipitaka_pali/ui/widgets/select_language_widget.dart';
 import 'package:tipitaka_pali/ui/screens/settings/dpd_settings_view.dart';
@@ -41,6 +42,7 @@ class SettingPage extends StatelessWidget {
               const LanguageSettingView(),
               const ScriptSettingView(),
               const GeneralSettingsView(),
+              const ViewSettingsView(),
               const HelpAboutView(),
               ChangeNotifierProvider<BookmarkNotifier>(
                 create: (context) => BookmarkNotifier(),
