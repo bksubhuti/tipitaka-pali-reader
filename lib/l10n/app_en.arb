@@ -233,7 +233,7 @@
   },
 "shareSubject": "Pāḷi text from TPR",
 "importEpub": "Import EPUB Book",
-"selectAnEpubFileToImport": "Select an EPUB file to import into TPR.",
+"selectAnHtmlFileToImport": "Select an Html file to import into TPR.",
 "selectFile": "Select File",
 "showTranslations": "Show Translations",
 "viewSettings": "View",

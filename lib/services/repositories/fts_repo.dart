@@ -37,6 +37,7 @@ class FtsDatabaseRepository implements FtsRespository {
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
       WHERE fts_pages MATCH '"$safePhrase"'
+      ORDER BY books.sort_order ASC
       ''';
     }
 
@@ -53,6 +54,7 @@ class FtsDatabaseRepository implements FtsRespository {
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
       WHERE fts_pages MATCH '$value'
+      ORDER BY books.sort_order ASC
       ''';
     }
 
@@ -75,6 +77,7 @@ class FtsDatabaseRepository implements FtsRespository {
           ON fts_pages.bookid = sutta_page_shortcut.book_id
           AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
       WHERE fts_pages MATCH '$value'
+      ORDER BY books.sort_order ASC
       ''';
     }
     if (queryMode == QueryMode.anywhere) {
@@ -86,6 +89,7 @@ class FtsDatabaseRepository implements FtsRespository {
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
       WHERE content LIKE '%$safePhrase%'
+      ORDER BY books.sort_order ASC
       ''';
     }
 

@@ -77,7 +77,7 @@ class _BookImportViewState extends State<BookImportView> {
     final loc = AppLocalizations.of(context);
     final title = loc?.importEpub ?? 'Import eBook';
     final selectMsg =
-        loc?.selectAnEpubFileToImport ?? 'Select an HTML file to import';
+        loc?.selectAnHtmlFileToImport ?? 'Select an HTML file to import';
     final selectBtn = loc?.selectFile ?? 'Select File';
 
     return Scaffold(
