@@ -21,15 +21,16 @@ class BookDatabaseRepository implements BookRepository {
     List<Map<String, dynamic>> maps = await db.query(dao.tableName,
         columns: [dao.columnID, dao.columnName],
         where: '${dao.columnBasket} = ? AND ${dao.colunmnCategory} = ?',
-        whereArgs: [basket, category]);
+        whereArgs: [basket, category],
+        orderBy: "sort_order ASC");
     return dao.fromList(maps);
   }
 
   @override
   Future<List<Book>> getAllBooks() async {
     final db = await databaseProvider.database;
-    List<Map<String, dynamic>> maps =
-        await db.query(dao.tableName, columns: [dao.columnID, dao.columnName]);
+    List<Map<String, dynamic>> maps = await db.query(dao.tableName,
+        columns: [dao.columnID, dao.columnName], orderBy: "sort_order ASC");
     return dao.fromList(maps);
   }
 

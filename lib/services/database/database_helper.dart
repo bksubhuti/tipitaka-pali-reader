@@ -36,12 +36,35 @@ class DatabaseHelper {
     Prefs.databaseDirPath = dbPath;
 
     // myLogger.i('opening Database ...');
-    return await openDatabase(
+    Database db = await openDatabase(
       path,
       onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON;');
       },
     );
+    // TODO: Remove this in future. This is just to patch the old DB to add missing columns without needing a full re-setup for users on older versions.
+    // ==========================================
+    // SILENT SCHEMA PATCH: ADD SORT_ORDER COLUMNS
+    // This runs every time the DB opens and guarantees
+    // the columns exist before the UI ever queries them.
+    // ==========================================
+    try {
+      await db.execute(
+          "ALTER TABLE books ADD COLUMN sort_order INTEGER DEFAULT 0;");
+      debugPrint("SUCCESS: Added sort_order to books.");
+    } catch (_) {
+      // Column exists, ignore
+    }
+
+    try {
+      await db.execute(
+          "ALTER TABLE category ADD COLUMN sort_order INTEGER DEFAULT 0;");
+      debugPrint("SUCCESS: Added sort_order to category.");
+    } catch (_) {
+      // Column exists, ignore
+    }
+    // ==========================================
+    return db;
   }
 
   Future close() async {

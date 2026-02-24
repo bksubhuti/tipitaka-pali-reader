@@ -22,7 +22,8 @@ class CategoryDatabaseRepository implements CategoryRepository {
     List<Map<String, dynamic>> maps = await db.query(dao.tableName,
         columns: [dao.columnID, dao.columnName],
         where: '${dao.columnBasket} = ?',
-        whereArgs: [basket]);
+        whereArgs: [basket],
+        orderBy: "sort_order ASC");
     return dao.fromList(maps);
   }
 }

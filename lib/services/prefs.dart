@@ -82,6 +82,7 @@ const String windowWidthPref = "windowWidth";
 const String windowHeightPref = "windowHeight";
 const String windowXPref = "windowX";
 const String windowYPref = "windowY";
+const String showTranslationPref = "showTranslation";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -144,6 +145,7 @@ const String defaultOpenRouterPromptKey = 'line_by_line';
 const String defaultOpenRouterApiKey = "";
 const double defaultWindowWidth = 1000.0;
 const double defaultWindowHeight = 800.0;
+const bool showtranslation = true;
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
 Translate sentence by sentence.
@@ -483,6 +485,11 @@ class Prefs {
       instance.getDouble(windowHeightPref) ?? defaultWindowHeight;
   static set windowHeight(double value) =>
       instance.setDouble(windowHeightPref, value);
+
+  static bool get showTranslation =>
+      instance.getBool(showTranslationPref) ?? showtranslation;
+  static set showTranslation(bool value) =>
+      instance.setBool(showTranslationPref, value);
 
   // We return nullable double? for X and Y.
   // If null, the window manager will know to center the window default.

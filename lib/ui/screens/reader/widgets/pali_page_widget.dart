@@ -556,6 +556,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
 
     String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+
+    // Define the visibility based on your static Prefs
+    final translationStyle = Prefs.showTranslation
+        ? "font-size: 0.9em; color: deeppink;"
+        : "display: none;";
+
     final styleMaps = <String, String>{
       r'class="bld"': 'style="font-weight:bold; color: $styleColor;"',
       r'class="t5"': 'style="font-weight:bold; color: $styleColor;"',
@@ -589,14 +595,23 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="gatha2"': r'style="margin-bottom: 0em; margin-left: 5em;"',
       r'class="gatha3"': r'style="margin-bottom: 0em; margin-left: 5em;"',
       r'class="gathalast"': r'style="margin-bottom: 1.3em; margin-left: 5em;"',
-      r'class="pageheader"': r'style="font-size: 0.9em; color: deeppink;"',
+//      r'class="pageheader"': r'style="font-size: 0.9em; color: deeppink;"',
       r'class="note"': r'style="font-size: 0.8em; color: gray;"',
       r'class = "highlightedSearch"':
           r'style="background: #FFE959; color: #000;"',
-      'class="$searchTermCssClass"':
-          r'style="background: yellow; color: black;"',
-      'class="$currentSearchTermCssClass"':
-          r'style="background: orange; color: black;"',
+
+      //////////////////////////////////////////////////////////////////////////////
+      // NEW: Semantic language classes
+// Handle the current hack and the new semantic classes
+      r'class="pageheader"': 'style="$translationStyle"',
+      r'class="english_text"': 'style="$translationStyle"',
+      r'class="vietnamese_text"': 'style="$translationStyle"',
+      r'class="translation_text"': 'style="$translationStyle"',
+      // Pali is usually the main text, but if you want to explicitly style the span:
+      r'class="palitext"': 'style="font-weight:bold; color: blue;"',
+      //////////////////////////////////////////////////////////////////////////////
+      // r'class="highlighted"':
+      //     r'style="background: rgb(255, 114, 20); color: white;"',
       r'class = "underlined_highlight"': r'style="font-weight: 500; color: ' +
           colorHex +
           '; text-decoration: underline; text-decoration-color: ' +
@@ -607,6 +622,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
+    //debugPrint(content);
     return content;
   }
 
