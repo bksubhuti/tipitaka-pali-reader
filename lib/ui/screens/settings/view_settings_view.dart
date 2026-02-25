@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart'; // Ensure this is in pubspec.yaml
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -40,6 +40,8 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
           const Divider(),
           _getDictionaryFontSizeSlider(),
           const Divider(),
+          _getTextDisplayModeRadio(), // <--- The new Radio Button group
+          const Divider(),
           _getPaliTextColorSetting(),
           const Divider(),
           _getTranslationColorSetting(),
@@ -51,10 +53,122 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
           _getNewTabAtEndSwitch(),
           const Divider(),
           _getExpandedBookListSwitch(),
-          const Divider(),
-          _getShowTranslationsSwitch(),
           const SizedBox(height: 10),
         ],
+      ),
+    );
+  }
+
+  Widget _getTextDisplayModeRadio() {
+    // WATCH: So the UI updates when mode or bold setting changes
+    final currentMode = context.watch<ThemeChangeNotifier>().textDisplayMode;
+    final isPaliBold = context.watch<ThemeChangeNotifier>().isPaliBold;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+            child: Text(
+              "Text Display Mode",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          RadioGroup<TextDisplayMode>(
+            groupValue: currentMode,
+            onChanged: (TextDisplayMode? value) {
+              if (value != null) {
+                context
+                    .read<ThemeChangeNotifier>()
+                    .onChangeTextDisplayMode(value);
+              }
+            },
+            child: Column(
+              children: [
+                RadioListTile<TextDisplayMode>(
+                  title: const Text('Pāḷi Only'),
+                  value: TextDisplayMode.paliOnly,
+                ),
+                RadioListTile<TextDisplayMode>(
+                  title: const Text('Pāḷi & Translation'),
+                  value: TextDisplayMode.paliAndTranslation,
+                ),
+                RadioListTile<TextDisplayMode>(
+                  title: const Text('Translation Only'),
+                  value: TextDisplayMode.translationOnly,
+                ),
+              ],
+            ),
+          ),
+
+          // NEW: Bold Checkbox!
+          // Only show this checkbox if Pāḷi text is actually on the screen
+          if (currentMode != TextDisplayMode.translationOnly)
+            Padding(
+              padding: const EdgeInsets.only(
+                  left: 16.0), // Indent it slightly under the radio buttons
+              child: CheckboxListTile(
+                title: const Text('Bold Pāḷi Text'),
+                value: isPaliBold,
+                onChanged: (bool? value) {
+                  if (value != null) {
+                    context
+                        .read<ThemeChangeNotifier>()
+                        .onChangeIsPaliBold(value);
+                  }
+                },
+                controlAffinity: ListTileControlAffinity
+                    .leading, // Puts the checkbox on the left
+                contentPadding:
+                    EdgeInsets.zero, // Keeps it tight with the radio buttons
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _getPaliTextColorSetting() {
+    // WATCH: Rebuilds the little color circle so it changes instantly
+    final currentPaliColor = context.watch<ThemeChangeNotifier>().paliTextColor;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text(AppLocalizations.of(context)!.paliTextColor),
+        trailing: _colorIndicator(Color(currentPaliColor)),
+        onTap: () => _openColorPicker(
+          AppLocalizations.of(context)!.paliTextColor,
+          currentPaliColor,
+          (colorValue) {
+            // READ: Saves the color and notifies listeners
+            context
+                .read<ThemeChangeNotifier>()
+                .onChangePaliTextColor(colorValue);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _getTranslationColorSetting() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text(AppLocalizations.of(context)!.translationColor),
+        trailing: _colorIndicator(Color(Prefs.translationColor)),
+        onTap: () => _openColorPicker(
+          AppLocalizations.of(context)!.translationColor,
+          Prefs.translationColor,
+          (colorValue) {
+            // READ: Saves the color and notifies listeners
+            context
+                .read<ThemeChangeNotifier>()
+                .onChangeTranslationColor(colorValue);
+          },
+        ),
       ),
     );
   }
@@ -103,45 +217,6 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     );
   }
 
-  Widget _getPaliTextColorSetting() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        title: Text(AppLocalizations.of(context)!.paliTextColor),
-        trailing: _colorIndicator(Color(Prefs.paliTextColor)),
-        onTap: () => _openColorPicker(
-          AppLocalizations.of(context)!.paliTextColor,
-          Prefs.paliTextColor,
-          (colorValue) {
-            setState(() {
-              Prefs.paliTextColor = colorValue;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _getTranslationColorSetting() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        title: Text(AppLocalizations.of(context)!.translationColor),
-        trailing: _colorIndicator(Color(Prefs.translationColor)),
-        onTap: () => _openColorPicker(
-          AppLocalizations.of(context)!.translationColor,
-          Prefs.translationColor,
-          (colorValue) {
-            setState(() {
-              Prefs.translationColor = colorValue;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  // Helper for the UI circle showing the current color
   Widget _colorIndicator(Color color) {
     return Container(
       width: 32,
@@ -241,26 +316,10 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     );
   }
 
-  Widget _getShowTranslationsSwitch() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        title: Text(AppLocalizations.of(context)!.showTranslations),
-        trailing: Switch(
-          onChanged: (value) => setState(() => Prefs.showTranslation = value),
-          value: Prefs.showTranslation,
-        ),
-      ),
-    );
-  }
-
-  // Color Picker Dialog
   void _openColorPicker(String title, int currentColor, Function(int) onSave) {
-    // Cache the localization strings outside the dialog builder to prevent Context errors
     final String cancelText = AppLocalizations.of(context)!.cancel;
     final String okText = AppLocalizations.of(context)!.ok;
 
-    // Internal variable to hold the newly picked color before saving
     int tempSelectedColor = currentColor;
 
     showDialog(
@@ -275,8 +334,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
                 tempSelectedColor = color.value;
               },
               pickerAreaHeightPercent: 0.8,
-              enableAlpha:
-                  false, // Turn off transparency since text usually needs a solid color
+              enableAlpha: false,
             ),
           ),
           actions: [
@@ -289,7 +347,6 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             TextButton(
               child: Text(okText),
               onPressed: () {
-                // Call the callback to save it and update the main UI
                 onSave(tempSelectedColor);
                 Navigator.of(dialogContext).pop();
               },

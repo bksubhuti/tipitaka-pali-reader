@@ -15,6 +15,8 @@ enum PageTheme {
   dark,
 }
 
+enum TextDisplayMode { paliOnly, paliAndTranslation, translationOnly }
+
 // preference names
 const String localeValPref = "localeVal";
 const String themeIndexPref = "themeIndex";
@@ -82,9 +84,10 @@ const String windowWidthPref = "windowWidth";
 const String windowHeightPref = "windowHeight";
 const String windowXPref = "windowX";
 const String windowYPref = "windowY";
-const String showTranslationPref = "showTranslation";
 const String paliTextColorPref = "paliTextColor";
 const String translationColorPref = "translationColor";
+const String textDisplayModePref = "textDisplayMode";
+const String isPaliBoldPref = "isPaliBold";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -147,9 +150,14 @@ const String defaultOpenRouterPromptKey = 'line_by_line';
 const String defaultOpenRouterApiKey = "";
 const double defaultWindowWidth = 1000.0;
 const double defaultWindowHeight = 800.0;
-const bool showtranslation = true;
 const int defaultPaliTextColor = 0xFF000000; // Black
 const int defaultTranslationColor = 0xFF1565C0; // Blue (Colors.blue[800])
+// 0 = Pali Only, 1 = Pali & Translation, 2 = Translation Only
+const TextDisplayMode defaultTextDisplayMode =
+    TextDisplayMode.paliAndTranslation; // Default to Pali & Translation
+const bool defaultIsPaliBold =
+    true; // Defaulting to true to match current behavior
+
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
 Translate sentence by sentence.
@@ -490,10 +498,6 @@ class Prefs {
   static set windowHeight(double value) =>
       instance.setDouble(windowHeightPref, value);
 
-  static bool get showTranslation =>
-      instance.getBool(showTranslationPref) ?? showtranslation;
-  static set showTranslation(bool value) =>
-      instance.setBool(showTranslationPref, value);
   static int get paliTextColor =>
       instance.getInt(paliTextColorPref) ?? defaultPaliTextColor;
   static set paliTextColor(int value) =>
@@ -503,6 +507,22 @@ class Prefs {
       instance.getInt(translationColorPref) ?? defaultTranslationColor;
   static set translationColor(int value) =>
       instance.setInt(translationColorPref, value);
+
+  static TextDisplayMode get textDisplayMode {
+    // Default to 1 (paliAndTranslation) if nothing is saved yet
+    final int index = instance.getInt(textDisplayModePref) ?? 1;
+    return TextDisplayMode.values[index];
+  }
+
+  static set textDisplayMode(TextDisplayMode mode) {
+    // Save the integer index of the enum
+    instance.setInt(textDisplayModePref, mode.index);
+  }
+
+  static bool get isPaliBold =>
+      instance.getBool(isPaliBoldPref) ?? defaultIsPaliBold;
+
+  static set isPaliBold(bool value) => instance.setBool(isPaliBoldPref, value);
 
   // We return nullable double? for X and Y.
   // If null, the window manager will know to center the window default.

@@ -549,6 +549,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     return occurrence;
   }
 
+  String _toCssHex(int colorValue) {
+    return '#${(colorValue & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+  }
+
   String _changeToInlineStyle(String content) {
     Color c = Theme.of(context).primaryColorLight;
 
@@ -557,9 +561,33 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
     String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
 
-// 2. Update your styling logic
-    final translationStyle = Prefs.showTranslation
+    // 1. Determine visibility
+    final bool showTranslation =
+        Prefs.textDisplayMode == TextDisplayMode.paliAndTranslation ||
+            Prefs.textDisplayMode == TextDisplayMode.translationOnly;
+
+    final bool showPali = Prefs.textDisplayMode == TextDisplayMode.paliOnly ||
+        Prefs.textDisplayMode == TextDisplayMode.paliAndTranslation;
+
+    // =====================================================================
+    // NEW: Join lines into a paragraph if only one language is showing
+    // =====================================================================
+    if (!showTranslation || !showPali) {
+      // Replaces <br>, <br/>, and <br /> with a space so the text flows naturally
+      content =
+          content.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ');
+    }
+    // =====================================================================
+
+// Check if the user wants bold Pāḷi text
+    final String boldStyle = Prefs.isPaliBold ? "font-weight:bold; " : "";
+
+    final translationStyle = showTranslation
         ? "font-size: 0.9em; color: ${_toCssHex(Prefs.translationColor)};"
+        : "display: none;";
+
+    final paliStyle = showPali
+        ? "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};" // <--- Dynamic bolding added here
         : "display: none;";
 
     final styleMaps = <String, String>{
@@ -595,35 +623,27 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="gatha2"': r'style="margin-bottom: 0em; margin-left: 5em;"',
       r'class="gatha3"': r'style="margin-bottom: 0em; margin-left: 5em;"',
       r'class="gathalast"': r'style="margin-bottom: 1.3em; margin-left: 5em;"',
-//      r'class="pageheader"': r'style="font-size: 0.9em; color: deeppink;"',
       r'class="note"': r'style="font-size: 0.8em; color: gray;"',
       r'class = "highlightedSearch"':
           r'style="background: #FFE959; color: #000;"',
 
-      //////////////////////////////////////////////////////////////////////////////
-      // NEW: Semantic language classes
-// Handle the current hack and the new semantic classes
+      // Semantic language classes
       r'class="pageheader"': 'style="$translationStyle"',
       r'class="english_text"': 'style="$translationStyle"',
       r'class="vietnamese_text"': 'style="$translationStyle"',
       r'class="translation_text"': 'style="$translationStyle"',
-      // Pali is usually the main text, but if you want to explicitly style the span:
-      r'class="palitext"':
-          'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
-      //////////////////////////////////////////////////////////////////////////////
-      // r'class="highlighted"':
-      //     r'style="background: rgb(255, 114, 20); color: white;"',
-      r'class = "underlined_highlight"': r'style="font-weight: 500; color: ' +
-          colorHex +
-          '; text-decoration: underline; text-decoration-color: ' +
-          colorHex +
-          ';"'
+
+      // Pāḷi text visibility and color
+      r'class="palitext"': 'style="$paliStyle"',
+
+      'class = "underlined_highlight"':
+          'style="font-weight: 500; color: $colorHex; text-decoration: underline; text-decoration-color: $colorHex;"'
     };
 
     styleMaps.forEach((key, value) {
       content = content.replaceAll(key, value);
     });
-    //debugPrint(content);
+
     return content;
   }
 
@@ -759,12 +779,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (text[i] == '.' || text[i] == '?' || text[i] == '!') break;
     }
     return chars.toString().trimRight();
-  }
-
-  // 1. Add this helper function in your class or as a standalone utility
-  String _toCssHex(int colorValue) {
-    // Masks the alpha channel and converts to a 6-character hex string
-    return '#${(colorValue & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
   }
 }
 

@@ -48,6 +48,37 @@ class ThemeChangeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Text Display Mode ---
+  TextDisplayMode get textDisplayMode => Prefs.textDisplayMode;
+
+  void onChangeTextDisplayMode(TextDisplayMode mode) {
+    Prefs.textDisplayMode = mode;
+    notifyListeners(); // This tells the Reader to refresh and hide/show text!
+  }
+
+  // --- Colors ---
+  int get paliTextColor => Prefs.paliTextColor;
+
+  void onChangePaliTextColor(int colorValue) {
+    Prefs.paliTextColor = colorValue;
+    notifyListeners(); // This tells the Reader to immediately repaint the Pali text!
+  }
+
+  int get translationColor => Prefs.translationColor;
+
+  void onChangeTranslationColor(int colorValue) {
+    Prefs.translationColor = colorValue;
+    notifyListeners(); // This tells the Reader to immediately repaint the Translation text!
+  }
+
+  // Put this right near your textDisplayMode methods
+  bool get isPaliBold => Prefs.isPaliBold;
+
+  void onChangeIsPaliBold(bool isBold) {
+    Prefs.isPaliBold = isBold;
+    notifyListeners(); // Instantly updates the Reader view!
+  }
+
   // Returns dark ThemeData made by FlexColorScheme
   ThemeData get darkTheme => FlexThemeData.dark(
         colors: myFlexSchemes[Prefs.themeIndex].dark,
