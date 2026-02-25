@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/reader.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/openning_book_list_view.dart';
+import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/ui/widgets/tab_count_icon.dart';
 
 import '../../../business_logic/models/book.dart';
@@ -64,6 +65,25 @@ class _MobileReaderContainerState extends State<MobileReaderContainer> {
                             (openningBooks[selectedBookIndex]['book'] as Book)
                                 .name)),
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.text_format),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Dialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          // Wrap in SingleChildScrollView so the ExpansionTile has room to expand
+                          child: const SingleChildScrollView(
+                            child: ViewSettingsView(
+                              isMobilePopup: true,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   IconButton(
                     onPressed: () {
                       if (bookViewMode == BookViewMode.horizontal) {

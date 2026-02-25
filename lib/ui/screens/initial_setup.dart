@@ -132,12 +132,20 @@ class InitialSetup extends StatelessWidget {
 
   void concludeTheSetup(BuildContext context) async {
     List<File> extensions = getExtensionFiles();
+
+    // --- THE GATEKEEPER ---
+    // Check if the JSON mapping cache exists
+    final cacheFile = File('${Prefs.databaseDirPath}/download_list_cache.json');
+    final hasJsonCache = await cacheFile.exists();
+
     String exlist = "";
     for (final file in extensions) {
       final fileName = path.basename(file.path);
       exlist += "$fileName\n";
     }
-    if (extensions.isNotEmpty) {
+
+    // Only prompt them if they have zips AND the JSON cache is present
+    if (extensions.isNotEmpty && hasJsonCache) {
       final message =
           "${AppLocalizations.of(context)!.folloingExtensions}\n$exlist \n ${AppLocalizations.of(context)!.wouldYouLikeToInstall}";
 
@@ -154,7 +162,8 @@ class InitialSetup extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const DownloadView(),
+            // Explicitly pass the flag to trigger our new Local Restore mode!
+            builder: (context) => const DownloadView(showLocalRestores: true),
           ),
         ).then((_) {
           _openHomePage(context);
@@ -164,7 +173,8 @@ class InitialSetup extends StatelessWidget {
         _openHomePage(context);
       }
     } else {
-      // No extensions found, directly open the home page
+      // No extensions found, OR they don't have the JSON map.
+      // Skip the prompt and directly open the home page.
       _openHomePage(context);
     }
   }
@@ -180,7 +190,7 @@ class InitialSetup extends StatelessWidget {
     List<File> extensions = [];
 
     for (final file in files) {
-      if (file.path.endsWith('.sql')) {
+      if (file.path.endsWith('.zip')) {
         //await processLocalFile(file);
         extensions.add(file);
       }

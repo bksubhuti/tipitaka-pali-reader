@@ -7,8 +7,10 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 
 class ViewSettingsView extends StatefulWidget {
-  const ViewSettingsView({super.key});
+  final bool isMobilePopup;
 
+  // Default to false so your main settings page stays exactly the same
+  const ViewSettingsView({super.key, this.isMobilePopup = false});
   @override
   State<ViewSettingsView> createState() => _ViewSettingsViewState();
 }
@@ -27,7 +29,59 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final List<Widget> settingWidgets = [
+      if (!widget.isMobilePopup) ...[
+        _getUiFontSizeSlider(),
+        const Divider(),
+        _getDictionaryFontSizeSlider(),
+        const Divider(),
+      ],
+      _getTextDisplayModeRadio(),
+      const Divider(),
+      _getPaliTextColorSetting(),
+      const Divider(),
+      _getTranslationColorSetting(),
+      const Divider(),
+      _getHideScrollbarSwitch(),
+      if (!widget.isMobilePopup) ...[
+        const Divider(),
+        _getMultiTabsModeSwitch(),
+        const Divider(),
+        _getNewTabAtEndSwitch(),
+        const Divider(),
+        _getExpandedBookListSwitch(),
+        const SizedBox(height: 10),
+      ],
+    ];
+
+    if (widget.isMobilePopup) {
+      // This overrides the default spacing and scale just for the popup!
+      return Theme(
+        data: Theme.of(context).copyWith(
+          visualDensity: VisualDensity.compact, // Crunches vertical space
+          listTileTheme: const ListTileThemeData(
+            dense:
+                true, // Shrinks ListTile heights and scales down text slightly
+            minVerticalPadding: 0, // Strips internal padding
+          ),
+          dividerTheme: const DividerThemeData(
+            space:
+                10, // Removes the default 16px invisible padding around dividers
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: settingWidgets,
+          ),
+        ),
+      );
+    }
+
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.visibility),
@@ -35,26 +89,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
           AppLocalizations.of(context)!.viewSettings,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        children: [
-          _getUiFontSizeSlider(),
-          const Divider(),
-          _getDictionaryFontSizeSlider(),
-          const Divider(),
-          _getTextDisplayModeRadio(), // <--- The new Radio Button group
-          const Divider(),
-          _getPaliTextColorSetting(),
-          const Divider(),
-          _getTranslationColorSetting(),
-          const Divider(),
-          _getHideScrollbarSwitch(),
-          const Divider(),
-          _getMultiTabsModeSwitch(),
-          const Divider(),
-          _getNewTabAtEndSwitch(),
-          const Divider(),
-          _getExpandedBookListSwitch(),
-          const SizedBox(height: 10),
-        ],
+        children: settingWidgets,
       ),
     );
   }

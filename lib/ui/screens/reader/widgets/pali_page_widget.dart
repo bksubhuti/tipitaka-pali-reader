@@ -559,9 +559,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     String colorHex =
         '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
 
-    String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+    // 1. Detect if this is a Bilingual book or Pāḷi-only
+    final bool isBilingual = content.contains('class="palitext"') ||
+        content.contains('class="english_text"');
 
-    // 1. Determine visibility
+    // 2. Determine visibility for bilingual modes
     final bool showTranslation =
         Prefs.textDisplayMode == TextDisplayMode.paliAndTranslation ||
             Prefs.textDisplayMode == TextDisplayMode.translationOnly;
@@ -569,17 +571,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final bool showPali = Prefs.textDisplayMode == TextDisplayMode.paliOnly ||
         Prefs.textDisplayMode == TextDisplayMode.paliAndTranslation;
 
-    // =====================================================================
-    // NEW: Join lines into a paragraph if only one language is showing
-    // =====================================================================
-    if (!showTranslation || !showPali) {
-      // Replaces <br>, <br/>, and <br /> with a space so the text flows naturally
+    // 3. Join lines if only one language is showing
+    if (isBilingual && (!showTranslation || !showPali)) {
       content =
           content.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ');
     }
-    // =====================================================================
 
-// Check if the user wants bold Pāḷi text
+    // 4. Styles for Bilingual Spans
     final String boldStyle = Prefs.isPaliBold ? "font-weight:bold; " : "";
 
     final translationStyle = showTranslation
@@ -587,53 +585,71 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         : "display: none;";
 
     final paliStyle = showPali
-        ? "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};" // <--- Dynamic bolding added here
+        ? "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};"
         : "display: none;";
 
-    final styleMaps = <String, String>{
-      r'class="bld"': 'style="font-weight:bold; color: $styleColor;"',
-      r'class="t5"': 'style="font-weight:bold; color: $styleColor;"',
-      r'class="t1"': 'style=" color: $styleColor;"',
-      r'class="t3"':
-          'style="font-size: 1.7em;font-weight:bold; color: $styleColor;"',
-      r'class="t2"':
-          'style="font-size: 1.7em;font-weight:bold; color: $styleColor;"',
-      r'class="th31"':
-          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="centered"': 'style="text-align:center;color: $styleColor;"',
-      r'class="paranum"': 'style="font-weight: bold; color: $styleColor;"',
-      r'class="indent"':
-          'style="text-indent:1.3em;margin-left:2em; color: $styleColor;"',
-      r'class="bodytext"': 'style="text-indent:1.3em;color: $styleColor;"',
-      r'class="unindented"': 'style="color: $styleColor;"',
-      r'class="noindentbodytext"': 'style="color: $styleColor;"',
-      r'class="book"':
-          'style="font-size: 1.9em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="chapter"':
-          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="nikaya"':
-          'style="font-size: 1.6em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="title"':
-          'style="font-size: 1.3em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="subhead"':
-          'style="font-size: 1.6em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="subsubhead"':
-          'style="font-size: 1.6em; text-align:center; font-weight: bold; color: $styleColor;"',
-      r'class="gatha1"': r'style="margin-bottom: 0em; margin-left: 5em;"',
-      r'class="gatha2"': r'style="margin-bottom: 0em; margin-left: 5em;"',
-      r'class="gatha3"': r'style="margin-bottom: 0em; margin-left: 5em;"',
-      r'class="gathalast"': r'style="margin-bottom: 1.3em; margin-left: 5em;"',
-      r'class="note"': r'style="font-size: 0.8em; color: gray;"',
-      r'class = "highlightedSearch"':
-          r'style="background: #FFE959; color: #000;"',
+    // 5. Logic for Pāḷi-only books (the "raw" text inside paragraphs)
+    // If it's Pāḷi-only, we use the custom Pāḷi color/bold for the base text.
+    // If it's Bilingual, we use standard black/white for structural classes.
+    String baseStyle;
+    if (isBilingual) {
+      String themeColor = (Prefs.darkThemeOn) ? "white" : "black";
+      baseStyle = "color: $themeColor;";
+    } else {
+      baseStyle = "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};";
+    }
 
-      // Semantic language classes
+    final styleMaps = <String, String>{
+      r'class="bld"':
+          'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+      r'class="t5"':
+          'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+      r'class="t1"': 'style="$baseStyle"',
+      r'class="t3"':
+          'style="font-size: 1.7em; font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+      r'class="t2"':
+          'style="font-size: 1.7em; font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+      r'class="th31"':
+          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+      r'class="centered"': 'style="text-align:center; $baseStyle"',
+      r'class="paranum"': 'style="font-weight: bold; $baseStyle"',
+      r'class="indent"':
+          'style="text-indent:1.3em; margin-left:2em; $baseStyle"',
+      r'class="bodytext"': 'style="text-indent:1.3em; $baseStyle"',
+      r'class="unindented"': 'style="$baseStyle"',
+      r'class="noindentbodytext"': 'style="$baseStyle"',
+      r'class="book"':
+          'style="font-size: 1.9em; text-align:center; font-weight: bold; $baseStyle"',
+      r'class="chapter"':
+          'style="font-size: 1.7em; text-align:center; font-weight: bold; $baseStyle"',
+      r'class="nikaya"':
+          'style="font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle"',
+      r'class="title"':
+          'style="font-size: 1.3em; text-align:center; font-weight: bold; $baseStyle"',
+      r'class="subhead"':
+          'style="font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle"',
+      r'class="subsubhead"':
+          'style="font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle"',
+
+      // Verses
+      r'class="gatha1"':
+          'style="margin-bottom: 0em; margin-left: 5em; $baseStyle"',
+      r'class="gatha2"':
+          'style="margin-bottom: 0em; margin-left: 5em; $baseStyle"',
+      r'class="gatha3"':
+          'style="margin-bottom: 0em; margin-left: 5em; $baseStyle"',
+      r'class="gathalast"':
+          'style="margin-bottom: 1.3em; margin-left: 5em; $baseStyle"',
+
+      r'class="note"': 'style="font-size: 0.8em; color: gray;"',
+      r'class = "highlightedSearch"':
+          'style="background: #FFE959; color: #000;"',
+
+      // Bilingual Spans
       r'class="pageheader"': 'style="$translationStyle"',
       r'class="english_text"': 'style="$translationStyle"',
       r'class="vietnamese_text"': 'style="$translationStyle"',
       r'class="translation_text"': 'style="$translationStyle"',
-
-      // Pāḷi text visibility and color
       r'class="palitext"': 'style="$paliStyle"',
 
       'class = "underlined_highlight"':

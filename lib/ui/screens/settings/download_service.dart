@@ -670,4 +670,63 @@ class DownloadService {
 
     downloadNotifier.message = "Word list complete";
   }
+
+  Future<void> installLocalSqlZip() async {
+    await initDir();
+    Database db = await dbService.database;
+    downloadNotifier.connectionChecking = false;
+    downloadNotifier.downloading = true;
+    downloadNotifier.message =
+        "\nExtracting local file.. ${downloadListItem.size}\nPlease wait.";
+
+    // 1. Grab the local file using the path we stored in the 'url' property
+    final localZipFile = File(downloadListItem.url);
+
+    if (!await localZipFile.exists()) {
+      downloadNotifier.message = "Error: Local zip file not found.";
+      downloadNotifier.downloading = false;
+      return;
+    }
+
+    // 2. Unarchive directly without downloading
+    final sqlFiles = await unarchiveAndSave(localZipFile);
+
+    // ACCUMULATOR: Keep track of every book added across all files
+    final Set<String> allNewBooks = {};
+
+    // --- SPEED BOOST: Turn off foreign key checks during bulk import ---
+    await db.execute("PRAGMA foreign_keys = OFF;");
+
+    // 3. IMPORT LOOP
+    for (final sqlFile in sqlFiles) {
+      downloadNotifier.message = "Importing ${sqlFile.path.split('/').last}...";
+      final booksInFile = await processLocalFile(sqlFile);
+      allNewBooks.addAll(booksInFile);
+    }
+
+    // --- Restore normal database safety rules ---
+    await db.execute("PRAGMA foreign_keys = ON;");
+
+    // 4. INDEXING LOOP (Runs only once)
+    // Thanks to the JSON mapping, this correctly triggers for ePitaka and other 'books index' types
+    if (downloadListItem.type.contains("index") && allNewBooks.isNotEmpty) {
+      downloadNotifier.message = 'Building fts';
+
+      await doFts(db, allNewBooks);
+
+      Stopwatch stopwatch = Stopwatch()..start();
+      await makeUniversalWordList(allNewBooks);
+      debugPrint('Making Word List took ${stopwatch.elapsed}.');
+    }
+
+    if (downloadListItem.type.contains("dpd_grammar")) {
+      downloadNotifier.message = 'adding dpd grammar flag';
+      Prefs.isDpdGrammarOn = true;
+    }
+
+    downloadNotifier.message = "Rebuilding Index";
+    await dbService.buildBothIndexes();
+    downloadNotifier.message = "Local Restore Complete";
+    downloadNotifier.downloading = false;
+  }
 }
