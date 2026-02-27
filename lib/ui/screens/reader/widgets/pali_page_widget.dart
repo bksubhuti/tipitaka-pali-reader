@@ -663,6 +663,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="note"': 'style="font-size: 0.8em; color: gray;"',
       r'class = "highlightedSearch"':
           'style="background: #FFE959; color: #000;"',
+      'class="$searchTermCssClass"':
+          'style="background: yellow; color: black;"',
+      'class="$currentSearchTermCssClass"':
+          'style="background: orange; color: black;"',
 
       'class = "underlined_highlight"':
           'style="font-weight: 500; color: $colorHex; text-decoration: underline; text-decoration-color: $colorHex;"'
