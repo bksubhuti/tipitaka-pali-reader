@@ -69,26 +69,29 @@ class SearchResultController extends ChangeNotifier {
     final List<SearchResult> firstFilterdList = [];
     final List<SearchResult> secondFilterdList = [];
 
-    // book id strcture : mula_vi_01 , attha_di_01 etc
-    // first part of id is main category [mual, athha, tika, annya]
-    // middle part is sub catergory [vi, di, ma etc]
-
-    // do filter with main category
-    for (var element in selectedMainCategoryFilters) {
+    // Filter main category: We use .any() to check the filters
+    // while walking through _allResults in its perfect original order.
+    if (selectedMainCategoryFilters.isNotEmpty) {
       firstFilterdList.addAll(_allResults.where((searchResult) {
-        return searchResult.book.id.contains(element);
-      }).toList());
+        return selectedMainCategoryFilters
+            .any((element) => searchResult.book.id.contains(element));
+      }));
+    } else {
+      firstFilterdList.addAll(_allResults);
     }
 
-    // do filter with sub scategory
-    for (var element in selectedSubCategoryFilters) {
-      secondFilterdList.addAll(firstFilterdList
-          .where((searchResult) => searchResult.book.id.contains(element))
-          .toList());
+    // Filter sub category: We do the same here, maintaining the
+    // sequence we just built in firstFilterdList.
+    if (selectedSubCategoryFilters.isNotEmpty) {
+      secondFilterdList.addAll(firstFilterdList.where((searchResult) {
+        return selectedSubCategoryFilters
+            .any((element) => searchResult.book.id.contains(element));
+      }));
+    } else {
+      secondFilterdList.addAll(firstFilterdList);
     }
-    // book order was changed while filtering
-    // so need to reorder
-    secondFilterdList.sort((a, b) => a.id.compareTo(b.id));
+
+    // Return the list exactly as-is. No .sort() needed!
     return secondFilterdList;
   }
 

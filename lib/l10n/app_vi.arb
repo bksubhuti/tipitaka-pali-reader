@@ -230,5 +230,26 @@
       "error": {}
     }
   },
-  "shareSubject": "Văn bản Pāḷi từ TPR"
+  "shareSubject": "Văn bản Pāḷi từ TPR",
+  "importHTML": "Nhập sách HTML",
+  "selectAnHtmlFileToImport": "Chọn một tệp HTML để nhập vào TPR.",
+  "selectFile": "Chọn tệp",
+  "showTranslations": "Hiển thị bản dịch",
+  "viewSettings": "Xem",
+  "paliTextColor": "Màu văn bản Pāḷi",
+  "translationColor": "Màu bản dịch",
+  "translationExtensionNotice": "Để xem bản dịch tiếng Anh đầy đủ cùng với văn bản Pāḷi, bạn cần cài đặt tiện ích mở rộng bản dịch. Vui lòng làm theo các bước sau:",
+  "stepOpenSettings": "1. Mở \"Cài đặt\".",
+  "stepNavigateExtensions": "2. Điều hướng đến \"Công cụ\" và chọn \"Tiện ích mở rộng\".",
+  "stepOpenBetaFolder": "3. Tìm và mở thư mục \"Beta PE\".",
+  "stepSelectExtension": "4. Chọn tiện ích mở rộng \"ePitaka English Full\" để tải.",
+  "stepWaitRefresh": "5. Đợi tiện ích xử lý xong và làm mới danh sách tiện ích.",
+  "stepWarningReset": "6. Để hoàn tác việc này, bạn sẽ cần đặt lại tất cả dữ liệu và sẽ mất các dấu trang trừ khi đã được sao lưu.",
+  "installEnglishTranslations": "Cài đặt bản dịch tiếng Anh",
+  "boldPaliText": "Văn bản Pāḷi in đậm",
+  "paliOnly": "Chỉ Pāḷi",
+  "paliAndTranslation": "Pāḷi và Bản dịch",
+  "translationOnly": "Chỉ Bản dịch",
+  "translationHelp": "Trợ giúp bản dịch",
+  "textDisplayMode": "Chế độ hiển thị văn bản"
 }

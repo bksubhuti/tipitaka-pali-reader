@@ -231,5 +231,26 @@
       "error": {}
     }
   },
-  "shareSubject": "TPR से पाऴि पाठ"
+  "shareSubject": "TPR से पाऴि पाठ",
+  "importHTML": "HTML पुस्तक आयात करें",
+  "selectAnHtmlFileToImport": "TPR में आयात करने के लिए एक HTML फ़ाइल चुनें।",
+  "selectFile": "फ़ाइल चुनें",
+  "showTranslations": "अनुवाद दिखाएं",
+  "viewSettings": "दृश्य",
+  "paliTextColor": "पाली टेक्स्ट का रंग",
+  "translationColor": "अनुवाद का रंग",
+  "translationExtensionNotice": "पाली टेक्स्ट के साथ पूर्ण अंग्रेजी अनुवाद देखने के लिए, आपको अनुवाद एक्सटेंशन इंस्टॉल करना होगा। कृपया इन चरणों का पालन करें:",
+  "stepOpenSettings": "1. \"Settings\" खोलें।",
+  "stepNavigateExtensions": "2. \"Tools\" पर जाएं और \"Extensions\" चुनें।",
+  "stepOpenBetaFolder": "3. \"Beta PE\" फ़ोल्डर खोजें और खोलें।",
+  "stepSelectExtension": "4. लोड करने के लिए \"ePitaka English Full\" एक्सटेंशन चुनें।",
+  "stepWaitRefresh": "5. एक्सटेंशन प्रोसेसिंग पूरी होने तक प्रतीक्षा करें और सूची को रिफ्रेश करें।",
+  "stepWarningReset": "6. इसे पहले जैसा करने के लिए, आपको सारा डेटा रीसेट करना होगा, जिससे आपके बुकमार्क (यदि बैकअप न लिया हो) मिट जाएंगे।",
+  "installEnglishTranslations": "अंग्रेजी अनुवाद इंस्टॉल करें",
+  "boldPaliText": "बोल्ड पाली टेक्स्ट",
+  "paliOnly": "केवल पाली",
+  "paliAndTranslation": "पाली और अनुवाद",
+  "translationOnly": "केवल अनुवाद",
+  "translationHelp": "अनुवाद सहायता",
+  "textDisplayMode": "टेक्स्ट डिस्प्ले मोड"
 }

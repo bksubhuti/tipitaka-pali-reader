@@ -231,5 +231,26 @@
       "error": {}
     }
   },
-  "shareSubject": "អត្ថបទបាលីពី TPR"
+  "shareSubject": "អត្ថបទបាលីពី TPR",
+  "importHTML": "នាំចូលសៀវភៅជា HTML",
+  "selectAnHtmlFileToImport": "ជ្រើសរើសឯកសារ HTML ដើម្បីនាំចូលទៅក្នុង TPR។",
+  "selectFile": "ជ្រើសរើសឯកសារ",
+  "showTranslations": "បង្ហាញការបកប្រែ",
+  "viewSettings": "ការមើល",
+  "paliTextColor": "ពណ៌អក្សរបាលី",
+  "translationColor": "ពណ៌អក្សរបកប្រែ",
+  "translationExtensionNotice": "ដើម្បីមើលការបកប្រែភាសាអង់គ្លេសពេញលេញ រួមជាមួយអត្ថបទបាលី អ្នកត្រូវដំឡើងកម្មវិធីបន្ថែម (Extension)។ សូមអនុវត្តតាមជំហានទាំងនេះ៖",
+  "stepOpenSettings": "1. បើក \"ការកំណត់\" (Settings)។",
+  "stepNavigateExtensions": "2. ចូលទៅកាន់ \"ឧបករណ៍\" (Tools) រួចជ្រើសរើស \"កម្មវិធីបន្ថែម\" (Extensions)។",
+  "stepOpenBetaFolder": "3. ស្វែងរក រួចបើកថត \"Beta PE\"។",
+  "stepSelectExtension": "4. ជ្រើសរើស \"ePitaka English Full\" ដើម្បីទាញយក។",
+  "stepWaitRefresh": "5. រង់ចាំដំណើរការបញ្ចប់ រួចធ្វើការ Refresh បញ្ជីកម្មវិធីបន្ថែម។",
+  "stepWarningReset": "6. ដើម្បីត្រឡប់ដើមវិញ អ្នកត្រូវកំណត់ទិន្នន័យឡើងវិញទាំងអស់ ហើយនឹងបាត់បង់ចំណាំ (Bookmarks) ប្រសិនបើមិនបាន Backup ទុក។",
+  "installEnglishTranslations": "ដំឡើងការបកប្រែភាសាអង់គ្លេស",
+  "boldPaliText": "អក្សរបាលីដិត",
+  "paliOnly": "បាលីសុទ្ធ",
+  "paliAndTranslation": "បាលី និងការបកប្រែ",
+  "translationOnly": "ការបកប្រែសុទ្ធ",
+  "translationHelp": "ជំនួយការបកប្រែ",
+  "textDisplayMode": "របៀបបង្ហាញអត្ថបទ"
 }

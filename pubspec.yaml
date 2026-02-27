@@ -3,7 +3,7 @@ description: Tipitaka Pali Reader
 
 publish_to: "none"
 
-version: 2.7.4+102
+version: 2.7.5+104
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -16,7 +16,7 @@ dependencies:
   intl: ^0.20.2
   
   # --- DATABASE FIX SECTION ---
-  sqflite: ^2.3.3
+  sqflite: ^2.4.2
   # FIXED: Removed '^' to strictly pin this version. 
   # This matches the older sqlite3 API (dispose vs close) preventing the crash.
   sqflite_common_ffi: ^2.4.0+2 

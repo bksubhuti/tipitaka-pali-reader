@@ -231,5 +231,26 @@
       "error": {}
     }
   },
-  "shareSubject": "Testo pāḷi da TPR"
+  "shareSubject": "Testo pāḷi da TPR",
+  "importHTML": "Importa libro HTML",
+  "selectAnHtmlFileToImport": "Seleziona un file HTML da importare in TPR.",
+  "selectFile": "Seleziona file",
+  "showTranslations": "Mostra traduzioni",
+  "viewSettings": "Vista",
+  "paliTextColor": "Colore del testo Pāḷi",
+  "translationColor": "Colore della traduzione",
+  "translationExtensionNotice": "Per visualizzare le traduzioni complete in inglese accanto al testo Pāḷi, è necessario installare l'estensione di traduzione. Segui questi passaggi:",
+  "stepOpenSettings": "1. Apri le \"Impostazioni\".",
+  "stepNavigateExtensions": "2. Vai su \"Strumenti\" e seleziona \"Estensioni\".",
+  "stepOpenBetaFolder": "3. Individua e apri la cartella \"Beta PE\".",
+  "stepSelectExtension": "4. Seleziona l'estensione \"ePitaka English Full\" per caricarla.",
+  "stepWaitRefresh": "5. Attendi il completamento dell'elaborazione dell'estensione e aggiorna l'elenco.",
+  "stepWarningReset": "6. Per annullare questa operazione, dovrai resettare tutti i dati e perderai i segnalibri a meno che non sia stato fatto un backup.",
+  "installEnglishTranslations": "Installa traduzioni in inglese",
+  "boldPaliText": "Testo Pāḷi in grassetto",
+  "paliOnly": "Solo Pāḷi",
+  "paliAndTranslation": "Pāḷi e traduzione",
+  "translationOnly": "Solo traduzione",
+  "translationHelp": "Aiuto traduzione",
+  "textDisplayMode": "Modalità di visualizzazione testo"
 }

@@ -61,6 +61,12 @@ class Home extends StatelessWidget {
   }
 
   Future<bool> _onWillPop(BuildContext context) async {
+    // 1. Detect and close the keyboard if it is open
+    final currentFocus = FocusScope.of(context);
+    if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
+      currentFocus.unfocus();
+    }
+
     return (await showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -68,13 +74,11 @@ class Home extends StatelessWidget {
             content: Text(AppLocalizations.of(context)!.doYouWantToLeave),
             actions: <Widget>[
               TextButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(false), //<-- SEE HERE
+                onPressed: () => Navigator.of(context).pop(false),
                 child: Text(AppLocalizations.of(context)!.no),
               ),
               TextButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(true), // <-- SEE HERE
+                onPressed: () => Navigator.of(context).pop(true),
                 child: Text(AppLocalizations.of(context)!.yes),
               ),
             ],

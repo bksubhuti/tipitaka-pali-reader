@@ -233,5 +233,26 @@
       "error": {}
     }
   },
-  "shareSubject": "TPR වෙතින් පාලි පෙළක්"
+  "shareSubject": "TPR වෙතින් පාලි පෙළක්",
+  "importHTML": "HTML පොත ආයාත කරන්න",
+  "selectAnHtmlFileToImport": "TPR වෙත ආයාත කිරීම සඳහා HTML ගොනුවක් තෝරන්න.",
+  "selectFile": "ගොනුව තෝරන්න",
+  "showTranslations": "පරිවර්තන පෙන්වන්න",
+  "viewSettings": "දසුන",
+  "paliTextColor": "පාලි පෙළෙහි වර්ණය",
+  "translationColor": "පරිවර්තනයේ වර්ණය",
+  "translationExtensionNotice": "පාලි පෙළ සමඟ සම්පූර්ණ ඉංග්‍රීසි පරිවර්තන බැලීමට, ඔබ පරිවර්තන දිගුව (extension) ස්ථාපනය කළ යුතුය. කරුණාකර මෙම පියවර අනුගමනය කරන්න:",
+  "stepOpenSettings": "1. \"Settings\" විවෘත කරන්න.",
+  "stepNavigateExtensions": "2. \"Tools\" වෙත ගොස් \"Extensions\" තෝරන්න.",
+  "stepOpenBetaFolder": "3. \"Beta PE\" ෆෝල්ඩරය සොයා විවෘත කරන්න.",
+  "stepSelectExtension": "4. එය පූරණය කිරීමට \"ePitaka English Full\" දිගුව තෝරන්න.",
+  "stepWaitRefresh": "5. දිගුව සැකසීම අවසන් වන තෙක් රැඳී සිට ලැයිස්තුව නැවුම් (refresh) කරන්න.",
+  "stepWarningReset": "6. මෙය ඉවත් කිරීමට නම්, ඔබට සියලු දත්ත යළි පිහිටුවීමට (reset) සිදුවන අතර උපස්ථ කර නොමැති නම් ඔබේ පිටුසන් (bookmarks) නැති වී යනු ඇත.",
+  "installEnglishTranslations": "ඉංග්‍රීසි පරිවර්තන ස්ථාපනය කරන්න",
+  "boldPaliText": "පාලි පෙළ තද අකුරින්",
+  "paliOnly": "පාලි පමණක්",
+  "paliAndTranslation": "පාලි සහ පරිවර්තනය",
+  "translationOnly": "පරිවර්තනය පමණක්",
+  "translationHelp": "පරිවර්තන සහය",
+  "textDisplayMode": "පෙළ පෙන්වන ආකාරය"
 }

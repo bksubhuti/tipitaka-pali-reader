@@ -57,31 +57,31 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     ];
 
     if (widget.isMobilePopup) {
-      // This overrides the default spacing and scale just for the popup!
-      return Theme(
-        data: Theme.of(context).copyWith(
-          visualDensity: VisualDensity.compact, // Crunches vertical space
-          listTileTheme: const ListTileThemeData(
-            dense:
-                true, // Shrinks ListTile heights and scales down text slightly
-            minVerticalPadding: 0, // Strips internal padding
+      return SizedBox(
+        width:
+            450, // <-- This forces the Dialog to be a normal width on Desktop!
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            visualDensity: VisualDensity.compact,
+            listTileTheme: const ListTileThemeData(
+              dense: true,
+              minVerticalPadding: 0,
+            ),
+            dividerTheme: const DividerThemeData(
+              space: 10,
+            ),
           ),
-          dividerTheme: const DividerThemeData(
-            space:
-                10, // Removes the default 16px invisible padding around dividers
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: settingWidgets,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: settingWidgets,
+            ),
           ),
         ),
       );
     }
-
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.visibility),
@@ -106,9 +106,22 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-            child: Text(
-              "Text Display Mode",
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Row(
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.textDisplayMode,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(width: 8.0), // A little spacing
+                IconButton(
+                  icon: const Icon(Icons.info_outline, size: 20),
+                  tooltip: AppLocalizations.of(context)!.translationHelp,
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(), // Keeps the button compact
+                  onPressed: () => _showExtensionInstallInstructions(context),
+                ),
+              ],
             ),
           ),
           RadioGroup<TextDisplayMode>(
@@ -123,29 +136,29 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             child: Column(
               children: [
                 RadioListTile<TextDisplayMode>(
-                  title: const Text('Pāḷi Only'),
+                  title: Text(AppLocalizations.of(context)!.paliOnly),
                   value: TextDisplayMode.paliOnly,
                 ),
                 RadioListTile<TextDisplayMode>(
-                  title: const Text('Pāḷi & Translation'),
+                  title: Text(AppLocalizations.of(context)!.paliAndTranslation),
                   value: TextDisplayMode.paliAndTranslation,
                 ),
                 RadioListTile<TextDisplayMode>(
-                  title: const Text('Translation Only'),
+                  title: Text(AppLocalizations.of(context)!.translationOnly),
                   value: TextDisplayMode.translationOnly,
                 ),
               ],
             ),
           ),
 
-          // NEW: Bold Checkbox!
+          // Bold Checkbox!
           // Only show this checkbox if Pāḷi text is actually on the screen
           if (currentMode != TextDisplayMode.translationOnly)
             Padding(
               padding: const EdgeInsets.only(
                   left: 16.0), // Indent it slightly under the radio buttons
               child: CheckboxListTile(
-                title: const Text('Bold Pāḷi Text'),
+                title: Text(AppLocalizations.of(context)!.boldPaliText),
                 value: isPaliBold,
                 onChanged: (bool? value) {
                   if (value != null) {
@@ -154,10 +167,8 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
                         .onChangeIsPaliBold(value);
                   }
                 },
-                controlAffinity: ListTileControlAffinity
-                    .leading, // Puts the checkbox on the left
-                contentPadding:
-                    EdgeInsets.zero, // Keeps it tight with the radio buttons
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
               ),
             ),
         ],
@@ -268,7 +279,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
       child: ListTile(
-        title: const Text("Hide Scrollbars"),
+        title: Text(AppLocalizations.of(context)!.hidescrollbars),
         trailing: Switch(
           onChanged: (value) async {
             setState(() => _hideScrollbar = value);
@@ -385,6 +396,46 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
                 onSave(tempSelectedColor);
                 Navigator.of(dialogContext).pop();
               },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showExtensionInstallInstructions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.translationExtensionNotice),
+                const SizedBox(height: 16),
+                Text(AppLocalizations.of(context)!.stepOpenSettings),
+                const SizedBox(height: 8),
+                Text(AppLocalizations.of(context)!.stepNavigateExtensions),
+                const SizedBox(height: 8),
+                Text(AppLocalizations.of(context)!.stepOpenBetaFolder),
+                const SizedBox(height: 8),
+                Text(AppLocalizations.of(context)!.stepSelectExtension),
+                const SizedBox(height: 8),
+                Text(AppLocalizations.of(context)!.stepWaitRefresh),
+                const SizedBox(height: 8),
+                Text(AppLocalizations.of(context)!.stepWarningReset),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: Text(AppLocalizations.of(context)!.ok),
             ),
           ],
         );

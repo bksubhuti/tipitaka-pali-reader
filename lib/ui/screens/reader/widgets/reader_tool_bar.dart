@@ -9,6 +9,7 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_controller.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/mat_button.dart';
+import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 
@@ -110,6 +111,27 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _onIncreaseButtonClicked(context),
               icon: const Icon(Icons.add_circle_outline),
               tooltip: AppLocalizations.of(context)!.increaseFontSize),
+          (PlatformInfo.isDesktop)
+              ? IconButton(
+                  icon: const Icon(Icons.text_format_outlined),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        // Wrap in SingleChildScrollView so the ExpansionTile has room to expand
+                        child: const SingleChildScrollView(
+                          child: ViewSettingsView(
+                            isMobilePopup: true,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : const SizedBox.shrink(),
           IconButton(
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined),

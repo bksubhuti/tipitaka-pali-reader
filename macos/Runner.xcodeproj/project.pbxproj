@@ -230,6 +230,7 @@
 				3399D490228B24CF009A79C7 /* ShellScript */,
 				65CE237580419E046E101508 /* [CP] Embed Pods Frameworks */,
 				C2969F3F2F3C9AD300BEBDE7 /* ShellScript */,
+				C24149F92F5145FE00EB2A7F /* sqlit-script */,
 			);
 			buildRules = (
 			);
@@ -367,8 +368,28 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		C24149F92F5145FE00EB2A7F /* sqlit-script */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "sqlit-script";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n# --- Fix for sqlite3.framework ---\nSQLITE_FRAMEWORK_DIR=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Frameworks/sqlite3.framework\"\nif [ -d \"$SQLITE_FRAMEWORK_DIR\" ]; then\n    echo \"Fixing sqlite3.framework symlinks...\"\n    # Ensure the directory structure exists\n    mkdir -p \"$SQLITE_FRAMEWORK_DIR/Versions/A/Resources\"\n    # Create the 'Current' pointer\n    ln -sfh A \"$SQLITE_FRAMEWORK_DIR/Versions/Current\"\n    # Create the root 'Resources' link that Apple's validator is looking for\n    ln -sfh Versions/Current/Resources \"$SQLITE_FRAMEWORK_DIR/Resources\"\n    echo \"sqlite3 symlinks fixed!\"\nfi\n";
+		};
 		C2969F3F2F3C9AD300BEBDE7 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);

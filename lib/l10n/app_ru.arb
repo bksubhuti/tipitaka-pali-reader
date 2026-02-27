@@ -230,5 +230,26 @@
       "error": {}
     }
   },
-  "shareSubject": "Палийский текст из TPR"
+  "shareSubject": "Палийский текст из TPR",
+  "importHTML": "Импортировать книгу HTML",
+  "selectAnHtmlFileToImport": "Выберите HTML-файл для импорта в TPR.",
+  "selectFile": "Выбрать файл",
+  "showTranslations": "Показать переводы",
+  "viewSettings": "Вид",
+  "paliTextColor": "Цвет текста пали",
+  "translationColor": "Цвет перевода",
+  "translationExtensionNotice": "Чтобы просматривать полные английские переводы вместе с текстом на пали, необходимо установить расширение перевода. Пожалуйста, выполните следующие действия:",
+  "stepOpenSettings": "1. Откройте «Настройки».",
+  "stepNavigateExtensions": "2. Перейдите в «Инструменты» и выберите «Расширения».",
+  "stepOpenBetaFolder": "3. Найдите и откройте папку «Beta PE».",
+  "stepSelectExtension": "4. Выберите расширение «ePitaka English Full» для загрузки.",
+  "stepWaitRefresh": "5. Дождитесь завершения обработки расширения и обновите список.",
+  "stepWarningReset": "6. Чтобы отменить это, вам нужно будет сбросить все данные, и вы потеряете свои закладки, если не сделали резервную копию.",
+  "installEnglishTranslations": "Установить английские переводы",
+  "boldPaliText": "Жирный текст пали",
+  "paliOnly": "Только пали",
+  "paliAndTranslation": "Пали и перевод",
+  "translationOnly": "Только перевод",
+  "translationHelp": "Справка по переводу",
+  "textDisplayMode": "Режим отображения текста"
 }

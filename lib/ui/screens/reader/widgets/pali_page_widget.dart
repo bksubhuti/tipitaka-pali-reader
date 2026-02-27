@@ -560,8 +560,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
 
     // 1. Detect if this is a Bilingual book or Pāḷi-only
-    final bool isBilingual = content.contains('class="palitext"') ||
-        content.contains('class="english_text"');
+    // CHANGED: We removed 'class=' here so it detects the word even if it's mixed with other classes
+    final bool isBilingual = content.contains('palitext') ||
+        content.contains('english_text') ||
+        content.contains('translation_text');
 
     // 2. Determine visibility for bilingual modes
     final bool showTranslation =
@@ -599,6 +601,23 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       baseStyle = "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};";
     }
 
+    // =========================================================================
+    // 6. DYNAMIC REGEX REPLACEMENTS (Fixes the multi-class issue)
+    // =========================================================================
+
+    // Finds ANY class attribute containing translation_text, english_text, vietnamese_text, or pageheader
+    content = content.replaceAll(
+        RegExp(
+            r'class="[^"]*\b(translation_text|english_text|vietnamese_text|pageheader)\b[^"]*"'),
+        'style="$translationStyle"');
+
+    // Finds ANY class attribute containing palitext
+    content = content.replaceAll(
+        RegExp(r'class="[^"]*\b(palitext)\b[^"]*"'), 'style="$paliStyle"');
+
+    // =========================================================================
+    // 7. EXACT MATCH STYLE MAP (Nothing left out)
+    // =========================================================================
     final styleMaps = <String, String>{
       r'class="bld"':
           'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
@@ -644,13 +663,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       r'class="note"': 'style="font-size: 0.8em; color: gray;"',
       r'class = "highlightedSearch"':
           'style="background: #FFE959; color: #000;"',
-
-      // Bilingual Spans
-      r'class="pageheader"': 'style="$translationStyle"',
-      r'class="english_text"': 'style="$translationStyle"',
-      r'class="vietnamese_text"': 'style="$translationStyle"',
-      r'class="translation_text"': 'style="$translationStyle"',
-      r'class="palitext"': 'style="$paliStyle"',
 
       'class = "underlined_highlight"':
           'style="font-weight: 500; color: $colorHex; text-decoration: underline; text-decoration-color: $colorHex;"'

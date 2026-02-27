@@ -29,9 +29,9 @@ class FtsDatabaseRepository implements FtsRespository {
     late String sql;
 
     if (queryMode == QueryMode.exact) {
-      // CORRECT: Uses safePhrase and proper single quoting
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
+      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
+        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON fts_pages.bookid = sutta_page_shortcut.book_id
@@ -43,12 +43,10 @@ class FtsDatabaseRepository implements FtsRespository {
 
     if (queryMode == QueryMode.prefix) {
       final value = '$safePhrase '.replaceAll(' ', '* ').trim();
-
-      // FIX: Changed from '"$value"' to "'$value'"
-      // Standard FTS5 requires single quotes for string literals.
-      // Double quotes are for column names.
+      // FIX: Prefix now uses SNIPPET to get the long description from SQLite
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
+      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
+        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON fts_pages.bookid = sutta_page_shortcut.book_id
@@ -59,13 +57,8 @@ class FtsDatabaseRepository implements FtsRespository {
     }
 
     if (queryMode == QueryMode.distance) {
-      // 1. Split input into individual words
       final words = safePhrase.split(' ').where((w) => w.isNotEmpty);
-
-      // 2. Add quotes and wildcards to each word: "word"*
       final formattedWords = words.map((w) => '"$w"*').join(' ');
-
-      // 3. Wrap in the FTS5 NEAR function: NEAR("word1"* "word2"*, distance)
       final value = 'NEAR($formattedWords, $wordDistance)';
 
       sql = '''
@@ -80,8 +73,9 @@ class FtsDatabaseRepository implements FtsRespository {
       ORDER BY books.sort_order ASC
       ''';
     }
+
     if (queryMode == QueryMode.anywhere) {
-      // CORRECT: Uses safePhrase
+      // Anywhere MUST use the raw content and LIKE operator
       sql = '''
       SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
@@ -97,7 +91,6 @@ class FtsDatabaseRepository implements FtsRespository {
 
     // --- Result Parsing ---
 
-    // Optimization: Create regex once (using safe RegExp.escape)
     var regexMatchWords = _createExactMatch(phrase);
     if (queryMode == QueryMode.prefix) {
       regexMatchWords = _createPrefixMatch(phrase);
@@ -111,30 +104,30 @@ class FtsDatabaseRepository implements FtsRespository {
       var content = element['content'] as String;
       final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
 
-      // 1. DISTANCE MODE (Already handled by SNIPPET)
-      if (queryMode == QueryMode.distance) {
+      // ==========================================
+      // EXACT, PREFIX, and DISTANCE all use the DB Snippet
+      // ==========================================
+      if (queryMode == QueryMode.distance ||
+          queryMode == QueryMode.exact ||
+          queryMode == QueryMode.prefix) {
         results.add(SearchResult(
           id: id,
           book: Book(id: bookId, name: bookName),
           pageNumber: pageNumber,
-          description: content, // Snippet provided by SQL
+          description: content,
           suttaName: suttaName,
         ));
-        continue; // Skip manual processing
+        continue;
       }
 
-      // 2. OTHER MODES (Manual Highlight & Extract)
+      // ==========================================
+      // ANYWHERE MODE (Manual Highlight & Extract)
+      // ==========================================
 
-      // Inject highlight tags (Case Insensitive)
       content = _buildHighlight(content, phrase);
-
       final matches = regexMatchWords.allMatches(content);
 
-      // If matches found, process them
       if (matches.isNotEmpty) {
-        // Loop through matches (or just take the first one if you prefer)
-        // Your logic had a mix of "if length == 1" and "else loop".
-        // A loop handles both cases cleanly.
         for (var match in matches) {
           final String description =
               _extractDescription(content, match.start, match.end);
@@ -146,19 +139,13 @@ class FtsDatabaseRepository implements FtsRespository {
             description: description,
             suttaName: suttaName,
           ));
-
-          // NOTE: If you only want 1 result per page, uncomment `break`:
-          // break;
         }
       } else if (queryMode == QueryMode.anywhere) {
-        // Fallback: If 'anywhere' matched via SQL LIKE but regex failed
-        // (e.g. overlap or special chars), return raw content snippet.
         results.add(SearchResult(
           id: id,
           book: Book(id: bookId, name: bookName),
           pageNumber: pageNumber,
-          description:
-              _getRightHandSideWords(content, 20), // Grab start of text
+          description: _getRightHandSideWords(content, 25),
           suttaName: suttaName,
         ));
       }
@@ -170,7 +157,9 @@ class FtsDatabaseRepository implements FtsRespository {
 
   String _extractDescription(String content, int start, int end) {
     final word = content.substring(start, end);
-    const wordCountForDescription = 8;
+    // INCREASED: from 8 to 20 so 'anywhere' matches the visual length of the others
+    const wordCountForDescription = 20;
+
     final leftText = _geLeftHandSideWords(
         content.substring(0, start), wordCountForDescription);
     final rightText = _getRightHandSideWords(
@@ -190,8 +179,6 @@ class FtsDatabaseRepository implements FtsRespository {
 
     for (int i = 1; i <= count; i++) {
       final index = wordCounts - i;
-      // FIX: Changed condition from (index - i >= 0) to (index >= 0)
-      // The old logic was skipping valid words.
       if (index >= 0) {
         words.add(wordList[index]);
       }
@@ -216,16 +203,16 @@ class FtsDatabaseRepository implements FtsRespository {
   }
 
   RegExp _createExactMatch(String phrase) {
-    // FIX: Escape input to prevent Regex crash on chars like '(', ')'
     return RegExp(
-        '<$highlightTagName>${RegExp.escape(phrase)}</$highlightTagName>');
+      '<$highlightTagName>${RegExp.escape(phrase)}</$highlightTagName>',
+      caseSensitive: false,
+    );
   }
 
   RegExp _createPrefixMatch(String phrase) {
     final patterns = <String>[];
     final words = phrase.split(' ');
     for (var word in words) {
-      // FIX: Escape input here too
       patterns.add(
           '<$highlightTagName>${RegExp.escape(word)}.*?</$highlightTagName>');
     }
@@ -233,8 +220,6 @@ class FtsDatabaseRepository implements FtsRespository {
   }
 
   String _buildHighlight(String content, String phrase) {
-    // FIX: Use caseSensitive: false
-    // This allows "Metta" search to highlight "metta" in text.
     return content.replaceAllMapped(
         RegExp(RegExp.escape(phrase), caseSensitive: false),
         (match) => '<$highlightTagName>${match.group(0)}</$highlightTagName>');

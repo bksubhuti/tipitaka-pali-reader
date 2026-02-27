@@ -75,7 +75,7 @@ class _BookImportViewState extends State<BookImportView> {
   Widget build(BuildContext context) {
     // Fallback if l10n keys are missing
     final loc = AppLocalizations.of(context);
-    final title = loc?.importEpub ?? 'Import eBook';
+    final title = loc?.importHTML ?? 'Import eBook';
     final selectMsg =
         loc?.selectAnHtmlFileToImport ?? 'Select an HTML file to import';
     final selectBtn = loc?.selectFile ?? 'Select File';

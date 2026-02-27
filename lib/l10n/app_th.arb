@@ -231,5 +231,26 @@
       "error": {}
     }
   },
-  "shareSubject": "ข้อความบาลีจาก TPR"
+  "shareSubject": "ข้อความบาลีจาก TPR",
+  "importHTML": "นำเข้าหนังสือ HTML",
+  "selectAnHtmlFileToImport": "เลือกไฟล์ HTML เพื่อนำเข้าสู่ TPR",
+  "selectFile": "เลือกไฟล์",
+  "showTranslations": "แสดงคำแปล",
+  "viewSettings": "มุมมอง",
+  "paliTextColor": "สีข้อความบาลี",
+  "translationColor": "สีคำแปล",
+  "translationExtensionNotice": "หากต้องการดูคำแปลภาษาอังกฤษฉบับเต็มควบคู่ไปกับข้อความบาลี คุณต้องติดตั้งส่วนขยายคำแปล โปรดทำตามขั้นตอนดังนี้:",
+  "stepOpenSettings": "1. เปิด \"Settings\" (การตั้งค่า)",
+  "stepNavigateExtensions": "2. ไปที่ \"Tools\" (เครื่องมือ) และเลือก \"Extensions\" (ส่วนขยาย)",
+  "stepOpenBetaFolder": "3. ค้นหาและเปิดโฟลเดอร์ \"Beta PE\"",
+  "stepSelectExtension": "4. เลือกส่วนขยาย \"ePitaka English Full\" เพื่อโหลดข้อมูล",
+  "stepWaitRefresh": "5. รอให้ส่วนขยายประมวลผลเสร็จสิ้นและรีเฟรชรายการส่วนขยาย",
+  "stepWarningReset": "6. หากต้องการยกเลิกสิ่งนี้ คุณต้องรีเซ็ตข้อมูลทั้งหมด และคุณจะสูญเสียบุ๊กมาร์กหากไม่ได้สำรองข้อมูลไว้",
+  "installEnglishTranslations": "ติดตั้งคำแปลภาษาอังกฤษ",
+  "boldPaliText": "ข้อความบาลีตัวหนา",
+  "paliOnly": "เฉพาะบาลี",
+  "paliAndTranslation": "บาลีและคำแปล",
+  "translationOnly": "เฉพาะคำแปล",
+  "translationHelp": "ช่วยเหลือคำแปล",
+  "textDisplayMode": "โหมดการแสดงข้อความ"
 }

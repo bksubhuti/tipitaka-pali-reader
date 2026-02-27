@@ -231,5 +231,26 @@
       "error": {}
     }
   },
-  "shareSubject": "TPR থেকে পাল়ি টেক্সট"
+  "shareSubject": "TPR থেকে পাল়ি টেক্সট",
+  "importHTML": "HTML বই আমদানি করুন",
+  "selectAnHtmlFileToImport": "TPR-এ আমদানি করার জন্য একটি HTML ফাইল নির্বাচন করুন।",
+  "selectFile": "ফাইল নির্বাচন করুন",
+  "showTranslations": "অনুবাদ দেখান",
+  "viewSettings": "ভিউ",
+  "paliTextColor": "পালি টেক্সট কালার",
+  "translationColor": "অনুবাদ কালার",
+  "translationExtensionNotice": "পালি টেক্সটের সাথে সম্পূর্ণ ইংরেজি অনুবাদ দেখতে, আপনাকে অনুবাদ এক্সটেনশনটি ইনস্টল করতে হবে। অনুগ্রহ করে এই ধাপগুলি অনুসরণ করুন:",
+  "stepOpenSettings": "১. \"Settings\" খুলুন।",
+  "stepNavigateExtensions": "২. \"Tools\"-এ যান এবং \"Extensions\" নির্বাচন করুন।",
+  "stepOpenBetaFolder": "৩. \"Beta PE\" ফোল্ডারটি খুঁজুন এবং খুলুন।",
+  "stepSelectExtension": "৪. লোড করার জন্য \"ePitaka English Full\" এক্সটেনশনটি নির্বাচন করুন।",
+  "stepWaitRefresh": "৫. এক্সটেনশন প্রসেসিং শেষ হওয়া পর্যন্ত অপেক্ষা করুন এবং এক্সটেনশন তালিকাটি রিফ্রেশ করুন।",
+  "stepWarningReset": "৬. এটি পূর্বাবস্থায় ফেরাতে, আপনাকে সমস্ত ডেটা রিসেট করতে হবে এবং ব্যাকআপ না থাকলে আপনার বুকমার্কগুলি হারিয়ে যাবে।",
+  "installEnglishTranslations": "ইংরেজি অনুবাদ ইনস্টল করুন",
+  "boldPaliText": "বোল্ড পালি টেক্সট",
+  "paliOnly": "শুধুমাত্র পালি",
+  "paliAndTranslation": "পালি এবং অনুবাদ",
+  "translationOnly": "শুধুমাত্র অনুবাদ",
+  "translationHelp": "অনুবাদ সহায়তা",
+  "textDisplayMode": "টেক্সট প্রদর্শন মোড"
 }

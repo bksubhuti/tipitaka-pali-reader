@@ -229,5 +229,26 @@
       "error": {}
     }
   },
-  "shareSubject": "TPR မှ ပါဠိစာသား"
+  "shareSubject": "TPR မှ ပါဠိစာသား",
+  "importHTML": "HTML စာအုပ်ကို တင်သွင်းပါ",
+  "selectAnHtmlFileToImport": "TPR ထဲသို့ တင်သွင်းရန် HTML ဖိုင်တစ်ခုကို ရွေးချယ်ပါ။",
+  "selectFile": "ဖိုင်ရွေးပါ",
+  "showTranslations": "ဘာသာပြန်များကို ပြပါ",
+  "viewSettings": "ကြည့်ရှုရန်",
+  "paliTextColor": "ပါဠိစာသားအရောင်",
+  "translationColor": "ဘာသာပြန်အရောင်",
+  "translationExtensionNotice": "ပါဠိစာသားနှင့်အတူ အင်္ဂလိပ်ဘာသာပြန်အပြည့်အစုံကို ကြည့်ရှုရန် ဘာသာပြန် extension ကို ထည့်သွင်းရန် လိုအပ်သည်။ ကျေးဇူးပြု၍ အောက်ပါအဆင့်များကို လိုက်နာပါ-",
+  "stepOpenSettings": "၁။ \"Settings\" ကိုဖွင့်ပါ။",
+  "stepNavigateExtensions": "၂။ \"Tools\" သို့သွားပြီး \"Extensions\" ကို ရွေးချယ်ပါ။",
+  "stepOpenBetaFolder": "၃။ \"Beta PE\" ဖိုင်တွဲကို ရှာဖွေပြီး ဖွင့်ပါ။",
+  "stepSelectExtension": "၄။ ဖွင့်ရန်အတွက် \"ePitaka English Full\" extension ကို ရွေးချယ်ပါ။",
+  "stepWaitRefresh": "၅။ Extension လုပ်ဆောင်ပြီးသည်အထိ စောင့်ပြီး စာရင်းကို refresh လုပ်ပါ။",
+  "stepWarningReset": "၆။ ယခင်အတိုင်းပြန်ဖြစ်ရန် ဒေတာအားလုံးကို reset လုပ်ရမည်ဖြစ်ပြီး backup မလုပ်ထားပါက မှတ်သားထားသည်များ (bookmarks) ပျောက်ဆုံးသွားပါလိမ့်မည်။",
+  "installEnglishTranslations": "အင်္ဂလိပ်ဘာသာပြန်များကို ထည့်သွင်းပါ",
+  "boldPaliText": "ပါဠိစာသားကို စာလုံးအထူလုပ်ပါ",
+  "paliOnly": "ပါဠိသက်သက်",
+  "paliAndTranslation": "ပါဠိနှင့် ဘာသာပြန်",
+  "translationOnly": "ဘာသာပြန်သက်သက်",
+  "translationHelp": "ဘာသာပြန်အကူအညီ",
+  "textDisplayMode": "စာသားပြသမှုပုံစံ"
 }
