@@ -559,6 +559,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     String colorHex =
         '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
 
+    int paliTextColorInt = Prefs.paliTextColor;
+    if (paliTextColorInt == 0xFF000000 && Prefs.darkThemeOn) {
+      paliTextColorInt = 0xFFFFFFFF;
+    }
+    String paliTextColorCss = _toCssHex(paliTextColorInt);
+
     // 1. Detect if this is a Bilingual book or Pāḷi-only
     // CHANGED: We removed 'class=' here so it detects the word even if it's mixed with other classes
     final bool isBilingual = content.contains('palitext') ||
@@ -586,9 +592,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         ? "font-size: 0.9em; color: ${_toCssHex(Prefs.translationColor)};"
         : "display: none;";
 
-    final paliStyle = showPali
-        ? "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};"
-        : "display: none;";
+    final paliStyle =
+        showPali ? "${boldStyle}color: $paliTextColorCss;" : "display: none;";
 
     // 5. Logic for Pāḷi-only books (the "raw" text inside paragraphs)
     // If it's Pāḷi-only, we use the custom Pāḷi color/bold for the base text.
@@ -598,7 +603,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       String themeColor = (Prefs.darkThemeOn) ? "white" : "black";
       baseStyle = "color: $themeColor;";
     } else {
-      baseStyle = "${boldStyle}color: ${_toCssHex(Prefs.paliTextColor)};";
+      baseStyle = "${boldStyle}color: $paliTextColorCss;";
     }
 
     // =========================================================================
@@ -619,17 +624,15 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     // 7. EXACT MATCH STYLE MAP (Nothing left out)
     // =========================================================================
     final styleMaps = <String, String>{
-      r'class="bld"':
-          'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
-      r'class="t5"':
-          'style="font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+      r'class="bld"': 'style="font-weight:bold; color: inherit;"',
+      r'class="t5"': 'style="font-weight:bold; color: inherit;"',
       r'class="t1"': 'style="$baseStyle"',
       r'class="t3"':
-          'style="font-size: 1.7em; font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+          'style="font-size: 1.7em; font-weight:bold; color: $paliTextColorCss;"',
       r'class="t2"':
-          'style="font-size: 1.7em; font-weight:bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+          'style="font-size: 1.7em; font-weight:bold; color: $paliTextColorCss;"',
       r'class="th31"':
-          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: ${_toCssHex(Prefs.paliTextColor)};"',
+          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $paliTextColorCss;"',
       r'class="centered"': 'style="text-align:center; $baseStyle"',
       r'class="paranum"': 'style="font-weight: bold; $baseStyle"',
       r'class="indent"':

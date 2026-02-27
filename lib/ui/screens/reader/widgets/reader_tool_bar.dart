@@ -111,7 +111,7 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _onIncreaseButtonClicked(context),
               icon: const Icon(Icons.add_circle_outline),
               tooltip: AppLocalizations.of(context)!.increaseFontSize),
-          (PlatformInfo.isDesktop)
+          (PlatformInfo.isDesktop || Mobile.isTablet(context))
               ? IconButton(
                   icon: const Icon(Icons.text_format_outlined),
                   onPressed: () {
@@ -140,7 +140,7 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _openTocDialog(context),
               icon: const Icon(Icons.list),
               tooltip: AppLocalizations.of(context)!.table_of_contents),
-          if (!PlatformInfo.isDesktop)
+          if (!PlatformInfo.isDesktop && !Mobile.isTablet(context))
             IconButton(
                 onPressed: () => _openSettingPage(context),
                 icon: const Icon(Icons.settings_outlined),
