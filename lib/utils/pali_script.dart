@@ -16,15 +16,18 @@ class PaliScript {
     required String romanText,
     required String cacheId,
     bool isHtmlText = false,
-
   }) {
     if (cache[cacheId] == null || cache[cacheId]?.isEmpty == true) {
-      cache[cacheId] = getScriptOf(script: script, romanText: romanText, isHtmlText: isHtmlText);
+      cache[cacheId] = getScriptOf(
+          script: script, romanText: romanText, isHtmlText: isHtmlText);
     }
 
     return cache[cacheId] ?? '';
   }
 
+  static final _regexTranslationBlock = RegExp(
+      r'<([a-zA-Z0-9]+)[^>]*class="[^"]*\b(translation_text|english_text|vietnamese_text)\b[^"]*"[^>]*>[\s\S]*?<\/\1>',
+      caseSensitive: false);
 
   static String getScriptOf({
     required Script script,
@@ -33,43 +36,40 @@ class PaliScript {
   }) {
     if (romanText.isEmpty) return romanText;
 
-    if (script == Script.myanmar) {
-      if (!isHtmlText) {
+    if (!isHtmlText) {
+      if (script == Script.myanmar) {
         return MmPali.fromRoman(romanText);
-      } else {
-        return romanText.replaceAllMapped(
-            _regexPaliWord, (match) => MmPali.fromRoman(match.group(0)!));
-      }
-    } else if (script == Script.devanagari) {
-      if (!isHtmlText) {
+      } else if (script == Script.devanagari) {
         return toDeva(romanText);
-      } else {
-        return romanText.replaceAllMapped(
-            _regexPaliWord, (match) => toDeva(match.group(0)!));
-      }
-    } else if (script == Script.sinhala) {
-      if (!isHtmlText) {
+      } else if (script == Script.sinhala) {
         return TextProcessor.convertFrom(romanText, Script.roman);
       } else {
-        return romanText.replaceAllMapped(
-            _regexPaliWord,
-            (match) =>
-                TextProcessor.convertFrom(match.group(0)!, Script.roman));
-      }
-    } else {
-      // janaka's converter is based on sinhala
-      // cannot convert from roman to other lanuguage directly
-      // so convert to sinhal fist and then convert to other
-      if (!isHtmlText) {
+        // janaka's converter is based on sinhala
+        // cannot convert from roman to other lanuguage directly
+        // so convert to sinhal fist and then convert to other
         final sinhala = TextProcessor.convertFrom(romanText, Script.roman);
         return TextProcessor.convert(sinhala, script);
-      } else {
-        return romanText.replaceAllMapped(_regexPaliWord, (match) {
-          final sinhala =
-              TextProcessor.convertFrom(match.group(0)!, Script.roman);
-          return TextProcessor.convert(sinhala, script);
-        });
       }
+    } else {
+      return romanText.splitMapJoin(
+        _regexTranslationBlock,
+        onMatch: (Match match) => match.group(0)!, // keep unchanged
+        onNonMatch: (String nonMatch) {
+          return nonMatch.replaceAllMapped(_regexPaliWord, (match) {
+            final word = match.group(0)!;
+            if (script == Script.myanmar) {
+              return MmPali.fromRoman(word);
+            } else if (script == Script.devanagari) {
+              return toDeva(word);
+            } else if (script == Script.sinhala) {
+              return TextProcessor.convertFrom(word, Script.roman);
+            } else {
+              final sinhala = TextProcessor.convertFrom(word, Script.roman);
+              return TextProcessor.convert(sinhala, script);
+            }
+          });
+        },
+      );
     }
   }
 
