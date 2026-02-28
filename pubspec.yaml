@@ -3,7 +3,7 @@ description: Tipitaka Pali Reader
 
 publish_to: "none"
 
-version: 2.7.5+105
+version: 2.7.6+106
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
