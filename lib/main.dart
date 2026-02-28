@@ -1,5 +1,3 @@
-import 'dart:ffi' as ffi;
-import 'dart:ffi' show DynamicLibrary;
 //import 'package:sqlite3/open.dart' as sqlite_open; // This will work now!
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
@@ -10,10 +8,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:devicelocale/devicelocale.dart';
 
-import 'dart:io' show Platform;
 
 import 'package:tipitaka_pali/services/setup_firestore.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';

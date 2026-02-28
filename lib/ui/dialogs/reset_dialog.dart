@@ -1,5 +1,4 @@
 //do reset stuff
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
-import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 
-import '../ui/dialogs/show_freq_dialog.dart';
-import 'font_utils.dart';
 
 String superscripterUni(String text) {
   // Superscript using unicode characters.
