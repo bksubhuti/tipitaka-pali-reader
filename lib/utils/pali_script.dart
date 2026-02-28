@@ -25,8 +25,11 @@ class PaliScript {
     return cache[cacheId] ?? '';
   }
 
+  // Regex to match translation block.
+  // It matches the opening tag (e.g. <span class="translation_text...>) and
+  // skips content until the closing tag, allowing for one level of nested tags of the same type.
   static final _regexTranslationBlock = RegExp(
-      r'<([a-zA-Z0-9]+)[^>]*class="[^"]*\b(translation_text|english_text|vietnamese_text)\b[^"]*"[^>]*>[\s\S]*?<\/\1>',
+      r'<([a-zA-Z0-9]+)[^>]*class="[^"]*\b(translation_text|english_text|vietnamese_text)\b[^"]*"[^>]*>(?:(?:(?!<\1|<\/\1>).)*|<\1[^>]*>(?:(?!<\1|<\/\1>).)*<\/\1>)*<\/\1>',
       caseSensitive: false);
 
   static String getScriptOf({

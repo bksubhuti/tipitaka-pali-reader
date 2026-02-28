@@ -554,8 +554,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   String _changeToInlineStyle(String content) {
+    // 1. SETUP VARIABLES (Same as your original code)
     Color c = Theme.of(context).primaryColorLight;
-
     String colorHex =
         '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
 
@@ -565,13 +565,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     }
     String paliTextColorCss = _toCssHex(paliTextColorInt);
 
-    // 1. Detect if this is a Bilingual book or Pāḷi-only
-    // CHANGED: We removed 'class=' here so it detects the word even if it's mixed with other classes
+    // Detect Bilingual
     final bool isBilingual = content.contains('palitext') ||
         content.contains('english_text') ||
         content.contains('translation_text');
 
-    // 2. Determine visibility for bilingual modes
     final bool showTranslation =
         Prefs.textDisplayMode == TextDisplayMode.paliAndTranslation ||
             Prefs.textDisplayMode == TextDisplayMode.translationOnly;
@@ -579,13 +577,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final bool showPali = Prefs.textDisplayMode == TextDisplayMode.paliOnly ||
         Prefs.textDisplayMode == TextDisplayMode.paliAndTranslation;
 
-    // 3. Join lines if only one language is showing
+    // Join lines if needed
     if (isBilingual && (!showTranslation || !showPali)) {
       content =
           content.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ');
     }
 
-    // 4. Styles for Bilingual Spans
+    // Prepare Base Styles
     final String boldStyle = Prefs.isPaliBold ? "font-weight:bold; " : "";
 
     final translationStyle = showTranslation
@@ -595,9 +593,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final paliStyle =
         showPali ? "${boldStyle}color: $paliTextColorCss;" : "display: none;";
 
-    // 5. Logic for Pāḷi-only books (the "raw" text inside paragraphs)
-    // If it's Pāḷi-only, we use the custom Pāḷi color/bold for the base text.
-    // If it's Bilingual, we use standard black/white for structural classes.
     String baseStyle;
     if (isBilingual) {
       String themeColor = (Prefs.darkThemeOn) ? "white" : "black";
@@ -606,77 +601,84 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       baseStyle = "${boldStyle}color: $paliTextColorCss;";
     }
 
-    // =========================================================================
-    // 6. DYNAMIC REGEX REPLACEMENTS (Fixes the multi-class issue)
-    // =========================================================================
+    // 2. DEFINE THE STYLE MAP
+    // Map class names (keys) to their CSS styles (values)
+    final Map<String, String> styleMap = {
+      // Dynamic Classes
+      'palitext': paliStyle,
+      'translation_text': translationStyle,
+      'english_text': translationStyle,
+      'vietnamese_text': translationStyle,
+      'pageheader': translationStyle,
 
-    // Finds ANY class attribute containing translation_text, english_text, vietnamese_text, or pageheader
-    content = content.replaceAll(
-        RegExp(
-            r'class="[^"]*\b(translation_text|english_text|vietnamese_text|pageheader)\b[^"]*"'),
-        'style="$translationStyle"');
+      // Formatting
+      'bld': 'font-weight:bold; color: inherit;',
+      't5': 'font-weight:bold; color: inherit;',
+      't1': baseStyle,
+      't3': 'font-size: 1.7em; font-weight:bold; color: $paliTextColorCss;',
+      't2': 'font-size: 1.7em; font-weight:bold; color: $paliTextColorCss;',
+      'th31':
+          'font-size: 1.7em; text-align:center; font-weight: bold; color: $paliTextColorCss;',
+      'centered': 'text-align:center; $baseStyle',
+      'paranum': 'font-weight: bold; $baseStyle',
+      'indent': 'text-indent:1.3em; margin-left:2em; $baseStyle',
+      'bodytext': 'text-indent:1.3em; $baseStyle',
+      'unindented': baseStyle,
+      'noindentbodytext': baseStyle,
 
-    // Finds ANY class attribute containing palitext
-    content = content.replaceAll(
-        RegExp(r'class="[^"]*\b(palitext)\b[^"]*"'), 'style="$paliStyle"');
-
-    // =========================================================================
-    // 7. EXACT MATCH STYLE MAP (Nothing left out)
-    // =========================================================================
-    final styleMaps = <String, String>{
-      r'class="bld"': 'style="font-weight:bold; color: inherit;"',
-      r'class="t5"': 'style="font-weight:bold; color: inherit;"',
-      r'class="t1"': 'style="$baseStyle"',
-      r'class="t3"':
-          'style="font-size: 1.7em; font-weight:bold; color: $paliTextColorCss;"',
-      r'class="t2"':
-          'style="font-size: 1.7em; font-weight:bold; color: $paliTextColorCss;"',
-      r'class="th31"':
-          'style="font-size: 1.7em; text-align:center; font-weight: bold; color: $paliTextColorCss;"',
-      r'class="centered"': 'style="text-align:center; $baseStyle"',
-      r'class="paranum"': 'style="font-weight: bold; $baseStyle"',
-      r'class="indent"':
-          'style="text-indent:1.3em; margin-left:2em; $baseStyle"',
-      r'class="bodytext"': 'style="text-indent:1.3em; $baseStyle"',
-      r'class="unindented"': 'style="$baseStyle"',
-      r'class="noindentbodytext"': 'style="$baseStyle"',
-      r'class="book"':
-          'style="font-size: 1.9em; text-align:center; font-weight: bold; $baseStyle"',
-      r'class="chapter"':
-          'style="font-size: 1.7em; text-align:center; font-weight: bold; $baseStyle"',
-      r'class="nikaya"':
-          'style="font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle"',
-      r'class="title"':
-          'style="font-size: 1.3em; text-align:center; font-weight: bold; $baseStyle"',
-      r'class="subhead"':
-          'style="font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle"',
-      r'class="subsubhead"':
-          'style="font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle"',
+      // Headers
+      'book':
+          'font-size: 1.9em; text-align:center; font-weight: bold; $baseStyle',
+      'chapter':
+          'font-size: 1.7em; text-align:center; font-weight: bold; $baseStyle',
+      'nikaya':
+          'font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle',
+      'title':
+          'font-size: 1.3em; text-align:center; font-weight: bold; $baseStyle',
+      'subhead':
+          'font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle',
+      'subsubhead':
+          'font-size: 1.6em; text-align:center; font-weight: bold; $baseStyle',
 
       // Verses
-      r'class="gatha1"':
-          'style="margin-bottom: 0em; margin-left: 5em; $baseStyle"',
-      r'class="gatha2"':
-          'style="margin-bottom: 0em; margin-left: 5em; $baseStyle"',
-      r'class="gatha3"':
-          'style="margin-bottom: 0em; margin-left: 5em; $baseStyle"',
-      r'class="gathalast"':
-          'style="margin-bottom: 1.3em; margin-left: 5em; $baseStyle"',
+      'gatha1': 'margin-bottom: 0em; margin-left: 5em; $baseStyle',
+      'gatha2': 'margin-bottom: 0em; margin-left: 5em; $baseStyle',
+      'gatha3': 'margin-bottom: 0em; margin-left: 5em; $baseStyle',
+      'gathalast': 'margin-bottom: 1.3em; margin-left: 5em; $baseStyle',
 
-      r'class="note"': 'style="font-size: 0.8em; color: gray;"',
-      r'class = "highlightedSearch"':
-          'style="background: #FFE959; color: #000;"',
-      'class="$searchTermCssClass"':
-          'style="background: yellow; color: black;"',
-      'class="$currentSearchTermCssClass"':
-          'style="background: orange; color: black;"',
+      // Misc
+      'note': 'font-size: 0.8em; color: gray;',
+      'highlightedSearch': 'background: #FFE959; color: #000;',
 
-      'class = "underlined_highlight"':
-          'style="font-weight: 500; color: $colorHex; text-decoration: underline; text-decoration-color: $colorHex;"'
+      // Variables from your class
+      searchTermCssClass: 'background: yellow; color: black;',
+      currentSearchTermCssClass: 'background: orange; color: black;',
+      'underlined_highlight':
+          'font-weight: 500; color: $colorHex; text-decoration: underline; text-decoration-color: $colorHex;',
     };
 
-    styleMaps.forEach((key, value) {
-      content = content.replaceAll(key, value);
+    // 3. SINGLE PASS REPLACEMENT (The Fix)
+    // Matches class="..." and captures the content inside.
+    final classRegex = RegExp(r'class\s*=\s*"([^"]*)"');
+
+    content = content.replaceAllMapped(classRegex, (match) {
+      String classNames = match.group(1) ?? "";
+      List<String> classes = classNames.split(RegExp(r'\s+'));
+      List<String> styles = [];
+
+      for (var className in classes) {
+        if (styleMap.containsKey(className)) {
+          styles.add(styleMap[className]!);
+        }
+      }
+
+      // If we found styles, return a style attribute.
+      // If we didn't find any known classes, we return the original class attribute (optional safe fallback)
+      if (styles.isNotEmpty) {
+        return 'style="${styles.join(' ')}"';
+      } else {
+        return match.group(0)!;
+      }
     });
 
     return content;
