@@ -420,8 +420,6 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
                 const SizedBox(height: 2),
                 Text(AppLocalizations.of(context)!.stepNavigateExtensions),
                 const SizedBox(height: 2),
-                Text(AppLocalizations.of(context)!.stepOpenBetaFolder),
-                const SizedBox(height: 2),
                 Text(AppLocalizations.of(context)!.stepSelectExtension),
                 const SizedBox(height: 2),
                 Text(AppLocalizations.of(context)!.stepWaitRefresh),
