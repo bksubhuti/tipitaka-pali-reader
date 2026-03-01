@@ -25,7 +25,9 @@ class ReaderContainer extends StatefulWidget {
 }
 
 class _ReaderContainerState extends State<ReaderContainer> {
-  var tabsVisibility = {};
+  final Map<String, bool> tabsVisibility = {};
+  TabbedViewController? _tabController;
+  final Map<String, TabData> _tabDataCache = {};
 
   @override
   void initState() {
@@ -90,14 +92,37 @@ class _ReaderContainerState extends State<ReaderContainer> {
     });
 
     final tabs = books.asMap().entries.map((entry) {
+      final index = entry.key;
       final book = entry.value['book'] as Book;
       final uuid = entry.value['uuid'];
 
       final isVisible = (tabsVisibility[uuid] ?? false) == true;
-      return TabData(
-          text: PaliScript.getScriptOf(
-              script: context.watch<ScriptLanguageProvider>().currentScript,
-              romanText: book.name),
+      final titleText = PaliScript.getScriptOf(
+          script: context.watch<ScriptLanguageProvider>().currentScript,
+          romanText: book.name);
+
+      if (_tabDataCache.containsKey(uuid)) {
+        final existingTab = _tabDataCache[uuid]!;
+        existingTab.text = titleText;
+        existingTab.content =
+            multiWindowMode ? Container() : readerAt(index, books);
+        existingTab.buttons = [
+          if (multiWindowMode)
+            TabButton(
+                icon: IconProvider.data(
+                    isVisible ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => {
+                      setState(() {
+                        tabsVisibility[uuid] = !isVisible;
+                      })
+                    }),
+        ];
+        return existingTab;
+      }
+
+      final newTab = TabData(
+          text: titleText,
+          content: multiWindowMode ? Container() : readerAt(index, books),
           buttons: [
             if (multiWindowMode)
               TabButton(
@@ -110,6 +135,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
                       }),
           ],
           keepAlive: true);
+      _tabDataCache[uuid] = newTab;
+      return newTab;
     }).toList();
 
     if (books.isEmpty) {
@@ -261,8 +288,12 @@ class _ReaderContainerState extends State<ReaderContainer> {
   }
 
   Widget getTabArea(themeData, multiWindowMode, tabs, books) {
-    final controller = TabbedViewController(tabs);
-    controller.selectedIndex =
+    if (_tabController == null) {
+      _tabController = TabbedViewController(tabs);
+    } else {
+      _tabController!.setTabs(tabs);
+    }
+    _tabController!.selectedIndex =
         context.read<OpenningBooksProvider>().selectedBookIndex;
     return Consumer<ThemeChangeNotifier>(
       builder: ((context, themeChangeNotifier, child) {
@@ -273,14 +304,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
           data: themeData,
           child: TabbedView(
               selectToEnableButtons: false,
-              controller: controller,
-              contentBuilder: (_, index) {
-                if (multiWindowMode) {
-                  return Container();
-                } else {
-                  return readerAt(index, books);
-                }
-              },
+              controller: _tabController!,
               onTabSelection: (selectedIndex) {
                 if (selectedIndex != null) {
                   context
@@ -289,7 +313,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
                 }
               },
               tabCloseInterceptor: (int tabIndex) {
-                closeTab(tabIndex, controller);
+                closeTab(tabIndex, _tabController!);
                 return false;
               },
               draggableTabBuilder:
@@ -304,7 +328,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
                 GestureDetector gestureDetector = GestureDetector(
                     onTertiaryTapUp: (details) {
-                      closeTab(tabIndex, controller);
+                      closeTab(tabIndex, _tabController!);
                     },
                     onTap: () => gd.onTap?.call(),
                     child: gd.child);

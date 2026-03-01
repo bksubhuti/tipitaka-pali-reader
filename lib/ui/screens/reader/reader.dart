@@ -56,10 +56,8 @@ class Reader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     myLogger.i('calling Reader build method');
-    final openedBookProvider = context.read<OpenningBooksProvider>();
-    final combo = openedBookProvider.books.map((e) => e['book'].id).join('-');
     return ChangeNotifierProvider<ReaderViewController>(
-      key: Key('${book.id}@$combo'),
+      key: Key(bookUuid),
       create: (context) => ReaderViewController(
           context: context,
           bookRepository: BookDatabaseRepository(DatabaseHelper()),
