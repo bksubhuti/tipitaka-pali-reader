@@ -34,6 +34,7 @@ class PaliPageWidget extends StatefulWidget {
   final int? currentOccurrence;
   final Book? book;
   final Function(String clickedWord)? onClick;
+  final bool isFirstChunkOfPage;
   const PaliPageWidget({
     super.key,
     required this.pageNumber,
@@ -46,6 +47,7 @@ class PaliPageWidget extends StatefulWidget {
     this.currentOccurrence,
     this.onClick,
     this.book,
+    this.isFirstChunkOfPage = true,
   });
 
   @override
@@ -106,6 +108,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       // Handle search result scroll - uses Scrollable.ensureVisible for better alignment
       if (widget.founds != null && widget.currentOccurrence != null) {
         _scrollToCurrentSearchResult();
+      }
+
+      // Handle highlighted word scroll when TOC or programmatic jumps occur dynamically
+      if (widget.highlightedWord != null &&
+          widget.pageToHighlight == widget.pageNumber) {
+        _scrollToHighlightedWordResult();
       }
     });
   }
@@ -709,12 +717,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         (index, previousValue, element) =>
             '$previousValue<a id="bookmark_${index + 1}" class="bookmark">${element.toString()}</a>');
 
-    return '''
-            <p style="color:brown;text-align:right;">$bookmarkTags ${_getScriptPageNumber(widget.pageNumber)}</p>
-            <div id="page_content">
+    if (widget.isFirstChunkOfPage) {
+      return '''
+              <p style="color:brown;text-align:right;">$bookmarkTags ${_getScriptPageNumber(widget.pageNumber)}</p>
               $pageContent
-            </div>
-    ''';
+      ''';
+    } else {
+      return pageContent;
+    }
   }
 
   String _getScriptPageNumber(int pageNumber) {

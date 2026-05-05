@@ -26,9 +26,28 @@ class _DPDSettingsViewState extends State<DPDSettingsView> {
         title: Text(AppLocalizations.of(context)!.dpdSettings,
             style: Theme.of(context).textTheme.titleLarge),
         children: [
+          _getDpdGrammarSwitch(),
+          const Divider(),
           _getHideIPASwitch(),
           _getHideSanskritSwitch(),
         ],
+      ),
+    );
+  }
+
+  Widget _getDpdGrammarSwitch() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: const Text("DPD Grammar (Word Forms)"),
+        trailing: Switch(
+          onChanged: (value) {
+            setState(() {
+              Prefs.isDpdGrammarOn = value;
+            });
+          },
+          value: Prefs.isDpdGrammarOn,
+        ),
       ),
     );
   }

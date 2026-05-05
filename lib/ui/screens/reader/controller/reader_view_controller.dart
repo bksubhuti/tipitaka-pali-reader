@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,7 @@ import '../../../../business_logic/models/bookmark.dart';
 import '../../../../business_logic/models/found_info.dart';
 import '../../../../business_logic/models/found_state.dart';
 import '../../../../business_logic/models/page_content.dart';
+import '../../../../business_logic/models/page_chunk.dart';
 import '../../../../business_logic/models/paragraph_mapping.dart';
 import '../../../../business_logic/models/recent.dart';
 import '../../../../services/dao/recent_dao.dart';
@@ -65,6 +67,7 @@ class ReaderViewController extends ChangeNotifier {
   // will be use this for scroll to this
   String? tocHeader;
   late List<PageContent> pages;
+  late List<PageChunk> chunks;
   late List<Bookmark> bookmarks;
   late int numberOfPage;
 
@@ -105,14 +108,14 @@ class ReaderViewController extends ChangeNotifier {
 
     int startIndex = 0;
     final List<FoundInfo> results = <FoundInfo>[];
-    pages.forEachIndexed((pageIndex, page) {
-      final pageMatches = regex.allMatches(page.content).length;
-      for (int i = 0; i < pageMatches; i++) {
+    chunks.forEachIndexed((chunkIndex, chunk) {
+      final chunkMatches = regex.allMatches(chunk.htmlContent).length;
+      for (int i = 0; i < chunkMatches; i++) {
         results.add(FoundInfo(
           term: text,
           index: startIndex++,
-          pageNumber: page.pageNumber!,
-          pageIndex: pageIndex,
+          pageNumber: chunk.pageNumber,
+          pageIndex: chunkIndex,
           occurrenceInPage: i + 1,
         ));
       }
@@ -204,13 +207,13 @@ class ReaderViewController extends ChangeNotifier {
     }
 
     // current page does not contain term
-    for (int i = currentPage; i < totalPages + book.firstPage!; i++) {
+    for (int i = currentPage; i < totalPages + book.firstPage; i++) {
       index = indexes.indexWhere((element) => element.pageNumber == i);
       if (index != -1) {
         return index;
       }
     }
-    for (int i = currentPage; i >= 0 + book.firstPage!; i--) {
+    for (int i = currentPage; i >= 0 + book.firstPage; i--) {
       index = indexes.indexWhere((element) => element.pageNumber == i);
       if (index != -1) {
         return index;
@@ -259,6 +262,7 @@ class ReaderViewController extends ChangeNotifier {
 
   Future<void> loadDocument() async {
     pages = List.unmodifiable(await _loadPages(book.id));
+    chunks = _parseChunks(pages);
     await _loadBookmarks(book.id);
     numberOfPage = pages.length;
     await _loadBookInfo(book.id);
@@ -274,7 +278,8 @@ class ReaderViewController extends ChangeNotifier {
 
     // update opened book list
     final openedBookController = context.read<OpenningBooksProvider>();
-    openedBookController.update(newPageNumber: _currentPage.value, bookUuid: bookUuid);
+    openedBookController.update(
+        newPageNumber: _currentPage.value, bookUuid: bookUuid);
     // save to recent table on load of the book.
     // from general book opening and also tapping a search result tile..
     await _saveToRecent();
@@ -282,6 +287,38 @@ class ReaderViewController extends ChangeNotifier {
 
   Future<List<PageContent>> _loadPages(String bookID) async {
     return await pageContentRepository.getPages(bookID);
+  }
+
+  List<PageChunk> _parseChunks(List<PageContent> pagesList) {
+    int chunkIndex = 0;
+    final List<PageChunk> tempChunks = [];
+
+    for (final page in pagesList) {
+      final soup = BeautifulSoup(page.content);
+      bool isFirst = true;
+
+      final elements = soup.body?.children ?? [];
+      if (elements.isEmpty) {
+        tempChunks.add(PageChunk(
+          pageNumber: page.pageNumber!,
+          chunkIndex: chunkIndex++,
+          htmlContent: page.content,
+          isFirstChunkOfPage: isFirst,
+        ));
+        continue;
+      }
+
+      for (var element in elements) {
+        tempChunks.add(PageChunk(
+          pageNumber: page.pageNumber!,
+          chunkIndex: chunkIndex++,
+          htmlContent: element.outerHtml,
+          isFirstChunkOfPage: isFirst,
+        ));
+        isFirst = false;
+      }
+    }
+    return List.unmodifiable(tempChunks);
   }
 
   Future<void> _loadBookInfo(String bookID) async {
@@ -357,6 +394,18 @@ class ReaderViewController extends ChangeNotifier {
         newPageNumber: _currentPage.value, bookUuid: bookUuid);
   }
 
+  int getChunkIndexForPage(int pageNumber) {
+    int index = chunks.indexWhere((chunk) => chunk.pageNumber == pageNumber);
+    return index != -1 ? index : 0;
+  }
+
+  int getPageNumberForChunk(int chunkIndex) {
+    if (chunkIndex < 0 || chunkIndex >= chunks.length) {
+      return book.firstPage!;
+    }
+    return chunks[chunkIndex].pageNumber;
+  }
+
   Future<void> onGoto(
       {required int pageNumber,
       String? word,
@@ -366,9 +415,9 @@ class ReaderViewController extends ChangeNotifier {
     String caller = getCaller(StackTrace.current);
     debugPrint("Caller: $caller, pageNumber: $pageNumber, word: $word");
     _pageToHighlight = pageNumber;
+    textToHighlight = word;
     // update current page
     gotoPage(pageNumber: pageNumber);
-    textToHighlight = word;
     // persit
     if (saveToRecent) {
       await _saveToRecent();

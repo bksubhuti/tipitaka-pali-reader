@@ -11,7 +11,7 @@ import 'package:tipitaka_pali/ui/screens/reader/intents.dart';
 import '../../../../app.dart';
 import '../../../../business_logic/models/found_info.dart';
 import '../../../../business_logic/models/found_state.dart';
-import '../../../../business_logic/models/page_content.dart';
+
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
@@ -73,28 +73,27 @@ class _VerticalBookViewState extends State<VerticalBookView>
     scrollOffsetListener = ScrollOffsetListener.create();
 
     scrollOffsetListener.changes.listen((_) {
-      final start = readerViewController.book.firstPage;
       final pos = itemPositionsListener.itemPositions.value.toList();
-      int target = -1;
+      int targetChunkIndex = -1;
+
+      if (pos.isEmpty) return;
 
       if (pos.length == 1) {
-        target = start + pos.first.index;
+        targetChunkIndex = pos.first.index;
       } else if (pos.length >= 3) {
-        // When there are more than 3 pages displayed the entire content of the
-        // second page is visible on the screen
-        target = start + pos[1].index;
+        targetChunkIndex = pos[1].index;
       } else if (pos.first.itemTrailingEdge == pos.last.itemLeadingEdge) {
-        target = start + pos.first.index;
+        targetChunkIndex = pos.first.index;
       } else {
-        // At this point we're dealing with 2 pages
-        // whichever page covers more area
-        final page = pos.first.itemTrailingEdge > pos.last.itemLeadingEdge
+        final chunk = pos.first.itemTrailingEdge > pos.last.itemLeadingEdge
             ? pos.first
             : pos.last;
-        target = start + page.index;
+        targetChunkIndex = chunk.index;
       }
 
-      readerViewController.gotoPage(pageNumber: target);
+      int targetPage =
+          readerViewController.getPageNumberForChunk(targetChunkIndex);
+      readerViewController.gotoPage(pageNumber: targetPage);
     });
 
     itemPositionsListener.itemPositions.addListener(_listenItemPosition);
@@ -114,10 +113,10 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   @override
   Widget build(BuildContext context) {
-    int pageIndex = readerViewController.currentPage.value -
-        readerViewController.book.firstPage;
+    int initialScrollChunkIndex = readerViewController
+        .getChunkIndexForPage(readerViewController.currentPage.value);
 
-    debugPrint('page index: $pageIndex');
+    debugPrint('chunk index: $initialScrollChunkIndex');
     debugPrint('searchText-searchText: $searchText');
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -202,16 +201,16 @@ class _VerticalBookViewState extends State<VerticalBookView>
                           behavior: ScrollConfiguration.of(context)
                               .copyWith(scrollbars: false),
                           child: ScrollablePositionedList.builder(
-                            initialScrollIndex: pageIndex,
+                            initialScrollIndex: initialScrollChunkIndex,
                             itemScrollController: itemScrollController,
                             itemPositionsListener: itemPositionsListener,
                             scrollOffsetController: scrollOffsetController,
                             scrollOffsetListener: scrollOffsetListener,
                             addAutomaticKeepAlives: false,
-                            itemCount: readerViewController.pages.length,
+                            itemCount: readerViewController.chunks.length,
                             itemBuilder: (_, index) {
-                              final PageContent pageContent =
-                                  readerViewController.pages[index];
+                              final pageChunk =
+                                  readerViewController.chunks[index];
                               final script = context
                                   .read<ScriptLanguageProvider>()
                                   .currentScript;
@@ -223,21 +222,22 @@ class _VerticalBookViewState extends State<VerticalBookView>
                               final stopwatch = Stopwatch()..start();
                               String htmlContent = PaliScript.getCachedScriptOf(
                                 script: script,
-                                romanText: pageContent.content,
+                                romanText: pageChunk.htmlContent,
                                 cacheId: id,
                                 isHtmlText: true,
                               );
 
                               return Padding(
                                 padding: index ==
-                                        readerViewController.pages.length - 1
+                                        readerViewController.chunks.length - 1
                                     ? const EdgeInsets.only(bottom: 100.0)
                                     : EdgeInsets.zero,
                                 child: ValueListenableBuilder(
-                                  valueListenable: readerViewController.foundState,
+                                  valueListenable:
+                                      readerViewController.foundState,
                                   builder: (_, foundState, __) {
                                     return PaliPageWidget(
-                                      pageNumber: pageContent.pageNumber!,
+                                      pageNumber: pageChunk.pageNumber,
                                       htmlContent: htmlContent,
                                       script: script,
                                       highlightedWord:
@@ -246,11 +246,13 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                           readerViewController.pageToHighlight,
                                       height: constraints.maxHeight,
                                       founds: _getFounds(
-                                          pageContent.pageNumber!, foundState),
+                                          pageChunk.pageNumber, foundState),
                                       currentOccurrence: _getCurrentOccurrence(
-                                          pageContent.pageNumber!, foundState),
+                                          pageChunk.pageNumber, foundState),
                                       onClick: widget.onClickedWord,
                                       book: readerViewController.book,
+                                      isFirstChunkOfPage:
+                                          pageChunk.isFirstChunkOfPage,
                                     );
                                   },
                                 ),
@@ -316,21 +318,27 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   void _listenItemPosition() {
     // if only one page exist in view, there in no need to update current page
-    if (itemPositionsListener.itemPositions.value.length == 1) return;
+    final positions = itemPositionsListener.itemPositions.value.toList();
+    if (positions.isEmpty) return;
+    if (positions.length == 1) return;
+
+    // ItemPositions are not guaranteed to be ordered by rendering, so we must sort them
+    positions.sort((a, b) => a.index.compareTo(b.index));
 
     // Normally, maximum pages will not exceed two because of page height
     // Three pages is rare case.
 
-    final firstPageOfBook = readerViewController.book.firstPage;
     final currentPage = readerViewController.currentPage.value;
-    final upperPageInView = itemPositionsListener.itemPositions.value.first;
-    final pageNumberOfUpperPage = upperPageInView.index + firstPageOfBook;
-    final lowerPageInView = itemPositionsListener.itemPositions.value.last;
-    final pageNumberOfLowerPage = lowerPageInView.index + firstPageOfBook;
+    final upperChunkInView = positions.first;
+    final pageNumberOfUpperPage =
+        readerViewController.getPageNumberForChunk(upperChunkInView.index);
+    final lowerChunkInView = positions.last;
+    final pageNumberOfLowerPage =
+        readerViewController.getPageNumberForChunk(lowerChunkInView.index);
 
     // scrolling down ( natural scrolling )
     //update lower page as current page
-    if (lowerPageInView.itemLeadingEdge < 0.4 &&
+    if (lowerChunkInView.itemLeadingEdge < 0.4 &&
         pageNumberOfLowerPage != currentPage) {
       myLogger.i('recorded current page: $currentPage');
       myLogger.i('lower page-height is over half');
@@ -340,7 +348,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
     }
 
     // scrolling up ( natural scrolling )
-    if (upperPageInView.itemTrailingEdge > 0.6 &&
+    if (upperChunkInView.itemTrailingEdge > 0.6 &&
         pageNumberOfUpperPage != currentPage) {
       myLogger.i('recorded current page: $currentPage');
       myLogger.i('upper page-height is over half');
@@ -352,16 +360,74 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   void _listenPageChange() {
     // page change are comming from others ( goto, tocs and slider )
-    final firstPage = readerViewController.book.firstPage;
     final currenPage = readerViewController.currentPage.value;
-    final pageIndex = currenPage - firstPage;
+    int targetChunkIndex =
+        readerViewController.getChunkIndexForPage(currenPage);
 
-    final pagesInView = itemPositionsListener.itemPositions.value
+    // If there's a specific word or commentary anchor to jump to
+    final textToHighlight = readerViewController.textToHighlight;
+    bool foundHighlightChunk = false;
+
+    if (textToHighlight != null && textToHighlight.isNotEmpty) {
+      for (int i = targetChunkIndex;
+          i < readerViewController.chunks.length;
+          i++) {
+        final chunk = readerViewController.chunks[i];
+        if (chunk.pageNumber != currenPage) break;
+
+        // Match exact anchor or literal word
+        if (chunk.htmlContent.contains('name="$textToHighlight"') ||
+            chunk.htmlContent.contains('id="$textToHighlight"') ||
+            chunk.htmlContent.contains(textToHighlight)) {
+          targetChunkIndex = i;
+          foundHighlightChunk = true;
+          break;
+        }
+
+        // Match space-separated fallback
+        final words = textToHighlight.trim().split(' ');
+        bool containsAllWords = true;
+        for (final word in words) {
+          if (!chunk.htmlContent.contains(word)) {
+            String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
+            if (!chunk.htmlContent.contains(trimmedWord)) {
+              containsAllWords = false;
+              break;
+            }
+          }
+        }
+
+        if (containsAllWords) {
+          targetChunkIndex = i;
+          foundHighlightChunk = true;
+          break;
+        }
+      }
+    }
+
+    final chunksInView = itemPositionsListener.itemPositions.value
         .map((itemPosition) => itemPosition.index)
         .toList();
 
-    if (!pagesInView.contains(pageIndex)) {
-      itemScrollController.jumpTo(index: pageIndex);
+    if (foundHighlightChunk) {
+      // Highlighting explicitly requests we look precisely at this chunk
+      if (!chunksInView.contains(targetChunkIndex)) {
+        itemScrollController.jumpTo(index: targetChunkIndex);
+      }
+    } else {
+      // Natural scroll page tracking - prevent snapbacks
+      bool isPageCurrentlyInView = false;
+      for (int chunkIndex in chunksInView) {
+        if (readerViewController.getPageNumberForChunk(chunkIndex) ==
+            currenPage) {
+          isPageCurrentlyInView = true;
+          break;
+        }
+      }
+
+      if (!isPageCurrentlyInView) {
+        itemScrollController.jumpTo(index: targetChunkIndex);
+      }
     }
   }
 
