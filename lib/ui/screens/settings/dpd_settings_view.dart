@@ -39,7 +39,7 @@ class _DPDSettingsViewState extends State<DPDSettingsView> {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
       child: ListTile(
-        title: const Text("DPD Grammar (Word Forms)"),
+        title: const Text("DPD Grammar"),
         trailing: Switch(
           onChanged: (value) {
             setState(() {
