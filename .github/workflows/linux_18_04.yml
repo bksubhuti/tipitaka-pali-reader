@@ -59,8 +59,9 @@ jobs:
       - name: Flutter build (Linux)
         run: |
           flutter pub get
+          flutter gen-l10n
           flutter build linux --release
-
+          
       - name: Make build_appimage2.sh executable
         run: chmod +x build_appimage2.sh
 
