@@ -156,7 +156,7 @@ const int defaultTranslationColor = 0xFF1565C0; // Blue (Colors.blue[800])
 const TextDisplayMode defaultTextDisplayMode =
     TextDisplayMode.paliAndTranslation; // Default to Pali & Translation
 const bool defaultIsPaliBold =
-    true; // Defaulting to true to match current behavior
+    false; // Defaulting to true to match current behavior
 
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
