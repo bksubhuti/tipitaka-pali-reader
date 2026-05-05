@@ -2,6 +2,15 @@ name: Build on Ubuntu 22.04
 
 on:
   workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release Tag (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+# REQUIRED: Grant the action permission to create a release in your repo
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -15,7 +24,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.32.5'
+          flutter-version: '3.41.9'
 
       - name: Install Linux dependencies
         run: |
@@ -30,9 +39,8 @@ jobs:
 
       - name: Download zip file
         run: |
-          curl -L -o assets/database/tipitaka_pali.zip \
-          "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
-
+          mkdir -p assets/database
+          curl -L -o assets/database/tipitaka_pali.zip "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1"
       - name: Extract zip file
         run: unzip -o assets/database/tipitaka_pali.zip -d assets/database/
 
@@ -43,7 +51,7 @@ jobs:
         run: |
           cd assets/database
           chmod +x split.sh
-          sh split.sh
+          ./split.sh
 
       - name: Flutter doctor
         run: flutter doctor -v
@@ -61,24 +69,37 @@ jobs:
 
       - name: Extract AppImage
         run: |
+          chmod +x tipitaka_pali_reader.AppImage
           ./tipitaka_pali_reader.AppImage --appimage-extract
           mv squashfs-root TPR-Bundle
           chmod +x TPR-Bundle/tipitaka_pali_reader || true
 
-      - name: Upload Linux unpacked AppImage bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: TPR-Bundle
-          path: TPR-Bundle
+      - name: Compress Bundles for Release
+        run: |
+          # GitHub Releases require files, not folders. We must zip the directories.
+          zip -r TPR-Bundle-Linux.zip TPR-Bundle/
+          
+          # Navigate to the linux build bundle and zip it securely
+          cd build/linux/x64/release/
+          zip -r ../../../../linux-build-bundle.zip bundle/
+          cd ../../../../
 
-      - name: Upload Linux build bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: build/linux/x64/release/bundle
-
-      - name: Upload AppImage
+      # (Optional) You can keep the artifact uploads if you still want them attached to the Action run summary
+      - name: Upload AppImage Artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
           path: tipitaka_pali_reader.AppImage
+
+      # NEW: Creates the GitHub Release and attaches the AppImage and the zipped bundles
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version_tag }}
+          name: Tipiṭaka Pāḷi Reader Linux ${{ github.event.inputs.version_tag }}
+          draft: false
+          prerelease: false
+          files: |
+            tipitaka_pali_reader.AppImage
+            TPR-Bundle-Linux.zip
+            linux-build-bundle.zip
