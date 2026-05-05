@@ -15,7 +15,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.32.5'
+          flutter-version: '3.41.9'
 
       - name: Flutter doctor
         run: flutter doctor -v
@@ -25,14 +25,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "assets\database" | Out-Null
-          $url = "https://www.dropbox.com/scl/fi/lxgggckhlelifwhqcqx10/tipitaka_pali.zip?rlkey=la4fmcaabgr3163rhua537f4p&st=id2xyu5n&dl=1"
-          Invoke-WebRequest -Uri $url -OutFile "assets\database\tipitaka_pali.zip"
+          $url = "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1"
+          Invoke-WebRequest -Uri $url -OutFile "assets\database\tipitaka_pali.db.zip"
 
       - name: Extract database zip
         shell: pwsh
         run: |
-          Expand-Archive -Path "assets\database\tipitaka_pali.zip" -DestinationPath "assets\database" -Force
-          Remove-Item "assets\database\tipitaka_pali.zip" -Force
+          Expand-Archive -Path "assets\database\tipitaka_pali.db.zip" -DestinationPath "assets\database" -Force
+          Remove-Item "assets\database\tipitaka_pali.db.zip" -Force
 
       # --- Split the big DB into parts (Bash) ---
       - name: Run split.sh
@@ -45,11 +45,11 @@ jobs:
           ls -l tipitaka_pali_part.* || true
 
       # --- Build Windows ---
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build Windows (Release)
-        run: flutter build windows --release
+      - name: Flutter build
+        run: |
+          flutter pub get
+          flutter gen-l10n
+          flutter build windows --release
 
       - name: Download extra DLLs and extract into Release
         shell: pwsh
@@ -95,7 +95,7 @@ jobs:
 
       # --- Create MSIX (unsigned) ---
       - name: Create MSIX (unsigned, verbose)
-        run: flutter pub run msix:create --build-windows false --output-path build/msix --output-name tipitaka
+        run: dart run msix:create --build-windows false --output-path build/msix --output-name tipitaka
 
       # --- Artifacts ---
       - name: Upload MSIX
