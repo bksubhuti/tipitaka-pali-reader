@@ -27,12 +27,16 @@ class VerticalBookView extends StatefulWidget {
       this.onClickedWord,
       this.onSearchedInCurrentBook,
       this.onAiContextRightClick,
+      this.onCopyLink,
+      this.onShareLink,
       this.onSelectionChanged});
   final ValueChanged<String>? onSearchedSelectedText;
   final ValueChanged<String>? onSharedSelectedText;
   final ValueChanged<String>? onClickedWord;
   final ValueChanged<String>? onSearchedInCurrentBook;
   final ValueChanged<String>? onAiContextRightClick;
+  final ValueChanged<String>? onCopyLink;
+  final ValueChanged<String>? onShareLink;
   final ValueChanged<String>? onSelectionChanged;
 
   @override
@@ -155,6 +159,20 @@ class _VerticalBookViewState extends State<VerticalBookView>
                           anchors: selectableRegionState.contextMenuAnchors,
                           buttonItems: [
                             ...selectableRegionState.contextMenuButtonItems,
+                            ContextMenuButtonItem(
+                                onPressed: () {
+                                  ContextMenuController.removeAny();
+                                  widget.onCopyLink
+                                      ?.call(_selectedContent?.plainText ?? '');
+                                },
+                                label: AppLocalizations.of(context)!.copyLink),
+                            ContextMenuButtonItem(
+                                onPressed: () {
+                                  ContextMenuController.removeAny();
+                                  widget.onShareLink
+                                      ?.call(_selectedContent?.plainText ?? '');
+                                },
+                                label: AppLocalizations.of(context)!.shareLink),
                             ContextMenuButtonItem(
                                 onPressed: () {
                                   ContextMenuController.removeAny();

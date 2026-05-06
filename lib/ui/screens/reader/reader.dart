@@ -170,6 +170,10 @@ class ReaderView extends StatelessWidget implements Searchable {
                                           onAiContextRightClick: (text) =>
                                               _onAiContextRightClick(
                                                   text, context),
+                                          onCopyLink: (text) =>
+                                              _onCopyLink(text, context),
+                                          onShareLink: (text) =>
+                                              _onShareLink(text, context),
                                           onSelectionChanged: (text) {
                                             Provider.of<ReaderViewController>(
                                                     context,
@@ -191,6 +195,10 @@ class ReaderView extends StatelessWidget implements Searchable {
                                           onAiContextRightClick: (text) =>
                                               _onAiContextRightClick(
                                                   text, context),
+                                          onCopyLink: (text) =>
+                                              _onCopyLink(text, context),
+                                          onShareLink: (text) =>
+                                              _onShareLink(text, context),
                                           onSelectionChanged: (text) {
                                             Provider.of<ReaderViewController>(
                                                     context,
@@ -448,6 +456,48 @@ class ReaderView extends StatelessWidget implements Searchable {
 
   void _onShareSelectedText(String text) {
     Share.share(text, subject: 'Pāḷi text from TPR');
+  }
+
+  String _generateDeepLink(String selectedText, BuildContext context) {
+    final rc = Provider.of<ReaderViewController>(context, listen: false);
+
+    String safeEncode(String? text) {
+      if (text == null || text.trim().isEmpty) return '';
+      return base64Encode(utf8.encode(text));
+    }
+
+    final Uri uri = Uri(
+      scheme: 'https',
+      host: 'tpr.pali.tools',
+      path: '/open',
+      queryParameters: {
+        'book_id': rc.book.id,
+        'page_number': rc.currentPage.value.toString(),
+        'name': rc.book.name,
+        'note': '',
+        'selected_text': safeEncode(selectedText),
+      },
+    );
+
+    return uri.toString();
+  }
+
+  void _onCopyLink(String selectedText, BuildContext context) {
+    final link = _generateDeepLink(selectedText, context);
+    Clipboard.setData(ClipboardData(text: link));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.linkCopied),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _onShareLink(String selectedText, BuildContext context) {
+    final link = _generateDeepLink(selectedText, context);
+    Share.share(link, subject: 'Pāḷi text from TPR');
   }
 
   Future<void> _onClickedWord(String word, BuildContext context) async {

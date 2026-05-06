@@ -251,5 +251,8 @@
   "paliAndTranslation": "Pāḷi & Translation",
   "translationOnly": "Translation Only",
   "translationHelp": "Translation Help",
-  "textDisplayMode": "Text Display Mode"
+  "textDisplayMode": "Text Display Mode",
+  "copyLink": "Copy Link",
+  "shareLink": "Share Link",
+  "linkCopied": "Link copied to clipboard!"
 }
