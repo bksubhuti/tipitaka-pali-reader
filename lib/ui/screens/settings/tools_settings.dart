@@ -46,6 +46,7 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
             height: 10,
           ),
           _getExtensionsTile(context),
+          _getInstallTranslationTile(context),
           _getImportTile(context),
           _getFlashCardExportTile(context),
           _getTextConverterTile(context),
@@ -133,6 +134,45 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
         leading: const Icon(Icons.translate),
         title: ColoredText(
           AppLocalizations.of(context)!.scriptConverter,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        focusColor: Theme.of(context).focusColor,
+        hoverColor: Theme.of(context).hoverColor,
+        trailing: const Icon(Icons.navigate_next),
+      ),
+    );
+  }
+
+  Widget _getInstallTranslationTile(context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext dialogContext) {
+              return AlertDialog(
+                title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
+                content: Text(AppLocalizations.of(context)!.installTranslationInstructions),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      final route = MaterialPageRoute(
+                          builder: (context) => const DownloadView());
+                      NestedNavigationHelper.goto(
+                          context: context, route: route, navkey: settingNavigationKey);
+                    },
+                    child: Text(AppLocalizations.of(context)!.ok),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+        leading: const Icon(Icons.g_translate),
+        title: ColoredText(
+          AppLocalizations.of(context)!.installEnglishTranslations,
           style: Theme.of(context).textTheme.titleLarge,
         ),
         focusColor: Theme.of(context).focusColor,

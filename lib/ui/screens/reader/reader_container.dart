@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:ms_material_color/ms_material_color.dart';
 import 'package:provider/provider.dart';
 import 'package:tabbed_view/tabbed_view.dart';
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/utils/font_utils.dart';
 
@@ -28,6 +31,12 @@ class _ReaderContainerState extends State<ReaderContainer> {
   final Map<String, bool> tabsVisibility = {};
   TabbedViewController? _tabController;
   final Map<String, TabData> _tabDataCache = {};
+
+  Future<bool> _hasTranslationExtension() async {
+    final hasEnglish = await File('${Prefs.databaseDirPath}/full_english.sql').exists();
+    final hasVietnamese = await File('${Prefs.databaseDirPath}/full_vietnamese.sql').exists();
+    return hasEnglish || hasVietnamese;
+  }
 
   @override
   void initState() {
@@ -148,18 +157,66 @@ class _ReaderContainerState extends State<ReaderContainer> {
       return Container(
         color: Prefs.getChosenColor(context),
         child: Center(
-          child: Text(
-            PaliScript.getScriptOf(
-                script: context.watch<ScriptLanguageProvider>().currentScript,
-                romanText:
-                    "Sabbapāpassa akaraṇaṃ\nKusalassa upasampadā\nSacittapariyodāpanaṃ\nEtaṃ buddhānasāsanaṃ"),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
-              fontFamily: fontName,
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                PaliScript.getScriptOf(
+                    script: context.watch<ScriptLanguageProvider>().currentScript,
+                    romanText:
+                        "Sabbapāpassa akaraṇaṃ\nKusalassa upasampadā\nSacittapariyodāpanaṃ\nEtaṃ buddhānasāsanaṃ"),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontFamily: fontName,
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              FutureBuilder<bool>(
+                future: _hasTranslationExtension(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && !snapshot.data!) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 24.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.g_translate),
+                        label: Text(AppLocalizations.of(context)!.installEnglishTranslations),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext dialogContext) {
+                              return AlertDialog(
+                                title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
+                                content: Text(AppLocalizations.of(context)!.installTranslationInstructions),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(dialogContext).pop();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => const DownloadView(),
+                                        ),
+                                      ).then((_) {
+                                        if (mounted) {
+                                          setState(() {});
+                                        }
+                                      });
+                                    },
+                                    child: Text(AppLocalizations.of(context)!.ok),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
           ),
         ),
       );

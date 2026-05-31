@@ -256,5 +256,6 @@
   "shareLink": "Share Link",
   "linkCopied": "Link copied to clipboard!",
   "copyBookName": "Copy Book Name",
-  "copied": "Copied"
+  "copied": "Copied",
+  "installTranslationInstructions": "1. Open the epitaka folder\n2. Wait for the extension to finish\n3. Prevent the device from sleeping while it is running."
 }
