@@ -254,5 +254,7 @@
   "textDisplayMode": "Text Display Mode",
   "copyLink": "Copy Link",
   "shareLink": "Share Link",
-  "linkCopied": "Link copied to clipboard!"
+  "linkCopied": "Link copied to clipboard!",
+  "copyBookName": "Copy Book Name",
+  "copied": "Copied"
 }

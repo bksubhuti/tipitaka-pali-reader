@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -61,6 +62,11 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   SelectedContent? _selectedContent;
 
+  // Saved scroll position for layout-change restoration
+  bool _hasSavedScrollPosition = false;
+  int _savedChunkIndex = 0;
+  double _savedAlignment = 0.0;
+
   // Todo calculate viewport height
   double viewportHeight = 500;
   // text line heihgt
@@ -81,6 +87,12 @@ class _VerticalBookViewState extends State<VerticalBookView>
       int targetChunkIndex = -1;
 
       if (pos.isEmpty) return;
+
+      // Save current scroll position for layout-change restoration
+      final sorted = List.of(pos)..sort((a, b) => a.index.compareTo(b.index));
+      _hasSavedScrollPosition = true;
+      _savedChunkIndex = sorted.first.index;
+      _savedAlignment = sorted.first.itemLeadingEdge;
 
       if (pos.length == 1) {
         targetChunkIndex = pos.first.index;
@@ -117,10 +129,20 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   @override
   Widget build(BuildContext context) {
-    int initialScrollChunkIndex = readerViewController
-        .getChunkIndexForPage(readerViewController.currentPage.value);
+    // Use saved scroll position if available (preserves offset during layout changes),
+    // otherwise fall back to page-level chunk index (initial load)
+    int initialScrollChunkIndex;
+    double initialAlignment;
+    if (_hasSavedScrollPosition) {
+      initialScrollChunkIndex = _savedChunkIndex;
+      initialAlignment = _savedAlignment;
+    } else {
+      initialScrollChunkIndex = readerViewController
+          .getChunkIndexForPage(readerViewController.currentPage.value);
+      initialAlignment = 0.0;
+    }
 
-    debugPrint('chunk index: $initialScrollChunkIndex');
+    debugPrint('chunk index: $initialScrollChunkIndex, alignment: $initialAlignment');
     debugPrint('searchText-searchText: $searchText');
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -159,6 +181,22 @@ class _VerticalBookViewState extends State<VerticalBookView>
                           anchors: selectableRegionState.contextMenuAnchors,
                           buttonItems: [
                             ...selectableRegionState.contextMenuButtonItems,
+                            ContextMenuButtonItem(
+                                onPressed: () {
+                                  ContextMenuController.removeAny();
+                                  final bookName = PaliScript.getScriptOf(
+                                    script: context.read<ScriptLanguageProvider>().currentScript,
+                                    romanText: readerViewController.book.name,
+                                  );
+                                  Clipboard.setData(ClipboardData(text: bookName));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('${AppLocalizations.of(context)!.copied}: $bookName'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                },
+                                label: AppLocalizations.of(context)!.copyBookName),
                             ContextMenuButtonItem(
                                 onPressed: () {
                                   ContextMenuController.removeAny();
@@ -220,6 +258,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
                               .copyWith(scrollbars: false),
                           child: ScrollablePositionedList.builder(
                             initialScrollIndex: initialScrollChunkIndex,
+                            initialAlignment: initialAlignment,
                             itemScrollController: itemScrollController,
                             itemPositionsListener: itemPositionsListener,
                             scrollOffsetController: scrollOffsetController,
@@ -383,10 +422,13 @@ class _VerticalBookViewState extends State<VerticalBookView>
         readerViewController.getChunkIndexForPage(currenPage);
 
     // If there's a specific word or commentary anchor to jump to
+    // and this jump hasn't already been consumed
     final textToHighlight = readerViewController.textToHighlight;
     bool foundHighlightChunk = false;
 
-    if (textToHighlight != null && textToHighlight.isNotEmpty) {
+    if (!readerViewController.highlightJumpConsumed &&
+        textToHighlight != null &&
+        textToHighlight.isNotEmpty) {
       for (int i = targetChunkIndex;
           i < readerViewController.chunks.length;
           i++) {
@@ -432,6 +474,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
       if (!chunksInView.contains(targetChunkIndex)) {
         itemScrollController.jumpTo(index: targetChunkIndex);
       }
+      // Mark consumed so scroll tracking doesn't re-trigger the jump
+      readerViewController.consumeHighlightJump();
     } else {
       // Natural scroll page tracking - prevent snapbacks
       bool isPageCurrentlyInView = false;

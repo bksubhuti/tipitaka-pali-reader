@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../business_logic/models/found_info.dart';
@@ -90,6 +91,22 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                   anchors: selectableRegionState.contextMenuAnchors,
                   buttonItems: [
                     ...selectableRegionState.contextMenuButtonItems,
+                    ContextMenuButtonItem(
+                        onPressed: () {
+                          ContextMenuController.removeAny();
+                          final bookName = PaliScript.getScriptOf(
+                            script: context.read<ScriptLanguageProvider>().currentScript,
+                            romanText: readerViewController.book.name,
+                          );
+                          Clipboard.setData(ClipboardData(text: bookName));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${AppLocalizations.of(context)!.copied}: $bookName'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        label: AppLocalizations.of(context)!.copyBookName),
                     ContextMenuButtonItem(
                         onPressed: () {
                           ContextMenuController.removeAny();

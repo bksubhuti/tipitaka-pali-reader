@@ -406,6 +406,11 @@ class ReaderViewController extends ChangeNotifier {
     return chunks[chunkIndex].pageNumber;
   }
 
+  /// Tracks whether the current highlight jump has already been executed,
+  /// so subsequent scroll events don't re-trigger the jump.
+  bool _highlightJumpConsumed = false;
+  bool get highlightJumpConsumed => _highlightJumpConsumed;
+
   Future<void> onGoto(
       {required int pageNumber,
       String? word,
@@ -416,12 +421,20 @@ class ReaderViewController extends ChangeNotifier {
     debugPrint("Caller: $caller, pageNumber: $pageNumber, word: $word");
     _pageToHighlight = pageNumber;
     textToHighlight = word;
+    // Reset consumed flag so the new jump will execute
+    _highlightJumpConsumed = false;
     // update current page
     gotoPage(pageNumber: pageNumber);
     // persit
     if (saveToRecent) {
       await _saveToRecent();
     }
+  }
+
+  /// Mark the highlight jump as consumed so scroll tracking
+  /// doesn't re-trigger it. The highlight text stays set for rendering.
+  void consumeHighlightJump() {
+    _highlightJumpConsumed = true;
   }
 
   // Future onPageChanged(int index) async {

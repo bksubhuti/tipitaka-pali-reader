@@ -110,8 +110,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         _scrollToCurrentSearchResult();
       }
 
-      // Handle highlighted word scroll when TOC or programmatic jumps occur dynamically
-      if (widget.highlightedWord != null &&
+      // Handle highlighted word scroll only when the highlight actually changed
+      // (i.e., a new TOC/goto jump), not on every rebuild
+      if (widget.highlightedWord != oldWidget.highlightedWord &&
+          widget.highlightedWord != null &&
           widget.pageToHighlight == widget.pageNumber) {
         _scrollToHighlightedWordResult();
       }
