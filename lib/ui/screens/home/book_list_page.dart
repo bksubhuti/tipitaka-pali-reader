@@ -171,6 +171,12 @@ class BookListPage extends StatelessWidget {
             onTap: () => _openDictionaryPage(context),
           ),
           ListTile(
+            title: ColoredText(
+                AppLocalizations.of(context)!.installEnglishTranslations,
+                style: const TextStyle()),
+            onTap: () => _openInstallEnglishTranslationPage(context),
+          ),
+          ListTile(
             title: ColoredText(AppLocalizations.of(context)!.settings,
                 style: const TextStyle()),
             onTap: () => _openSettingPage(context),
@@ -311,6 +317,28 @@ class BookListPage extends StatelessWidget {
 
   _openDictionaryPage(BuildContext context) {
     Navigator.pushNamed(context, dictionaryRoute);
+  }
+
+  _openInstallEnglishTranslationPage(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
+          content: Text(
+              AppLocalizations.of(context)!.installTranslationInstructions),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                Navigator.pushNamed(context, '/download-view');
+              },
+              child: Text(AppLocalizations.of(context)!.ok),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<Sutta?> _openSuttaDialog(BuildContext context) async {
