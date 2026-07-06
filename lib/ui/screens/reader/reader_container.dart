@@ -234,7 +234,11 @@ class _ReaderContainerState extends State<ReaderContainer> {
         BorderRadius.only(topLeft: radius, topRight: radius);
     themeData.tabsArea
       ..border = const Border(bottom: BorderSide(color: Colors.grey))
-      ..initialGap = 0;
+      ..initialGap = 0
+      ..buttonsAreaDecoration = null
+      ..hoverButtonBackground = BoxDecoration(color: primaryColor.withValues(alpha: 0.2))
+      ..normalButtonColor = Theme.of(context).colorScheme.onSurface
+      ..hoverButtonColor = primaryColor;
 
     themeData.tab
       ..margin = const EdgeInsets.only(top: 2)
@@ -248,11 +252,11 @@ class _ReaderContainerState extends State<ReaderContainer> {
           borderRadius: borderRadius)
       ..selectedStatus.decoration = BoxDecoration(
           shape: BoxShape.rectangle,
-          color: primaryColor.withOpacity(0.6),
+          color: primaryColor.withValues(alpha: 0.6),
           border: Border.all(color: Colors.transparent),
           borderRadius: borderRadius)
       ..highlightedStatus.decoration = BoxDecoration(
-          color: surface.withOpacity(0.3),
+          color: surface.withValues(alpha: 0.3),
           border: Border.all(color: Colors.transparent),
           borderRadius: borderRadius);
 
@@ -320,6 +324,14 @@ class _ReaderContainerState extends State<ReaderContainer> {
     }
   }
 
+  void _closeAllTabs() {
+    setState(() {
+      tabsVisibility.clear();
+      _tabDataCache.clear();
+    });
+    context.read<OpenningBooksProvider>().removeAll();
+  }
+
   closeTab(int tabIndex, TabbedViewController controller) {
     int toSelect = 0;
     int selected = controller.selectedIndex ?? 0;
@@ -339,7 +351,11 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
     final openedBookProvider = context.read<OpenningBooksProvider>();
     final books = openedBookProvider.books;
-    tabsVisibility.remove(books[tabIndex]['book'].id);
+    if (tabIndex < books.length) {
+      final uuid = books[tabIndex]['uuid'];
+      tabsVisibility.remove(uuid);
+      _tabDataCache.remove(uuid);
+    }
 
     openedBookProvider.remove(index: tabIndex);
   }
@@ -362,6 +378,19 @@ class _ReaderContainerState extends State<ReaderContainer> {
           child: TabbedView(
               selectToEnableButtons: false,
               controller: _tabController!,
+              tabsAreaButtonsBuilder: (context, tabsCount) {
+                if (tabsCount == 0) return [];
+                return [
+                  TabButton(
+                    icon: IconProvider.data(Icons.delete_sweep),
+                    iconSize: 22.0,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    hoverColor: Theme.of(context).colorScheme.primary,
+                    toolTip: AppLocalizations.of(context)!.closeAll,
+                    onPressed: _closeAllTabs,
+                  ),
+                ];
+              },
               onTabSelection: (selectedIndex) {
                 if (selectedIndex != null) {
                   context
