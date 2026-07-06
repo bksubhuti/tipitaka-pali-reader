@@ -17,6 +17,7 @@ import '../../../services/provider/theme_change_notifier.dart';
 import '../../../utils/pali_script.dart';
 import '../../../utils/platform_info.dart';
 import '../home/openning_books_provider.dart';
+import '../home/search_page/search_page.dart';
 import 'reader.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
@@ -53,11 +54,13 @@ class _ReaderContainerState extends State<ReaderContainer> {
     final book = current['book'] as Book;
     final currentPage = current['current_page'] as int?;
     final textToHighlight = current['text_to_highlight'] as String?;
+    final queryMode = current['query_mode'] as QueryMode?;
 
     var reader = Reader(
       book: book,
       initialPage: currentPage,
       textToHighlight: textToHighlight,
+      queryMode: queryMode,
       bookViewMode: BookViewMode.horizontal, // horizontal for desktop
       bookUuid: current['uuid'],
     );

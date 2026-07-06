@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/screens/home/search_page/search_page.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../business_logic/models/book.dart';
@@ -13,7 +14,11 @@ class OpenningBooksProvider extends ChangeNotifier {
   int _selectedBookIndex = 0;
   int get selectedBookIndex => _selectedBookIndex;
 
-  void add({required Book book, int? currentPage, String? textToHighlight}) {
+  void add(
+      {required Book book,
+      int? currentPage,
+      String? textToHighlight,
+      QueryMode? queryMode}) {
     Prefs.numberBooksOpened++;
     var uuid = const Uuid().v4();
     _selectedBookIndex = Prefs.isNewTabAtEnd ? _books.length : 0;
@@ -22,6 +27,7 @@ class OpenningBooksProvider extends ChangeNotifier {
       'uuid': uuid,
       'current_page': currentPage,
       'text_to_highlight': textToHighlight,
+      'query_mode': queryMode,
     });
     notifyListeners();
   }
@@ -52,9 +58,10 @@ class OpenningBooksProvider extends ChangeNotifier {
   void update({required int newPageNumber, String? bookUuid}) {
     var current = books[_selectedBookIndex];
     int targetIndex = _selectedBookIndex;
-    
+
     if (bookUuid != null) {
-      final foundIndex = books.indexWhere((element) => element['uuid'] == bookUuid);
+      final foundIndex =
+          books.indexWhere((element) => element['uuid'] == bookUuid);
       if (foundIndex != -1) {
         current = books[foundIndex];
         targetIndex = foundIndex;

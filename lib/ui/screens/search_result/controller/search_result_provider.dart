@@ -109,6 +109,7 @@ class SearchResultController extends ChangeNotifier {
       book: result.book,
       currentPage: result.pageNumber,
       textToHighlight: searchWord,
+      queryMode: queryMode,
     );
 
     if (Mobile.isPhone(context)) {

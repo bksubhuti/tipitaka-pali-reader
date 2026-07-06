@@ -10,6 +10,7 @@ import '../../../business_logic/models/book.dart';
 import '../../../services/provider/script_language_provider.dart';
 import '../../../utils/pali_script.dart';
 import '../home/openning_books_provider.dart';
+import '../home/search_page/search_page.dart';
 
 enum BookViewMode {
   horizontal,
@@ -129,12 +130,15 @@ class _MobileReaderContainerState extends State<MobileReaderContainer> {
                         final pageNumber = openedBook['current_page'] as int?;
                         final textToHighlight =
                             openedBook['text_to_highlight'] as String?;
+                        final queryMode =
+                            openedBook['query_mode'] as QueryMode?;
 
                         return Reader(
                           key: Key('$index - ${book.id}'),
                           book: book,
                           initialPage: pageNumber,
                           textToHighlight: textToHighlight,
+                          queryMode: queryMode,
                           bookViewMode: bookViewMode,
                           bookUuid: openedBook['uuid'],
                         );

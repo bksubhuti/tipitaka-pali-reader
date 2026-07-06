@@ -41,6 +41,7 @@ class Reader extends StatelessWidget {
   final Book book;
   final int? initialPage;
   final String? textToHighlight;
+  final QueryMode? queryMode;
   final BookViewMode bookViewMode;
   final String bookUuid;
 
@@ -49,6 +50,7 @@ class Reader extends StatelessWidget {
     required this.book,
     this.initialPage,
     this.textToHighlight,
+    this.queryMode,
     required this.bookViewMode,
     required this.bookUuid,
   });
@@ -67,6 +69,7 @@ class Reader extends StatelessWidget {
           book: book,
           initialPage: initialPage,
           textToHighlight: textToHighlight,
+          queryMode: queryMode,
           bookUuid: bookUuid)
         ..loadDocument(),
       child: ReaderView(

@@ -23,6 +23,7 @@ import '../../../../services/repositories/paragraph_mapping_repo.dart';
 import '../../../../services/repositories/paragraph_repo.dart';
 import '../../../../services/repositories/recent_repo.dart';
 import '../../home/openning_books_provider.dart';
+import '../../home/search_page/search_page.dart';
 
 class ReaderViewController extends ChangeNotifier {
   final aiTranslationHtml = ValueNotifier<String?>(null);
@@ -44,6 +45,7 @@ class ReaderViewController extends ChangeNotifier {
   final Book book;
   int? initialPage;
   String? textToHighlight;
+  QueryMode? queryMode;
   String? selection;
 
   final ValueNotifier<FoundState> _foundState =
@@ -88,6 +90,7 @@ class ReaderViewController extends ChangeNotifier {
     required this.book,
     this.initialPage,
     this.textToHighlight,
+    this.queryMode,
     required this.bookUuid,
   });
 

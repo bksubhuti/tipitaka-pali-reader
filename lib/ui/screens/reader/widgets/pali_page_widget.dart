@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/rendering.dart';
 import 'package:html/dom.dart' as dom;
@@ -21,6 +22,7 @@ import '../../../../data/constants.dart';
 import '../../../../services/provider/theme_change_notifier.dart';
 import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
+import '../../home/search_page/search_page.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
 class PaliPageWidget extends StatefulWidget {
@@ -749,12 +751,70 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       }
     }
 
-    textToHighlight = PaliScript.getScriptOf(
+    // Determine the query mode from the controller
+    final queryMode = Provider.of<ReaderViewController>(context, listen: false).queryMode;
+
+    // Convert search term to current script
+    final scriptTextToHighlight = PaliScript.getScriptOf(
         script: context.read<ScriptLanguageProvider>().currentScript,
         romanText: textToHighlight);
 
+    // ==============================
+    // PREFIX and DISTANCE modes:
+    // Each word is a prefix — highlight any word starting with it
+    // ==============================
+    if (queryMode == QueryMode.prefix || queryMode == QueryMode.distance) {
+      final words = scriptTextToHighlight.trim().split(' ').where((w) => w.isNotEmpty).toList();
+      bool firstMatch = true;
+      for (final word in words) {
+        // Match the prefix word followed by any word characters (covers kamma -> kammassa, etc.)
+        // Use lookahead/lookbehind for word boundaries: whitespace, quotes, angle brackets, start/end
+        final escapedWord = RegExp.escape(word);
+        final pattern = RegExp(
+          r'(?<=[\s",\u00a0>]|^)' + escapedWord + r'[^\s",<]*',
+          caseSensitive: false,
+        );
+        content = content.replaceAllMapped(pattern, (match) {
+          final matched = match.group(0)!;
+          // Don't re-highlight already highlighted text
+          if (match.start > 0 && content.substring(max(0, match.start - 20), match.start).contains('class')) {
+            return matched;
+          }
+          if (firstMatch && addId) {
+            firstMatch = false;
+            return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
+          }
+          return '<span class="$highlightClass">$matched</span>';
+        });
+      }
+      return content;
+    }
+
+    // ==============================
+    // ANYWHERE mode:
+    // Highlight any substring occurrence
+    // ==============================
+    if (queryMode == QueryMode.anywhere) {
+      final pattern = RegExp(RegExp.escape(scriptTextToHighlight), caseSensitive: false);
+      bool firstMatch = true;
+      content = content.replaceAllMapped(pattern, (match) {
+        final matched = match.group(0)!;
+        if (firstMatch && addId) {
+          firstMatch = false;
+          return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
+        }
+        return '<span class="$highlightClass">$matched</span>';
+      });
+      return content;
+    }
+
+    // ==============================
+    // EXACT mode (or no queryMode): existing behavior
+    // ==============================
+    textToHighlight = scriptTextToHighlight;
+
     if (!textToHighlight.contains(' ')) {
-      final pattern = RegExp('(?<=[\\s", ])$textToHighlight(?=[\\s", ])');
+      final pattern = RegExp('(?<=[\\s", ])${RegExp.escape(textToHighlight)}(?=[\\s", ])');
       if (content.contains(pattern)) {
         final replace =
             '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
