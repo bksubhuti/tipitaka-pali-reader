@@ -16,8 +16,9 @@ import '../../../widgets/search_type_segmented_widget.dart';
 import '../widgets/search_bar.dart';
 import 'search_history_view.dart';
 import 'search_suggestion_view.dart';
+import '../../../widgets/ai_search_bottom_sheet.dart';
 
-enum QueryMode { exact, prefix, distance, anywhere }
+enum QueryMode { exact, prefix, distance, anywhere, ai }
 
 extension ParseToString on QueryMode {
   String toShortString() {
@@ -228,6 +229,8 @@ class _SearchPageState extends State<SearchPage>
       return AppLocalizations.of(context)!.distance;
     } else if (queryMode == QueryMode.prefix) {
       return AppLocalizations.of(context)!.prefix;
+    } else if (queryMode == QueryMode.ai) {
+      return 'Ask in English...';
     } else {
       return AppLocalizations.of(context)!.anywhere;
     }
@@ -243,6 +246,29 @@ class _SearchPageState extends State<SearchPage>
 
   void _onSubmitted(String searchWord, SearchPageViewModel vm) {
     searchWord = searchWord.trimRight();
+
+    // AI mode: show bottom sheet instead of navigating to search results
+    if (vm.queryMode == QueryMode.ai) {
+      vm.onSubmmited(searchWord);
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          snap: true,
+          snapSizes: const [0.7, 0.85, 0.95],
+          builder: (context, scrollController) => AiSearchBottomSheet(
+            query: searchWord,
+          ),
+        ),
+      );
+      return;
+    }
+
     final inputScriptLanguage = ScriptDetector.getLanguage(searchWord);
     if (inputScriptLanguage != Script.roman) {
       searchWord = PaliScript.getRomanScriptFrom(
@@ -258,19 +284,6 @@ class _SearchPageState extends State<SearchPage>
 
     NestedNavigationHelper.goto(
         context: context, route: route, navkey: searchNavigationKey);
-
-    // if (PlatformInfo.isDesktop || Mobile.isTablet(context)) {
-    //   searchNavigationKey.currentState?.push(route);
-    // } else {
-    //   Navigator.push(context, route);
-    // }
-
-    // // open search results
-    // Navigator.pushNamed(context, searchResultRoute, arguments: {
-    //   'searchWord': searchWord,
-    //   'queryMode': vm.queryMode,
-    //   'wordDistance': vm.wordDistance,
-    // });
   }
 
   @override

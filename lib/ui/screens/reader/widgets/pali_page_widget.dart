@@ -768,10 +768,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       bool firstMatch = true;
       for (final word in words) {
         // Match the prefix word followed by any word characters (covers kamma -> kammassa, etc.)
-        // Use lookahead/lookbehind for word boundaries: whitespace, quotes, angle brackets, start/end
+        // Use lookahead/lookbehind for word boundaries: whitespace, quotes (including smart quotes), dashes, angle brackets, start/end
         final escapedWord = RegExp.escape(word);
         final pattern = RegExp(
-          r'(?<=[\s",\u00a0>]|^)' + escapedWord + r'[^\s",<]*',
+          r'(?<=[\s",\u00a0>“”‘’\-\–\—]|^)' + escapedWord + r'[^\s",<“”‘’\-\–\—]*',
           caseSensitive: false,
         );
         content = content.replaceAllMapped(pattern, (match) {

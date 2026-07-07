@@ -30,6 +30,7 @@ class _SearchTypeSegmentedControlState
     1: 'prefix',
     2: 'distance',
     3: 'any part',
+    4: 'AI ✨',
   };
 
   late bool isDistanceMoe;
@@ -45,6 +46,12 @@ class _SearchTypeSegmentedControlState
     _segmentValues[1] = AppLocalizations.of(context)!.prefix;
     _segmentValues[2] = AppLocalizations.of(context)!.distance;
     _segmentValues[3] = AppLocalizations.of(context)!.anyPart;
+    // Only show AI option when Gemini API key is configured
+    if (Prefs.geminiDirectApiKey.isNotEmpty) {
+      _segmentValues[4] = 'AI ✨';
+    } else {
+      _segmentValues.remove(4);
+    }
   }
 
   @override
@@ -148,6 +155,9 @@ class _SearchTypeSegmentedControlState
         break;
       case 3:
         qm = QueryMode.anywhere;
+        break;
+      case 4:
+        qm = QueryMode.ai;
         break;
     }
 
