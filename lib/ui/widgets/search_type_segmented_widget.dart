@@ -46,12 +46,7 @@ class _SearchTypeSegmentedControlState
     _segmentValues[1] = AppLocalizations.of(context)!.prefix;
     _segmentValues[2] = AppLocalizations.of(context)!.distance;
     _segmentValues[3] = AppLocalizations.of(context)!.anyPart;
-    // Only show AI option when Gemini API key is configured
-    if (Prefs.geminiDirectApiKey.isNotEmpty) {
-      _segmentValues[4] = 'AI ✨';
-    } else {
-      _segmentValues.remove(4);
-    }
+    _segmentValues[4] = 'AI ✨';
   }
 
   @override

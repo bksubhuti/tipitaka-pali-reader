@@ -76,7 +76,8 @@ const String hideSanskritPref = 'hideSanskrit';
 const String panelWidthKey = 'panelWidth';
 const String openRouterApiKeyPref = "openRouterApiKey";
 const String openRouterPromptPref = 'openRouterPrompt';
-const String openRouterModelPref = 'openRouterModel';
+const String aiHeavyModelPref = 'aiHeavyModel';
+const String aiLightModelPref = 'aiLightModel';
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
 const String useGeminiDirectPref = 'useGeminiDirect';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
@@ -164,7 +165,8 @@ Translate sentence by sentence.
 Use <b> for Pāḷi line and <br> to separate lines. Normal text for English. Do not translate common terms like Nibbāna, mettā, or dukkha.
 Output only HTML. Do not explain.
 """;
-const String defaultOpenRouterModel = "google/gemini-2.5-pro-exp-03-25:free";
+const String defaultAiHeavyModel = "gemini-2.5-pro";
+const String defaultAiLightModel = "gemini-1.5-flash";
 
 List<String> defaultSelectedMainCategoryFilters = [
   "mula",
@@ -459,23 +461,26 @@ class Prefs {
     instance.setString(openRouterApiKeyPref, encrypted);
   }
 
+  static String get openRouterPromptKey =>
+      instance.getString(openRouterPromptKeyPref) ?? 'translate';
+  static set openRouterPromptKey(String value) =>
+      instance.setString(openRouterPromptKeyPref, value);
+
+  static String get aiHeavyModel =>
+      instance.getString(aiHeavyModelPref) ?? defaultAiHeavyModel;
+  static set aiHeavyModel(String value) =>
+      instance.setString(aiHeavyModelPref, value);
+
+  static String get aiLightModel =>
+      instance.getString(aiLightModelPref) ?? defaultAiLightModel;
+  static set aiLightModel(String value) =>
+      instance.setString(aiLightModelPref, value);
+
   static String get openRouterPrompt =>
       instance.getString(openRouterPromptPref) ?? defaultOpenRouterPrompt;
 
   static set openRouterPrompt(String value) =>
       instance.setString(openRouterPromptPref, value);
-
-  static String get openRouterModel =>
-      instance.getString(openRouterModelPref) ?? defaultOpenRouterModel;
-
-  static set openRouterModel(String value) =>
-      instance.setString(openRouterModelPref, value);
-
-  static String get openRouterPromptKey =>
-      instance.getString(openRouterPromptKeyPref) ?? defaultOpenRouterPromptKey;
-
-  static set openRouterPromptKey(String value) =>
-      instance.setString(openRouterPromptKeyPref, value);
 
   static bool get useGeminiDirect =>
       instance.getBool(useGeminiDirectPref) ?? false;

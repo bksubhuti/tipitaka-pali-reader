@@ -53,8 +53,13 @@ class AiSearchService {
 
   // We keep a running log of what the agent did to show the user at the end
   final List<String> _agentLog = [];
+  bool _isCancelled = false;
 
   AiSearchService({this.onStatusUpdate});
+
+  void cancel() {
+    _isCancelled = true;
+  }
 
   void _updateStatus(String message) {
     onStatusUpdate?.call(message);
@@ -90,102 +95,117 @@ class AiSearchService {
     List<AiMatchedResult> newResults = [];
 
     // Run the Agentic Loop
-    for (int iteration = 1; iteration <= 5; iteration++) {
-      _updateStatus('--- Iteration $iteration ---');
+    try {
+      for (int iteration = 1; iteration <= 5; iteration++) {
+        if (_isCancelled) break;
+        _updateStatus('--- Iteration $iteration ---');
 
-      if (nextQueriesToSearch.isNotEmpty) {
-        _updateStatus(
-            '✅ Validating ${nextQueriesToSearch.length} Pāḷi queries against dictionary...');
-        final validated = await _validateTerms(nextQueriesToSearch);
-        triedQueries.addAll(validated);
-        newResults.clear();
+        if (nextQueriesToSearch.isNotEmpty) {
+          _updateStatus(
+              '✅ Validating ${nextQueriesToSearch.length} Pāḷi queries against dictionary...');
+          final validated = await _validateTerms(nextQueriesToSearch);
+          triedQueries.addAll(validated);
+          newResults.clear();
 
-        for (final query in validated) {
-          _updateStatus('🔍 Searching database for "$query"...');
-          try {
-            final isMultiWord = query.contains(' ');
-            final queryMode =
-                isMultiWord ? QueryMode.distance : QueryMode.prefix;
-            final wordDistance = isMultiWord ? 12 : 0;
+          for (final query in validated) {
+            _updateStatus('🔍 Searching database for "$query"...');
+            try {
+              final isMultiWord = query.contains(' ');
+              final queryMode =
+                  isMultiWord ? QueryMode.distance : QueryMode.prefix;
+              final wordDistance = isMultiWord ? 12 : 0;
 
-            final results =
-                await ftsRepo.getResults(query, queryMode, wordDistance);
-            _updateStatus('   Found ${results.length} raw matches.');
+              final results =
+                  await ftsRepo.getResults(query, queryMode, wordDistance);
+              _updateStatus('   Found ${results.length} raw matches.');
 
-            // Sample max 20 per query to prevent token overflow
-            List<SearchResult> sampled = results;
-            if (results.length > 20) {
-              final step = (results.length / 20).floor();
-              sampled = List.generate(20, (i) => results[i * step]);
+              // Sample max 20 per query to prevent token overflow
+              List<SearchResult> sampled = results;
+              if (results.length > 20) {
+                final step = (results.length / 20).floor();
+                sampled = List.generate(20, (i) => results[i * step]);
+              }
+
+              for (final r in sampled) {
+                newResults.add(AiMatchedResult(
+                  searchResult: r,
+                  term: query,
+                  queryMode: queryMode,
+                ));
+              }
+            } catch (e) {
+              debugPrint('Error searching $query: $e');
             }
-
-            for (final r in sampled) {
-              newResults.add(AiMatchedResult(
-                searchResult: r,
-                term: query,
-                queryMode: queryMode,
-              ));
-            }
-          } catch (e) {
-            debugPrint('Error searching $query: $e');
           }
         }
-      }
 
-      if (newResults.isEmpty) {
-        _addLog('⚠️ No results found for these queries. Rethinking...');
+        if (newResults.isEmpty) {
+          _addLog('⚠️ No results found for these queries. Rethinking...');
+        } else {
+          _updateStatus('📚 Reading ${newResults.length} passages...');
+        }
+
+        _updateStatus('🧠 AI is evaluating findings and planning...');
+        
+        // HYBRID ROUTING STRATEGY:
+        // Use the light model for Iterations 1 & 2. Switch to the heavy model for Iteration 3+.
+        bool isHeavyLifting = iteration >= 3; 
+
+        final plan = await _evaluateAndPlan(
+          userQuery: userQuery,
+          apiKey: apiKey,
+          triedQueries: triedQueries,
+          bestResultsCount: bestResults.length,
+          newResults: newResults,
+          isHeavy: isHeavyLifting,
+        );
+
+        if (plan == null) {
+          _addLog('❌ AI failed to plan next steps. Stopping early.');
+          break;
+        }
+
+        // Display the AI's internal thought process to the user and save to log
+        for (final thought in plan.thoughtProcess) {
+          _addLog('🧠 $thought');
+        }
+
+        int newFinds = 0;
+        for (final idx in plan.selectedIndices) {
+          if (idx >= 0 && idx < newResults.length) {
+            final r = newResults[idx];
+            final exists =
+                bestResults.any((b) => b.searchResult.id == r.searchResult.id);
+            if (!exists) {
+              bestResults.add(r);
+              newFinds++;
+            }
+          }
+        }
+
+        if (newFinds > 0) {
+          _addLog('🎯 Kept $newFinds highly relevant passages.');
+        }
+
+        if (plan.isFullyAnswered) {
+          _addLog(
+              '✅ **Search Complete:** AI determined all relevant instances have been found.');
+          break;
+        }
+
+        if (plan.nextQueries.isEmpty) {
+          _addLog('🏁 AI has exhausted its search ideas.');
+          break;
+        }
+
+        nextQueriesToSearch = plan.nextQueries;
+      }
+    } catch (e) {
+      if (_isCancelled) {
+        _addLog('⚠️ Search cancelled by user.');
       } else {
-        _updateStatus('📚 Reading ${newResults.length} passages...');
+        _addLog('⚠️ Search interrupted: $e');
       }
-
-      _updateStatus('🧠 AI is evaluating findings and planning...');
-      final plan = await _evaluateAndPlan(
-        userQuery: userQuery,
-        apiKey: apiKey,
-        triedQueries: triedQueries,
-        bestResultsCount: bestResults.length,
-        newResults: newResults,
-      );
-
-      if (plan == null) {
-        _addLog('❌ AI failed to plan next steps. Stopping early.');
-        break;
-      }
-
-      // Display the AI's internal thought process to the user and save to log
-      for (final thought in plan.thoughtProcess) {
-        _addLog('🧠 $thought');
-      }
-
-      int newFinds = 0;
-      for (final idx in plan.selectedIndices) {
-        if (idx >= 0 && idx < newResults.length) {
-          final r = newResults[idx];
-          final exists =
-              bestResults.any((b) => b.searchResult.id == r.searchResult.id);
-          if (!exists) {
-            bestResults.add(r);
-            newFinds++;
-          }
-        }
-      }
-
-      if (newFinds > 0) {
-        _addLog('🎯 Kept $newFinds highly relevant passages.');
-      }
-
-      if (plan.isFullyAnswered) {
-        _addLog(
-            '✅ **Search Complete:** AI determined all relevant instances have been found.');
-        break;
-      }
-
-      if (plan.nextQueries.isEmpty) {
-        _addLog('🏁 AI has exhausted its search ideas.');
-        break;
-      }
-
-      nextQueriesToSearch = plan.nextQueries;
     }
 
     // Format a beautiful markdown log for the UI summary
@@ -224,7 +244,7 @@ Respond ONLY with a JSON object in this exact format:
 }''';
 
     try {
-      final response = await _callGemini(prompt, apiKey);
+      final response = await _callGemini(prompt, apiKey, isHeavy: false);
       if (response == null) return [];
 
       final jsonStr = _extractJson(response);
@@ -255,6 +275,7 @@ Respond ONLY with a JSON object in this exact format:
     required List<String> triedQueries,
     required int bestResultsCount,
     required List<AiMatchedResult> newResults,
+    required bool isHeavy,
   }) async {
     final buffer = StringBuffer();
     int wordCount = 0;
@@ -308,7 +329,7 @@ Respond ONLY with JSON (no markdown):
 }''';
 
     try {
-      final response = await _callGemini(prompt, apiKey);
+      final response = await _callGemini(prompt, apiKey, isHeavy: isHeavy);
       if (response == null) return null;
 
       final jsonStr = _extractJson(response);
@@ -385,17 +406,23 @@ Respond ONLY with JSON (no markdown):
     return validated;
   }
 
-  Future<List<String>> _getActiveFlashModels(String apiKey) async {
-    // We hardcode this to ensure it strictly uses the highly capable 3.5 model
-    // rather than falling back to weak preview or lite models that fail the agent loop.
-    return [
-      'gemini-3.5-flash',
-      'gemini-3.1-flash-lite' // Ultimate fallback only if 3.5 is down
-    ];
+  Future<List<String>> _getActiveFlashModels(String apiKey, {required bool isHeavy}) async {
+    final heavyPref = Prefs.aiHeavyModel;
+    final lightPref = Prefs.aiLightModel;
+
+    final lightModel = lightPref.isNotEmpty ? lightPref : 'gemini-1.5-flash-8b';
+    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-1.5-pro';
+
+    if (!isHeavy) {
+      return [lightModel];
+    }
+
+    // For heavy iterations, try the heavy model first, but fallback to light if it fails or hits a hard quota.
+    return [heavyModel, lightModel];
   }
 
-  Future<String?> _callGemini(String prompt, String apiKey) async {
-    final models = await _getActiveFlashModels(apiKey);
+  Future<String?> _callGemini(String prompt, String apiKey, {required bool isHeavy}) async {
+    final models = await _getActiveFlashModels(apiKey, isHeavy: isHeavy);
 
     final requestBody = {
       "contents": [
@@ -426,6 +453,10 @@ Respond ONLY with JSON (no markdown):
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(requestBody),
           );
+
+          if (_isCancelled) {
+            throw Exception('Cancelled by user');
+          }
 
           if (response.statusCode == 429) {
             if (response.body.contains('limit: 0')) {

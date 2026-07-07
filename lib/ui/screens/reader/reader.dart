@@ -332,7 +332,7 @@ class ReaderView extends StatelessWidget implements Searchable {
                             Text(
                               Prefs.useGeminiDirect
                                   ? 'Gemini 1.5 Flash (Direct)'
-                                  : (Prefs.openRouterModel ?? 'Unknown Model'),
+                                  : (Prefs.aiHeavyModel),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
@@ -660,7 +660,7 @@ Note: Only the first 1000 characters were sent for translation.
     final prompt = '${Prefs.openRouterPrompt.trim()}\n\nText:\n\n$inputText';
 
     final requestBody = {
-      "model": Prefs.openRouterModel,
+      "model": Prefs.aiHeavyModel,
       "messages": [
         {
           "role": "user",

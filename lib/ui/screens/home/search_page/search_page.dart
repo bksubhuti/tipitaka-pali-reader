@@ -116,6 +116,10 @@ class _SearchPageState extends State<SearchPage>
                         setState(() {
                           vm.onQueryModeChanged(value);
                         });
+                        if (value == QueryMode.ai) {
+                          FocusScope.of(context).unfocus();
+                          _showAiSearchBottomSheet(controller.text);
+                        }
                       },
                       onDistanceChanged: (value) {
                         vm.onWordDistanceChanged(value);
@@ -244,28 +248,31 @@ class _SearchPageState extends State<SearchPage>
   //       });
   // }
 
+  void _showAiSearchBottomSheet(String query) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        snap: true,
+        snapSizes: const [0.7, 0.85, 0.95],
+        builder: (context, scrollController) => AiSearchBottomSheet(
+          query: query,
+        ),
+      ),
+    );
+  }
+
   void _onSubmitted(String searchWord, SearchPageViewModel vm) {
     searchWord = searchWord.trimRight();
 
     // AI mode: show bottom sheet instead of navigating to search results
     if (vm.queryMode == QueryMode.ai) {
-      vm.onSubmmited(searchWord);
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.7,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          snap: true,
-          snapSizes: const [0.7, 0.85, 0.95],
-          builder: (context, scrollController) => AiSearchBottomSheet(
-            query: searchWord,
-          ),
-        ),
-      );
+      _showAiSearchBottomSheet(searchWord);
       return;
     }
 
