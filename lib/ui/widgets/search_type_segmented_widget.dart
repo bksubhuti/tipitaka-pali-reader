@@ -72,6 +72,11 @@ class _SearchTypeSegmentedControlState
                 return Expanded(
                   child: InkWell(
                     onTap: () {
+                      if (entry.key == 4) {
+                        widget.onModeChanged(QueryMode.ai);
+                        return; // Prevent updating UI selectedIndex for AI
+                      }
+                      
                       setState(() {
                         _selectedIndex = entry.key;
 

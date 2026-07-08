@@ -113,12 +113,13 @@ class _SearchPageState extends State<SearchPage>
                       mode: vm.queryMode,
                       wordDistance: vm.wordDistance,
                       onModeChanged: (value) {
-                        setState(() {
-                          vm.onQueryModeChanged(value);
-                        });
                         if (value == QueryMode.ai) {
                           FocusScope.of(context).unfocus();
                           _showAiSearchBottomSheet(controller.text);
+                        } else {
+                          setState(() {
+                            vm.onQueryModeChanged(value);
+                          });
                         }
                       },
                       onDistanceChanged: (value) {

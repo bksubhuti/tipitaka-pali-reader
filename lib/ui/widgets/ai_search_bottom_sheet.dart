@@ -46,6 +46,15 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
     final query = _queryController.text.trim();
     if (query.isEmpty) return;
 
+    final history = Prefs.aiSearchHistory;
+    // Remove if exists to move it to the top
+    history.remove(query);
+    history.insert(0, query);
+    if (history.length > 50) {
+      history.removeLast(); // Keep up to 50
+    }
+    Prefs.aiSearchHistory = history;
+    
     setState(() {
       _isSearching = true;
       _hasSearched = true;
@@ -406,6 +415,37 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                             onTap: () => _openBook(match),
                           )),
                   ],
+                ),
+              ),
+
+            // AI Search History
+            if (!_isSearching && !_hasSearched && Prefs.aiSearchHistory.isNotEmpty)
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  itemCount: Prefs.aiSearchHistory.length,
+                  itemBuilder: (context, index) {
+                    final histQuery = Prefs.aiSearchHistory[index];
+                    return ListTile(
+                      leading: const Icon(Icons.history),
+                      title: Text(histQuery, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () {
+                          setState(() {
+                            final h = Prefs.aiSearchHistory;
+                            h.removeAt(index);
+                            Prefs.aiSearchHistory = h;
+                          });
+                        },
+                      ),
+                      onTap: () {
+                        _queryController.text = histQuery;
+                        FocusScope.of(context).unfocus();
+                        _runAiSearch();
+                      },
+                    );
+                  },
                 ),
               ),
           ],
