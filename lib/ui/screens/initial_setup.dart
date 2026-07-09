@@ -13,20 +13,38 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/dialogs/extension_prompt_dialog.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../dialogs/reset_dialog.dart';
 
-class InitialSetup extends StatelessWidget {
+class InitialSetup extends StatefulWidget {
   final bool isUpdateMode;
   const InitialSetup({super.key, this.isUpdateMode = false});
+
+  @override
+  State<InitialSetup> createState() => _InitialSetupState();
+}
+
+class _InitialSetupState extends State<InitialSetup> {
+  @override
+  void initState() {
+    super.initState();
+    WakelockPlus.enable();
+  }
+
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final initialSetupNotifier =
         Provider.of<InitialSetupNotifier>(context, listen: false);
     final initialSetupService =
-        InitialSetupService(context, initialSetupNotifier, isUpdateMode);
-    initialSetupService.setUp(isUpdateMode);
+        InitialSetupService(context, initialSetupNotifier, widget.isUpdateMode);
+    initialSetupService.setUp(widget.isUpdateMode);
 
     return Material(
       // NOTE by Rydmike: Annotated region example for
@@ -83,7 +101,7 @@ class InitialSetup extends StatelessWidget {
         */
         const CircularProgressIndicator(),
         const SizedBox(height: 10),
-        isUpdateMode
+        widget.isUpdateMode
             ? Text(
                 AppLocalizations.of(context)!.updatingStatus,
                 textAlign: TextAlign.center,

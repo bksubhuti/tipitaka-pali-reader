@@ -10,10 +10,28 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
-class DownloadView extends StatelessWidget {
+class DownloadView extends StatefulWidget {
   final bool showLocalRestores;
   const DownloadView({super.key, this.showLocalRestores = false});
+
+  @override
+  State<DownloadView> createState() => _DownloadViewState();
+}
+
+class _DownloadViewState extends State<DownloadView> {
+  @override
+  void initState() {
+    super.initState();
+    WakelockPlus.enable();
+  }
+
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +107,7 @@ class DownloadView extends StatelessWidget {
 
   Future<bool> checkInternetConnection(DownloadNotifier downloadModel) async {
     // 1. NEW: Bypass the internet check entirely if we are in local restore mode!
-    if (showLocalRestores) {
+    if (widget.showLocalRestores) {
       return true;
     }
 
@@ -251,7 +269,7 @@ class DownloadView extends StatelessWidget {
     // ==========================================
     // NORMAL DOWNLOAD VIEW (Gets fresh online list & saves cache)
     // ==========================================
-    if (!showLocalRestores) {
+    if (!widget.showLocalRestores) {
       try {
         final response = await http.get(Uri.parse(
             'https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/download_list.json'));

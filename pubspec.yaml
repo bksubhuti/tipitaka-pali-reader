@@ -3,7 +3,7 @@ description: Tipitaka Pali Reader
 
 publish_to: "none"
 
-version: 2.8.0+110
+version: 2.8.1+111
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -89,6 +89,7 @@ dependencies:
   window_manager: ^0.5.1
   app_links: ^7.0.0
   flutter_colorpicker: ^1.1.0
+  wakelock_plus: ^1.5.2
 
 dev_dependencies:
   flutter_test:
