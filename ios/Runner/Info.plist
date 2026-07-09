@@ -45,6 +45,12 @@
 	<string>This app needs access to import EPUB files and export bookmarks.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tipitaka Pali Reader would like to access your files for flashcards.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app does not use the camera. This is required by a third-party framework.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app does not use the microphone. This is required by a third-party framework.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app does not use your location. This is required by a third-party framework.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
