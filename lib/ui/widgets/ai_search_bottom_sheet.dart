@@ -11,6 +11,7 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/settings/settings.dart';
 import 'package:tipitaka_pali/ui/widgets/ai_help_dialog.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Bottom sheet that shows the AI search progress and results.
 /// Used for both mobile and desktop via showModalBottomSheet.
@@ -54,7 +55,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
       history.removeLast(); // Keep up to 50
     }
     Prefs.aiSearchHistory = history;
-    
+
     setState(() {
       _isSearching = true;
       _hasSearched = true;
@@ -198,6 +199,18 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                       });
                     },
                   ),
+
+                if (!_isSearching)
+                  IconButton(
+                    icon: const Icon(Icons.speed),
+                    tooltip: 'Check API Rate Limit',
+                    onPressed: () async {
+                      final url = Uri.parse('https://aistudio.google.com/rate-limit/');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
                 if (!_isSearching)
                   IconButton(
                     icon: const Icon(Icons.copy),
@@ -267,7 +280,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         hintText:
-                            'Ask in English (e.g. Find me text of ven ananda crying)',
+                            'Ask in English (e.g. When did the Buddha teach dullabho?)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -419,7 +432,9 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
               ),
 
             // AI Search History
-            if (!_isSearching && !_hasSearched && Prefs.aiSearchHistory.isNotEmpty)
+            if (!_isSearching &&
+                !_hasSearched &&
+                Prefs.aiSearchHistory.isNotEmpty)
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.only(bottom: 24),
@@ -428,7 +443,8 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                     final histQuery = Prefs.aiSearchHistory[index];
                     return ListTile(
                       leading: const Icon(Icons.history),
-                      title: Text(histQuery, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      title: Text(histQuery,
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () {

@@ -115,7 +115,7 @@ class _SearchPageState extends State<SearchPage>
                       onModeChanged: (value) {
                         if (value == QueryMode.ai) {
                           FocusScope.of(context).unfocus();
-                          _showAiSearchBottomSheet(controller.text);
+                          _showAiSearchBottomSheet('');
                         } else {
                           setState(() {
                             vm.onQueryModeChanged(value);

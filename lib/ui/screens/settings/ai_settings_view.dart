@@ -75,13 +75,14 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                   Prefs.aiHeavyModel = _selectedHeavyModel!;
                 }
 
-                final flashModels = _geminiModels.where((m) => m.contains('flash')).toList();
-                
+                final flashModels =
+                    _geminiModels.where((m) => m.contains('flash')).toList();
+
                 if (flashModels.contains(Prefs.aiLightModel)) {
                   _selectedLightModel = Prefs.aiLightModel;
                 } else {
-                  _selectedLightModel = flashModels.isNotEmpty 
-                      ? flashModels.first 
+                  _selectedLightModel = flashModels.isNotEmpty
+                      ? flashModels.first
                       : _geminiModels.first;
                   Prefs.aiLightModel = _selectedLightModel!;
                 }
@@ -99,13 +100,138 @@ class _AiSettingsViewState extends State<AiSettingsView> {
     }
   }
 
-
-
   @override
   void dispose() {
     _promptController.dispose();
     _geminiKeyController.dispose();
     super.dispose();
+  }
+
+  Widget _buildBulletPoint(
+      BuildContext context, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(fontSize: 16, height: 1.4)),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(height: 1.4),
+                children: [
+                  TextSpan(
+                      text: title,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  TextSpan(text: description),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showModelInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('AI Model Configuration'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Section 1: How the App Works
+                RichText(
+                  text: TextSpan(
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(height: 1.4),
+                    children: const [
+                      TextSpan(
+                          text:
+                              'To save usage rates, the AI algorithm uses the heavy model only when '),
+                      TextSpan(
+                          text: 'fully necessary',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      TextSpan(
+                          text:
+                              '. The light model is for less intensive processing.\n\n'),
+                      TextSpan(
+                          text:
+                              'The models are fetched from a real-time list. You will need to decide which models work best within your tier. If you have paid access, performance will improve.'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                // Section 2: Recommendations Title
+                Text(
+                  'Recommended Configurations:',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+
+                // Bullet Points for Recommendations
+                _buildBulletPoint(
+                    context,
+                    'Gemini  3.5 Flash (Heavy) & 3.1 Flash-Lite (Light):',
+                    ' Balanced performance.'),
+                _buildBulletPoint(
+                    context,
+                    'Gemini 3.1 Flash-Lite (Both Heavy & Light):',
+                    ' Best overall usage limits and efficiency.'),
+
+                const SizedBox(height: 12),
+                Text(
+                  'Note: You can consult with AI chat windows as models evolve and older ones become obsolete or restricted.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'If your usage limits are exhausted, the system will become extremely slow or temporarily stop working.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final url =
+                    Uri.parse('https://aistudio.google.com/rate-limit/');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: const Text('Check the "Rate Limit" in aiStudio'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -179,6 +305,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                                       .openRouterKeySaved),
                                 ),
                               );
+                              _showModelInfoDialog(context);
                             },
                           ),
                         ],
@@ -192,6 +319,22 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       child: CircularProgressIndicator(),
                     )
                   else if (_geminiModels.isNotEmpty) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Check "Rate Limit" in aiStudio'),
+                        onPressed: () async {
+                          final url = Uri.parse(
+                              'https://aistudio.google.com/rate-limit/');
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url,
+                                mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
                     DropdownButtonFormField<String>(
                       isExpanded: true,
                       value: _selectedHeavyModel,
@@ -213,6 +356,22 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                               Text(modelName, overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12.0),
+                      child: Row(
+                        children: [
+                          const Text(
+                            '3.5 flash recommended',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.info_outline,
+                                size: 20, color: Colors.grey),
+                            onPressed: () => _showModelInfoDialog(context),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16.0),
                     DropdownButtonFormField<String>(
@@ -238,6 +397,22 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                               Text(modelName, overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12.0),
+                      child: Row(
+                        children: [
+                          const Text(
+                            '3.1 flash lite recommended',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.info_outline,
+                                size: 20, color: Colors.grey),
+                            onPressed: () => _showModelInfoDialog(context),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16.0),

@@ -330,9 +330,7 @@ class ReaderView extends StatelessWidget implements Searchable {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              Prefs.useGeminiDirect
-                                  ? 'Gemini 1.5 Flash (Direct)'
-                                  : (Prefs.aiHeavyModel),
+                              Prefs.aiHeavyModel,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
@@ -634,11 +632,7 @@ Note: Only the first 1000 characters were sent for translation.
       final htmlOutput = result['text'] ?? '';
       final finishReason = result['finishReason'];
 
-      final warning = '''
-<div style="color: red; font-weight: bold; margin-bottom: 12px;">
-⚠️  AI Generated. Accuracy is not guaranteed.
-</div>
-''';
+      final warning = '';
 
       final fullHtml = '$warning$truncationNote$htmlOutput';
 
@@ -726,10 +720,10 @@ Note: Only the first 1000 characters were sent for translation.
 
   Future<Map<String, dynamic>> _translateWithGemini(String inputText) async {
     final apiKey = Prefs.geminiDirectApiKey;
+    final model = Prefs.aiHeavyModel;
 
-    // ✅ Hardcoded to Gemini 1.5 Flash (free tier)
-    const endpoint =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    final endpoint =
+        'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
 
     final requestBody = {
       "contents": [
