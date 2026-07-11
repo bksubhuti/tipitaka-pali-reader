@@ -69,9 +69,13 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (_geminiModels.contains(Prefs.aiHeavyModel)) {
                   _selectedHeavyModel = Prefs.aiHeavyModel;
                 } else {
-                  _selectedHeavyModel = _geminiModels.firstWhere(
-                      (m) => m.contains('pro'),
-                      orElse: () => _geminiModels.first);
+                  if (_geminiModels.contains('gemini-3.5-flash')) {
+                    _selectedHeavyModel = 'gemini-3.5-flash';
+                  } else {
+                    _selectedHeavyModel = _geminiModels.firstWhere(
+                        (m) => m.contains('pro'),
+                        orElse: () => _geminiModels.first);
+                  }
                   Prefs.aiHeavyModel = _selectedHeavyModel!;
                 }
 
@@ -81,9 +85,13 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (flashModels.contains(Prefs.aiLightModel)) {
                   _selectedLightModel = Prefs.aiLightModel;
                 } else {
-                  _selectedLightModel = flashModels.isNotEmpty
-                      ? flashModels.first
-                      : _geminiModels.first;
+                  if (_geminiModels.contains('gemini-3.1-flash-lite')) {
+                    _selectedLightModel = 'gemini-3.1-flash-lite';
+                  } else {
+                    _selectedLightModel = flashModels.isNotEmpty
+                        ? flashModels.first
+                        : _geminiModels.first;
+                  }
                   Prefs.aiLightModel = _selectedLightModel!;
                 }
               }

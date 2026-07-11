@@ -72,7 +72,7 @@ class AiSearchService {
   }
 
   /// Main entry point: perform a multi-turn AI-guided search.
-  Future<AiSearchResult> search(String userQuery) async {
+  Future<AiSearchResult> search(String userQuery, {int maxResults = 30}) async {
     _agentLog.clear();
     final apiKey = Prefs.geminiDirectApiKey;
 
@@ -119,11 +119,11 @@ class AiSearchService {
                   await ftsRepo.getResults(query, queryMode, wordDistance);
               _updateStatus('   Found ${results.length} raw matches.');
 
-              // Sample max 20 per query to prevent token overflow
+              // Sample max maxResults per query to prevent token overflow
               List<SearchResult> sampled = results;
-              if (results.length > 20) {
-                final step = (results.length / 20).floor();
-                sampled = List.generate(20, (i) => results[i * step]);
+              if (results.length > maxResults) {
+                final step = (results.length / maxResults).floor();
+                sampled = List.generate(maxResults, (i) => results[i * step]);
               }
 
               for (final r in sampled) {
@@ -146,10 +146,10 @@ class AiSearchService {
         }
 
         _updateStatus('🧠 AI is evaluating findings and planning...');
-        
+
         // HYBRID ROUTING STRATEGY:
         // Use the light model for Iterations 1 & 2. Switch to the heavy model for Iteration 3+.
-        bool isHeavyLifting = iteration >= 3; 
+        bool isHeavyLifting = iteration >= 3;
 
         final plan = await _evaluateAndPlan(
           userQuery: userQuery,
@@ -406,12 +406,13 @@ Respond ONLY with JSON (no markdown):
     return validated;
   }
 
-  Future<List<String>> _getActiveFlashModels(String apiKey, {required bool isHeavy}) async {
+  Future<List<String>> _getActiveFlashModels(String apiKey,
+      {required bool isHeavy}) async {
     final heavyPref = Prefs.aiHeavyModel;
     final lightPref = Prefs.aiLightModel;
 
-    final lightModel = lightPref.isNotEmpty ? lightPref : 'gemini-1.5-flash-8b';
-    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-1.5-pro';
+    final lightModel = lightPref.isNotEmpty ? lightPref : 'gemini-3.1-flash-lite';
+    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-3.5-flash';
 
     if (!isHeavy) {
       return [lightModel];
@@ -421,7 +422,8 @@ Respond ONLY with JSON (no markdown):
     return [heavyModel, lightModel];
   }
 
-  Future<String?> _callGemini(String prompt, String apiKey, {required bool isHeavy}) async {
+  Future<String?> _callGemini(String prompt, String apiKey,
+      {required bool isHeavy}) async {
     final models = await _getActiveFlashModels(apiKey, isHeavy: isHeavy);
 
     final requestBody = {

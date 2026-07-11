@@ -82,6 +82,7 @@ const String aiSearchHistoryPref = 'aiSearchHistory';
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
 const String useGeminiDirectPref = 'useGeminiDirect';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
+const String aiMaxResultsPref = 'aiMaxResults';
 const String windowWidthPref = "windowWidth";
 const String windowHeightPref = "windowHeight";
 const String windowXPref = "windowX";
@@ -95,6 +96,7 @@ const String isPaliBoldPref = "isPaliBold";
 const int defaultLocaleVal = 0;
 const int defaultThemeIndex = 12;
 const String defaultThemeName = '';
+const int defaultAiMaxResults = 60;
 
 const bool defaultDarkThemeOn = false;
 //ToDo something is not right with release and font size
@@ -497,6 +499,11 @@ class Prefs {
       instance.getString(geminiDirectApiKeyPref) ?? '';
   static set geminiDirectApiKey(String value) =>
       instance.setString(geminiDirectApiKeyPref, value);
+
+  static int get aiMaxResults =>
+      instance.getInt(aiMaxResultsPref) ?? defaultAiMaxResults;
+  static set aiMaxResults(int value) =>
+      instance.setInt(aiMaxResultsPref, value);
 
   // Window Size and Position
   static double get windowWidth =>

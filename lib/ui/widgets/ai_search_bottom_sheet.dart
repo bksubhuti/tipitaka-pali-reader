@@ -31,6 +31,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
   bool _hasSearched = false;
   List<AiMatchedResult> _results = [];
   String _summary = '';
+  late double _maxResults = Prefs.aiMaxResults.toDouble();
 
   AiSearchService? _aiSearchService;
 
@@ -75,7 +76,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
       },
     );
 
-    final result = await _aiSearchService!.search(query);
+    final result = await _aiSearchService!.search(query, maxResults: _maxResults.toInt());
 
     if (mounted) {
       setState(() {
@@ -146,7 +147,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
         minHeight: 200,
       ),
       decoration: BoxDecoration(
@@ -269,9 +270,45 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
             // Search Input
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Slider for results count
+                  Row(
+                    children: [
+                      Text(
+                        'Results to analyze:',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: _maxResults,
+                          min: 10,
+                          max: 100,
+                          divisions: 9,
+                          label: _maxResults.round().toString(),
+                          onChanged: _isSearching
+                              ? null
+                              : (value) {
+                                  setState(() {
+                                    _maxResults = value;
+                                  });
+                                },
+                          onChangeEnd: (value) {
+                            Prefs.aiMaxResults = value.toInt();
+                          },
+                        ),
+                      ),
+                      Text(
+                        _maxResults.round().toString(),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                   Expanded(
                     child: TextField(
                       controller: _queryController,
@@ -304,7 +341,9 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                   ),
                 ],
               ),
+             ],
             ),
+           ),
             const SizedBox(height: 16),
 
             // Status / Progress
