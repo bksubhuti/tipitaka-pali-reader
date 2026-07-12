@@ -78,7 +78,7 @@ const String openRouterApiKeyPref = "openRouterApiKey";
 const String openRouterPromptPref = 'openRouterPrompt';
 const String aiHeavyModelPref = 'aiHeavyModel';
 const String aiLightModelPref = 'aiLightModel';
-const String aiSearchHistoryPref = 'aiSearchHistory';
+
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
 const String useGeminiDirectPref = 'useGeminiDirect';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
@@ -479,10 +479,6 @@ class Prefs {
   static set aiLightModel(String value) =>
       instance.setString(aiLightModelPref, value);
 
-  static List<String> get aiSearchHistory =>
-      instance.getStringList(aiSearchHistoryPref) ?? [];
-  static set aiSearchHistory(List<String> value) =>
-      instance.setStringList(aiSearchHistoryPref, value);
 
   static String get openRouterPrompt =>
       instance.getString(openRouterPromptPref) ?? defaultOpenRouterPrompt;

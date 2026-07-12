@@ -16,7 +16,7 @@ import '../../../widgets/search_type_segmented_widget.dart';
 import '../widgets/search_bar.dart';
 import 'search_history_view.dart';
 import 'search_suggestion_view.dart';
-import '../../../widgets/ai_search_bottom_sheet.dart';
+import '../../../screens/ai_search/ai_search_page.dart';
 
 enum QueryMode { exact, prefix, distance, anywhere, ai }
 
@@ -115,7 +115,7 @@ class _SearchPageState extends State<SearchPage>
                       onModeChanged: (value) {
                         if (value == QueryMode.ai) {
                           FocusScope.of(context).unfocus();
-                          _showAiSearchBottomSheet('');
+                          _openAiSearchPage('');
                         } else {
                           setState(() {
                             vm.onQueryModeChanged(value);
@@ -249,31 +249,20 @@ class _SearchPageState extends State<SearchPage>
   //       });
   // }
 
-  void _showAiSearchBottomSheet(String query) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        snap: true,
-        snapSizes: const [0.7, 0.85, 0.95],
-        builder: (context, scrollController) => AiSearchBottomSheet(
-          query: query,
-        ),
-      ),
+  void _openAiSearchPage(String query) {
+    var route = MaterialPageRoute(
+      builder: (_) => AiSearchPage(query: query),
     );
+    NestedNavigationHelper.goto(
+      context: context, route: route, navkey: searchNavigationKey);
   }
 
   void _onSubmitted(String searchWord, SearchPageViewModel vm) {
     searchWord = searchWord.trimRight();
 
-    // AI mode: show bottom sheet instead of navigating to search results
+    // AI mode: show full screen instead of navigating to normal search results
     if (vm.queryMode == QueryMode.ai) {
-      _showAiSearchBottomSheet(searchWord);
+      _openAiSearchPage(searchWord);
       return;
     }
 

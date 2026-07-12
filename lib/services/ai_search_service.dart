@@ -20,6 +20,23 @@ class AiMatchedResult {
     required this.term,
     required this.queryMode,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'searchResult': searchResult.toJson(),
+      'term': term,
+      'queryMode': queryMode.index,
+    };
+  }
+
+  factory AiMatchedResult.fromJson(Map<String, dynamic> json) {
+    return AiMatchedResult(
+      searchResult:
+          SearchResult.fromJson(json['searchResult'] as Map<String, dynamic>),
+      term: json['term'] as String,
+      queryMode: QueryMode.values[json['queryMode'] as int],
+    );
+  }
 }
 
 /// Represents the AI's decision on what to do next in the search loop.
@@ -44,6 +61,22 @@ class AiSearchResult {
   final String summary;
 
   AiSearchResult({required this.results, required this.summary});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'results': results.map((e) => e.toJson()).toList(),
+      'summary': summary,
+    };
+  }
+
+  factory AiSearchResult.fromJson(Map<String, dynamic> json) {
+    return AiSearchResult(
+      results: (json['results'] as List<dynamic>)
+          .map((e) => AiMatchedResult.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      summary: json['summary'] as String,
+    );
+  }
 }
 
 /// Service that orchestrates AI-guided search of the Tipiṭaka.
@@ -236,6 +269,7 @@ Task:
 1. Formulate a chain of thought. Consider major canonical events and key figures related to the query.
 2. Generate 3-6 Pāḷi search terms (single words or short phrases) to find relevant passages. 
 CRITICAL: You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
+NEVER use hyphens or dashes. For compound words, either combine them entirely (e.g., "sotadvāravīthi") or use spaces (e.g., "sota dvāra"). Do not write "sota-dvāra".
 
 Respond ONLY with a JSON object in this exact format:
 {

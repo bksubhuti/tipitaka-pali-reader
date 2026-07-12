@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:tipitaka_pali/services/ai_search_service.dart';
+import 'package:tipitaka_pali/services/ai_search_history_manager.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/ui/screens/home/search_page/search_page.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
@@ -13,18 +14,16 @@ import 'package:tipitaka_pali/ui/widgets/ai_help_dialog.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Bottom sheet that shows the AI search progress and results.
-/// Used for both mobile and desktop via showModalBottomSheet.
-class AiSearchBottomSheet extends StatefulWidget {
+class AiSearchPage extends StatefulWidget {
   final String query;
 
-  const AiSearchBottomSheet({super.key, required this.query});
+  const AiSearchPage({super.key, required this.query});
 
   @override
-  State<AiSearchBottomSheet> createState() => _AiSearchBottomSheetState();
+  State<AiSearchPage> createState() => _AiSearchPageState();
 }
 
-class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
+class _AiSearchPageState extends State<AiSearchPage> {
   late final TextEditingController _queryController;
   final List<String> _logs = [];
   bool _isSearching = false;
@@ -32,6 +31,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
   List<AiMatchedResult> _results = [];
   String _summary = '';
   late double _maxResults = Prefs.aiMaxResults.toDouble();
+  final AiSearchHistoryManager _historyManager = AiSearchHistoryManager();
 
   AiSearchService? _aiSearchService;
 
@@ -39,23 +39,22 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
   void initState() {
     super.initState();
     _queryController = TextEditingController(text: widget.query);
-    if (widget.query.trim().isNotEmpty && Prefs.geminiDirectApiKey.isNotEmpty) {
-      _runAiSearch();
+    _initHistory();
+  }
+  
+  Future<void> _initHistory() async {
+    await _historyManager.init();
+    if (mounted) {
+      setState(() {});
+      if (widget.query.trim().isNotEmpty && Prefs.geminiDirectApiKey.isNotEmpty) {
+        _runAiSearch();
+      }
     }
   }
 
   Future<void> _runAiSearch() async {
     final query = _queryController.text.trim();
     if (query.isEmpty) return;
-
-    final history = Prefs.aiSearchHistory;
-    // Remove if exists to move it to the top
-    history.remove(query);
-    history.insert(0, query);
-    if (history.length > 50) {
-      history.removeLast(); // Keep up to 50
-    }
-    Prefs.aiSearchHistory = history;
 
     setState(() {
       _isSearching = true;
@@ -85,7 +84,26 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
         _summary = result.summary;
         _logs.add('Search complete');
       });
+      
+      // Save to history after successful search
+      if (result.results.isNotEmpty || result.summary.isNotEmpty) {
+        await _historyManager.add(query, result);
+        setState(() {});
+      }
     }
+  }
+
+  void _loadFromHistory(AiSearchHistoryItem item) {
+    _queryController.text = item.query;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isSearching = false;
+      _hasSearched = true;
+      _results = item.result.results;
+      _summary = item.result.summary;
+      _logs.clear();
+      _logs.add('Loaded from history');
+    });
   }
 
   void _openBook(AiMatchedResult match) {
@@ -94,14 +112,12 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
       book: match.searchResult.book,
       currentPage: match.searchResult.pageNumber,
       textToHighlight: match.term,
-      // For single AI words (prefix), use anywhere to guarantee partial substring highlighting ignoring boundaries
       queryMode: match.queryMode == QueryMode.prefix
           ? QueryMode.anywhere
           : match.queryMode,
     );
 
     if (Mobile.isPhone(context)) {
-      Navigator.pop(context); // Close bottom sheet
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
     }
@@ -145,89 +161,69 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
-        minHeight: 200,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('AI Search'),
+        actions: [
+          if (_isSearching)
+            TextButton.icon(
+              icon: const Icon(Icons.stop, size: 20),
+              label: const Text('Cancel'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              onPressed: () {
+                _aiSearchService?.cancel();
+                setState(() {
+                  _logs.add('Cancelling search...');
+                });
+              },
+            ),
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.speed),
+              tooltip: 'Check API Rate Limit',
+              onPressed: () async {
+                final url = Uri.parse('https://aistudio.google.com/rate-limit/');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.copy),
+              tooltip: 'Copy thinking and results',
+              onPressed: _copyToClipboard,
+            ),
+          if (!_isSearching && !_hasSearched && _historyManager.history.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep),
+              tooltip: 'Clear History',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Clear AI History?'),
+                    content: const Text('Are you sure you want to delete all saved AI searches?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Clear')),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await _historyManager.deleteAll();
+                  setState(() {});
+                }
+              },
+            ),
+        ],
       ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      body: Column(
         children: [
-          // Drag handle
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(Icons.auto_awesome,
-                    color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'AI Search',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (_isSearching)
-                  TextButton.icon(
-                    icon: const Icon(Icons.stop, size: 20),
-                    label: const Text('Cancel'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    onPressed: () {
-                      _aiSearchService?.cancel();
-                      setState(() {
-                        _logs.add('Cancelling search...');
-                      });
-                    },
-                  ),
-
-                if (!_isSearching)
-                  IconButton(
-                    icon: const Icon(Icons.speed),
-                    tooltip: 'Check API Rate Limit',
-                    onPressed: () async {
-                      final url = Uri.parse('https://aistudio.google.com/rate-limit/');
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                  ),
-                if (!_isSearching)
-                  IconButton(
-                    icon: const Icon(Icons.copy),
-                    tooltip: 'Copy thinking and results',
-                    onPressed: _copyToClipboard,
-                  ),
-                if (!_isSearching)
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-              ],
-            ),
-          ),
-
-          if (Prefs.geminiDirectApiKey.isEmpty) ...[
+          if (Prefs.geminiDirectApiKey.isEmpty)
             Expanded(
               child: Center(
                 child: Padding(
@@ -235,8 +231,7 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.vpn_key_off,
-                          size: 48, color: Colors.grey),
+                      const Icon(Icons.vpn_key_off, size: 48, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text(
                         'You need to get a free key and put it in the AI settings to use AI Search.',
@@ -254,7 +249,6 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                         icon: const Icon(Icons.settings),
                         label: const Text('TPR AI Settings'),
                         onPressed: () {
-                          Navigator.pop(context); // Close bottom sheet
                           Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -266,10 +260,10 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                 ),
               ),
             )
-          ] else ...[
+          else ...[
             // Search Input
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -309,42 +303,42 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _queryController,
-                      maxLines: 4,
-                      minLines: 1,
-                      textInputAction: TextInputAction.search,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Ask in English (e.g. When did the Buddha teach dullabho?)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                      ),
-                      onSubmitted: (_) {
-                        if (!_isSearching) _runAiSearch();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    icon: const Icon(Icons.send),
-                    onPressed: _isSearching
-                        ? null
-                        : () {
-                            FocusScope.of(context).unfocus();
-                            _runAiSearch();
+                      Expanded(
+                        child: TextField(
+                          controller: _queryController,
+                          maxLines: 4,
+                          minLines: 1,
+                          textInputAction: TextInputAction.search,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Ask in English (e.g. When did the Buddha teach dullabho?)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                          ),
+                          onSubmitted: (_) {
+                            if (!_isSearching) _runAiSearch();
                           },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        icon: const Icon(Icons.send),
+                        onPressed: _isSearching
+                            ? null
+                            : () {
+                                FocusScope.of(context).unfocus();
+                                _runAiSearch();
+                              },
+                      ),
+                    ],
                   ),
                 ],
               ),
-             ],
             ),
-           ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // Status / Progress
             if (_isSearching)
@@ -471,33 +465,29 @@ class _AiSearchBottomSheetState extends State<AiSearchBottomSheet> {
               ),
 
             // AI Search History
-            if (!_isSearching &&
-                !_hasSearched &&
-                Prefs.aiSearchHistory.isNotEmpty)
+            if (!_isSearching && !_hasSearched && _historyManager.history.isNotEmpty)
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.only(bottom: 24),
-                  itemCount: Prefs.aiSearchHistory.length,
+                  itemCount: _historyManager.history.length,
                   itemBuilder: (context, index) {
-                    final histQuery = Prefs.aiSearchHistory[index];
+                    final item = _historyManager.history[index];
                     return ListTile(
                       leading: const Icon(Icons.history),
-                      title: Text(histQuery,
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                      title: Text(item.query, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(
+                        '${item.result.results.length} results • ${item.timestamp.toLocal().toString().split('.')[0]}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          setState(() {
-                            final h = Prefs.aiSearchHistory;
-                            h.removeAt(index);
-                            Prefs.aiSearchHistory = h;
-                          });
+                        onPressed: () async {
+                          await _historyManager.delete(item.query);
+                          setState(() {});
                         },
                       ),
                       onTap: () {
-                        _queryController.text = histQuery;
-                        FocusScope.of(context).unfocus();
-                        _runAiSearch();
+                        _loadFromHistory(item);
                       },
                     );
                   },
