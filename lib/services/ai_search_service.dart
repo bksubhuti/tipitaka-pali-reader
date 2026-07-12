@@ -279,7 +279,8 @@ Respond ONLY with a JSON object in this exact format:
   }) async {
     final buffer = StringBuffer();
     int wordCount = 0;
-    const maxWords = 1000;
+    // each FTS result is 25 but we have prompts too. originally 1000 maxwords for 20 fixed results numbers
+    int maxWords = Prefs.aiMaxResults * 50;
 
     for (int i = 0; i < newResults.length && wordCount < maxWords; i++) {
       final r = newResults[i].searchResult;
@@ -312,7 +313,6 @@ ${buffer.toString().isEmpty ? "(No results found for the last queries)" : buffer
 
 Task:
 1. Review the new results. Keep EVERY result that accurately relates to the user's question. 
-   CRITICAL: Do not just pick the single "best" one. If there are 5 different instances of the event (or related events), select ALL 5 indices. Build a comprehensive collection.
 2. Formulate a step-by-step thought process. Explicitly mention what you found, what you discarded, and why.
 3. If there are still other known canonical events related to the prompt that you haven't found yet, set is_fully_answered to false and suggest new Pāḷi queries.
 
@@ -411,7 +411,8 @@ Respond ONLY with JSON (no markdown):
     final heavyPref = Prefs.aiHeavyModel;
     final lightPref = Prefs.aiLightModel;
 
-    final lightModel = lightPref.isNotEmpty ? lightPref : 'gemini-3.1-flash-lite';
+    final lightModel =
+        lightPref.isNotEmpty ? lightPref : 'gemini-3.1-flash-lite';
     final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-3.5-flash';
 
     if (!isHeavy) {

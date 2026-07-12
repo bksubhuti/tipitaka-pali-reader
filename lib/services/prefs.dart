@@ -168,8 +168,8 @@ Translate sentence by sentence.
 Use <b> for Pāḷi line and <br> to separate lines. Normal text for English. Do not translate common terms like Nibbāna, mettā, or dukkha.
 Output only HTML. Do not explain.
 """;
-const String defaultAiHeavyModel = "gemini-2.5-pro";
-const String defaultAiLightModel = "gemini-1.5-flash";
+const String defaultAiHeavyModel = "";
+const String defaultAiLightModel = "";
 
 List<String> defaultSelectedMainCategoryFilters = [
   "mula",
