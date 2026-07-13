@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:ms_material_color/ms_material_color.dart';
 import 'package:provider/provider.dart';
 import 'package:tabbed_view/tabbed_view.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
@@ -34,8 +35,10 @@ class _ReaderContainerState extends State<ReaderContainer> {
   final Map<String, TabData> _tabDataCache = {};
 
   Future<bool> _hasTranslationExtension() async {
-    final hasEnglish = await File('${Prefs.databaseDirPath}/full_english.sql').exists();
-    final hasVietnamese = await File('${Prefs.databaseDirPath}/full_vietnamese.sql').exists();
+    final hasEnglish =
+        await File('${Prefs.databaseDirPath}/full_english.sql').exists();
+    final hasVietnamese =
+        await File('${Prefs.databaseDirPath}/full_vietnamese.sql').exists();
     return hasEnglish || hasVietnamese;
   }
 
@@ -165,7 +168,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
             children: [
               Text(
                 PaliScript.getScriptOf(
-                    script: context.watch<ScriptLanguageProvider>().currentScript,
+                    script:
+                        context.watch<ScriptLanguageProvider>().currentScript,
                     romanText:
                         "Sabbapāpassa akaraṇaṃ\nKusalassa upasampadā\nSacittapariyodāpanaṃ\nEtaṃ buddhānasāsanaṃ"),
                 textAlign: TextAlign.center,
@@ -184,29 +188,36 @@ class _ReaderContainerState extends State<ReaderContainer> {
                       padding: const EdgeInsets.only(top: 24.0),
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.g_translate),
-                        label: Text(AppLocalizations.of(context)!.installEnglishTranslations),
+                        label: Text(AppLocalizations.of(context)!
+                            .installEnglishTranslations),
                         onPressed: () {
                           showDialog(
                             context: context,
                             builder: (BuildContext dialogContext) {
                               return AlertDialog(
-                                title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
-                                content: Text(AppLocalizations.of(context)!.installTranslationInstructions),
+                                title: Text(AppLocalizations.of(context)!
+                                    .installEnglishTranslations),
+                                content: Text(AppLocalizations.of(context)!
+                                    .installTranslationInstructions),
                                 actions: [
                                   TextButton(
                                     onPressed: () {
                                       Navigator.of(dialogContext).pop();
-                                      Navigator.of(context).push(
+                                      Navigator.of(context)
+                                          .push(
                                         MaterialPageRoute(
-                                          builder: (context) => const DownloadView(),
+                                          builder: (context) =>
+                                              const DownloadView(),
                                         ),
-                                      ).then((_) {
+                                      )
+                                          .then((_) {
                                         if (mounted) {
                                           setState(() {});
                                         }
                                       });
                                     },
-                                    child: Text(AppLocalizations.of(context)!.ok),
+                                    child:
+                                        Text(AppLocalizations.of(context)!.ok),
                                   ),
                                 ],
                               );
@@ -219,6 +230,21 @@ class _ReaderContainerState extends State<ReaderContainer> {
                   return const SizedBox.shrink();
                 },
               ),
+              if (Prefs.geminiDirectApiKey.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.video_library),
+                    label: Text(AppLocalizations.of(context)!.howToGetApiKey),
+                    onPressed: () {
+                      launchUrl(
+                        Uri.parse(
+                            'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                  ),
+                ),
             ],
           ),
         ),
@@ -239,7 +265,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
       ..border = const Border(bottom: BorderSide(color: Colors.grey))
       ..initialGap = 0
       ..buttonsAreaDecoration = null
-      ..hoverButtonBackground = BoxDecoration(color: primaryColor.withValues(alpha: 0.2))
+      ..hoverButtonBackground =
+          BoxDecoration(color: primaryColor.withValues(alpha: 0.2))
       ..normalButtonColor = Theme.of(context).colorScheme.onSurface
       ..hoverButtonColor = primaryColor;
 
