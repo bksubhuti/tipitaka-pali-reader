@@ -35,11 +35,52 @@ class _AiSearchPageState extends State<AiSearchPage> {
 
   AiSearchService? _aiSearchService;
 
+  late final FocusNode _focusNode;
+
   @override
   void initState() {
     super.initState();
     _queryController = TextEditingController(text: widget.query);
+    _focusNode = FocusNode(
+      onKeyEvent: (FocusNode node, KeyEvent event) {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.enter || 
+              event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+            
+            if (HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isShiftPressed) {
+              final text = _queryController.text;
+              final selection = _queryController.selection;
+              
+              if (selection.start == -1 || selection.end == -1) {
+                _queryController.text = text + '\n';
+                _queryController.selection = TextSelection.collapsed(offset: _queryController.text.length);
+              } else {
+                final newText = text.replaceRange(selection.start, selection.end, '\n');
+                _queryController.value = TextEditingValue(
+                  text: newText,
+                  selection: TextSelection.collapsed(offset: selection.start + 1),
+                );
+              }
+              return KeyEventResult.handled;
+            } else {
+              if (!_isSearching) {
+                _runAiSearch();
+              }
+              return KeyEventResult.handled;
+            }
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+    );
     _initHistory();
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
   
   Future<void> _initHistory() async {
@@ -305,6 +346,7 @@ class _AiSearchPageState extends State<AiSearchPage> {
                     children: [
                       Expanded(
                         child: TextField(
+                          focusNode: _focusNode,
                           controller: _queryController,
                           maxLines: 4,
                           minLines: 1,
