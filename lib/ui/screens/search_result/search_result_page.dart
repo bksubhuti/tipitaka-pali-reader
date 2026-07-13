@@ -28,11 +28,11 @@ class SearchResultPage extends StatelessWidget {
               create: (context) => SearchFilterController(context: context)),
           ChangeNotifierProxyProvider<SearchFilterController,
                   SearchResultController>(
-              create: (_) => SearchResultController(
+              create: (ctx) => SearchResultController(
                   searchWord: searchWord,
                   queryMode: queryMode,
                   wordDistance: wordDistance,
-                  filterController: SearchFilterController(context: context))
+                  filterController: ctx.read<SearchFilterController>())
                 ..init(),
               update: (_, filterController, resultConroller) {
                 resultConroller!.onChangeFilter(filterController);

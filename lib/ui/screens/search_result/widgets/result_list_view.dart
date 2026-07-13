@@ -5,6 +5,7 @@ import '../../../../business_logic/models/search_result.dart';
 import '../../home/widgets/search_result_list_tile.dart';
 import '../controller/search_result_provider.dart';
 import 'search_filter_view.dart';
+import 'post_search_book_filter_view.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/ui/screens/reader/intents.dart';
@@ -62,11 +63,26 @@ class ResultListView extends StatelessWidget implements Escape {
                     child: Builder(builder: (context) {
                       return Padding(
                         padding: const EdgeInsets.all(45.0),
-                        child: FloatingActionButton.extended(
-                          onPressed: () => Scaffold.of(context).showBottomSheet(
-                              (context) => const SearchFilterView()),
-                          label: Text(AppLocalizations.of(context)!.filter),
-                          icon: const Icon(Icons.filter_list),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            FloatingActionButton.extended(
+                              heroTag: "book_filter_btn",
+                              onPressed: () => Scaffold.of(context).showBottomSheet(
+                                  (context) => const PostSearchBookFilterView()),
+                              label: const Text('Book Filter'),
+                              icon: const Icon(Icons.book),
+                            ),
+                            const SizedBox(height: 16),
+                            FloatingActionButton.extended(
+                              heroTag: "category_filter_btn",
+                              onPressed: () => Scaffold.of(context).showBottomSheet(
+                                  (context) => const SearchFilterView()),
+                              label: Text(AppLocalizations.of(context)!.filter),
+                              icon: const Icon(Icons.filter_list),
+                            ),
+                          ],
                         ),
                       );
                     }))

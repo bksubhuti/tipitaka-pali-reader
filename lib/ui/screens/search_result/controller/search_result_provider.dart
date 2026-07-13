@@ -40,6 +40,8 @@ class SearchResultController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    // Set up post search books
+    filterController.updatePostSearchBooks(_allResults);
     // filtering results
     _filterdResults = _doFilter(filterController);
     // updating state
@@ -91,8 +93,18 @@ class SearchResultController extends ChangeNotifier {
       secondFilterdList.addAll(firstFilterdList);
     }
 
+    // Filter by post-search selected books
+    final List<SearchResult> thirdFilterdList = [];
+    if (filterController.postSearchBooks.isNotEmpty) {
+      thirdFilterdList.addAll(secondFilterdList.where((searchResult) {
+        return filterController.selectedPostSearchBookIds.contains(searchResult.book.id);
+      }));
+    } else {
+      thirdFilterdList.addAll(secondFilterdList);
+    }
+
     // Return the list exactly as-is. No .sort() needed!
-    return secondFilterdList;
+    return thirdFilterdList;
   }
 
   int getBookCount() {

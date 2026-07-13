@@ -4,11 +4,19 @@ import 'package:provider/provider.dart';
 import '../../../../services/prefs.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
+import '../../../../business_logic/models/book.dart';
+import '../../../../business_logic/models/search_result.dart';
 
 class SearchFilterController extends ChangeNotifier {
   final BuildContext context;
   final Map<String, String> _mainCategoryFilters = {};
   final Map<String, String> _subCategoryFilters = {};
+
+  List<Book> _postSearchBooks = [];
+  Set<String> _selectedPostSearchBookIds = {};
+
+  List<Book> get postSearchBooks => _postSearchBooks;
+  Set<String> get selectedPostSearchBookIds => _selectedPostSearchBookIds;
 
   SearchFilterController({required this.context}) {
     _subCategoryFilters['_vi'] = localScript(context, 'Vinaya');
@@ -75,6 +83,39 @@ class SearchFilterController extends ChangeNotifier {
     Prefs.selectedMainCategoryFilters = ['mula'];
     // Prefs.selectedMainCategoryFilters.add('mula');
     Prefs.selectedSubCategoryFilters = [];
+    notifyListeners();
+  }
+
+  void updatePostSearchBooks(List<SearchResult> results) {
+    _postSearchBooks.clear();
+    _selectedPostSearchBookIds.clear();
+    final uniqueBooks = <String, Book>{};
+    for (var result in results) {
+      if (!uniqueBooks.containsKey(result.book.id)) {
+        uniqueBooks[result.book.id] = result.book;
+        _selectedPostSearchBookIds.add(result.book.id);
+      }
+    }
+    _postSearchBooks = uniqueBooks.values.toList();
+    // Do not notifyListeners() here, as this is called during initialization
+  }
+
+  void onPostSearchBookChange(String bookId, bool isSelected) {
+    if (isSelected) {
+      _selectedPostSearchBookIds.add(bookId);
+    } else {
+      _selectedPostSearchBookIds.remove(bookId);
+    }
+    notifyListeners();
+  }
+
+  void onSelectAllPostSearchBooks() {
+    _selectedPostSearchBookIds = _postSearchBooks.map((b) => b.id).toSet();
+    notifyListeners();
+  }
+
+  void onSelectNonePostSearchBooks() {
+    _selectedPostSearchBookIds.clear();
     notifyListeners();
   }
 }
