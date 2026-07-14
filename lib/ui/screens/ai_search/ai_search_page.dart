@@ -44,21 +44,24 @@ class _AiSearchPageState extends State<AiSearchPage> {
     _focusNode = FocusNode(
       onKeyEvent: (FocusNode node, KeyEvent event) {
         if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.enter || 
+          if (event.logicalKey == LogicalKeyboardKey.enter ||
               event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-            
-            if (HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isShiftPressed) {
+            if (HardwareKeyboard.instance.isControlPressed ||
+                HardwareKeyboard.instance.isShiftPressed) {
               final text = _queryController.text;
               final selection = _queryController.selection;
-              
+
               if (selection.start == -1 || selection.end == -1) {
                 _queryController.text = text + '\n';
-                _queryController.selection = TextSelection.collapsed(offset: _queryController.text.length);
+                _queryController.selection = TextSelection.collapsed(
+                    offset: _queryController.text.length);
               } else {
-                final newText = text.replaceRange(selection.start, selection.end, '\n');
+                final newText =
+                    text.replaceRange(selection.start, selection.end, '\n');
                 _queryController.value = TextEditingValue(
                   text: newText,
-                  selection: TextSelection.collapsed(offset: selection.start + 1),
+                  selection:
+                      TextSelection.collapsed(offset: selection.start + 1),
                 );
               }
               return KeyEventResult.handled;
@@ -82,12 +85,13 @@ class _AiSearchPageState extends State<AiSearchPage> {
     _focusNode.dispose();
     super.dispose();
   }
-  
+
   Future<void> _initHistory() async {
     await _historyManager.init();
     if (mounted) {
       setState(() {});
-      if (widget.query.trim().isNotEmpty && Prefs.geminiDirectApiKey.isNotEmpty) {
+      if (widget.query.trim().isNotEmpty &&
+          Prefs.geminiDirectApiKey.isNotEmpty) {
         _runAiSearch();
       }
     }
@@ -116,7 +120,8 @@ class _AiSearchPageState extends State<AiSearchPage> {
       },
     );
 
-    final result = await _aiSearchService!.search(query, maxResults: _maxResults.toInt());
+    final result =
+        await _aiSearchService!.search(query, maxResults: _maxResults.toInt());
 
     if (mounted) {
       setState(() {
@@ -125,7 +130,7 @@ class _AiSearchPageState extends State<AiSearchPage> {
         _summary = result.summary;
         _logs.add('Search complete');
       });
-      
+
       // Save to history after successful search
       if (result.results.isNotEmpty || result.summary.isNotEmpty) {
         await _historyManager.add(query, result);
@@ -226,7 +231,8 @@ class _AiSearchPageState extends State<AiSearchPage> {
               icon: const Icon(Icons.speed),
               tooltip: 'Check API Rate Limit',
               onPressed: () async {
-                final url = Uri.parse('https://aistudio.google.com/rate-limit/');
+                final url =
+                    Uri.parse('https://aistudio.google.com/rate-limit/');
                 if (await canLaunchUrl(url)) {
                   await launchUrl(url, mode: LaunchMode.externalApplication);
                 }
@@ -238,7 +244,9 @@ class _AiSearchPageState extends State<AiSearchPage> {
               tooltip: 'Copy thinking and results',
               onPressed: _copyToClipboard,
             ),
-          if (!_isSearching && !_hasSearched && _historyManager.history.isNotEmpty)
+          if (!_isSearching &&
+              !_hasSearched &&
+              _historyManager.history.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
               tooltip: 'Clear History',
@@ -247,10 +255,15 @@ class _AiSearchPageState extends State<AiSearchPage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text('Clear AI History?'),
-                    content: const Text('Are you sure you want to delete all saved AI searches?'),
+                    content: const Text(
+                        'Are you sure you want to delete all saved AI searches?'),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                      TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Clear')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Clear')),
                     ],
                   ),
                 );
@@ -272,7 +285,8 @@ class _AiSearchPageState extends State<AiSearchPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.vpn_key_off, size: 48, color: Colors.grey),
+                      const Icon(Icons.vpn_key_off,
+                          size: 48, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text(
                         'You need to get a free key and put it in the AI settings to use AI Search.',
@@ -507,7 +521,9 @@ class _AiSearchPageState extends State<AiSearchPage> {
               ),
 
             // AI Search History
-            if (!_isSearching && !_hasSearched && _historyManager.history.isNotEmpty)
+            if (!_isSearching &&
+                !_hasSearched &&
+                _historyManager.history.isNotEmpty)
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.only(bottom: 24),
@@ -516,7 +532,8 @@ class _AiSearchPageState extends State<AiSearchPage> {
                     final item = _historyManager.history[index];
                     return ListTile(
                       leading: const Icon(Icons.history),
-                      title: Text(item.query, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      title: Text(item.query,
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
                       subtitle: Text(
                         '${item.result.results.length} results • ${item.timestamp.toLocal().toString().split('.')[0]}',
                         style: Theme.of(context).textTheme.bodySmall,
