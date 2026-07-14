@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
 
 import 'package:tipitaka_pali/services/ai_search_service.dart';
 import 'package:tipitaka_pali/services/ai_search_history_manager.dart';
@@ -304,10 +305,12 @@ class _AiSearchPageState extends State<AiSearchPage> {
                         icon: const Icon(Icons.settings),
                         label: const Text('TPR AI Settings'),
                         onPressed: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const SettingPage()));
+                          // Pop the AI search page (back to regular search in the panel)
+                          Navigator.of(context).pop();
+                          // Switch the sidebar to the Settings tab
+                          context
+                              .read<NavigationProvider>()
+                              .onClickedNavigationItem(5);
                         },
                       ),
                     ],
