@@ -91,6 +91,7 @@ const String paliTextColorPref = "paliTextColor";
 const String translationColorPref = "translationColor";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
+const String sangahaFixedPref = "sangahaFixed";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -161,6 +162,7 @@ const TextDisplayMode defaultTextDisplayMode =
     TextDisplayMode.paliAndTranslation; // Default to Pali & Translation
 const bool defaultIsPaliBold =
     false; // Defaulting to true to match current behavior
+const bool defaultSangahaFixed = false;
 
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
@@ -537,6 +539,11 @@ class Prefs {
       instance.getBool(isPaliBoldPref) ?? defaultIsPaliBold;
 
   static set isPaliBold(bool value) => instance.setBool(isPaliBoldPref, value);
+
+  static bool get sangahaFixed =>
+      instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;
+  static set sangahaFixed(bool value) =>
+      instance.setBool(sangahaFixedPref, value);
 
   // We return nullable double? for X and Y.
   // If null, the window manager will know to center the window default.

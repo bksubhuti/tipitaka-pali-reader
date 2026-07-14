@@ -337,18 +337,20 @@ class _AppState extends State<App> with WindowListener {
                 Locale('th', ''), // Italian, it
               ],
               home: FutureBuilder(
-                future: fetchMessageIfNeeded(),
+                future: generalStartupChecks(),
                 builder:
                     (BuildContext context, AsyncSnapshot<TprMessage> snapshot) {
                   //simulateFileOpen(context);
 
                   if (snapshot.connectionState == ConnectionState.done) {
-                    if (snapshot.hasData &&
-                        snapshot.data!.generalMessage.isNotEmpty) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (snapshot.hasData &&
+                          snapshot.data!.generalMessage.isNotEmpty) {
                         showWhatsNewDialog(context, snapshot.data!);
-                      });
-                    }
+                      }
+                      // Check if Sangaha DB fix is needed
+                      _promptAndFixSangaha(context);
+                    });
                   }
 
                   return SplashScreen();
@@ -357,6 +359,106 @@ class _AppState extends State<App> with WindowListener {
             );
           },
         ));
+  }
+
+  /// Checks if the Abhidhammatthasangaha fix is needed and prompts the user.
+  Future<void> _promptAndFixSangaha(BuildContext context) async {
+    final needsFix = await checkSangahaFixNeeded();
+    if (!needsFix) return;
+    if (!context.mounted) return;
+
+    // Ask the user for confirmation
+    final shouldFix = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Database Fix Required'),
+        content: const Text(
+          'The Abhidhammatthasangaha (eṭipitaka extension) has extra pages '
+          'that need to be removed. This will also rebuild the search index '
+          'and may take a minute.\n\nProceed with the fix?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Fix Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldFix != true) return;
+    if (!context.mounted) return;
+
+    // Show a progress dialog while running the fix
+    await _showSangahaProgressDialog(context);
+  }
+
+  /// Runs the actual DB fix inside a non-dismissible progress dialog.
+  Future<void> _showSangahaProgressDialog(BuildContext context) async {
+    final progressNotifier = ValueNotifier<String>('Starting fix…');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Fixing Database…'),
+          content: ValueListenableBuilder<String>(
+            valueListenable: progressNotifier,
+            builder: (_, msg, __) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(msg, textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final db = await DatabaseHelper().database;
+
+      // 1. Delete extra pages
+      progressNotifier.value = 'Removing extra pages…';
+      await db.rawDelete(
+        "DELETE FROM pages WHERE bookid = 'annya_bi_05' AND page > 68",
+      );
+      debugPrint('SangahaFix: deleted extra pages from annya_bi_05');
+
+      // 2. Drop the old FTS table so it can be rebuilt cleanly
+      progressNotifier.value = 'Dropping old search index…';
+      await db.execute('DROP TABLE IF EXISTS fts_pages;');
+
+      // 3. Rebuild FTS index (the long-running part)
+      await DatabaseHelper().buildFts((String msg) {
+        progressNotifier.value = msg;
+      });
+
+      // 4. Rebuild content indexes
+      progressNotifier.value = 'Rebuilding content indexes…';
+      await DatabaseHelper().buildContentIndexes();
+
+      // 5. Mark as done
+      Prefs.sangahaFixed = true;
+      debugPrint('SangahaFix: complete');
+    } catch (e) {
+      debugPrint('SangahaFix: error during fix — $e');
+    }
+
+    // Close the progress dialog
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+    progressNotifier.dispose();
   }
 
   Future<void> simulateFileOpen(BuildContext context) async {

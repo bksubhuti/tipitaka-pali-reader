@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/business_logic/models/tpr_message.dart';
+import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/get_database_status.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:http/http.dart' as http;
@@ -10,7 +11,28 @@ Future<bool> _isInternetAvailable() async {
   return await InternetConnection().hasInternetAccess;
 }
 
-Future<TprMessage> fetchMessageIfNeeded() async {
+/// Checks whether the Abhidhammatthasangaha (annya_bi_05) DB fix is needed.
+/// Returns true if extra pages exist and need to be removed.
+/// Does NOT perform the fix — the caller should prompt the user first.
+Future<bool> checkSangahaFixNeeded() async {
+  if (Prefs.sangahaFixed) return false;
+
+  try {
+    final db = await DatabaseHelper().database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as cnt FROM pages WHERE bookid = 'annya_bi_05' AND page = 69",
+    );
+    final count = result.first['cnt'] as int;
+    return count > 0;
+  } catch (e) {
+    debugPrint('SangahaFix: error checking — $e');
+    return false;
+  }
+}
+
+/// Runs all one-time startup checks and fetches the daily message.
+Future<TprMessage> generalStartupChecks() async {
+
   DateTime currentDate = DateTime.now();
   String formattedCurrentDate =
       "${currentDate.year}-${currentDate.month.toString().padLeft(2, '0')}-${currentDate.day.toString().padLeft(2, '0')}";
@@ -80,3 +102,4 @@ Future<TprMessage> fetchMessageIfNeeded() async {
     return TprMessage();
   }
 }
+
