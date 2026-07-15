@@ -187,21 +187,30 @@ class DatabaseHelper {
     debugPrint('saving wordlist time: ${after.difference(before).inSeconds}');
   }
 
-  Future<bool> buildBothIndexes() async {
-    await buildContentIndexes();
-    await buildDictionaryIndexes();
+  Future<bool> buildBothIndexes(
+      [Function(String)? updateMessageCallback]) async {
+    await buildContentIndexes(updateMessageCallback);
+    await buildDictionaryIndexes(updateMessageCallback);
     return true;
   }
 
-  Future<bool> buildContentIndexes() async {
+  Future<bool> buildContentIndexes(
+      [Function(String)? updateMessageCallback]) async {
     final dbInstance = await database;
 
+    if (updateMessageCallback != null) {
+      updateMessageCallback('Dropping old content indexes...');
+    }
     // Drop indexes if they exist
     await dbInstance.execute('DROP INDEX IF EXISTS "page_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "paragraph_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "paragraph_mapping_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "toc_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "word_index";');
+
+    if (updateMessageCallback != null) {
+      updateMessageCallback('Building content indexes...');
+    }
     // building Index
     await dbInstance.execute(
       'CREATE INDEX IF NOT EXISTS page_index ON pages ( bookid );',
@@ -222,9 +231,13 @@ class DatabaseHelper {
     return true;
   }
 
-  Future<bool> buildDictionaryIndexes() async {
+  Future<bool> buildDictionaryIndexes(
+      [Function(String)? updateMessageCallback]) async {
     final dbInstance = await database;
 
+    if (updateMessageCallback != null) {
+      updateMessageCallback('Dropping old dictionary indexes...');
+    }
     // Drop indexes if they exist
     await dbInstance.execute('DROP INDEX IF EXISTS "dictionary_index";');
     await dbInstance.execute(
@@ -235,6 +248,10 @@ class DatabaseHelper {
     await dbInstance.execute('DROP INDEX IF EXISTS "dpd_grammar_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "dpr_stem_index";');
     await dbInstance.execute('DROP INDEX IF EXISTS "dpd_word_split_index";');
+
+    if (updateMessageCallback != null) {
+      updateMessageCallback('Building dictionary indexes...');
+    }
     // building Index
     await dbInstance.execute(
       'CREATE INDEX IF NOT EXISTS "dictionary_index" ON "dictionary" ("word");',
@@ -267,7 +284,7 @@ class DatabaseHelper {
   Future<bool> buildFts(updateMessageCallback) async {
     final dbInstance = await database;
     await dbInstance.execute(
-      '''CREATE VIRTUAL TABLE fts_pages USING FTS5(
+      '''CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING FTS5(
     id UNINDEXED, 
     bookid UNINDEXED, 
     page UNINDEXED, 
@@ -281,15 +298,20 @@ class DatabaseHelper {
     final mapsOfCount = await dbInstance.rawQuery(
       'SELECT count(*) cnt FROM pages',
     );
-    final int count = mapsOfCount.first['cnt'] as int;
-    int start = 1;
+    final int totalRows = (mapsOfCount.first['cnt'] as int?) ?? 0;
+    int lastId = 0;
     int batchCount = 500;
-    while (start < count) {
+    int rowsProcessed = 0;
+
+    while (rowsProcessed < totalRows) {
       final maps = await dbInstance.rawQuery('''
           SELECT id, bookid, page, content, paranum FROM pages
-          WHERE id BETWEEN $start AND ${start + batchCount}
-          ORDER BY page
+          WHERE id > $lastId
+          ORDER BY id ASC
+          LIMIT $batchCount
           ''');
+
+      if (maps.isEmpty) break; // safeguard
 
       Batch batch = dbInstance.batch();
       for (var element in maps) {
@@ -302,15 +324,20 @@ class DatabaseHelper {
           'paranum': element['paranum'] as String,
         };
         batch.insert('fts_pages', value);
+        lastId = element['id'] as int;
       }
       await batch.commit(noResult: true);
-      start += batchCount;
-      debugPrint('finished: $start rows populating');
-      int percent = ((start / count) * 100).round();
 
-      updateMessageCallback('Finished populating: $percent% of data');
+      rowsProcessed += maps.length;
+      debugPrint('finished: $rowsProcessed rows populating');
+
+      int percent = ((rowsProcessed / totalRows) * 100).round();
+      if (percent > 100) percent = 100;
+
+      if (updateMessageCallback != null) {
+        updateMessageCallback('Finished populating: $percent% of data');
+      }
     }
-
     return true;
   }
 
