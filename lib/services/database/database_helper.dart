@@ -16,11 +16,24 @@ class DatabaseHelper {
   factory DatabaseHelper() => _instance;
 
   static Database? _database;
+  static Completer<Database>? _dbCompleter;
+
   Future<Database> get database async {
     if (_database != null) return _database!;
-    // lazily instantiate the db the first time it is accessed
-    _database = await _initDatabase();
-    return _database!;
+
+    if (_dbCompleter == null) {
+      _dbCompleter = Completer<Database>();
+      try {
+        final db = await _initDatabase();
+        _database = db;
+        _dbCompleter!.complete(db);
+      } catch (e) {
+        _dbCompleter!.completeError(e);
+        _dbCompleter = null;
+        rethrow;
+      }
+    }
+    return _dbCompleter!.future;
   }
 
   // Open Assets Database
@@ -46,21 +59,30 @@ class DatabaseHelper {
     // SILENT SCHEMA PATCH: ADD SORT_ORDER COLUMNS
     // This runs every time the DB opens and guarantees
     // the columns exist before the UI ever queries them.
+    // Skip if tables don't exist yet (fresh install, DB not copied yet).
     // ==========================================
-    try {
-      await db.execute(
-          "ALTER TABLE books ADD COLUMN sort_order INTEGER DEFAULT 0;");
-      debugPrint("SUCCESS: Added sort_order to books.");
-    } catch (_) {
-      // Column exists, ignore
+    final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('books', 'category')");
+    final tableNames = tables.map((r) => r['name'] as String).toSet();
+
+    if (tableNames.contains('books')) {
+      try {
+        await db.execute(
+            "ALTER TABLE books ADD COLUMN sort_order INTEGER DEFAULT 0;");
+        debugPrint("SUCCESS: Added sort_order to books.");
+      } catch (e) {
+        debugPrint("SILENT PATCH for books (already exists): $e");
+      }
     }
 
-    try {
-      await db.execute(
-          "ALTER TABLE category ADD COLUMN sort_order INTEGER DEFAULT 0;");
-      debugPrint("SUCCESS: Added sort_order to category.");
-    } catch (_) {
-      // Column exists, ignore
+    if (tableNames.contains('category')) {
+      try {
+        await db.execute(
+            "ALTER TABLE category ADD COLUMN sort_order INTEGER DEFAULT 0;");
+        debugPrint("SUCCESS: Added sort_order to category.");
+      } catch (e) {
+        debugPrint("SILENT PATCH for category (already exists): $e");
+      }
     }
     // ==========================================
     return db;
@@ -69,6 +91,7 @@ class DatabaseHelper {
   Future close() async {
     await _database?.close();
     _database = null;
+    _dbCompleter = null;
   }
 
   Future<List<Map<String, Object?>>> backup({required String tableName}) async {

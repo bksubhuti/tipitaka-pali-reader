@@ -85,8 +85,8 @@ class InitialSetupService {
     }
 
     // 3. PREPARE DESTINATION
-    // We must delete the file at the NEW location to ensure we copy a clean asset.
-    // (This does not touch the Old Source file)
+    // We must close any active connections and delete the file at the NEW location.
+    await DatabaseHelper().close();
     await deleteDatabase(newDbPath);
 
     // Ensure folder exists
@@ -96,6 +96,10 @@ class InitialSetupService {
 
     // 4. COPY ASSETS
     await _copyFromAssets(newDbPath);
+
+    // 4b. FORCE RE-INIT: Discard any stale DB handle that may have been
+    // opened during the copy (e.g. by the Sangaha check running in parallel).
+    await DatabaseHelper().close();
 
     // 5. UPDATE PREFS
     // Now that the file is in the new place, update Prefs immediately.
