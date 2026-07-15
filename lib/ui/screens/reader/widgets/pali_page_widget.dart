@@ -355,6 +355,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                   );
                 }
 
+                // Hide empty anchor tags that are causing red 'X' rendering errors
+                if (element.localName == 'a' &&
+                    element.attributes.containsKey('name') &&
+                    !element.attributes.containsKey('href') &&
+                    element.text.trim().isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
                 return null;
               },
               onTapUrl: (word) {
@@ -752,7 +760,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     }
 
     // Determine the query mode from the controller
-    final queryMode = Provider.of<ReaderViewController>(context, listen: false).queryMode;
+    final queryMode =
+        Provider.of<ReaderViewController>(context, listen: false).queryMode;
 
     // Convert search term to current script
     final scriptTextToHighlight = PaliScript.getScriptOf(
@@ -764,20 +773,29 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     // Each word is a prefix — highlight any word starting with it
     // ==============================
     if (queryMode == QueryMode.prefix || queryMode == QueryMode.distance) {
-      final words = scriptTextToHighlight.trim().split(' ').where((w) => w.isNotEmpty).toList();
+      final words = scriptTextToHighlight
+          .trim()
+          .split(' ')
+          .where((w) => w.isNotEmpty)
+          .toList();
       bool firstMatch = true;
       for (final word in words) {
         // Match the prefix word followed by any word characters (covers kamma -> kammassa, etc.)
         // Use lookahead/lookbehind for word boundaries: whitespace, quotes (including smart quotes), dashes, angle brackets, start/end
         final escapedWord = RegExp.escape(word);
         final pattern = RegExp(
-          r'(?<=[\s",\u00a0>“”‘’\-\–\—]|^)' + escapedWord + r'[^\s",<“”‘’\-\–\—]*',
+          r'(?<=[\s",\u00a0>“”‘’\-\–\—]|^)' +
+              escapedWord +
+              r'[^\s",<“”‘’\-\–\—]*',
           caseSensitive: false,
         );
         content = content.replaceAllMapped(pattern, (match) {
           final matched = match.group(0)!;
           // Don't re-highlight already highlighted text
-          if (match.start > 0 && content.substring(max(0, match.start - 20), match.start).contains('class')) {
+          if (match.start > 0 &&
+              content
+                  .substring(max(0, match.start - 20), match.start)
+                  .contains('class')) {
             return matched;
           }
           if (firstMatch && addId) {
@@ -795,7 +813,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     // Highlight any substring occurrence
     // ==============================
     if (queryMode == QueryMode.anywhere) {
-      final pattern = RegExp(RegExp.escape(scriptTextToHighlight), caseSensitive: false);
+      final pattern =
+          RegExp(RegExp.escape(scriptTextToHighlight), caseSensitive: false);
       bool firstMatch = true;
       content = content.replaceAllMapped(pattern, (match) {
         final matched = match.group(0)!;
@@ -814,7 +833,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     textToHighlight = scriptTextToHighlight;
 
     if (!textToHighlight.contains(' ')) {
-      final pattern = RegExp('(?<=[\\s", ])${RegExp.escape(textToHighlight)}(?=[\\s", ])');
+      final pattern =
+          RegExp('(?<=[\\s", ])${RegExp.escape(textToHighlight)}(?=[\\s", ])');
       if (content.contains(pattern)) {
         final replace =
             '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
