@@ -92,6 +92,8 @@ const String translationColorPref = "translationColor";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
 const String sangahaFixedPref = "sangahaFixed";
+const String hideTranslationNagPref = "hideTranslationNag";
+const String hideAiSearchNagPref = "hideAiSearchNag";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -163,6 +165,8 @@ const TextDisplayMode defaultTextDisplayMode =
 const bool defaultIsPaliBold =
     false; // Defaulting to true to match current behavior
 const bool defaultSangahaFixed = false;
+const bool defaultHideTranslationNag = false;
+const bool defaultHideAiSearchNag = false;
 
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
@@ -544,6 +548,16 @@ class Prefs {
       instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;
   static set sangahaFixed(bool value) =>
       instance.setBool(sangahaFixedPref, value);
+
+  static bool get hideTranslationNag =>
+      instance.getBool(hideTranslationNagPref) ?? defaultHideTranslationNag;
+  static set hideTranslationNag(bool value) =>
+      instance.setBool(hideTranslationNagPref, value);
+
+  static bool get hideAiSearchNag =>
+      instance.getBool(hideAiSearchNagPref) ?? defaultHideAiSearchNag;
+  static set hideAiSearchNag(bool value) =>
+      instance.setBool(hideAiSearchNagPref, value);
 
   // We return nullable double? for X and Y.
   // If null, the window manager will know to center the window default.

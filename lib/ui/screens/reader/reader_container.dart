@@ -183,66 +183,97 @@ class _ReaderContainerState extends State<ReaderContainer> {
               FutureBuilder<bool>(
                 future: _hasTranslationExtension(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasData && !snapshot.data!) {
+                  if (snapshot.hasData && !snapshot.data! && !Prefs.hideTranslationNag) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 24.0),
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.g_translate),
-                        label: Text(AppLocalizations.of(context)!
-                            .installEnglishTranslations),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext dialogContext) {
-                              return AlertDialog(
-                                title: Text(AppLocalizations.of(context)!
-                                    .installEnglishTranslations),
-                                content: Text(AppLocalizations.of(context)!
-                                    .installTranslationInstructions),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(dialogContext).pop();
-                                      Navigator.of(context)
-                                          .push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const DownloadView(),
-                                        ),
-                                      )
-                                          .then((_) {
-                                        if (mounted) {
-                                          setState(() {});
-                                        }
-                                      });
-                                    },
-                                    child:
-                                        Text(AppLocalizations.of(context)!.ok),
-                                  ),
-                                ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.g_translate),
+                            label: Text(AppLocalizations.of(context)!
+                                .installEnglishTranslations),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext dialogContext) {
+                                  return AlertDialog(
+                                    title: Text(AppLocalizations.of(context)!
+                                        .installEnglishTranslations),
+                                    content: Text(AppLocalizations.of(context)!
+                                        .installTranslationInstructions),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(dialogContext).pop();
+                                          Navigator.of(context)
+                                              .push(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const DownloadView(),
+                                            ),
+                                          )
+                                              .then((_) {
+                                            if (mounted) {
+                                              setState(() {});
+                                            }
+                                          });
+                                        },
+                                        child:
+                                            Text(AppLocalizations.of(context)!.ok),
+                                      ),
+                                    ],
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Dismiss',
+                            onPressed: () {
+                              setState(() {
+                                Prefs.hideTranslationNag = true;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                     );
                   }
                   return const SizedBox.shrink();
                 },
               ),
-              if (Prefs.geminiDirectApiKey.isEmpty)
+              if (Prefs.geminiDirectApiKey.isEmpty && !Prefs.hideAiSearchNag)
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.video_library),
-                    label: Text(AppLocalizations.of(context)!.howToGetApiKey),
-                    onPressed: () {
-                      launchUrl(
-                        Uri.parse(
-                            'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
-                        mode: LaunchMode.externalApplication,
-                      );
-                    },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.video_library),
+                        label:
+                            Text(AppLocalizations.of(context)!.learnAboutAiSearch),
+                        onPressed: () {
+                          launchUrl(
+                            Uri.parse(
+                                'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Dismiss',
+                        onPressed: () {
+                          setState(() {
+                            Prefs.hideAiSearchNag = true;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
             ],

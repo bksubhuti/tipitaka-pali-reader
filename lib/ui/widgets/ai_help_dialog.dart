@@ -12,6 +12,21 @@ void showAiHelpDialog(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 24),
+            Center(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.ondemand_video),
+                label: const Text('Watch Key Instructions'),
+                onPressed: () async {
+                  final url =
+                      Uri.parse('https://www.youtube.com/watch?v=zgmkYP7UqtU');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(AppLocalizations.of(context)!.apiKeyInstructions1),
             const SizedBox(height: 12),
             Text(AppLocalizations.of(context)!.apiKeyInstructions2),

@@ -402,6 +402,9 @@ class _AppState extends State<App> with WindowListener {
   Future<void> _showSangahaProgressDialog(BuildContext context) async {
     final progressNotifier = ValueNotifier<String>('Starting fix…');
 
+    // Create a ValueNotifier for the state (null means in progress, true means success, false means error)
+    final hasErrorNotifier = ValueNotifier<bool>(false);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -409,17 +412,36 @@ class _AppState extends State<App> with WindowListener {
         canPop: false,
         child: AlertDialog(
           title: const Text('Fixing Database…'),
-          content: ValueListenableBuilder<String>(
-            valueListenable: progressNotifier,
-            builder: (_, msg, __) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(msg, textAlign: TextAlign.center),
-              ],
-            ),
+          content: ValueListenableBuilder<bool>(
+            valueListenable: hasErrorNotifier,
+            builder: (_, hasError, __) {
+              return ValueListenableBuilder<String>(
+                valueListenable: progressNotifier,
+                builder: (_, msg, __) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!hasError) const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(msg, textAlign: TextAlign.center),
+                  ],
+                ),
+              );
+            },
           ),
+          actions: [
+            ValueListenableBuilder<bool>(
+              valueListenable: hasErrorNotifier,
+              builder: (_, hasError, __) {
+                if (hasError) {
+                  return TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Close'),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -445,20 +467,26 @@ class _AppState extends State<App> with WindowListener {
 
       // 4. Rebuild content indexes
       progressNotifier.value = 'Rebuilding content indexes…';
-      await DatabaseHelper().buildContentIndexes();
+      await DatabaseHelper().buildBothIndexes((String msg) {
+        progressNotifier.value = msg;
+      });
 
       // 5. Mark as done
       Prefs.sangahaFixed = true;
       debugPrint('SangahaFix: complete');
+      
+      // Close automatically on success
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
     } catch (e) {
       debugPrint('SangahaFix: error during fix — $e');
+      progressNotifier.value = 'An error occurred during the fix:\n$e';
+      hasErrorNotifier.value = true;
     }
 
-    // Close the progress dialog
-    if (context.mounted) {
-      Navigator.of(context).pop();
-    }
     progressNotifier.dispose();
+    hasErrorNotifier.dispose();
   }
 
   Future<void> simulateFileOpen(BuildContext context) async {
