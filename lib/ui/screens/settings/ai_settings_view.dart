@@ -17,6 +17,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _promptController;
   late final TextEditingController _geminiKeyController;
+  late final TextEditingController _openRouterKeyController;
+  late final TextEditingController _openRouterHeavyModelController;
+  late final TextEditingController _openRouterLightModelController;
 
   bool _isFetchingModels = false;
   List<String> _geminiModels = [];
@@ -29,9 +32,12 @@ class _AiSettingsViewState extends State<AiSettingsView> {
     _promptController = TextEditingController(text: Prefs.openRouterPrompt);
     _geminiKeyController =
         TextEditingController(text: Prefs.geminiDirectApiKey);
-
-    // Ensure the app always uses Gemini Direct now
-    Prefs.useGeminiDirect = true;
+    _openRouterKeyController =
+        TextEditingController(text: Prefs.openRouterKey);
+    _openRouterHeavyModelController =
+        TextEditingController(text: Prefs.openRouterHeavyModel);
+    _openRouterLightModelController =
+        TextEditingController(text: Prefs.openRouterLightModel);
 
     _fetchGeminiModels(_geminiKeyController.text);
   }
@@ -112,6 +118,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
   void dispose() {
     _promptController.dispose();
     _geminiKeyController.dispose();
+    _openRouterKeyController.dispose();
+    _openRouterHeavyModelController.dispose();
+    _openRouterLightModelController.dispose();
     super.dispose();
   }
 
@@ -275,8 +284,25 @@ class _AiSettingsViewState extends State<AiSettingsView> {
               child: Column(
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const Text('OpenRouter'),
+                      Switch(
+                        value: Prefs.useGeminiDirect,
+                        onChanged: (bool value) {
+                          setState(() {
+                            Prefs.useGeminiDirect = value;
+                          });
+                        },
+                      ),
+                      const Text('Gemini Direct'),
+                    ],
+                  ),
+                  const Divider(),
+                  if (Prefs.useGeminiDirect) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       // Left column: Gemini key
                       Expanded(
                         child: Column(
@@ -421,6 +447,63 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                           ),
                         ],
                       ),
+                    ),
+                  ],
+                  ] else ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _openRouterKeyController,
+                            decoration: const InputDecoration(
+                              labelText: 'OpenRouter API Key',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          children: [
+                            TextButton.icon(
+                              icon: const Icon(Icons.help_outline),
+                              label: Text(AppLocalizations.of(context)!.key),
+                              onPressed: () => showAiHelpDialog(context),
+                            ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.save),
+                              label: Text(AppLocalizations.of(context)!.save),
+                              onPressed: () {
+                                Prefs.openRouterKey = _openRouterKeyController.text;
+                                Prefs.openRouterHeavyModel = _openRouterHeavyModelController.text;
+                                Prefs.openRouterLightModel = _openRouterLightModelController.text;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(AppLocalizations.of(context)!.openRouterKeySaved),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16.0),
+                    TextFormField(
+                      controller: _openRouterHeavyModelController,
+                      decoration: const InputDecoration(
+                        labelText: 'OpenRouter Heavy Model',
+                        hintText: 'e.g. anthropic/claude-3.5-sonnet',
+                      ),
+                      onChanged: (val) => Prefs.openRouterHeavyModel = val,
+                    ),
+                    const SizedBox(height: 16.0),
+                    TextFormField(
+                      controller: _openRouterLightModelController,
+                      decoration: const InputDecoration(
+                        labelText: 'OpenRouter Light Model',
+                        hintText: 'e.g. meta-llama/llama-3-8b-instruct',
+                      ),
+                      onChanged: (val) => Prefs.openRouterLightModel = val,
                     ),
                   ],
                   const SizedBox(height: 16.0),

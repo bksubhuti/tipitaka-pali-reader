@@ -78,6 +78,8 @@ const String openRouterApiKeyPref = "openRouterApiKey";
 const String openRouterPromptPref = 'openRouterPrompt';
 const String aiHeavyModelPref = 'aiHeavyModel';
 const String aiLightModelPref = 'aiLightModel';
+const String openRouterHeavyModelPref = 'openRouterHeavyModel';
+const String openRouterLightModelPref = 'openRouterLightModel';
 
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
 const String useGeminiDirectPref = 'useGeminiDirect';
@@ -176,6 +178,8 @@ Output only HTML. Do not explain.
 """;
 const String defaultAiHeavyModel = "";
 const String defaultAiLightModel = "";
+const String defaultOpenRouterHeavyModel = "";
+const String defaultOpenRouterLightModel = "";
 
 List<String> defaultSelectedMainCategoryFilters = [
   "mula",
@@ -485,6 +489,20 @@ class Prefs {
   static set aiLightModel(String value) =>
       instance.setString(aiLightModelPref, value);
 
+  static String get openRouterHeavyModel =>
+      instance.getString(openRouterHeavyModelPref) ??
+      defaultOpenRouterHeavyModel;
+  static set openRouterHeavyModel(String value) =>
+      instance.setString(openRouterHeavyModelPref, value);
+
+  static String get openRouterLightModel =>
+      instance.getString(openRouterLightModelPref) ??
+      defaultOpenRouterLightModel;
+  static set openRouterLightModel(String value) =>
+      instance.setString(openRouterLightModelPref, value);
+
+  static String get openRouterKey => openRouterApiKey;
+  static set openRouterKey(String value) => openRouterApiKey = value;
 
   static String get openRouterPrompt =>
       instance.getString(openRouterPromptPref) ?? defaultOpenRouterPrompt;

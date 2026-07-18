@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 import '../business_logic/models/search_result.dart';
 import '../services/database/database_helper.dart';
 import '../services/prefs.dart';
 import '../services/repositories/fts_repo.dart';
 import '../ui/screens/home/search_page/search_page.dart';
+
 
 /// A search result paired with the term and query mode that found it,
 /// so we can properly highlight it in the reader.
@@ -88,6 +91,15 @@ class AiSearchService {
   final List<String> _agentLog = [];
   bool _isCancelled = false;
 
+  int _lightInputTokens = 0;
+  int _lightOutputTokens = 0;
+  int _heavyInputTokens = 0;
+  int _heavyOutputTokens = 0;
+  double _lightOpenRouterCost = 0.0;
+  double _heavyOpenRouterCost = 0.0;
+  String _lightModelUsed = '';
+  String _heavyModelUsed = '';
+
   AiSearchService({this.onStatusUpdate});
 
   void cancel() {
@@ -107,12 +119,20 @@ class AiSearchService {
   /// Main entry point: perform a multi-turn AI-guided search.
   Future<AiSearchResult> search(String userQuery, {int maxResults = 30}) async {
     _agentLog.clear();
-    final apiKey = Prefs.geminiDirectApiKey;
+    _lightInputTokens = 0;
+    _lightOutputTokens = 0;
+    _heavyInputTokens = 0;
+    _heavyOutputTokens = 0;
+    _lightOpenRouterCost = 0.0;
+    _heavyOpenRouterCost = 0.0;
+    _lightModelUsed = '';
+    _heavyModelUsed = '';
+    final apiKey = Prefs.useGeminiDirect ? Prefs.geminiDirectApiKey : Prefs.openRouterApiKey;
 
     if (apiKey.isEmpty) {
       return AiSearchResult(
         results: [],
-        summary: 'No Gemini API key configured. Please set one in AI Settings.',
+        summary: 'No API key configured. Please set one in AI Settings.',
       );
     }
 
@@ -241,6 +261,41 @@ class AiSearchService {
       }
     }
 
+    double lightCost = 0.0;
+    double heavyCost = 0.0;
+
+    if (Prefs.useGeminiDirect) {
+      lightCost = (_lightInputTokens / 1000000.0) * 0.25 +
+          (_lightOutputTokens / 1000000.0) * 1.50;
+      heavyCost = (_heavyInputTokens / 1000000.0) * 1.50 +
+          (_heavyOutputTokens / 1000000.0) * 9.00;
+    } else {
+      lightCost = _lightOpenRouterCost;
+      heavyCost = _heavyOpenRouterCost;
+    }
+
+    final double totalCost = lightCost + heavyCost;
+
+    // Determine model names for the log
+    String modelInfo = '';
+    if (Prefs.useGeminiDirect) {
+      if (_lightModelUsed.isNotEmpty) modelInfo += 'Light: $_lightModelUsed';
+      if (_heavyModelUsed.isNotEmpty) {
+        if (modelInfo.isNotEmpty) modelInfo += ', ';
+        modelInfo += 'Heavy: $_heavyModelUsed';
+      }
+    } else {
+      if (_lightModelUsed.isNotEmpty) modelInfo += 'Light: $_lightModelUsed';
+      if (_heavyModelUsed.isNotEmpty) {
+        if (modelInfo.isNotEmpty) modelInfo += ', ';
+        modelInfo += 'Heavy: $_heavyModelUsed';
+      }
+    }
+
+    _addLog('💰 Cost: \$${totalCost.toStringAsFixed(6)} | $modelInfo');
+    _addLog('📊 Tokens: ${_lightInputTokens + _heavyInputTokens} in, ${_lightOutputTokens + _heavyOutputTokens} out');
+    await _logCost(userQuery, lightCost, heavyCost, totalCost);
+
     // Format a beautiful markdown log for the UI summary
     final summaryBuffer = StringBuffer();
     summaryBuffer.writeln(bestResults.isEmpty
@@ -278,7 +333,7 @@ Respond ONLY with a JSON object in this exact format:
 }''';
 
     try {
-      final response = await _callGemini(prompt, apiKey, isHeavy: false);
+      final response = await _callAi(prompt, apiKey, isHeavy: false);
       if (response == null) return [];
 
       final jsonStr = _extractJson(response);
@@ -363,7 +418,7 @@ Respond ONLY with JSON (no markdown):
 }''';
 
     try {
-      final response = await _callGemini(prompt, apiKey, isHeavy: isHeavy);
+      final response = await _callAi(prompt, apiKey, isHeavy: isHeavy);
       if (response == null) return null;
 
       final jsonStr = _extractJson(response);
@@ -457,6 +512,107 @@ Respond ONLY with JSON (no markdown):
     return [heavyModel, lightModel];
   }
 
+  Future<String?> _callAi(String prompt, String apiKey,
+      {required bool isHeavy}) async {
+    if (Prefs.useGeminiDirect) {
+      return _callGemini(prompt, apiKey, isHeavy: isHeavy);
+    } else {
+      return _callOpenRouter(prompt, apiKey, isHeavy: isHeavy);
+    }
+  }
+
+  Future<String?> _callOpenRouter(String prompt, String apiKey,
+      {required bool isHeavy}) async {
+    final lightPref = Prefs.openRouterLightModel;
+    final heavyPref = Prefs.openRouterHeavyModel;
+
+    final lightModel =
+        lightPref.isNotEmpty ? lightPref : 'meta-llama/llama-3-8b-instruct';
+    final heavyModel =
+        heavyPref.isNotEmpty ? heavyPref : 'anthropic/claude-3.5-sonnet';
+
+    final models = !isHeavy ? [lightModel] : [heavyModel, lightModel];
+
+    final Map<String, dynamic> requestBody = {
+      "messages": [
+        {"role": "user", "content": prompt}
+      ],
+      "temperature": 0.4
+    };
+
+    for (final model in models) {
+      requestBody["model"] = model;
+      final endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+
+      for (int attempt = 0; attempt < 2; attempt++) {
+        try {
+          debugPrint(
+              '[AiSearch] Attempting connection to OpenRouter model $model (Try ${attempt + 1})...');
+
+          final response = await http.post(
+            Uri.parse(endpoint),
+            headers: {
+              'Authorization': 'Bearer $apiKey',
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'https://americanmonk.org',
+              'X-Title': 'Tipitaka Pali Reader',
+            },
+            body: utf8.encode(jsonEncode(requestBody)),
+          ).timeout(const Duration(seconds: 30));
+
+          if (_isCancelled) {
+            throw Exception('Cancelled by user');
+          }
+
+          if (response.statusCode == 429) {
+            debugPrint('[AiSearch] Rate limited. Waiting...');
+            await Future.delayed(Duration(seconds: attempt == 0 ? 3 : 6));
+            continue;
+          }
+
+          if (response.statusCode != 200) {
+            debugPrint('[AiSearch] API Error HTTP ${response.statusCode}');
+            break;
+          }
+
+          final data = jsonDecode(response.body);
+          if (data.containsKey('error')) {
+            debugPrint('[AiSearch] API Error: ${data['error']['message']}');
+            break;
+          }
+
+          final content = data['choices']?[0]?['message']?['content'] ?? '';
+          if (content.isEmpty) break;
+
+          final usage = data['usage'];
+          if (usage != null) {
+            final pTokens = usage['prompt_tokens'] as int? ?? 0;
+            final cTokens = usage['completion_tokens'] as int? ?? 0;
+            final cost = (usage['cost'] as num?)?.toDouble() ?? 0.0;
+            if (isHeavy) {
+              _heavyInputTokens += pTokens;
+              _heavyOutputTokens += cTokens;
+              _heavyOpenRouterCost += cost;
+              _heavyModelUsed = model;
+            } else {
+              _lightInputTokens += pTokens;
+              _lightOutputTokens += cTokens;
+              _lightOpenRouterCost += cost;
+              _lightModelUsed = model;
+            }
+            debugPrint('[AiSearch] Model: $model | Tokens: $pTokens in, $cTokens out | Cost: \$${cost.toStringAsFixed(6)}');
+          }
+
+          return content;
+        } catch (e) {
+          debugPrint('[AiSearch] Network error: $e');
+          break;
+        }
+      }
+    }
+    return null;
+  }
+
   Future<String?> _callGemini(String prompt, String apiKey,
       {required bool isHeavy}) async {
     final models = await _getActiveFlashModels(apiKey, isHeavy: isHeavy);
@@ -516,6 +672,22 @@ Respond ONLY with JSON (no markdown):
             break;
           }
 
+          final usageMetadata = data['usageMetadata'];
+          if (usageMetadata != null) {
+            final promptTokens = usageMetadata['promptTokenCount'] as int? ?? 0;
+            final candidatesTokens =
+                usageMetadata['candidatesTokenCount'] as int? ?? 0;
+            if (isHeavy) {
+              _heavyInputTokens += promptTokens;
+              _heavyOutputTokens += candidatesTokens;
+              _heavyModelUsed = model;
+            } else {
+              _lightInputTokens += promptTokens;
+              _lightOutputTokens += candidatesTokens;
+              _lightModelUsed = model;
+            }
+          }
+
           final parts = data['candidates']?[0]?['content']?['parts'];
           final text = parts?.map((e) => e['text']).join('\n') ?? '';
           if (text.isEmpty) break;
@@ -540,5 +712,39 @@ Respond ONLY with JSON (no markdown):
     if (jsonMatch != null) return jsonMatch.group(0);
 
     return null;
+  }
+
+  Future<void> _logCost(String userQuery, double lightCost, double heavyCost,
+      double totalCost) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/ai_cost_ledger.json');
+
+      List<dynamic> entries = [];
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        if (content.isNotEmpty) {
+          entries = jsonDecode(content) as List<dynamic>;
+        }
+      }
+
+      entries.add({
+        "timestamp": DateTime.now().toUtc().toIso8601String(),
+        "userQuery": userQuery,
+        "lightModel": _lightModelUsed,
+        "heavyModel": _heavyModelUsed,
+        "lightInputTokens": _lightInputTokens,
+        "lightOutputTokens": _lightOutputTokens,
+        "heavyInputTokens": _heavyInputTokens,
+        "heavyOutputTokens": _heavyOutputTokens,
+        "lightCost": lightCost,
+        "heavyCost": heavyCost,
+        "totalCost": totalCost
+      });
+
+      await file.writeAsString(jsonEncode(entries), mode: FileMode.write);
+    } catch (e) {
+      debugPrint('[AiSearch] Error logging cost to file: $e');
+    }
   }
 }
