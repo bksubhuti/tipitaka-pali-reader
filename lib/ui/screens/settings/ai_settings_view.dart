@@ -32,8 +32,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
     _promptController = TextEditingController(text: Prefs.openRouterPrompt);
     _geminiKeyController =
         TextEditingController(text: Prefs.geminiDirectApiKey);
-    _openRouterKeyController =
-        TextEditingController(text: Prefs.openRouterKey);
+    _openRouterKeyController = TextEditingController(text: Prefs.openRouterKey);
     _openRouterHeavyModelController =
         TextEditingController(text: Prefs.openRouterHeavyModel);
     _openRouterLightModelController =
@@ -298,157 +297,171 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       const Text('Gemini Direct'),
                     ],
                   ),
+                  const SizedBox(height: 12.0),
+                  SwitchListTile(
+                    title: const Text('Use Cumulative AI Search Algo'),
+                    subtitle: const Text(
+                        'Passes all accumulated best results back into the AI for final review'),
+                    value: Prefs.useCumAlgo,
+                    onChanged: (bool value) {
+                      setState(() {
+                        Prefs.useCumAlgo = value;
+                      });
+                    },
+                  ),
                   const Divider(),
                   if (Prefs.useGeminiDirect) ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                      // Left column: Gemini key
-                      Expanded(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _geminiKeyController,
-                              decoration: const InputDecoration(
-                                labelText: 'Gemini API Key',
+                        // Left column: Gemini key
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _geminiKeyController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Gemini API Key',
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Right column: buttons stacked
+                        Column(
+                          children: [
+                            TextButton.icon(
+                              icon: const Icon(Icons.help_outline),
+                              label: Text(AppLocalizations.of(context)!.key),
+                              onPressed: () => showAiHelpDialog(context),
+                            ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.save),
+                              label: Text(AppLocalizations.of(context)!.save),
+                              onPressed: () {
+                                Prefs.geminiDirectApiKey =
+                                    _geminiKeyController.text;
+                                _fetchGeminiModels(_geminiKeyController.text);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(AppLocalizations.of(context)!
+                                        .openRouterKeySaved),
+                                  ),
+                                );
+                                _showModelInfoDialog(context);
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16.0),
+                    if (_isFetchingModels)
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(),
+                      )
+                    else if (_geminiModels.isNotEmpty) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.open_in_new),
+                          label: const Text('Check "Rate Limit" in aiStudio'),
+                          onPressed: () async {
+                            final url = Uri.parse(
+                                'https://aistudio.google.com/rate-limit/');
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url,
+                                  mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8.0),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: _selectedHeavyModel,
+                        decoration: const InputDecoration(
+                          labelText: 'Gemini Heavy Model',
+                        ),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedHeavyModel = value;
+                              Prefs.aiHeavyModel = value;
+                            });
+                          }
+                        },
+                        items: _geminiModels.map((modelName) {
+                          return DropdownMenuItem(
+                            value: modelName,
+                            child: Text(modelName,
+                                overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12.0),
+                        child: Row(
+                          children: [
+                            const Text(
+                              '3.5 flash recommended',
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.info_outline,
+                                  size: 20, color: Colors.grey),
+                              onPressed: () => _showModelInfoDialog(context),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Right column: buttons stacked
-                      Column(
-                        children: [
-                          TextButton.icon(
-                            icon: const Icon(Icons.help_outline),
-                            label: Text(AppLocalizations.of(context)!.key),
-                            onPressed: () => showAiHelpDialog(context),
-                          ),
-                          TextButton.icon(
-                            icon: const Icon(Icons.save),
-                            label: Text(AppLocalizations.of(context)!.save),
-                            onPressed: () {
-                              Prefs.geminiDirectApiKey =
-                                  _geminiKeyController.text;
-                              _fetchGeminiModels(_geminiKeyController.text);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(AppLocalizations.of(context)!
-                                      .openRouterKeySaved),
-                                ),
-                              );
-                              _showModelInfoDialog(context);
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16.0),
-                  if (_isFetchingModels)
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator(),
-                    )
-                  else if (_geminiModels.isNotEmpty) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.open_in_new),
-                        label: const Text('Check "Rate Limit" in aiStudio'),
-                        onPressed: () async {
-                          final url = Uri.parse(
-                              'https://aistudio.google.com/rate-limit/');
-                          if (await canLaunchUrl(url)) {
-                            await launchUrl(url,
-                                mode: LaunchMode.externalApplication);
+                      const SizedBox(height: 16.0),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: _selectedLightModel,
+                        decoration: const InputDecoration(
+                          labelText: 'Gemini Light Model',
+                        ),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedLightModel = value;
+                              Prefs.aiLightModel = value;
+                            });
                           }
                         },
+                        items: _geminiModels
+                            .where((m) => m.contains('flash'))
+                            .map((modelName) {
+                          return DropdownMenuItem(
+                            value: modelName,
+                            child: Text(modelName,
+                                overflow: TextOverflow.ellipsis),
+                          );
+                        }).toList(),
                       ),
-                    ),
-                    const SizedBox(height: 8.0),
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      value: _selectedHeavyModel,
-                      decoration: const InputDecoration(
-                        labelText: 'Gemini Heavy Model',
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12.0),
+                        child: Row(
+                          children: [
+                            const Text(
+                              '3.1 flash lite recommended',
+                              style:
+                                  TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.info_outline,
+                                  size: 20, color: Colors.grey),
+                              onPressed: () => _showModelInfoDialog(context),
+                            ),
+                          ],
+                        ),
                       ),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedHeavyModel = value;
-                            Prefs.aiHeavyModel = value;
-                          });
-                        }
-                      },
-                      items: _geminiModels.map((modelName) {
-                        return DropdownMenuItem(
-                          value: modelName,
-                          child:
-                              Text(modelName, overflow: TextOverflow.ellipsis),
-                        );
-                      }).toList(),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12.0),
-                      child: Row(
-                        children: [
-                          const Text(
-                            '3.5 flash recommended',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.info_outline,
-                                size: 20, color: Colors.grey),
-                            onPressed: () => _showModelInfoDialog(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16.0),
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      value: _selectedLightModel,
-                      decoration: const InputDecoration(
-                        labelText: 'Gemini Light Model',
-                      ),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedLightModel = value;
-                            Prefs.aiLightModel = value;
-                          });
-                        }
-                      },
-                      items: _geminiModels
-                          .where((m) => m.contains('flash'))
-                          .map((modelName) {
-                        return DropdownMenuItem(
-                          value: modelName,
-                          child:
-                              Text(modelName, overflow: TextOverflow.ellipsis),
-                        );
-                      }).toList(),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12.0),
-                      child: Row(
-                        children: [
-                          const Text(
-                            '3.1 flash lite recommended',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.info_outline,
-                                size: 20, color: Colors.grey),
-                            onPressed: () => _showModelInfoDialog(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
                   ] else ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,12 +486,16 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                               icon: const Icon(Icons.save),
                               label: Text(AppLocalizations.of(context)!.save),
                               onPressed: () {
-                                Prefs.openRouterKey = _openRouterKeyController.text;
-                                Prefs.openRouterHeavyModel = _openRouterHeavyModelController.text;
-                                Prefs.openRouterLightModel = _openRouterLightModelController.text;
+                                Prefs.openRouterKey =
+                                    _openRouterKeyController.text;
+                                Prefs.openRouterHeavyModel =
+                                    _openRouterHeavyModelController.text;
+                                Prefs.openRouterLightModel =
+                                    _openRouterLightModelController.text;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(AppLocalizations.of(context)!.openRouterKeySaved),
+                                    content: Text(AppLocalizations.of(context)!
+                                        .openRouterKeySaved),
                                   ),
                                 );
                               },

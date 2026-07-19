@@ -82,6 +82,7 @@ const String openRouterHeavyModelPref = 'openRouterHeavyModel';
 const String openRouterLightModelPref = 'openRouterLightModel';
 
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
+const String useCumAlgoPref = 'useCumAlgo';
 const String useGeminiDirectPref = 'useGeminiDirect';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
 const String aiMaxResultsPref = 'aiMaxResults';
@@ -509,6 +510,9 @@ class Prefs {
 
   static set openRouterPrompt(String value) =>
       instance.setString(openRouterPromptPref, value);
+
+  static bool get useCumAlgo => instance.getBool(useCumAlgoPref) ?? false;
+  static set useCumAlgo(bool value) => instance.setBool(useCumAlgoPref, value);
 
   static bool get useGeminiDirect =>
       instance.getBool(useGeminiDirectPref) ?? false;

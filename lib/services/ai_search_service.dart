@@ -10,7 +10,6 @@ import '../services/prefs.dart';
 import '../services/repositories/fts_repo.dart';
 import '../ui/screens/home/search_page/search_page.dart';
 
-
 /// A search result paired with the term and query mode that found it,
 /// so we can properly highlight it in the reader.
 class AiMatchedResult {
@@ -127,7 +126,9 @@ class AiSearchService {
     _heavyOpenRouterCost = 0.0;
     _lightModelUsed = '';
     _heavyModelUsed = '';
-    final apiKey = Prefs.useGeminiDirect ? Prefs.geminiDirectApiKey : Prefs.openRouterApiKey;
+    final apiKey = Prefs.useGeminiDirect
+        ? Prefs.geminiDirectApiKey
+        : Prefs.openRouterApiKey;
 
     if (apiKey.isEmpty) {
       return AiSearchResult(
@@ -161,7 +162,7 @@ class AiSearchService {
           newResults.clear();
 
           for (final query in validated) {
-            _updateStatus('🔍 Searching database for "$query"...');
+            _addLog('🔍 Searching for "$query"...');
             try {
               final isMultiWord = query.contains(' ');
               final queryMode =
@@ -170,7 +171,7 @@ class AiSearchService {
 
               final results =
                   await ftsRepo.getResults(query, queryMode, wordDistance);
-              _updateStatus('   Found ${results.length} raw matches.');
+              _addLog('   ↳ Found ${results.length} raw matches.');
 
               // Sample max maxResults per query to prevent token overflow
               List<SearchResult> sampled = results;
@@ -208,7 +209,7 @@ class AiSearchService {
           userQuery: userQuery,
           apiKey: apiKey,
           triedQueries: triedQueries,
-          bestResultsCount: bestResults.length,
+          bestResults: bestResults,
           newResults: newResults,
           isHeavy: isHeavyLifting,
         );
@@ -293,7 +294,8 @@ class AiSearchService {
     }
 
     _addLog('💰 Cost: \$${totalCost.toStringAsFixed(6)} | $modelInfo');
-    _addLog('📊 Tokens: ${_lightInputTokens + _heavyInputTokens} in, ${_lightOutputTokens + _heavyOutputTokens} out');
+    _addLog(
+        '📊 Tokens: ${_lightInputTokens + _heavyInputTokens} in, ${_lightOutputTokens + _heavyOutputTokens} out');
     await _logCost(userQuery, lightCost, heavyCost, totalCost);
 
     // Format a beautiful markdown log for the UI summary
@@ -317,12 +319,14 @@ class AiSearchService {
   Future<List<String>> _generateInitialQueries(
       String userQuery, String apiKey) async {
     final prompt =
-        '''You are an expert in Theravada Buddhism and the Pāḷi Tipiṭaka.
+        '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user is asking: "$userQuery"
 
 Task:
-1. Formulate a chain of thought. Consider major canonical events and key figures related to the query.
-2. Generate 3-6 Pāḷi search terms (single words or short phrases) to find relevant passages. 
+1. Formulate a step-by-step thought process. Identify key figures, events, and core concepts related to the query across the Suttas, Vinaya, and Commentaries (Aṭṭhakathā).
+2. Generate 2 to 3 highly targeted Pāḷi search terms (single words or short phrases) to find relevant passages. 
+Note: The database uses substring matching (partial word matches are supported), so use root words where appropriate. You are only proposing the initial batch of queries; you will be able to refine and search again based on the results.
+For example: When trying to find "puriso" or "purisa" or "purisassa", etc search for "puris" to get all its forms.
 CRITICAL: You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
 NEVER use hyphens or dashes. For compound words, either combine them entirely (e.g., "sotadvāravīthi") or use spaces (e.g., "sota dvāra"). Do not write "sota-dvāra".
 
@@ -362,7 +366,7 @@ Respond ONLY with a JSON object in this exact format:
     required String userQuery,
     required String apiKey,
     required List<String> triedQueries,
-    required int bestResultsCount,
+    required List<AiMatchedResult> bestResults,
     required List<AiMatchedResult> newResults,
     required bool isHeavy,
   }) async {
@@ -389,28 +393,61 @@ Respond ONLY with a JSON object in this exact format:
       wordCount += words.take(allowedWords).length;
     }
 
+    String cumulativeContext =
+        'Currently saved relevant results: ${bestResults.length}';
+
+    if (Prefs.useCumAlgo && bestResults.isNotEmpty) {
+      final cumBuffer = StringBuffer();
+      int cumWordCount = 0;
+      int cumMaxWords = Prefs.aiMaxResults * 50;
+
+      for (int i = 0;
+          i < bestResults.length && cumWordCount < cumMaxWords;
+          i++) {
+        final r = bestResults[i].searchResult;
+        final cleanDesc = r.description
+            .replaceAll(RegExp(r'<[^>]*>'), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+
+        final words = cleanDesc.split(' ');
+        final allowedWords = cumMaxWords - cumWordCount;
+        final truncDesc = words.length > allowedWords
+            ? '${words.take(allowedWords).join(' ')}...'
+            : cleanDesc;
+
+        cumBuffer.write(
+            '- ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber}: "$truncDesc"\n');
+        cumWordCount += words.take(allowedWords).length;
+      }
+      cumulativeContext =
+          '''Currently saved relevant results (${bestResults.length}):
+${cumBuffer.toString()}''';
+    }
+
     final prompt =
         '''You are an expert in Theravada Buddhism and the Pāḷi Tipiṭaka.
 The user asks: "$userQuery"
 
 We are running an autonomous search loop.
-Currently saved relevant results: $bestResultsCount
+$cumulativeContext
 Queries we have already tried: ${triedQueries.join(', ')}
 
-Here are new search results we just found:
+Here are NEW search results we just found:
 ${buffer.toString().isEmpty ? "(No results found for the last queries)" : buffer.toString()}
 
 Task:
 1. Review the new results. Keep EVERY result that accurately relates to the user's question. 
 2. Formulate a step-by-step thought process. Explicitly mention what you found, what you discarded, and why.
-3. If there are still other known canonical events related to the prompt that you haven't found yet, set is_fully_answered to false and suggest new Pāḷi queries.
+3. Review the combined total of saved results and selected new results. If they fully answer the question, set is_fully_answered to true. Otherwise, set it to false and suggest 2 to 3 NEW Pāḷi queries. 
+CRITICAL: If your previous queries failed, you MUST pivot. Try different single keywords, synonyms, or shorter root words. Do not get stuck repeating variations of the same failed phrase. The database uses substring matching, so single root words are often the most effective way to find obscure passages.
 
 Respond ONLY with JSON (no markdown):
 {
   "thought_process": [
     "Result 1 shows Ananda crying at Mahāpajāpatī's passing, I will keep it.",
     "Result 4 shows Ananda crying at Sāriputta's passing, I will keep it.",
-    "I have not found the famous Parinibbāna reference yet, so I must keep searching."
+    "Looking at the saved results and my new selections, I have not found the famous Parinibbāna reference yet, so I must keep searching."
   ],
   "selected_new_indices": [1, 4],
   "is_fully_answered": false,
@@ -549,19 +586,23 @@ Respond ONLY with JSON (no markdown):
           debugPrint(
               '[AiSearch] Attempting connection to OpenRouter model $model (Try ${attempt + 1})...');
 
-          final response = await http.post(
-            Uri.parse(endpoint),
-            headers: {
-              'Authorization': 'Bearer $apiKey',
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'https://americanmonk.org',
-              'X-Title': 'Tipitaka Pali Reader',
-            },
-            body: utf8.encode(jsonEncode(requestBody)),
-          ).timeout(const Duration(seconds: 30));
+          final response = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {
+                  'Authorization': 'Bearer $apiKey',
+                  'Content-Type': 'application/json',
+                  'HTTP-Referer': 'https://americanmonk.org',
+                  'X-Title': 'Tipitaka Pali Reader',
+                },
+                body: utf8.encode(jsonEncode(requestBody)),
+              )
+              .timeout(const Duration(seconds: 45));
 
           if (_isCancelled) {
-            throw Exception('Cancelled by user');
+            final msg = 'Cancelled by user';
+            _addLog('❌ $msg');
+            throw Exception(msg);
           }
 
           if (response.statusCode == 429) {
@@ -577,7 +618,9 @@ Respond ONLY with JSON (no markdown):
 
           final data = jsonDecode(response.body);
           if (data.containsKey('error')) {
-            debugPrint('[AiSearch] API Error: ${data['error']['message']}');
+            final msg = data['error']['message'];
+            debugPrint('[AiSearch] API Error: $msg');
+            _addLog('❌ API Error: $msg');
             break;
           }
 
@@ -600,12 +643,14 @@ Respond ONLY with JSON (no markdown):
               _lightOpenRouterCost += cost;
               _lightModelUsed = model;
             }
-            debugPrint('[AiSearch] Model: $model | Tokens: $pTokens in, $cTokens out | Cost: \$${cost.toStringAsFixed(6)}');
+            debugPrint(
+                '[AiSearch] Model: $model | Tokens: $pTokens in, $cTokens out | Cost: \$${cost.toStringAsFixed(6)}');
           }
 
           return content;
         } catch (e) {
           debugPrint('[AiSearch] Network error: $e');
+          _addLog('❌ Network Error: $e');
           break;
         }
       }
@@ -648,7 +693,9 @@ Respond ONLY with JSON (no markdown):
           );
 
           if (_isCancelled) {
-            throw Exception('Cancelled by user');
+            final msg = 'Cancelled by user';
+            _addLog('❌ $msg');
+            throw Exception(msg);
           }
 
           if (response.statusCode == 429) {
@@ -668,7 +715,9 @@ Respond ONLY with JSON (no markdown):
 
           final data = jsonDecode(response.body);
           if (data.containsKey('error')) {
-            debugPrint('[AiSearch] API Error: ${data['error']['message']}');
+            final msg = data['error']['message'];
+            debugPrint('[AiSearch] API Error: $msg');
+            _addLog('❌ API Error: $msg');
             break;
           }
 
@@ -695,7 +744,14 @@ Respond ONLY with JSON (no markdown):
           return text;
         } catch (e) {
           debugPrint('[AiSearch] Network error: $e');
-          break;
+          if (attempt == 0) {
+            _addLog('⚠️ Network Error (Retrying...): $e');
+            await Future.delayed(const Duration(seconds: 2));
+            continue;
+          } else {
+            _addLog('❌ Network Error: $e');
+            break;
+          }
         }
       }
     }
