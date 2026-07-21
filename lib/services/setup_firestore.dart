@@ -2,14 +2,13 @@ import 'package:firedart/auth/firebase_auth.dart';
 import 'package:firedart/auth/token_store.dart';
 import 'package:firedart/firestore/firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../env/env.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
 setupFirestore() async {
   const projectId = "tipitaka-pali-reader-firestore";
-  await dotenv.load();
-  final apiKey = dotenv.env['FIREBASE_API_KEY'];
+  final apiKey = Env.firebaseApiKey;
   //check for internet connection
 
   if (await InternetConnection().hasInternetAccess) {

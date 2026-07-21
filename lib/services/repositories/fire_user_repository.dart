@@ -1,7 +1,7 @@
 import 'package:firedart/auth/user_gateway.dart';
 import 'package:flutter/material.dart';
 import 'package:firedart/firedart.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../../env/env.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/user_notifier.dart';
 
@@ -39,8 +39,7 @@ class FireUserRepository {
   Future<bool> signIn(String email, String password) async {
     try {
       const projectId = "tipitaka-pali-reader-firestore";
-      await dotenv.load();
-      final apiKey = dotenv.env['FIREBASE_API_KEY'];
+      final apiKey = Env.firebaseApiKey;
 
       if (!FirebaseAuth.initialized) {
         // ensure the app is initialized.

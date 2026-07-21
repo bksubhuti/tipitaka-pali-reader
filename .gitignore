@@ -12,6 +12,7 @@
 *.7z
 tipitaka_pali_part*
 .env
+env.g.dart
 
 
 # IntelliJ related

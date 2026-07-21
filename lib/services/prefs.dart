@@ -3,7 +3,9 @@
 
 // Shared prefs package import
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tipitaka_pali/utils/simple_encryptor.dart';
 
@@ -83,7 +85,12 @@ const String openRouterLightModelPref = 'openRouterLightModel';
 
 const String openRouterPromptKeyPref = 'openRouterPromptKey';
 const String useCumAlgoPref = 'useCumAlgo';
-const String useGeminiDirectPref = 'useGeminiDirect';
+const String aiProviderModePref = 'aiProviderMode';
+const String aiSponsoredHeavyModelPref = 'aiSponsoredHeavyModel';
+const String aiSponsoredLightModelPref = 'aiSponsoredLightModel';
+const String aiSponsoredProviderPref = 'aiSponsoredProvider';
+const String aiSponsoredTriesLeftPref = 'aiSponsoredTriesLeft';
+const String aiSponsoredResetDatePref = 'aiSponsoredResetDate';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
 const String aiMaxResultsPref = 'aiMaxResults';
 const String windowWidthPref = "windowWidth";
@@ -103,6 +110,7 @@ const int defaultLocaleVal = 0;
 const int defaultThemeIndex = 12;
 const String defaultThemeName = '';
 const int defaultAiMaxResults = 60;
+const int defaultSponsoredTries = 10;
 
 const bool defaultDarkThemeOn = false;
 //ToDo something is not right with release and font size
@@ -514,10 +522,42 @@ class Prefs {
   static bool get useCumAlgo => instance.getBool(useCumAlgoPref) ?? false;
   static set useCumAlgo(bool value) => instance.setBool(useCumAlgoPref, value);
 
-  static bool get useGeminiDirect =>
-      instance.getBool(useGeminiDirectPref) ?? false;
-  static set useGeminiDirect(bool value) =>
-      instance.setBool(useGeminiDirectPref, value);
+  static int get aiProviderMode =>
+      instance.getInt(aiProviderModePref) ?? 2; // Default to 2 (Sponsored)
+  static set aiProviderMode(int value) =>
+      instance.setInt(aiProviderModePref, value);
+
+  static int get activeAiProviderMode {
+    int mode = aiProviderMode;
+    if (mode == 0 && geminiDirectApiKey.isEmpty) return 2;
+    if (mode == 1 && openRouterKey.isEmpty) return 2;
+    return mode;
+  }
+
+  static String get aiSponsoredHeavyModel =>
+      instance.getString(aiSponsoredHeavyModelPref) ?? '';
+  static set aiSponsoredHeavyModel(String value) =>
+      instance.setString(aiSponsoredHeavyModelPref, value);
+
+  static String get aiSponsoredLightModel =>
+      instance.getString(aiSponsoredLightModelPref) ?? '';
+  static set aiSponsoredLightModel(String value) =>
+      instance.setString(aiSponsoredLightModelPref, value);
+
+  static String get aiSponsoredProvider =>
+      instance.getString(aiSponsoredProviderPref) ?? '';
+  static set aiSponsoredProvider(String value) =>
+      instance.setString(aiSponsoredProviderPref, value);
+
+  static int get aiSponsoredTriesLeft =>
+      instance.getInt(aiSponsoredTriesLeftPref) ?? defaultSponsoredTries;
+  static set aiSponsoredTriesLeft(int value) =>
+      instance.setInt(aiSponsoredTriesLeftPref, value);
+
+  static String get aiSponsoredResetDate =>
+      instance.getString(aiSponsoredResetDatePref) ?? '';
+  static set aiSponsoredResetDate(String value) =>
+      instance.setString(aiSponsoredResetDatePref, value);
 
   static String get geminiDirectApiKey =>
       instance.getString(geminiDirectApiKeyPref) ?? '';
@@ -621,4 +661,26 @@ class Prefs {
       instance.getDouble(panelWidthKey) ?? defaultPanelWidth;
   static set panelWidth(double value) =>
       instance.setDouble(panelWidthKey, value);
+  static Future<void> fetchSponsoredModelConfig() async {
+    try {
+      final url = Uri.parse(
+          'https://raw.githubusercontent.com/bksubhuti/tipitaka-pali-reader/refs/heads/master/lib/data/ai_model_config.json');
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['heavy'] != null) aiSponsoredHeavyModel = data['heavy'];
+        if (data['light'] != null) aiSponsoredLightModel = data['light'];
+        if (data['provider'] != null) aiSponsoredProvider = data['provider'];
+
+        final now = DateTime.now();
+        final dateStr = '\${now.year}-\${now.month}-\${now.day}';
+        if (aiSponsoredResetDate != dateStr) {
+          aiSponsoredResetDate = dateStr;
+          aiSponsoredTriesLeft = defaultSponsoredTries;
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch sponsored model config: $e');
+    }
+  }
 }

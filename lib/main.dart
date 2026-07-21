@@ -10,7 +10,6 @@ import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:devicelocale/devicelocale.dart';
 
-
 import 'package:tipitaka_pali/services/setup_firestore.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:window_manager/window_manager.dart';

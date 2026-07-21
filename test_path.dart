@@ -1,0 +1,5 @@
+import 'package:path_provider/path_provider.dart';
+void main() async {
+  final dir = await getApplicationDocumentsDirectory();
+  print(dir.path);
+}

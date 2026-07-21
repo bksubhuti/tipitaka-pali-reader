@@ -7,6 +7,7 @@ import 'controller/search_filter_provider.dart';
 import 'controller/search_result_provider.dart';
 import 'widgets/empty_result_view.dart';
 import 'widgets/result_list_view.dart';
+import 'controller/search_result_state.dart';
 
 class SearchResultPage extends StatelessWidget {
   final String searchWord;
@@ -43,15 +44,16 @@ class SearchResultPage extends StatelessWidget {
           // final notifier = context.watch<SearchResultNotifier>();
           final state = context.watch<SearchResultController>().state;
 
-          return state.when(
-            loading: () => const Material(child: LoadingView()),
-            noData: () => EmptyResultView(searchWord: searchWord),
-            loaded: (results, bookCount) => ResultListView(
+          return switch (state) {
+            SearchResultStateLoading() => const Material(child: LoadingView()),
+            SearchResultStateNoData() => EmptyResultView(searchWord: searchWord),
+            SearchResultStateLoaded(results: var results, bookCount: var bookCount) => ResultListView(
               searchWord: searchWord,
               results: results,
               bookCount: bookCount,
             ),
-          );
+            _ => const SizedBox.shrink(),
+          };
         });
   }
 }

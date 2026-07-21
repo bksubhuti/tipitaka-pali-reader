@@ -91,8 +91,7 @@ class _AiSearchPageState extends State<AiSearchPage> {
     await _historyManager.init();
     if (mounted) {
       setState(() {});
-      if (widget.query.trim().isNotEmpty &&
-          Prefs.geminiDirectApiKey.isNotEmpty) {
+      if (widget.query.trim().isNotEmpty) {
         _runAiSearch();
       }
     }
@@ -278,47 +277,8 @@ class _AiSearchPageState extends State<AiSearchPage> {
       ),
       body: Column(
         children: [
-          if (Prefs.geminiDirectApiKey.isEmpty)
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.vpn_key_off,
-                          size: 48, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        'You need to get a free key and put it in the AI settings to use AI Search.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.key),
-                        label: const Text('Get Key'),
-                        onPressed: () => showAiHelpDialog(context),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.settings),
-                        label: const Text('TPR AI Settings'),
-                        onPressed: () {
-                          // Pop the AI search page (back to regular search in the panel)
-                          Navigator.of(context).pop();
-                          // Switch the sidebar to the Settings tab
-                          context
-                              .read<NavigationProvider>()
-                              .onClickedNavigationItem(5);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-          else ...[
+          // The UI is no longer blocked because we gracefully fallback to Sponsored Mode
+          ...[
             // Search Input
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -326,6 +286,19 @@ class _AiSearchPageState extends State<AiSearchPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (Prefs.aiProviderMode == 2)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Text(
+                        'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: (Theme.of(context).textTheme.bodySmall?.fontSize ?? 12.0) * 1.3,
+                              color: Prefs.aiSponsoredTriesLeft > 0
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                      ),
+                    ),
                   // Slider for results count
                   Row(
                     children: [

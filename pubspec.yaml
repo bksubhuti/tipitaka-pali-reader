@@ -77,7 +77,6 @@ dependencies:
   flutter_speed_dial: ^7.0.0
   scroll_to_index: ^3.0.1
   firedart: ^0.9.7
-  flutter_dotenv: ^6.0.0
   im_stepper: ^1.0.1+1
   permission_handler: ^12.0.0+1
   encrypt: ^5.0.3
@@ -90,6 +89,7 @@ dependencies:
   app_links: ^7.0.0
   flutter_colorpicker: ^1.1.0
   wakelock_plus: ^1.5.2
+  envied: ^1.3.8
 
 dev_dependencies:
   flutter_test:
@@ -98,6 +98,7 @@ dev_dependencies:
   freezed: ^3.0.6
   build_runner: ^2.1.2
   flutter_launcher_icons: ^0.14.4
+  envied_generator: ^1.3.8
 
 flutter_launcher_icons:
   android: true
@@ -152,7 +153,6 @@ flutter:
     - assets/images/remnote.jpg
     - assets/images/vecteezy_md.jpg
     - assets/inflectionTemplates.json
-    - .env
 
   fonts:
     - family: Pyidaungsu

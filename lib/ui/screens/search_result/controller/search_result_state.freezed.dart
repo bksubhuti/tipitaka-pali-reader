@@ -1,6 +1,7 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target
+// coverage:ignore-file
+// ignore_for_file: type=lint
+// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'search_result_state.dart';
 
@@ -8,154 +9,141 @@ part of 'search_result_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more informations: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
-
-/// @nodoc
-class _$SearchResultStateTearOff {
-  const _$SearchResultStateTearOff();
-
-  _Loading loading() {
-    return const _Loading();
-  }
-
-  _Loaded loaded(List<SearchResult> results, int bookCount) {
-    return _Loaded(
-      results,
-      bookCount,
-    );
-  }
-
-  _NoData noData() {
-    return const _NoData();
-  }
-}
-
-/// @nodoc
-const $SearchResultState = _$SearchResultStateTearOff();
 
 /// @nodoc
 mixin _$SearchResultState {
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() loading,
-    required TResult Function(List<SearchResult> results, int bookCount) loaded,
-    required TResult Function() noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) loaded,
-    required TResult Function(_NoData value) noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class $SearchResultStateCopyWith<$Res> {
-  factory $SearchResultStateCopyWith(
-          SearchResultState value, $Res Function(SearchResultState) then) =
-      _$SearchResultStateCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class _$SearchResultStateCopyWithImpl<$Res>
-    implements $SearchResultStateCopyWith<$Res> {
-  _$SearchResultStateCopyWithImpl(this._value, this._then);
-
-  final SearchResultState _value;
-  // ignore: unused_field
-  final $Res Function(SearchResultState) _then;
-}
-
-/// @nodoc
-abstract class _$LoadingCopyWith<$Res> {
-  factory _$LoadingCopyWith(_Loading value, $Res Function(_Loading) then) =
-      __$LoadingCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class __$LoadingCopyWithImpl<$Res> extends _$SearchResultStateCopyWithImpl<$Res>
-    implements _$LoadingCopyWith<$Res> {
-  __$LoadingCopyWithImpl(_Loading _value, $Res Function(_Loading) _then)
-      : super(_value, (v) => _then(v as _Loading));
-
   @override
-  _Loading get _value => super._value as _Loading;
-}
-
-/// @nodoc
-
-class _$_Loading implements _Loading {
-  const _$_Loading();
-
-  @override
-  String toString() {
-    return 'SearchResultState.loading()';
-  }
-
-  @override
-  bool operator ==(dynamic other) {
-    return identical(this, other) || (other is _Loading);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is SearchResultState);
   }
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
+  String toString() {
+    return 'SearchResultState()';
+  }
+}
+
+/// @nodoc
+class $SearchResultStateCopyWith<$Res> {
+  $SearchResultStateCopyWith(
+      SearchResultState _, $Res Function(SearchResultState) __);
+}
+
+/// Adds pattern-matching-related methods to [SearchResultState].
+extension SearchResultStatePatterns on SearchResultState {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
   @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() loading,
-    required TResult Function(List<SearchResult> results, int bookCount) loaded,
-    required TResult Function() noData,
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(SearchResultStateLoading value)? loading,
+    TResult Function(SearchResultStateLoaded value)? loaded,
+    TResult Function(SearchResultStateNoData value)? noData,
+    required TResult orElse(),
   }) {
-    return loading();
+    final _that = this;
+    switch (_that) {
+      case SearchResultStateLoading() when loading != null:
+        return loading(_that);
+      case SearchResultStateLoaded() when loaded != null:
+        return loaded(_that);
+      case SearchResultStateNoData() when noData != null:
+        return noData(_that);
+      case _:
+        return orElse();
+    }
   }
 
-  @override
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
   @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
+  TResult map<TResult extends Object?>({
+    required TResult Function(SearchResultStateLoading value) loading,
+    required TResult Function(SearchResultStateLoaded value) loaded,
+    required TResult Function(SearchResultStateNoData value) noData,
   }) {
-    return loading?.call();
+    final _that = this;
+    switch (_that) {
+      case SearchResultStateLoading():
+        return loading(_that);
+      case SearchResultStateLoaded():
+        return loaded(_that);
+      case SearchResultStateNoData():
+        return noData(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
   }
 
-  @override
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(SearchResultStateLoading value)? loading,
+    TResult? Function(SearchResultStateLoaded value)? loaded,
+    TResult? Function(SearchResultStateNoData value)? noData,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case SearchResultStateLoading() when loading != null:
+        return loading(_that);
+      case SearchResultStateLoaded() when loaded != null:
+        return loaded(_that);
+      case SearchResultStateNoData() when noData != null:
+        return noData(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? loading,
@@ -163,79 +151,179 @@ class _$_Loading implements _Loading {
     TResult Function()? noData,
     required TResult orElse(),
   }) {
-    if (loading != null) {
-      return loading();
+    final _that = this;
+    switch (_that) {
+      case SearchResultStateLoading() when loading != null:
+        return loading();
+      case SearchResultStateLoaded() when loaded != null:
+        return loaded(_that.results, _that.bookCount);
+      case SearchResultStateNoData() when noData != null:
+        return noData();
+      case _:
+        return orElse();
     }
-    return orElse();
   }
 
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) loaded,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return loading(this);
-  }
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
 
-  @override
   @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
+  TResult when<TResult extends Object?>({
+    required TResult Function() loading,
+    required TResult Function(List<SearchResult> results, int bookCount) loaded,
+    required TResult Function() noData,
   }) {
-    return loading?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (loading != null) {
-      return loading(this);
+    final _that = this;
+    switch (_that) {
+      case SearchResultStateLoading():
+        return loading();
+      case SearchResultStateLoaded():
+        return loaded(_that.results, _that.bookCount);
+      case SearchResultStateNoData():
+        return noData();
+      case _:
+        throw StateError('Unexpected subclass');
     }
-    return orElse();
   }
-}
 
-abstract class _Loading implements SearchResultState {
-  const factory _Loading() = _$_Loading;
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? loading,
+    TResult? Function(List<SearchResult> results, int bookCount)? loaded,
+    TResult? Function()? noData,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case SearchResultStateLoading() when loading != null:
+        return loading();
+      case SearchResultStateLoaded() when loaded != null:
+        return loaded(_that.results, _that.bookCount);
+      case SearchResultStateNoData() when noData != null:
+        return noData();
+      case _:
+        return null;
+    }
+  }
 }
 
 /// @nodoc
-abstract class _$LoadedCopyWith<$Res> {
-  factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) then) =
-      __$LoadedCopyWithImpl<$Res>;
+
+class SearchResultStateLoading implements SearchResultState {
+  const SearchResultStateLoading();
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is SearchResultStateLoading);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() {
+    return 'SearchResultState.loading()';
+  }
+}
+
+/// @nodoc
+
+class SearchResultStateLoaded implements SearchResultState {
+  const SearchResultStateLoaded(
+      final List<SearchResult> results, this.bookCount)
+      : _results = results;
+
+  final List<SearchResult> _results;
+  List<SearchResult> get results {
+    if (_results is EqualUnmodifiableListView) return _results;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_results);
+  }
+
+  final int bookCount;
+
+  /// Create a copy of SearchResultState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  $SearchResultStateLoadedCopyWith<SearchResultStateLoaded> get copyWith =>
+      _$SearchResultStateLoadedCopyWithImpl<SearchResultStateLoaded>(
+          this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is SearchResultStateLoaded &&
+            const DeepCollectionEquality().equals(other._results, _results) &&
+            (identical(other.bookCount, bookCount) ||
+                other.bookCount == bookCount));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, const DeepCollectionEquality().hash(_results), bookCount);
+
+  @override
+  String toString() {
+    return 'SearchResultState.loaded(results: $results, bookCount: $bookCount)';
+  }
+}
+
+/// @nodoc
+abstract mixin class $SearchResultStateLoadedCopyWith<$Res>
+    implements $SearchResultStateCopyWith<$Res> {
+  factory $SearchResultStateLoadedCopyWith(SearchResultStateLoaded value,
+          $Res Function(SearchResultStateLoaded) _then) =
+      _$SearchResultStateLoadedCopyWithImpl;
+  @useResult
   $Res call({List<SearchResult> results, int bookCount});
 }
 
 /// @nodoc
-class __$LoadedCopyWithImpl<$Res> extends _$SearchResultStateCopyWithImpl<$Res>
-    implements _$LoadedCopyWith<$Res> {
-  __$LoadedCopyWithImpl(_Loaded _value, $Res Function(_Loaded) _then)
-      : super(_value, (v) => _then(v as _Loaded));
+class _$SearchResultStateLoadedCopyWithImpl<$Res>
+    implements $SearchResultStateLoadedCopyWith<$Res> {
+  _$SearchResultStateLoadedCopyWithImpl(this._self, this._then);
 
-  @override
-  _Loaded get _value => super._value as _Loaded;
+  final SearchResultStateLoaded _self;
+  final $Res Function(SearchResultStateLoaded) _then;
 
-  @override
+  /// Create a copy of SearchResultState
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
   $Res call({
-    Object? results = freezed,
-    Object? bookCount = freezed,
+    Object? results = null,
+    Object? bookCount = null,
   }) {
-    return _then(_Loaded(
-      results == freezed
-          ? _value.results
+    return _then(SearchResultStateLoaded(
+      null == results
+          ? _self._results
           : results // ignore: cast_nullable_to_non_nullable
               as List<SearchResult>,
-      bookCount == freezed
-          ? _value.bookCount
+      null == bookCount
+          ? _self.bookCount
           : bookCount // ignore: cast_nullable_to_non_nullable
               as int,
     ));
@@ -244,223 +332,22 @@ class __$LoadedCopyWithImpl<$Res> extends _$SearchResultStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_Loaded implements _Loaded {
-  const _$_Loaded(this.results, this.bookCount);
+class SearchResultStateNoData implements SearchResultState {
+  const SearchResultStateNoData();
 
   @override
-  final List<SearchResult> results;
-  @override
-  final int bookCount;
-
-  @override
-  String toString() {
-    return 'SearchResultState.loaded(results: $results, bookCount: $bookCount)';
-  }
-
-  @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is _Loaded &&
-            (identical(other.results, results) ||
-                const DeepCollectionEquality()
-                    .equals(other.results, results)) &&
-            (identical(other.bookCount, bookCount) ||
-                const DeepCollectionEquality()
-                    .equals(other.bookCount, bookCount)));
-  }
-
-  @override
-  int get hashCode =>
-      runtimeType.hashCode ^
-      const DeepCollectionEquality().hash(results) ^
-      const DeepCollectionEquality().hash(bookCount);
-
-  @JsonKey(ignore: true)
-  @override
-  _$LoadedCopyWith<_Loaded> get copyWith =>
-      __$LoadedCopyWithImpl<_Loaded>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() loading,
-    required TResult Function(List<SearchResult> results, int bookCount) loaded,
-    required TResult Function() noData,
-  }) {
-    return loaded(results, bookCount);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
-  }) {
-    return loaded?.call(results, bookCount);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) {
-    if (loaded != null) {
-      return loaded(results, bookCount);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) loaded,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return loaded(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-  }) {
-    return loaded?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (loaded != null) {
-      return loaded(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class _Loaded implements SearchResultState {
-  const factory _Loaded(List<SearchResult> results, int bookCount) = _$_Loaded;
-
-  List<SearchResult> get results => throw _privateConstructorUsedError;
-  int get bookCount => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  _$LoadedCopyWith<_Loaded> get copyWith => throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class _$NoDataCopyWith<$Res> {
-  factory _$NoDataCopyWith(_NoData value, $Res Function(_NoData) then) =
-      __$NoDataCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class __$NoDataCopyWithImpl<$Res> extends _$SearchResultStateCopyWithImpl<$Res>
-    implements _$NoDataCopyWith<$Res> {
-  __$NoDataCopyWithImpl(_NoData _value, $Res Function(_NoData) _then)
-      : super(_value, (v) => _then(v as _NoData));
-
-  @override
-  _NoData get _value => super._value as _NoData;
-}
-
-/// @nodoc
-
-class _$_NoData implements _NoData {
-  const _$_NoData();
-
-  @override
-  String toString() {
-    return 'SearchResultState.noData()';
-  }
-
-  @override
-  bool operator ==(dynamic other) {
-    return identical(this, other) || (other is _NoData);
+        (other.runtimeType == runtimeType && other is SearchResultStateNoData);
   }
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() loading,
-    required TResult Function(List<SearchResult> results, int bookCount) loaded,
-    required TResult Function() noData,
-  }) {
-    return noData();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
-  }) {
-    return noData?.call();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? loading,
-    TResult Function(List<SearchResult> results, int bookCount)? loaded,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) {
-    if (noData != null) {
-      return noData();
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) loaded,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return noData(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-  }) {
-    return noData?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (noData != null) {
-      return noData(this);
-    }
-    return orElse();
+  String toString() {
+    return 'SearchResultState.noData()';
   }
 }
 
-abstract class _NoData implements SearchResultState {
-  const factory _NoData() = _$_NoData;
-}
+// dart format on

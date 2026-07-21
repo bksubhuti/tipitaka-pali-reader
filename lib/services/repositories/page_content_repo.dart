@@ -5,6 +5,7 @@ import 'package:tipitaka_pali/services/database/database_helper.dart';
 abstract class PageContentRepository {
   Future<List<PageContent>> getPages(String bookID);
   Future<PageContent> getPage(int id);
+  Future<PageContent?> getPageByBookAndPage(String bookID, int page);
 }
 
 class PageContentDatabaseRepository implements PageContentRepository {
@@ -37,6 +38,24 @@ class PageContentDatabaseRepository implements PageContentRepository {
         ],
         where: '${dao.columnID} = ?',
         whereArgs: [id]);
+    return dao.fromMap(maps.first);
+  }
+
+  @override
+  Future<PageContent?> getPageByBookAndPage(String bookID, int page) async {
+    final db = await databaseProvider.database;
+    List<Map<String, dynamic>> maps = await db.query(
+      dao.tableName,
+      columns: [
+        dao.columnPage,
+        dao.columnContent,
+      ],
+      where: '${dao.columnBookID} = ? AND ${dao.columnPage} = ?',
+      whereArgs: [bookID, page],
+    );
+    if (maps.isEmpty) {
+      return null;
+    }
     return dao.fromMap(maps.first);
   }
 }

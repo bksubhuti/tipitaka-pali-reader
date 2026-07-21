@@ -1,6 +1,7 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target
+// coverage:ignore-file
+// ignore_for_file: type=lint
+// ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'dictionary_state.dart';
 
@@ -8,80 +9,46 @@ part of 'dictionary_state.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
 
-final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more informations: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
-
 /// @nodoc
-class _$DictionaryStateTearOff {
-  const _$DictionaryStateTearOff();
-
-  _Initial initial() {
-    return const _Initial();
+mixin _$DictionaryState {
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is DictionaryState);
   }
 
-  _Loading loading() {
-    return const _Loading();
-  }
+  @override
+  int get hashCode => runtimeType.hashCode;
 
-  _Loaded data(String content) {
-    return _Loaded(
-      content,
-    );
-  }
-
-  _NoData noData() {
-    return const _NoData();
+  @override
+  String toString() {
+    return 'DictionaryState()';
   }
 }
 
 /// @nodoc
-const $DictionaryState = _$DictionaryStateTearOff();
+class $DictionaryStateCopyWith<$Res> {
+  $DictionaryStateCopyWith(
+      DictionaryState _, $Res Function(DictionaryState) __);
+}
 
-/// @nodoc
-mixin _$DictionaryState {
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() initial,
-    required TResult Function() loading,
-    required TResult Function(String content) data,
-    required TResult Function() noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Initial value) initial,
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) data,
-    required TResult Function(_NoData value) noData,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-  }) =>
-      throw _privateConstructorUsedError;
+/// Adds pattern-matching-related methods to [DictionaryState].
+extension DictionaryStatePatterns on DictionaryState {
+  /// A variant of `map` that fallback to returning `orElse`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_Initial value)? initial,
@@ -89,276 +56,292 @@ mixin _$DictionaryState {
     TResult Function(_Loaded value)? data,
     TResult Function(_NoData value)? noData,
     required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Initial() when initial != null:
+        return initial(_that);
+      case _Loading() when loading != null:
+        return loading(_that);
+      case _Loaded() when data != null:
+        return data(_that);
+      case _NoData() when noData != null:
+        return noData(_that);
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// Callbacks receives the raw object, upcasted.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case final Subclass2 value:
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(_Initial value) initial,
+    required TResult Function(_Loading value) loading,
+    required TResult Function(_Loaded value) data,
+    required TResult Function(_NoData value) noData,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Initial():
+        return initial(_that);
+      case _Loading():
+        return loading(_that);
+      case _Loaded():
+        return data(_that);
+      case _NoData():
+        return noData(_that);
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `map` that fallback to returning `null`.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case final Subclass value:
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(_Initial value)? initial,
+    TResult? Function(_Loading value)? loading,
+    TResult? Function(_Loaded value)? data,
+    TResult? Function(_NoData value)? noData,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Initial() when initial != null:
+        return initial(_that);
+      case _Loading() when loading != null:
+        return loading(_that);
+      case _Loaded() when data != null:
+        return data(_that);
+      case _NoData() when noData != null:
+        return noData(_that);
+      case _:
+        return null;
+    }
+  }
+
+  /// A variant of `when` that fallback to an `orElse` callback.
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return orElse();
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function()? initial,
+    TResult Function()? loading,
+    TResult Function(String content)? data,
+    TResult Function()? noData,
+    required TResult orElse(),
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Initial() when initial != null:
+        return initial();
+      case _Loading() when loading != null:
+        return loading();
+      case _Loaded() when data != null:
+        return data(_that.content);
+      case _NoData() when noData != null:
+        return noData();
+      case _:
+        return orElse();
+    }
+  }
+
+  /// A `switch`-like method, using callbacks.
+  ///
+  /// As opposed to `map`, this offers destructuring.
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case Subclass2(:final field2):
+  ///     return ...;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function() initial,
+    required TResult Function() loading,
+    required TResult Function(String content) data,
+    required TResult Function() noData,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Initial():
+        return initial();
+      case _Loading():
+        return loading();
+      case _Loaded():
+        return data(_that.content);
+      case _NoData():
+        return noData();
+      case _:
+        throw StateError('Unexpected subclass');
+    }
+  }
+
+  /// A variant of `when` that fallback to returning `null`
+  ///
+  /// It is equivalent to doing:
+  /// ```dart
+  /// switch (sealedClass) {
+  ///   case Subclass(:final field):
+  ///     return ...;
+  ///   case _:
+  ///     return null;
+  /// }
+  /// ```
+
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function()? initial,
+    TResult? Function()? loading,
+    TResult? Function(String content)? data,
+    TResult? Function()? noData,
+  }) {
+    final _that = this;
+    switch (_that) {
+      case _Initial() when initial != null:
+        return initial();
+      case _Loading() when loading != null:
+        return loading();
+      case _Loaded() when data != null:
+        return data(_that.content);
+      case _NoData() when noData != null:
+        return noData();
+      case _:
+        return null;
+    }
+  }
 }
 
 /// @nodoc
-abstract class $DictionaryStateCopyWith<$Res> {
-  factory $DictionaryStateCopyWith(
-          DictionaryState value, $Res Function(DictionaryState) then) =
-      _$DictionaryStateCopyWithImpl<$Res>;
-}
 
-/// @nodoc
-class _$DictionaryStateCopyWithImpl<$Res>
-    implements $DictionaryStateCopyWith<$Res> {
-  _$DictionaryStateCopyWithImpl(this._value, this._then);
-
-  final DictionaryState _value;
-  // ignore: unused_field
-  final $Res Function(DictionaryState) _then;
-}
-
-/// @nodoc
-abstract class _$InitialCopyWith<$Res> {
-  factory _$InitialCopyWith(_Initial value, $Res Function(_Initial) then) =
-      __$InitialCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class __$InitialCopyWithImpl<$Res> extends _$DictionaryStateCopyWithImpl<$Res>
-    implements _$InitialCopyWith<$Res> {
-  __$InitialCopyWithImpl(_Initial _value, $Res Function(_Initial) _then)
-      : super(_value, (v) => _then(v as _Initial));
+class _Initial implements DictionaryState {
+  const _Initial();
 
   @override
-  _Initial get _value => super._value as _Initial;
-}
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is _Initial);
+  }
 
-/// @nodoc
-
-class _$_Initial implements _Initial {
-  const _$_Initial();
+  @override
+  int get hashCode => runtimeType.hashCode;
 
   @override
   String toString() {
     return 'DictionaryState.initial()';
   }
+}
+
+/// @nodoc
+
+class _Loading implements DictionaryState {
+  const _Loading();
 
   @override
-  bool operator ==(dynamic other) {
-    return identical(this, other) || (other is _Initial);
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is _Loading);
   }
 
   @override
   int get hashCode => runtimeType.hashCode;
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() initial,
-    required TResult Function() loading,
-    required TResult Function(String content) data,
-    required TResult Function() noData,
-  }) {
-    return initial();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-  }) {
-    return initial?.call();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) {
-    if (initial != null) {
-      return initial();
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Initial value) initial,
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) data,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return initial(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-  }) {
-    return initial?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (initial != null) {
-      return initial(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class _Initial implements DictionaryState {
-  const factory _Initial() = _$_Initial;
-}
-
-/// @nodoc
-abstract class _$LoadingCopyWith<$Res> {
-  factory _$LoadingCopyWith(_Loading value, $Res Function(_Loading) then) =
-      __$LoadingCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class __$LoadingCopyWithImpl<$Res> extends _$DictionaryStateCopyWithImpl<$Res>
-    implements _$LoadingCopyWith<$Res> {
-  __$LoadingCopyWithImpl(_Loading _value, $Res Function(_Loading) _then)
-      : super(_value, (v) => _then(v as _Loading));
-
-  @override
-  _Loading get _value => super._value as _Loading;
-}
-
-/// @nodoc
-
-class _$_Loading implements _Loading {
-  const _$_Loading();
 
   @override
   String toString() {
     return 'DictionaryState.loading()';
   }
-
-  @override
-  bool operator ==(dynamic other) {
-    return identical(this, other) || (other is _Loading);
-  }
-
-  @override
-  int get hashCode => runtimeType.hashCode;
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() initial,
-    required TResult Function() loading,
-    required TResult Function(String content) data,
-    required TResult Function() noData,
-  }) {
-    return loading();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-  }) {
-    return loading?.call();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) {
-    if (loading != null) {
-      return loading();
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Initial value) initial,
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) data,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return loading(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-  }) {
-    return loading?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (loading != null) {
-      return loading(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class _Loading implements DictionaryState {
-  const factory _Loading() = _$_Loading;
 }
 
 /// @nodoc
-abstract class _$LoadedCopyWith<$Res> {
-  factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) then) =
-      __$LoadedCopyWithImpl<$Res>;
+
+class _Loaded implements DictionaryState {
+  const _Loaded(this.content);
+
+  final String content;
+
+  /// Create a copy of DictionaryState
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @pragma('vm:prefer-inline')
+  _$LoadedCopyWith<_Loaded> get copyWith =>
+      __$LoadedCopyWithImpl<_Loaded>(this, _$identity);
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _Loaded &&
+            (identical(other.content, content) || other.content == content));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, content);
+
+  @override
+  String toString() {
+    return 'DictionaryState.data(content: $content)';
+  }
+}
+
+/// @nodoc
+abstract mixin class _$LoadedCopyWith<$Res>
+    implements $DictionaryStateCopyWith<$Res> {
+  factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) _then) =
+      __$LoadedCopyWithImpl;
+  @useResult
   $Res call({String content});
 }
 
 /// @nodoc
-class __$LoadedCopyWithImpl<$Res> extends _$DictionaryStateCopyWithImpl<$Res>
-    implements _$LoadedCopyWith<$Res> {
-  __$LoadedCopyWithImpl(_Loaded _value, $Res Function(_Loaded) _then)
-      : super(_value, (v) => _then(v as _Loaded));
+class __$LoadedCopyWithImpl<$Res> implements _$LoadedCopyWith<$Res> {
+  __$LoadedCopyWithImpl(this._self, this._then);
 
-  @override
-  _Loaded get _value => super._value as _Loaded;
+  final _Loaded _self;
+  final $Res Function(_Loaded) _then;
 
-  @override
+  /// Create a copy of DictionaryState
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
   $Res call({
-    Object? content = freezed,
+    Object? content = null,
   }) {
     return _then(_Loaded(
-      content == freezed
-          ? _value.content
+      null == content
+          ? _self.content
           : content // ignore: cast_nullable_to_non_nullable
               as String,
     ));
@@ -367,226 +350,22 @@ class __$LoadedCopyWithImpl<$Res> extends _$DictionaryStateCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$_Loaded implements _Loaded {
-  const _$_Loaded(this.content);
+class _NoData implements DictionaryState {
+  const _NoData();
 
   @override
-  final String content;
-
-  @override
-  String toString() {
-    return 'DictionaryState.data(content: $content)';
-  }
-
-  @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
-        (other is _Loaded &&
-            (identical(other.content, content) ||
-                const DeepCollectionEquality().equals(other.content, content)));
-  }
-
-  @override
-  int get hashCode =>
-      runtimeType.hashCode ^ const DeepCollectionEquality().hash(content);
-
-  @JsonKey(ignore: true)
-  @override
-  _$LoadedCopyWith<_Loaded> get copyWith =>
-      __$LoadedCopyWithImpl<_Loaded>(this, _$identity);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() initial,
-    required TResult Function() loading,
-    required TResult Function(String content) data,
-    required TResult Function() noData,
-  }) {
-    return data(content);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-  }) {
-    return data?.call(content);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) {
-    if (data != null) {
-      return data(content);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Initial value) initial,
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) data,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return data(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-  }) {
-    return data?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (data != null) {
-      return data(this);
-    }
-    return orElse();
-  }
-}
-
-abstract class _Loaded implements DictionaryState {
-  const factory _Loaded(String content) = _$_Loaded;
-
-  String get content => throw _privateConstructorUsedError;
-  @JsonKey(ignore: true)
-  _$LoadedCopyWith<_Loaded> get copyWith => throw _privateConstructorUsedError;
-}
-
-/// @nodoc
-abstract class _$NoDataCopyWith<$Res> {
-  factory _$NoDataCopyWith(_NoData value, $Res Function(_NoData) then) =
-      __$NoDataCopyWithImpl<$Res>;
-}
-
-/// @nodoc
-class __$NoDataCopyWithImpl<$Res> extends _$DictionaryStateCopyWithImpl<$Res>
-    implements _$NoDataCopyWith<$Res> {
-  __$NoDataCopyWithImpl(_NoData _value, $Res Function(_NoData) _then)
-      : super(_value, (v) => _then(v as _NoData));
-
-  @override
-  _NoData get _value => super._value as _NoData;
-}
-
-/// @nodoc
-
-class _$_NoData implements _NoData {
-  const _$_NoData();
-
-  @override
-  String toString() {
-    return 'DictionaryState.noData()';
-  }
-
-  @override
-  bool operator ==(dynamic other) {
-    return identical(this, other) || (other is _NoData);
+        (other.runtimeType == runtimeType && other is _NoData);
   }
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function() initial,
-    required TResult Function() loading,
-    required TResult Function(String content) data,
-    required TResult Function() noData,
-  }) {
-    return noData();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-  }) {
-    return noData?.call();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function()? initial,
-    TResult Function()? loading,
-    TResult Function(String content)? data,
-    TResult Function()? noData,
-    required TResult orElse(),
-  }) {
-    if (noData != null) {
-      return noData();
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(_Initial value) initial,
-    required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) data,
-    required TResult Function(_NoData value) noData,
-  }) {
-    return noData(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-  }) {
-    return noData?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(_Initial value)? initial,
-    TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? data,
-    TResult Function(_NoData value)? noData,
-    required TResult orElse(),
-  }) {
-    if (noData != null) {
-      return noData(this);
-    }
-    return orElse();
+  String toString() {
+    return 'DictionaryState.noData()';
   }
 }
 
-abstract class _NoData implements DictionaryState {
-  const factory _NoData() = _$_NoData;
-}
+// dart format on

@@ -39,6 +39,11 @@ class _AiSettingsViewState extends State<AiSettingsView> {
         TextEditingController(text: Prefs.openRouterLightModel);
 
     _fetchGeminiModels(_geminiKeyController.text);
+
+    // Fetch latest sponsored config so UI updates
+    Prefs.fetchSponsoredModelConfig().then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _fetchGeminiModels(String apiKey) async {
@@ -74,8 +79,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (_geminiModels.contains(Prefs.aiHeavyModel)) {
                   _selectedHeavyModel = Prefs.aiHeavyModel;
                 } else {
-                  if (_geminiModels.contains('gemini-3.5-flash')) {
-                    _selectedHeavyModel = 'gemini-3.5-flash';
+                  if (_geminiModels.contains('gemini-1.5-flash')) {
+                    _selectedHeavyModel = 'gemini-1.5-flash';
                   } else {
                     _selectedHeavyModel = _geminiModels.firstWhere(
                         (m) => m.contains('pro'),
@@ -90,8 +95,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (flashModels.contains(Prefs.aiLightModel)) {
                   _selectedLightModel = Prefs.aiLightModel;
                 } else {
-                  if (_geminiModels.contains('gemini-3.1-flash-lite')) {
-                    _selectedLightModel = 'gemini-3.1-flash-lite';
+                  if (_geminiModels.contains('gemini-1.5-flash-8b')) {
+                    _selectedLightModel = 'gemini-1.5-flash-8b';
                   } else {
                     _selectedLightModel = flashModels.isNotEmpty
                         ? flashModels.first
@@ -203,11 +208,11 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 // Bullet Points for Recommendations
                 _buildBulletPoint(
                     context,
-                    'Gemini  3.5 Flash (Heavy) & 3.1 Flash-Lite (Light):',
+                    'Gemini 1.5 Flash (Heavy) & 1.5 Flash-8B (Light):',
                     ' Balanced performance.'),
                 _buildBulletPoint(
                     context,
-                    'Gemini 3.1 Flash-Lite (Both Heavy & Light):',
+                    'Gemini 1.5 Flash-8B (Both Heavy & Light):',
                     ' Best overall usage limits and efficiency.'),
 
                 const SizedBox(height: 12),
@@ -282,35 +287,121 @@ class _AiSettingsViewState extends State<AiSettingsView> {
               key: _formKey,
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('OpenRouter'),
-                      Switch(
-                        value: Prefs.useGeminiDirect,
-                        onChanged: (bool value) {
-                          setState(() {
-                            Prefs.useGeminiDirect = value;
-                          });
-                        },
+                  ToggleButtons(
+                    borderRadius: BorderRadius.circular(8.0),
+                    onPressed: (int index) {
+                      setState(() {
+                        Prefs.aiProviderMode = index;
+                      });
+                    },
+                    isSelected: [
+                      Prefs.aiProviderMode == 0,
+                      Prefs.aiProviderMode == 1,
+                      Prefs.aiProviderMode == 2,
+                    ],
+                    children: const <Widget>[
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text('Gemini'),
                       ),
-                      const Text('Gemini Direct'),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text('BYOK'),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text('Sponsored'),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12.0),
-                  SwitchListTile(
-                    title: const Text('Use Cumulative AI Search Algo'),
-                    subtitle: const Text(
-                        'Passes all accumulated best results back into the AI for final review'),
-                    value: Prefs.useCumAlgo,
-                    onChanged: (bool value) {
-                      setState(() {
-                        Prefs.useCumAlgo = value;
-                      });
-                    },
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  height: 1.5,
+                                ),
+                            children: const [
+                              TextSpan(
+                                  text: 'Sponsored: ',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              TextSpan(
+                                  text:
+                                      'A gift to help you get started or for those in restricted regions. May the generous donor gain great merit!'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        height: 1.5,
+                                      ),
+                                  children: const [
+                                    TextSpan(
+                                        text: 'Gemini: ',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    TextSpan(
+                                        text:
+                                            'Best choice! Free, much faster, higher quality, and more daily queries. (Recommended) '),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 0),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: const Icon(Icons.help_outline, size: 16),
+                              label: Text(AppLocalizations.of(context)!.key),
+                              onPressed: () => showAiHelpDialog(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        RichText(
+                          text: TextSpan(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  height: 1.5,
+                                ),
+                            children: const [
+                              TextSpan(
+                                  text: 'BYOK: ',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              TextSpan(
+                                  text:
+                                      'Open Router, select any model (more complex, but fun).'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const Divider(),
-                  if (Prefs.useGeminiDirect) ...[
+                  if (Prefs.aiProviderMode == 0) ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -323,20 +414,18 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                                 controller: _geminiKeyController,
                                 decoration: const InputDecoration(
                                   labelText: 'Gemini API Key',
+                                  hintText: 'Enter gemini key',
+                                  border: OutlineInputBorder(),
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Right column: buttons stacked
+                        // Right column: save button
                         Column(
                           children: [
-                            TextButton.icon(
-                              icon: const Icon(Icons.help_outline),
-                              label: Text(AppLocalizations.of(context)!.key),
-                              onPressed: () => showAiHelpDialog(context),
-                            ),
+                            const SizedBox(height: 12),
                             TextButton.icon(
                               icon: const Icon(Icons.save),
                               label: Text(AppLocalizations.of(context)!.save),
@@ -407,7 +496,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         child: Row(
                           children: [
                             const Text(
-                              '3.5 flash recommended',
+                              '1.5 flash recommended',
                               style:
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
@@ -449,7 +538,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         child: Row(
                           children: [
                             const Text(
-                              '3.1 flash lite recommended',
+                              '1.5 flash 8b recommended',
                               style:
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
@@ -462,7 +551,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         ),
                       ),
                     ],
-                  ] else ...[
+                  ] else if (Prefs.aiProviderMode == 1) ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -471,6 +560,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                             controller: _openRouterKeyController,
                             decoration: const InputDecoration(
                               labelText: 'OpenRouter API Key',
+                              hintText: 'Enter OpenRouter key',
+                              border: OutlineInputBorder(),
                             ),
                           ),
                         ),
@@ -510,6 +601,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       decoration: const InputDecoration(
                         labelText: 'OpenRouter Heavy Model',
                         hintText: 'e.g. anthropic/claude-3.5-sonnet',
+                        border: OutlineInputBorder(),
                       ),
                       onChanged: (val) => Prefs.openRouterHeavyModel = val,
                     ),
@@ -519,8 +611,56 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       decoration: const InputDecoration(
                         labelText: 'OpenRouter Light Model',
                         hintText: 'e.g. meta-llama/llama-3-8b-instruct',
+                        border: OutlineInputBorder(),
                       ),
                       onChanged: (val) => Prefs.openRouterLightModel = val,
+                    ),
+                  ] else if (Prefs.aiProviderMode == 2) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Container(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(
+                              color: Theme.of(context).colorScheme.primary),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.verified,
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Using Sponsored\nCommunity Key',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                                'Service: ${Prefs.aiSponsoredProvider.isEmpty ? "openrouter.ai" : Prefs.aiSponsoredProvider}'),
+                            const SizedBox(height: 8),
+                            Text(
+                                'Heavy Model: ${Prefs.aiSponsoredHeavyModel.isEmpty ? "deepseek/deepseek-v4-pro" : Prefs.aiSponsoredHeavyModel}'),
+                            const SizedBox(height: 8),
+                            Text(
+                                'Light Model: ${Prefs.aiSponsoredLightModel.isEmpty ? "google/gemini-1.5-flash-8b" : Prefs.aiSponsoredLightModel}'),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16.0),

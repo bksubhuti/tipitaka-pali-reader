@@ -28,9 +28,9 @@ import '../../../services/repositories/bookmark_repo.dart';
 import '../../../services/repositories/page_content_repo.dart';
 import '../../../utils/pali_script.dart';
 import '../../../utils/platform_info.dart';
+import '../../../env/env.dart';
 import '../../dialogs/dictionary_dialog.dart';
 import '../dictionary/controller/dictionary_controller.dart';
-import '../home/openning_books_provider.dart';
 import '../home/search_page/search_page.dart';
 import 'controller/reader_view_controller.dart';
 import 'widgets/horizontal_book_view.dart';
@@ -107,7 +107,6 @@ class ReaderView extends StatelessWidget implements Searchable {
   }
 
   Widget _getReader(BuildContext context) {
-    final themeNotifier = context.watch<ThemeChangeNotifier>();
     final isLoaded = context.select<ReaderViewController, bool>(
         (controller) => controller.isloadingFinished);
 
@@ -625,16 +624,13 @@ Note: Only the first 1000 characters were sent for translation.
 ''';
       }
 
-      final Map<String, dynamic> result = Prefs.useGeminiDirect
+      final Map<String, dynamic> result = Prefs.activeAiProviderMode == 0
           ? await _translateWithGemini(truncatedText)
           : await _translateWithOpenRouter(context, truncatedText);
 
       final htmlOutput = result['text'] ?? '';
-      final finishReason = result['finishReason'];
 
-      final warning = '';
-
-      final fullHtml = '$warning$truncationNote$htmlOutput';
+      final fullHtml = '$truncationNote$htmlOutput';
 
       if (context.mounted) {
         context.read<ReaderViewController>().aiTranslationHtml.value = fullHtml;
@@ -648,13 +644,30 @@ Note: Only the first 1000 characters were sent for translation.
 
   Future<Map<String, dynamic>> _translateWithOpenRouter(
       BuildContext context, String inputText) async {
-    final String apiKey = Prefs.openRouterApiKey;
-    const String endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+    String apiKey = '';
+    String endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+    String modelName = '';
+
+    if (Prefs.activeAiProviderMode == 1) {
+      apiKey = Prefs.openRouterApiKey;
+      modelName = Prefs.openRouterHeavyModel;
+    } else if (Prefs.activeAiProviderMode == 2) {
+      apiKey = Env.openRouterApiKey;
+      await Prefs.fetchSponsoredModelConfig();
+      if (Prefs.aiSponsoredProvider.isNotEmpty) {
+        endpoint = Prefs.aiSponsoredProvider.contains('deepseek')
+            ? 'https://api.deepseek.com/chat/completions'
+            : 'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
+      }
+      modelName = Prefs.aiSponsoredHeavyModel.isNotEmpty
+          ? Prefs.aiSponsoredHeavyModel
+          : 'deepseek/deepseek-v4-pro';
+    }
 
     final prompt = '${Prefs.openRouterPrompt.trim()}\n\nText:\n\n$inputText';
 
     final requestBody = {
-      "model": Prefs.aiHeavyModel,
+      "model": modelName,
       "messages": [
         {
           "role": "user",

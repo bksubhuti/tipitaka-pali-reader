@@ -6,7 +6,7 @@ part 'search_result_state.freezed.dart';
 
 @freezed
 class SearchResultState with _$SearchResultState {
-  const factory SearchResultState.loading() = _Loading;
-  const factory SearchResultState.loaded(List<SearchResult> results, int bookCount) = _Loaded;
-  const factory SearchResultState.noData() = _NoData;
+  const factory SearchResultState.loading() = SearchResultStateLoading;
+  const factory SearchResultState.loaded(List<SearchResult> results, int bookCount) = SearchResultStateLoaded;
+  const factory SearchResultState.noData() = SearchResultStateNoData;
 }

@@ -7,8 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import '../business_logic/models/search_result.dart';
 import '../services/database/database_helper.dart';
 import '../services/prefs.dart';
+import '../env/env.dart';
 import '../services/repositories/fts_repo.dart';
+import '../services/repositories/page_content_repo.dart';
 import '../ui/screens/home/search_page/search_page.dart';
+import '../utils/pali_english_stripper.dart';
 
 /// A search result paired with the term and query mode that found it,
 /// so we can properly highlight it in the reader.
@@ -44,12 +47,14 @@ class AiMatchedResult {
 /// Represents the AI's decision on what to do next in the search loop.
 class AiPlan {
   final List<int> selectedIndices;
+  final List<int> requestOverflowIndices;
   final List<String> thoughtProcess;
   final bool isFullyAnswered;
   final List<String> nextQueries;
 
   AiPlan({
     required this.selectedIndices,
+    required this.requestOverflowIndices,
     required this.thoughtProcess,
     required this.isFullyAnswered,
     required this.nextQueries,
@@ -86,6 +91,9 @@ class AiSearchService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final void Function(String message)? onStatusUpdate;
 
+  // Add a persistent HTTP client for the entire search session
+  http.Client _httpClient = http.Client();
+
   // We keep a running log of what the agent did to show the user at the end
   final List<String> _agentLog = [];
   bool _isCancelled = false;
@@ -117,6 +125,7 @@ class AiSearchService {
 
   /// Main entry point: perform a multi-turn AI-guided search.
   Future<AiSearchResult> search(String userQuery, {int maxResults = 30}) async {
+    _httpClient = http.Client();
     _agentLog.clear();
     _lightInputTokens = 0;
     _lightOutputTokens = 0;
@@ -126,9 +135,23 @@ class AiSearchService {
     _heavyOpenRouterCost = 0.0;
     _lightModelUsed = '';
     _heavyModelUsed = '';
-    final apiKey = Prefs.useGeminiDirect
-        ? Prefs.geminiDirectApiKey
-        : Prefs.openRouterApiKey;
+    String apiKey = '';
+    if (Prefs.activeAiProviderMode == 0) {
+      apiKey = Prefs.geminiDirectApiKey;
+    } else if (Prefs.activeAiProviderMode == 1) {
+      apiKey = Prefs.openRouterKey;
+    } else if (Prefs.activeAiProviderMode == 2) {
+      apiKey = Env.openRouterApiKey;
+      await Prefs.fetchSponsoredModelConfig();
+      if (Prefs.aiSponsoredTriesLeft <= 0) {
+        return AiSearchResult(
+          results: [],
+          summary:
+              'Daily limit reached for Sponsored Mode. Please try again tomorrow or configure your own API key in AI Settings.',
+        );
+      }
+      Prefs.aiSponsoredTriesLeft = Prefs.aiSponsoredTriesLeft - 1;
+    }
 
     if (apiKey.isEmpty) {
       return AiSearchResult(
@@ -138,15 +161,19 @@ class AiSearchService {
     }
 
     final bestResults = <AiMatchedResult>[];
+    final generalOverflow = <AiMatchedResult>[];
     final triedQueries = <String>[];
     final ftsRepo = FtsDatabaseRepository(_dbHelper);
 
     _addLog('🤖 **Agent started** analyzing query: "$userQuery"');
 
     // Iteration 0: Bootstrap the search
+    String aiMemory = '';
     List<String> nextQueriesToSearch =
-        await _generateInitialQueries(userQuery, apiKey);
-    List<AiMatchedResult> newResults = [];
+        await _generateInitialQueries(userQuery, apiKey, (thought) {
+      aiMemory = thought;
+    });
+    List<int> requestOverflowIndices = [];
 
     // Run the Agentic Loop
     try {
@@ -154,14 +181,25 @@ class AiSearchService {
         if (_isCancelled) break;
         _updateStatus('--- Iteration $iteration ---');
 
+        List<AiMatchedResult> requestedOverflow = [];
+        if (requestOverflowIndices.isNotEmpty) {
+          final sortedIndices = List<int>.from(requestOverflowIndices)
+            ..sort((a, b) => b.compareTo(a));
+          for (final idx in sortedIndices) {
+            if (idx >= 0 && idx < generalOverflow.length) {
+              requestedOverflow.add(generalOverflow.removeAt(idx));
+            }
+          }
+          requestedOverflow = requestedOverflow.reversed.toList();
+        }
+
+        List<AiMatchedResult> newResults = [];
+
         if (nextQueriesToSearch.isNotEmpty) {
-          _updateStatus(
-              '✅ Validating ${nextQueriesToSearch.length} Pāḷi queries against dictionary...');
-          final validated = await _validateTerms(nextQueriesToSearch);
-          triedQueries.addAll(validated);
+          triedQueries.addAll(nextQueriesToSearch);
           newResults.clear();
 
-          for (final query in validated) {
+          for (final query in nextQueriesToSearch) {
             _addLog('🔍 Searching for "$query"...');
             try {
               final isMultiWord = query.contains(' ');
@@ -173,19 +211,26 @@ class AiSearchService {
                   await ftsRepo.getResults(query, queryMode, wordDistance);
               _addLog('   ↳ Found ${results.length} raw matches.');
 
-              // Sample max maxResults per query to prevent token overflow
-              List<SearchResult> sampled = results;
-              if (results.length > maxResults) {
-                final step = (results.length / maxResults).floor();
-                sampled = List.generate(maxResults, (i) => results[i * step]);
-              }
+              for (final r in results) {
+                final existsInBest =
+                    bestResults.any((b) => b.searchResult.id == r.id);
+                final existsInReq =
+                    requestedOverflow.any((req) => req.searchResult.id == r.id);
+                final existsInGen =
+                    generalOverflow.any((gen) => gen.searchResult.id == r.id);
+                final existsInNew =
+                    newResults.any((nw) => nw.searchResult.id == r.id);
 
-              for (final r in sampled) {
-                newResults.add(AiMatchedResult(
-                  searchResult: r,
-                  term: query,
-                  queryMode: queryMode,
-                ));
+                if (!existsInBest &&
+                    !existsInReq &&
+                    !existsInGen &&
+                    !existsInNew) {
+                  newResults.add(AiMatchedResult(
+                    searchResult: r,
+                    term: query,
+                    queryMode: queryMode,
+                  ));
+                }
               }
             } catch (e) {
               debugPrint('Error searching $query: $e');
@@ -193,26 +238,49 @@ class AiSearchService {
           }
         }
 
-        if (newResults.isEmpty) {
+        List<AiMatchedResult> currentFullText = [];
+        currentFullText.addAll(requestedOverflow);
+
+        int availableSlots = maxResults - currentFullText.length;
+        if (availableSlots > 0) {
+          currentFullText.addAll(newResults.take(availableSlots));
+          generalOverflow.addAll(newResults.skip(availableSlots));
+        } else {
+          generalOverflow.addAll(newResults);
+        }
+
+        debugPrint(
+            '[AiSearch] Budgeting Trace: maxResults=$maxResults, newResults.length=${newResults.length}');
+        debugPrint(
+            '[AiSearch] Budgeting Trace: currentFullText.length=${currentFullText.length}, generalOverflow.length=${generalOverflow.length}');
+
+        if (currentFullText.isEmpty && generalOverflow.isEmpty) {
           _addLog('⚠️ No results found for these queries. Rethinking...');
         } else {
-          _updateStatus('📚 Reading ${newResults.length} passages...');
+          _updateStatus('📚 Reading ${currentFullText.length} passages...');
         }
 
         _updateStatus('🧠 AI is evaluating findings and planning...');
 
         // HYBRID ROUTING STRATEGY:
-        // Use the light model for Iterations 1 & 2. Switch to the heavy model for Iteration 3+.
-        bool isHeavyLifting = iteration >= 3;
+        // The first initial query is heavy. The remaining evaluation iterations use the light model.
+        bool isHeavyLifting = false;
 
         final plan = await _evaluateAndPlan(
           userQuery: userQuery,
           apiKey: apiKey,
           triedQueries: triedQueries,
           bestResults: bestResults,
-          newResults: newResults,
+          currentFullText: currentFullText,
+          generalOverflow: generalOverflow,
           isHeavy: isHeavyLifting,
+          previousThoughts: aiMemory,
         );
+
+        // Update memory for the NEXT iteration using the current thoughts
+        if (plan != null && plan.thoughtProcess.isNotEmpty) {
+          aiMemory = plan.thoughtProcess.join(' ');
+        }
 
         if (plan == null) {
           _addLog('❌ AI failed to plan next steps. Stopping early.');
@@ -226,8 +294,8 @@ class AiSearchService {
 
         int newFinds = 0;
         for (final idx in plan.selectedIndices) {
-          if (idx >= 0 && idx < newResults.length) {
-            final r = newResults[idx];
+          if (idx >= 0 && idx < currentFullText.length) {
+            final r = currentFullText[idx];
             final exists =
                 bestResults.any((b) => b.searchResult.id == r.searchResult.id);
             if (!exists) {
@@ -241,18 +309,25 @@ class AiSearchService {
           _addLog('🎯 Kept $newFinds highly relevant passages.');
         }
 
+        if (plan.requestOverflowIndices.isNotEmpty) {
+          _addLog(
+              '📥 AI requested to view ${plan.requestOverflowIndices.length} items from overflow for the next iteration.');
+        }
+
         if (plan.isFullyAnswered) {
           _addLog(
               '✅ **Search Complete:** AI determined all relevant instances have been found.');
           break;
         }
 
-        if (plan.nextQueries.isEmpty) {
-          _addLog('🏁 AI has exhausted its search ideas.');
+        if (plan.nextQueries.isEmpty && plan.requestOverflowIndices.isEmpty) {
+          _addLog(
+              '🏁 AI has exhausted its search ideas and requested no more overflow items.');
           break;
         }
 
         nextQueriesToSearch = plan.nextQueries;
+        requestOverflowIndices = plan.requestOverflowIndices;
       }
     } catch (e) {
       if (_isCancelled) {
@@ -265,9 +340,17 @@ class AiSearchService {
     double lightCost = 0.0;
     double heavyCost = 0.0;
 
-    if (Prefs.useGeminiDirect) {
-      lightCost = (_lightInputTokens / 1000000.0) * 0.25 +
-          (_lightOutputTokens / 1000000.0) * 1.50;
+    final providerStr = Prefs.activeAiProviderMode == 0
+        ? 'Gemini Direct (calculated)'
+        : (Prefs.activeAiProviderMode == 1
+            ? 'OpenRouter BYOK (reported)'
+            : 'OpenRouter Sponsored (reported)');
+
+    if (Prefs.activeAiProviderMode == 0) {
+      // Gemini Direct pricing:
+      // Gemini 1.5 Flash (Light): $0.075 / 1M input, $0.30 / 1M output
+      lightCost = (_lightInputTokens / 1000000.0) * 0.075 +
+          (_lightOutputTokens / 1000000.0) * 0.30;
       heavyCost = (_heavyInputTokens / 1000000.0) * 1.50 +
           (_heavyOutputTokens / 1000000.0) * 9.00;
     } else {
@@ -277,25 +360,20 @@ class AiSearchService {
 
     final double totalCost = lightCost + heavyCost;
 
-    // Determine model names for the log
-    String modelInfo = '';
-    if (Prefs.useGeminiDirect) {
-      if (_lightModelUsed.isNotEmpty) modelInfo += 'Light: $_lightModelUsed';
-      if (_heavyModelUsed.isNotEmpty) {
-        if (modelInfo.isNotEmpty) modelInfo += ', ';
-        modelInfo += 'Heavy: $_heavyModelUsed';
-      }
-    } else {
-      if (_lightModelUsed.isNotEmpty) modelInfo += 'Light: $_lightModelUsed';
-      if (_heavyModelUsed.isNotEmpty) {
-        if (modelInfo.isNotEmpty) modelInfo += ', ';
-        modelInfo += 'Heavy: $_heavyModelUsed';
-      }
+    _addLog('💰 Total Cost: \$${totalCost.toStringAsFixed(6)}');
+    _addLog(
+        '   ↳ Light Model ($_lightModelUsed): \$${lightCost.toStringAsFixed(6)} (${_lightInputTokens} in, ${_lightOutputTokens} out)');
+    if (_heavyModelUsed.isNotEmpty) {
+      _addLog(
+          '   ↳ Heavy Model ($_heavyModelUsed): \$${heavyCost.toStringAsFixed(6)} (${_heavyInputTokens} in, ${_heavyOutputTokens} out)');
+    }
+    _addLog('   ↳ Pricing Source: $providerStr');
+
+    if (Prefs.activeAiProviderMode == 2) {
+      _addLog(
+          '💡 **Note**: Sponsored Mode is a gift to help you get started or for those in restricted regions. May the generous donor of this API key gain great merit! \nFor faster speeds, better quality, and more daily queries, we highly recommend adding your own free Gemini key in the AI Settings.');
     }
 
-    _addLog('💰 Cost: \$${totalCost.toStringAsFixed(6)} | $modelInfo');
-    _addLog(
-        '📊 Tokens: ${_lightInputTokens + _heavyInputTokens} in, ${_lightOutputTokens + _heavyOutputTokens} out');
     await _logCost(userQuery, lightCost, heavyCost, totalCost);
 
     // Format a beautiful markdown log for the UI summary
@@ -309,6 +387,9 @@ class AiSearchService {
       summaryBuffer.writeln('* $log');
     }
 
+    // Free up the socket when the search loop is completely done
+    _httpClient.close();
+
     return AiSearchResult(
       results: bestResults,
       summary: summaryBuffer.toString(),
@@ -317,7 +398,7 @@ class AiSearchService {
 
   /// Initial prompt with explicit Chain of Thought instructions.
   Future<List<String>> _generateInitialQueries(
-      String userQuery, String apiKey) async {
+      String userQuery, String apiKey, void Function(String) onThought) async {
     final prompt =
         '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user is asking: "$userQuery"
@@ -325,10 +406,12 @@ The user is asking: "$userQuery"
 Task:
 1. Formulate a step-by-step thought process. Identify key figures, events, and core concepts related to the query across the Suttas, Vinaya, and Commentaries (Aṭṭhakathā).
 2. Generate 2 to 3 highly targeted Pāḷi search terms (single words or short phrases) to find relevant passages. 
-Note: The database uses substring matching (partial word matches are supported), so use root words where appropriate. You are only proposing the initial batch of queries; you will be able to refine and search again based on the results.
-For example: When trying to find "puriso" or "purisa" or "purisassa", etc search for "puris" to get all its forms.
-CRITICAL: You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
-NEVER use hyphens or dashes. For compound words, either combine them entirely (e.g., "sotadvāravīthi") or use spaces (e.g., "sota dvāra"). Do not write "sota-dvāra".
+   COMMON VS RARE WORDS: DO NOT search for common single words (e.g., 'bhikkhu'). You may search for single words ONLY if they are very rare proper nouns (e.g., 'paṭācārā'). However, if a name is short or could be a common noun (like 'koka' which also means wolf, or 'suka' which means parrot), you MUST pair it with one contextual noun using a space (e.g., 'koka sunakha' or 'suka rukkha'). Pairing a name with a context word is the most powerful way to filter out noise.
+   - You CAN search for rare compounds, but remember the database uses substring matching. Search for root words (e.g., search "puris" to get puriso, purisa, purisassa).
+3. CRITICAL RULE FOR SPACES: If you include a space in your query (e.g., "gihi cīvara"), the app executes a DISTANCE SEARCH, requiring both words to be within 12 words of each other. NEVER suggest queries with 3 or more words. Keep phrases to a maximum of 2 words.
+4. CRITICAL: Do NOT include book names (e.g., 'dhammapada', 'majjhima') in search terms.
+5. You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
+6. TEXTUAL VARIANTS: The database uses the Chaṭṭha Saṅgāyana (CSCD) edition. If a common word has alternative spellings or synonyms in different traditions (e.g., 'suka' vs 'suva' for parrot, or 'kapi' vs 'makkaṭa' vs 'vānara' for monkey), include searches for BOTH root words. Do not assume your preferred spelling is the only one.
 
 Respond ONLY with a JSON object in this exact format:
 {
@@ -337,7 +420,7 @@ Respond ONLY with a JSON object in this exact format:
 }''';
 
     try {
-      final response = await _callAi(prompt, apiKey, isHeavy: false);
+      final response = await _callAi(prompt, apiKey, isHeavy: true);
       if (response == null) return [];
 
       final jsonStr = _extractJson(response);
@@ -348,6 +431,7 @@ Respond ONLY with a JSON object in this exact format:
       final thinking = data['thinking']?.toString() ?? '';
       if (thinking.isNotEmpty) {
         _addLog('🧠 $thinking');
+        onThought(thinking);
       }
 
       return (data['next_queries'] as List?)
@@ -367,26 +451,37 @@ Respond ONLY with a JSON object in this exact format:
     required String apiKey,
     required List<String> triedQueries,
     required List<AiMatchedResult> bestResults,
-    required List<AiMatchedResult> newResults,
+    required List<AiMatchedResult> currentFullText,
+    required List<AiMatchedResult> generalOverflow,
     required bool isHeavy,
+    required String previousThoughts,
   }) async {
     final buffer = StringBuffer();
     int wordCount = 0;
-    // each FTS result is 25 but we have prompts too. originally 1000 maxwords for 20 fixed results numbers
     int maxWords = Prefs.aiMaxResults * 50;
 
-    for (int i = 0; i < newResults.length && wordCount < maxWords; i++) {
-      final r = newResults[i].searchResult;
+    final pageContentRepo = PageContentDatabaseRepository(_dbHelper);
+
+    for (int i = 0; i < currentFullText.length && wordCount < maxWords; i++) {
+      final r = currentFullText[i].searchResult;
       final cleanDesc = r.description
           .replaceAll(RegExp(r'<[^>]*>'), '')
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
 
-      final words = cleanDesc.split(' ');
+      final pageContent =
+          await pageContentRepo.getPageByBookAndPage(r.book.id, r.pageNumber);
+
+      final strippedPali = stripEnglishFromPali(
+        mixedSample: cleanDesc,
+        labeledPageHtml: pageContent?.content,
+      );
+
+      final words = strippedPali.split(' ');
       final allowedWords = maxWords - wordCount;
       final truncDesc = words.length > allowedWords
           ? '${words.take(allowedWords).join(' ')}...'
-          : cleanDesc;
+          : strippedPali;
 
       buffer.write(
           '[$i] ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber}: "$truncDesc"\n');
@@ -396,63 +491,94 @@ Respond ONLY with a JSON object in this exact format:
     String cumulativeContext =
         'Currently saved relevant results: ${bestResults.length}';
 
-    if (Prefs.useCumAlgo && bestResults.isNotEmpty) {
+    if (bestResults.isNotEmpty) {
       final cumBuffer = StringBuffer();
-      int cumWordCount = 0;
-      int cumMaxWords = Prefs.aiMaxResults * 50;
-
-      for (int i = 0;
-          i < bestResults.length && cumWordCount < cumMaxWords;
-          i++) {
+      for (int i = 0; i < bestResults.length; i++) {
         final r = bestResults[i].searchResult;
         final cleanDesc = r.description
             .replaceAll(RegExp(r'<[^>]*>'), '')
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
 
-        final words = cleanDesc.split(' ');
-        final allowedWords = cumMaxWords - cumWordCount;
-        final truncDesc = words.length > allowedWords
-            ? '${words.take(allowedWords).join(' ')}...'
-            : cleanDesc;
+        final pageContent =
+            await pageContentRepo.getPageByBookAndPage(r.book.id, r.pageNumber);
 
-        cumBuffer.write(
-            '- ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber}: "$truncDesc"\n');
-        cumWordCount += words.take(allowedWords).length;
+        final strippedPali = stripEnglishFromPali(
+          mixedSample: cleanDesc,
+          labeledPageHtml: pageContent?.content,
+        );
+
+        final shortDesc = strippedPali.length > 80
+            ? '${strippedPali.substring(0, 80)}...'
+            : strippedPali;
+
+        cumBuffer.writeln(
+            'R${i + 1}: ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber} - "$shortDesc"');
       }
-      cumulativeContext =
-          '''Currently saved relevant results (${bestResults.length}):
+
+      cumulativeContext = '''Previously saved results (refer to them by ID):
 ${cumBuffer.toString()}''';
     }
 
+    // Compact Grouped Overflow Summary
+    final overflowBuffer = StringBuffer();
+    if (generalOverflow.isNotEmpty) {
+      overflowBuffer.writeln('**Overflow** (OF# = index to request):');
+      final grouped = <String, List<int>>{};
+      for (int i = 0; i < generalOverflow.length; i++) {
+        final key =
+            '${generalOverflow[i].searchResult.book.name}|${generalOverflow[i].term}';
+        grouped.putIfAbsent(key, () => []).add(i);
+      }
+
+      for (final entry in grouped.entries) {
+        final parts = entry.key.split('|');
+        final book = parts[0];
+        final term = parts[1];
+        final indices = entry.value.map((e) => 'OF-$e').join(', ');
+        overflowBuffer.writeln('- $book | "$term" → $indices');
+      }
+    }
+    final overflowSummary = overflowBuffer.toString();
+
     final prompt =
-        '''You are an expert in Theravada Buddhism and the Pāḷi Tipiṭaka.
+        '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user asks: "$userQuery"
 
 We are running an autonomous search loop.
 $cumulativeContext
-Queries we have already tried: ${triedQueries.join(', ')}
 
-Here are NEW search results we just found:
-${buffer.toString().isEmpty ? "(No results found for the last queries)" : buffer.toString()}
+PREVIOUS AI THOUGHTS (For context):
+$previousThoughts
+
+Queries we have already tried (do not repeat these): ${triedQueries.join(', ')}
+
+Here are the FULL TEXT results for this round (use their numeric indices [0], [1], ... to select):
+${buffer.toString().isEmpty ? "(No full text results available)" : buffer.toString()}
+
+${overflowSummary.isEmpty ? "" : "OVERFLOW SUMMARY (use OF- indices to request):\n$overflowSummary\n"}
 
 Task:
-1. Review the new results. Keep EVERY result that accurately relates to the user's question. 
-2. Formulate a step-by-step thought process. Explicitly mention what you found, what you discarded, and why.
-3. Review the combined total of saved results and selected new results. If they fully answer the question, set is_fully_answered to true. Otherwise, set it to false and suggest 2 to 3 NEW Pāḷi queries. 
-CRITICAL: If your previous queries failed, you MUST pivot. Try different single keywords, synonyms, or shorter root words. Do not get stuck repeating variations of the same failed phrase. The database uses substring matching, so single root words are often the most effective way to find obscure passages.
+1. Review the FULL TEXT results carefully.
+2. Select the most relevant ones using their indices [0], [1], etc.
+3. If you want to see more from overflow, list up to a MAXIMUM of 10 OF- indices in "request_overflow_indices".
+4. If you have 2-4 strong results that answer the question well, set "is_fully_answered": true and STOP.
+5. If not fully answered, propose new queries based on what failed or succeeded. 
+   - RULE: If a query contains a space, the app requires all words to be within 12 words of each other. Maximum 2 words per query. Never write full Pāḷi sentences.
 
-Respond ONLY with JSON (no markdown):
+Respond ONLY with valid JSON:
 {
-  "thought_process": [
-    "Result 1 shows Ananda crying at Mahāpajāpatī's passing, I will keep it.",
-    "Result 4 shows Ananda crying at Sāriputta's passing, I will keep it.",
-    "Looking at the saved results and my new selections, I have not found the famous Parinibbāna reference yet, so I must keep searching."
-  ],
-  "selected_new_indices": [1, 4],
+  "thought_process": ["short thoughts only"],
+  "selected_new_indices": [0, 2],
+  "request_overflow_indices": [5, 8],
   "is_fully_answered": false,
-  "next_queries": ["kapiśīsaṃ upanissāya", "parinibbāna ānanda"]
+  "next_queries": ["query1", "query2"]
 }''';
+
+    debugPrint('[AiSearch] Prompt length: ${prompt.length} chars');
+    final approxWords = prompt.split(RegExp(r'\s+')).length;
+    _addLog(
+        '📊 Sending ~${approxWords} words to AI (New items: ${currentFullText.length} | Saved: ${bestResults.length} | Overflow: ${generalOverflow.length})');
 
     try {
       final response = await _callAi(prompt, apiKey, isHeavy: isHeavy);
@@ -464,6 +590,10 @@ Respond ONLY with JSON (no markdown):
       final data = jsonDecode(jsonStr);
       return AiPlan(
         selectedIndices: (data['selected_new_indices'] as List?)
+                ?.map((e) => e is int ? e : int.tryParse(e.toString()) ?? -1)
+                .toList() ??
+            [],
+        requestOverflowIndices: (data['request_overflow_indices'] as List?)
                 ?.map((e) => e is int ? e : int.tryParse(e.toString()) ?? -1)
                 .toList() ??
             [],
@@ -484,62 +614,24 @@ Respond ONLY with JSON (no markdown):
     }
   }
 
-  Future<List<String>> _validateTerms(List<String> terms) async {
-    final db = await _dbHelper.database;
-    final validated = <String>[];
-
-    for (final term in terms) {
-      final words = term.split(' ').where((w) => w.isNotEmpty).toList();
-      bool allWordsValid = true;
-      final validatedWords = <String>[];
-
-      for (final word in words) {
-        final exact = await db
-            .rawQuery('SELECT word FROM words WHERE word = ? LIMIT 1', [word]);
-        if (exact.isNotEmpty) {
-          validatedWords.add(word);
-          continue;
-        }
-
-        final prefix = await db.rawQuery(
-            'SELECT word FROM words WHERE word LIKE ? ORDER BY frequency DESC LIMIT 3',
-            ['$word%']);
-        if (prefix.isNotEmpty) {
-          validatedWords.add(word);
-          continue;
-        }
-
-        if (word.length > 3) {
-          final stem = word.substring(0, word.length - 1);
-          final stemMatch = await db.rawQuery(
-              'SELECT word FROM words WHERE word LIKE ? ORDER BY frequency DESC LIMIT 1',
-              ['$stem%']);
-          if (stemMatch.isNotEmpty) {
-            validatedWords.add(stemMatch.first['word'] as String);
-            continue;
-          }
-        }
-        allWordsValid = false;
-        break;
-      }
-
-      if (allWordsValid && validatedWords.isNotEmpty) {
-        validated.add(validatedWords.join(' '));
-      } else {
-        validated.add(term); // Fallback to avoid empty lists
-      }
-    }
-    return validated;
-  }
-
   Future<List<String>> _getActiveFlashModels(String apiKey,
       {required bool isHeavy}) async {
-    final heavyPref = Prefs.aiHeavyModel;
-    final lightPref = Prefs.aiLightModel;
+    String lightPref = '';
+    String heavyPref = '';
 
-    final lightModel =
-        lightPref.isNotEmpty ? lightPref : 'gemini-3.1-flash-lite';
-    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-3.5-flash';
+    if (Prefs.activeAiProviderMode == 0) {
+      lightPref = Prefs.aiLightModel;
+      heavyPref = Prefs.aiHeavyModel;
+    } else if (Prefs.activeAiProviderMode == 1) {
+      lightPref = Prefs.openRouterLightModel;
+      heavyPref = Prefs.openRouterHeavyModel;
+    } else if (Prefs.activeAiProviderMode == 2) {
+      lightPref = Prefs.aiSponsoredLightModel;
+      heavyPref = Prefs.aiSponsoredHeavyModel;
+    }
+
+    final lightModel = lightPref.isNotEmpty ? lightPref : 'gemini-1.5-flash-8b';
+    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-1.5-flash';
 
     if (!isHeavy) {
       return [lightModel];
@@ -551,17 +643,34 @@ Respond ONLY with JSON (no markdown):
 
   Future<String?> _callAi(String prompt, String apiKey,
       {required bool isHeavy}) async {
-    if (Prefs.useGeminiDirect) {
+    if (Prefs.activeAiProviderMode == 0) {
       return _callGemini(prompt, apiKey, isHeavy: isHeavy);
     } else {
-      return _callOpenRouter(prompt, apiKey, isHeavy: isHeavy);
+      String apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+      if (Prefs.activeAiProviderMode == 2 &&
+          Prefs.aiSponsoredProvider.isNotEmpty) {
+        apiUrl = Prefs.aiSponsoredProvider.contains('deepseek')
+            ? 'https://api.deepseek.com/chat/completions'
+            : 'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
+      }
+
+      return _callOpenRouter(prompt, apiKey, isHeavy: isHeavy, apiUrl: apiUrl);
     }
   }
 
   Future<String?> _callOpenRouter(String prompt, String apiKey,
-      {required bool isHeavy}) async {
-    final lightPref = Prefs.openRouterLightModel;
-    final heavyPref = Prefs.openRouterHeavyModel;
+      {required bool isHeavy,
+      String apiUrl = 'https://openrouter.ai/api/v1/chat/completions'}) async {
+    String lightPref = '';
+    String heavyPref = '';
+
+    if (Prefs.activeAiProviderMode == 1) {
+      lightPref = Prefs.openRouterLightModel;
+      heavyPref = Prefs.openRouterHeavyModel;
+    } else if (Prefs.activeAiProviderMode == 2) {
+      lightPref = Prefs.aiSponsoredLightModel;
+      heavyPref = Prefs.aiSponsoredHeavyModel;
+    }
 
     final lightModel =
         lightPref.isNotEmpty ? lightPref : 'meta-llama/llama-3-8b-instruct';
@@ -579,14 +688,14 @@ Respond ONLY with JSON (no markdown):
 
     for (final model in models) {
       requestBody["model"] = model;
-      final endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+      final endpoint = apiUrl;
 
       for (int attempt = 0; attempt < 2; attempt++) {
         try {
           debugPrint(
               '[AiSearch] Attempting connection to OpenRouter model $model (Try ${attempt + 1})...');
 
-          final response = await http
+          final response = await _httpClient
               .post(
                 Uri.parse(endpoint),
                 headers: {
@@ -594,10 +703,11 @@ Respond ONLY with JSON (no markdown):
                   'Content-Type': 'application/json',
                   'HTTP-Referer': 'https://americanmonk.org',
                   'X-Title': 'Tipitaka Pali Reader',
+                  'User-Agent': 'TipitakaPaliReader/1.0',
                 },
                 body: utf8.encode(jsonEncode(requestBody)),
               )
-              .timeout(const Duration(seconds: 45));
+              .timeout(const Duration(seconds: 50));
 
           if (_isCancelled) {
             final msg = 'Cancelled by user';
@@ -686,7 +796,7 @@ Respond ONLY with JSON (no markdown):
           debugPrint(
               '[AiSearch] Attempting connection to $model (Try ${attempt + 1})...');
 
-          final response = await http.post(
+          final response = await _httpClient.post(
             Uri.parse('$endpoint?key=$apiKey'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(requestBody),
