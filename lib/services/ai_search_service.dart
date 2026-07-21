@@ -98,16 +98,79 @@ class AiSearchService {
   final List<String> _agentLog = [];
   bool _isCancelled = false;
 
+  int _initialInputTokens = 0;
+  int _initialOutputTokens = 0;
   int _lightInputTokens = 0;
   int _lightOutputTokens = 0;
   int _heavyInputTokens = 0;
   int _heavyOutputTokens = 0;
+  double _initialOpenRouterCost = 0.0;
   double _lightOpenRouterCost = 0.0;
   double _heavyOpenRouterCost = 0.0;
+  String _initialModelUsed = '';
   String _lightModelUsed = '';
   String _heavyModelUsed = '';
 
   AiSearchService({this.onStatusUpdate});
+
+  List<String> _parseStringList(dynamic jsonValue) {
+    if (jsonValue == null) return [];
+    if (jsonValue is List) {
+      return jsonValue.map((e) => e.toString()).toList();
+    }
+    if (jsonValue is String) {
+      return [jsonValue];
+    }
+    return [];
+  }
+
+  List<int> _parseIntList(dynamic jsonValue) {
+    if (jsonValue == null) return [];
+    if (jsonValue is List) {
+      return jsonValue
+          .map((e) => int.tryParse(e.toString()))
+          .whereType<int>()
+          .toList();
+    }
+    if (jsonValue is int) return [jsonValue];
+    return [];
+  }
+
+  String _getTargetLanguage(String scriptCode) {
+    switch (scriptCode) {
+      case 'si':
+        return 'Sinhala';
+      case 'hi':
+        return 'Hindi';
+      case 'th':
+        return 'Thai';
+      case 'lo':
+        return 'Lao';
+      case 'my':
+        return 'Burmese';
+      case 'km':
+        return 'Khmer';
+      case 'be':
+        return 'Bengali';
+      case 'gm':
+        return 'Punjabi';
+      case 'gj':
+        return 'Gujarati';
+      case 'te':
+        return 'Telugu';
+      case 'ka':
+        return 'Kannada';
+      case 'mm':
+        return 'Malayalam';
+      case 'cy':
+        return 'Russian';
+      case 'ti':
+        return 'Tibetan';
+      case 'ro':
+      default:
+        return 'English';
+    }
+  }
 
   void cancel() {
     _isCancelled = true;
@@ -125,14 +188,21 @@ class AiSearchService {
 
   /// Main entry point: perform a multi-turn AI-guided search.
   Future<AiSearchResult> search(String userQuery, {int maxResults = 30}) async {
+    if (Prefs.activeAiProviderMode == 2 && maxResults > 45) {
+      maxResults = 45;
+    }
     _httpClient = http.Client();
     _agentLog.clear();
+    _initialInputTokens = 0;
+    _initialOutputTokens = 0;
     _lightInputTokens = 0;
     _lightOutputTokens = 0;
     _heavyInputTokens = 0;
     _heavyOutputTokens = 0;
+    _initialOpenRouterCost = 0.0;
     _lightOpenRouterCost = 0.0;
     _heavyOpenRouterCost = 0.0;
+    _initialModelUsed = '';
     _lightModelUsed = '';
     _heavyModelUsed = '';
     String apiKey = '';
@@ -343,9 +413,10 @@ class AiSearchService {
     final providerStr = Prefs.activeAiProviderMode == 0
         ? 'Gemini Direct (calculated)'
         : (Prefs.activeAiProviderMode == 1
-            ? 'OpenRouter BYOK (reported)'
+            ? 'OpenRouter (reported)'
             : 'OpenRouter Sponsored (reported)');
 
+    double initialCost = 0.0;
     if (Prefs.activeAiProviderMode == 0) {
       // Gemini Direct pricing:
       // Gemini 1.5 Flash (Light): $0.075 / 1M input, $0.30 / 1M output
@@ -354,27 +425,47 @@ class AiSearchService {
       heavyCost = (_heavyInputTokens / 1000000.0) * 1.50 +
           (_heavyOutputTokens / 1000000.0) * 9.00;
     } else {
+      initialCost = _initialOpenRouterCost;
       lightCost = _lightOpenRouterCost;
       heavyCost = _heavyOpenRouterCost;
     }
 
-    final double totalCost = lightCost + heavyCost;
+    final double totalCost = initialCost + lightCost + heavyCost;
+    debugPrint('[AiSearch] 💰 Total Cost: \$${totalCost.toStringAsFixed(6)}');
 
-    _addLog('💰 Total Cost: \$${totalCost.toStringAsFixed(6)}');
-    _addLog(
-        '   ↳ Light Model ($_lightModelUsed): \$${lightCost.toStringAsFixed(6)} (${_lightInputTokens} in, ${_lightOutputTokens} out)');
-    if (_heavyModelUsed.isNotEmpty) {
+    if (Prefs.activeAiProviderMode == 1) {
+      _addLog('💰 Total Cost: \$${totalCost.toStringAsFixed(6)}');
+      if (_initialModelUsed.isNotEmpty) {
+        _addLog(
+            '   ↳ Initial Model ($_initialModelUsed): \$${initialCost.toStringAsFixed(6)} (${_initialInputTokens} in, ${_initialOutputTokens} out)');
+      }
       _addLog(
-          '   ↳ Heavy Model ($_heavyModelUsed): \$${heavyCost.toStringAsFixed(6)} (${_heavyInputTokens} in, ${_heavyOutputTokens} out)');
+          '   ↳ Light Model ($_lightModelUsed): \$${lightCost.toStringAsFixed(6)} (${_lightInputTokens} in, ${_lightOutputTokens} out)');
+      if (_heavyModelUsed.isNotEmpty) {
+        _addLog(
+            '   ↳ Heavy Model ($_heavyModelUsed): \$${heavyCost.toStringAsFixed(6)} (${_heavyInputTokens} in, ${_heavyOutputTokens} out)');
+      }
+      _addLog('   ↳ Pricing Source: $providerStr');
+    } else {
+      _addLog('📊 Token Usage:');
+      if (_initialModelUsed.isNotEmpty) {
+        _addLog(
+            '   ↳ Initial Model ($_initialModelUsed): (${_initialInputTokens} in, ${_initialOutputTokens} out)');
+      }
+      _addLog(
+          '   ↳ Light Model ($_lightModelUsed): (${_lightInputTokens} in, ${_lightOutputTokens} out)');
+      if (_heavyModelUsed.isNotEmpty) {
+        _addLog(
+            '   ↳ Heavy Model ($_heavyModelUsed): (${_heavyInputTokens} in, ${_heavyOutputTokens} out)');
+      }
     }
-    _addLog('   ↳ Pricing Source: $providerStr');
 
     if (Prefs.activeAiProviderMode == 2) {
       _addLog(
           '💡 **Note**: Sponsored Mode is a gift to help you get started or for those in restricted regions. May the generous donor of this API key gain great merit! \nFor faster speeds, better quality, and more daily queries, we highly recommend adding your own free Gemini key in the AI Settings.');
     }
 
-    await _logCost(userQuery, lightCost, heavyCost, totalCost);
+    await _logCost(userQuery, initialCost, lightCost, heavyCost, totalCost);
 
     // Format a beautiful markdown log for the UI summary
     final summaryBuffer = StringBuffer();
@@ -396,9 +487,10 @@ class AiSearchService {
     );
   }
 
-  /// Initial prompt with explicit Chain of Thought instructions.
   Future<List<String>> _generateInitialQueries(
       String userQuery, String apiKey, void Function(String) onThought) async {
+    final String targetLang = _getTargetLanguage(Prefs.currentScriptLanguage);
+
     final prompt =
         '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user is asking: "$userQuery"
@@ -412,15 +504,23 @@ Task:
 4. CRITICAL: Do NOT include book names (e.g., 'dhammapada', 'majjhima') in search terms.
 5. You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
 6. TEXTUAL VARIANTS: The database uses the Chaṭṭha Saṅgāyana (CSCD) edition. If a common word has alternative spellings or synonyms in different traditions (e.g., 'suka' vs 'suva' for parrot, or 'kapi' vs 'makkaṭa' vs 'vānara' for monkey), include searches for BOTH root words. Do not assume your preferred spelling is the only one.
+7. LANGUAGE: You must formulate your "thinking" field entirely in $targetLang (if you know it, otherwise English).  Search terms should in roman pāḷi characters.
+8.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.  
+9.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
 
 Respond ONLY with a JSON object in this exact format:
 {
-  "thinking": "Ananda famously cried during the Buddha's passing. I need to search for 'rodati' or 'assu' in the context of the Parinibbāna.",
+  "thinking": "(Write your detailed thought process here in $targetLang)",
   "next_queries": ["ānanda rodati", "assu", "soka"]
 }''';
 
     try {
-      final response = await _callAi(prompt, apiKey, isHeavy: true);
+      final String? response = await _callAi(
+        prompt,
+        apiKey,
+        isHeavy: true,
+        isInitialQuery: true,
+      );
       if (response == null) return [];
 
       final jsonStr = _extractJson(response);
@@ -434,11 +534,10 @@ Respond ONLY with a JSON object in this exact format:
         onThought(thinking);
       }
 
-      return (data['next_queries'] as List?)
-              ?.map((e) => e.toString().toLowerCase().trim())
-              .where((t) => t.isNotEmpty)
-              .toList() ??
-          [];
+      return _parseStringList(data['next_queries'])
+          .map((e) => e.toLowerCase().trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
     } catch (e) {
       debugPrint('Initial query generation error: $e');
       return [];
@@ -458,7 +557,10 @@ Respond ONLY with a JSON object in this exact format:
   }) async {
     final buffer = StringBuffer();
     int wordCount = 0;
-    int maxWords = Prefs.aiMaxResults * 50;
+    int maxWords = Prefs.aiMaxResults * 40;
+    if (Prefs.activeAiProviderMode == 2) {
+      maxWords = 900;
+    }
 
     final pageContentRepo = PageContentDatabaseRepository(_dbHelper);
 
@@ -541,6 +643,8 @@ ${cumBuffer.toString()}''';
     }
     final overflowSummary = overflowBuffer.toString();
 
+    final String targetLang = _getTargetLanguage(Prefs.currentScriptLanguage);
+
     final prompt =
         '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user asks: "$userQuery"
@@ -565,10 +669,16 @@ Task:
 4. If you have 2-4 strong results that answer the question well, set "is_fully_answered": true and STOP.
 5. If not fully answered, propose new queries based on what failed or succeeded. 
    - RULE: If a query contains a space, the app requires all words to be within 12 words of each other. Maximum 2 words per query. Never write full Pāḷi sentences.
+6. LANGUAGE: You must write your "thought_process" entirely in $targetLang (if you know it, otherwise English).
+7.  Be very concise. Do not repeat the full story.  But give enough for future iterations of ai.   Focus only on whether the passage answers the question. Prefer selecting passages that contain both the name and the key action (searching for seeds).
+8.  You are highly efficient. Request overflow when truly necessary focusing on book and good guess.   Stop as soon as you have sufficient evidence.
+9.  CRITICAL:  If you already have 3+ very strong hits mentioning the key elements (Kisāgotamī + sāsapa + child/death), force is_fully_answered: true
+10.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.
+11.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
 
 Respond ONLY with valid JSON:
 {
-  "thought_process": ["short thoughts only"],
+  "thought_process": ["write your thoughts here in $targetLang"],
   "selected_new_indices": [0, 2],
   "request_overflow_indices": [5, 8],
   "is_fully_answered": false,
@@ -589,24 +699,14 @@ Respond ONLY with valid JSON:
 
       final data = jsonDecode(jsonStr);
       return AiPlan(
-        selectedIndices: (data['selected_new_indices'] as List?)
-                ?.map((e) => e is int ? e : int.tryParse(e.toString()) ?? -1)
-                .toList() ??
-            [],
-        requestOverflowIndices: (data['request_overflow_indices'] as List?)
-                ?.map((e) => e is int ? e : int.tryParse(e.toString()) ?? -1)
-                .toList() ??
-            [],
-        thoughtProcess: (data['thought_process'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            [],
+        selectedIndices: _parseIntList(data['selected_new_indices']),
+        requestOverflowIndices: _parseIntList(data['request_overflow_indices']),
+        thoughtProcess: _parseStringList(data['thought_process']),
         isFullyAnswered: data['is_fully_answered'] == true,
-        nextQueries: (data['next_queries'] as List?)
-                ?.map((e) => e.toString().toLowerCase().trim())
-                .where((q) => q.isNotEmpty)
-                .toList() ??
-            [],
+        nextQueries: _parseStringList(data['next_queries'])
+            .map((e) => e.toLowerCase().trim())
+            .where((q) => q.isNotEmpty)
+            .toList(),
       );
     } catch (e) {
       debugPrint('Plan error: $e');
@@ -642,7 +742,7 @@ Respond ONLY with valid JSON:
   }
 
   Future<String?> _callAi(String prompt, String apiKey,
-      {required bool isHeavy}) async {
+      {required bool isHeavy, bool isInitialQuery = false}) async {
     if (Prefs.activeAiProviderMode == 0) {
       return _callGemini(prompt, apiKey, isHeavy: isHeavy);
     } else {
@@ -654,13 +754,15 @@ Respond ONLY with valid JSON:
             : 'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
       }
 
-      return _callOpenRouter(prompt, apiKey, isHeavy: isHeavy, apiUrl: apiUrl);
+      return _callOpenRouter(prompt, apiKey,
+          isHeavy: isHeavy, apiUrl: apiUrl, isInitialQuery: isInitialQuery);
     }
   }
 
   Future<String?> _callOpenRouter(String prompt, String apiKey,
       {required bool isHeavy,
-      String apiUrl = 'https://openrouter.ai/api/v1/chat/completions'}) async {
+      String apiUrl = 'https://openrouter.ai/api/v1/chat/completions',
+      bool isInitialQuery = false}) async {
     String lightPref = '';
     String heavyPref = '';
 
@@ -677,13 +779,21 @@ Respond ONLY with valid JSON:
     final heavyModel =
         heavyPref.isNotEmpty ? heavyPref : 'anthropic/claude-3.5-sonnet';
 
-    final models = !isHeavy ? [lightModel] : [heavyModel, lightModel];
+    List<String> models = !isHeavy ? [lightModel] : [heavyModel, lightModel];
+
+    // Override with a specific cheap initial model if we are in sponsored mode
+    if (isInitialQuery &&
+        Prefs.activeAiProviderMode == 2 &&
+        Prefs.aiSponsoredInitialModel.isNotEmpty) {
+      models = [Prefs.aiSponsoredInitialModel];
+    }
 
     final Map<String, dynamic> requestBody = {
       "messages": [
         {"role": "user", "content": prompt}
       ],
-      "temperature": 0.4
+      "temperature": 0.4,
+      "max_tokens": 4096
     };
 
     for (final model in models) {
@@ -742,7 +852,14 @@ Respond ONLY with valid JSON:
             final pTokens = usage['prompt_tokens'] as int? ?? 0;
             final cTokens = usage['completion_tokens'] as int? ?? 0;
             final cost = (usage['cost'] as num?)?.toDouble() ?? 0.0;
-            if (isHeavy) {
+            if (isInitialQuery &&
+                Prefs.activeAiProviderMode == 2 &&
+                Prefs.aiSponsoredInitialModel.isNotEmpty) {
+              _initialInputTokens += pTokens;
+              _initialOutputTokens += cTokens;
+              _initialOpenRouterCost += cost;
+              _initialModelUsed = model;
+            } else if (isHeavy) {
               _heavyInputTokens += pTokens;
               _heavyOutputTokens += cTokens;
               _heavyOpenRouterCost += cost;
@@ -880,8 +997,8 @@ Respond ONLY with valid JSON:
     return null;
   }
 
-  Future<void> _logCost(String userQuery, double lightCost, double heavyCost,
-      double totalCost) async {
+  Future<void> _logCost(String userQuery, double initialCost, double lightCost,
+      double heavyCost, double totalCost) async {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/ai_cost_ledger.json');
@@ -897,12 +1014,16 @@ Respond ONLY with valid JSON:
       entries.add({
         "timestamp": DateTime.now().toUtc().toIso8601String(),
         "userQuery": userQuery,
+        "initialModel": _initialModelUsed,
         "lightModel": _lightModelUsed,
         "heavyModel": _heavyModelUsed,
+        "initialInputTokens": _initialInputTokens,
+        "initialOutputTokens": _initialOutputTokens,
         "lightInputTokens": _lightInputTokens,
         "lightOutputTokens": _lightOutputTokens,
         "heavyInputTokens": _heavyInputTokens,
         "heavyOutputTokens": _heavyOutputTokens,
+        "initialCost": initialCost,
         "lightCost": lightCost,
         "heavyCost": heavyCost,
         "totalCost": totalCost

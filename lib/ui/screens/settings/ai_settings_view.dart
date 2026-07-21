@@ -79,7 +79,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (_geminiModels.contains(Prefs.aiHeavyModel)) {
                   _selectedHeavyModel = Prefs.aiHeavyModel;
                 } else {
-                  if (_geminiModels.contains('gemini-1.5-flash')) {
+                  if (_geminiModels.contains('gemini-3.5-flash')) {
+                    _selectedHeavyModel = 'gemini-3.5-flash';
+                  } else if (_geminiModels.contains('gemini-1.5-flash')) {
                     _selectedHeavyModel = 'gemini-1.5-flash';
                   } else {
                     _selectedHeavyModel = _geminiModels.firstWhere(
@@ -95,7 +97,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (flashModels.contains(Prefs.aiLightModel)) {
                   _selectedLightModel = Prefs.aiLightModel;
                 } else {
-                  if (_geminiModels.contains('gemini-1.5-flash-8b')) {
+                  if (_geminiModels.contains('gemini-3.1-flash-lite')) {
+                    _selectedLightModel = 'gemini-3.1-flash-lite';
+                  } else if (_geminiModels.contains('gemini-1.5-flash-8b')) {
                     _selectedLightModel = 'gemini-1.5-flash-8b';
                   } else {
                     _selectedLightModel = flashModels.isNotEmpty
@@ -255,6 +259,117 @@ class _AiSettingsViewState extends State<AiSettingsView> {
     );
   }
 
+  void _showSetupDialog(BuildContext context, int mode) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+              mode == 0 ? 'Setup Gemini API Key' : 'Setup OpenRouter API Key'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (mode == 0) ...[
+                  Center(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.ondemand_video),
+                      label: const Text('Watch Key Instructions'),
+                      onPressed: () async {
+                        final url = Uri.parse(
+                            'https://www.youtube.com/watch?v=zgmkYP7UqtU');
+                        if (await canLaunchUrl(url))
+                          await launchUrl(url,
+                              mode: LaunchMode.externalApplication);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(AppLocalizations.of(context)!.apiKeyInstructions1),
+                  const SizedBox(height: 12),
+                  Text(AppLocalizations.of(context)!.apiKeyInstructions2),
+                  Text(AppLocalizations.of(context)!.apiKeyInstructions3),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: ElevatedButton(
+                      child: Text(AppLocalizations.of(context)!.getGenminiKey),
+                      onPressed: () async {
+                        final url =
+                            Uri.parse('https://aistudio.google.com/app/apikey');
+                        if (await canLaunchUrl(url)) await launchUrl(url);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: _geminiKeyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Gemini API Key',
+                      hintText: 'Enter gemini key',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ] else if (mode == 1) ...[
+                  Center(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.ondemand_video),
+                      label: const Text('Watch OpenRouter Tutorial'),
+                      onPressed: () async {
+                        final url = Uri.parse('https://youtu.be/We_kBUyT10E');
+                        if (await canLaunchUrl(url))
+                          await launchUrl(url,
+                              mode: LaunchMode.externalApplication);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: _openRouterKeyController,
+                    decoration: const InputDecoration(
+                      labelText: 'OpenRouter API Key',
+                      hintText: 'Enter OpenRouter key',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(AppLocalizations.of(context)!.close),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              label: Text(AppLocalizations.of(context)!.save),
+              onPressed: () {
+                if (mode == 0) {
+                  Prefs.geminiDirectApiKey = _geminiKeyController.text;
+                  _fetchGeminiModels(_geminiKeyController.text);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            AppLocalizations.of(context)!.openRouterKeySaved)),
+                  );
+                } else {
+                  Prefs.openRouterKey = _openRouterKeyController.text;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            AppLocalizations.of(context)!.openRouterKeySaved)),
+                  );
+                }
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final promptOptions = {
@@ -301,16 +416,17 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                     ],
                     children: const <Widget>[
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text('Gemini'),
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text('Gemini', style: TextStyle(fontSize: 13)),
                       ),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text('BYOK'),
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child:
+                            Text('OpenRouter', style: TextStyle(fontSize: 13)),
                       ),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text('Sponsored'),
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text('Dāna', style: TextStyle(fontSize: 13)),
                       ),
                     ],
                   ),
@@ -318,83 +434,98 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        RichText(
-                          text: TextSpan(
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  height: 1.5,
-                                ),
-                            children: const [
-                              TextSpan(
-                                  text: 'Sponsored: ',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              TextSpan(
-                                  text:
-                                      'A gift to help you get started or for those in restricted regions. May the generous donor gain great merit!'),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        height: 1.5,
-                                      ),
-                                  children: const [
-                                    TextSpan(
-                                        text: 'Gemini: ',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                    TextSpan(
-                                        text:
-                                            'Best choice! Free, much faster, higher quality, and more daily queries. (Recommended) '),
-                                  ],
-                                ),
-                              ),
+                        Card(
+                          elevation: 2,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (Prefs.aiProviderMode == 2)
+                                  RichText(
+                                    text: TextSpan(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(height: 1.5),
+                                      children: const [
+                                        TextSpan(
+                                            text: 'Dāna Mode:\n',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold)),
+                                        TextSpan(
+                                            text:
+                                                'A gift to help you get started or for those in restricted regions. May the generous donor gain great merit!'),
+                                      ],
+                                    ),
+                                  ),
+                                if (Prefs.aiProviderMode == 0) ...[
+                                  RichText(
+                                    text: TextSpan(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(height: 1.5),
+                                      children: const [
+                                        TextSpan(
+                                            text: 'Gemini Direct Mode:\n',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold)),
+                                        TextSpan(
+                                            text:
+                                                'Best choice! Free, much faster, higher quality, and more daily queries. (Recommended) '),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () =>
+                                          _showSetupDialog(context, 0),
+                                      icon: const Icon(Icons.settings_outlined),
+                                      label: const Text('Setup Now'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                                if (Prefs.aiProviderMode == 1) ...[
+                                  RichText(
+                                    text: TextSpan(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(height: 1.5),
+                                      children: const [
+                                        TextSpan(
+                                            text: 'OpenRouter:\n',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold)),
+                                        TextSpan(
+                                            text:
+                                                'In Myanmar, China or other countries, you cannot use Google Gemini and other models due to geographic restrictions. OpenRouter lets you choose the allowable AI model you want, but there are costs involved.'),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () =>
+                                          _showSetupDialog(context, 1),
+                                      icon: const Icon(Icons.settings_outlined),
+                                      label: const Text('Setup Now'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                              ],
                             ),
-                            TextButton.icon(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 0),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              icon: const Icon(Icons.help_outline, size: 16),
-                              label: Text(AppLocalizations.of(context)!.key),
-                              onPressed: () => showAiHelpDialog(context),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        RichText(
-                          text: TextSpan(
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  height: 1.5,
-                                ),
-                            children: const [
-                              TextSpan(
-                                  text: 'BYOK: ',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              TextSpan(
-                                  text:
-                                      'Open Router, select any model (more complex, but fun).'),
-                            ],
                           ),
                         ),
                       ],
@@ -402,51 +533,6 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                   ),
                   const Divider(),
                   if (Prefs.aiProviderMode == 0) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left column: Gemini key
-                        Expanded(
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _geminiKeyController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Gemini API Key',
-                                  hintText: 'Enter gemini key',
-                                  border: OutlineInputBorder(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Right column: save button
-                        Column(
-                          children: [
-                            const SizedBox(height: 12),
-                            TextButton.icon(
-                              icon: const Icon(Icons.save),
-                              label: Text(AppLocalizations.of(context)!.save),
-                              onPressed: () {
-                                Prefs.geminiDirectApiKey =
-                                    _geminiKeyController.text;
-                                _fetchGeminiModels(_geminiKeyController.text);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(AppLocalizations.of(context)!
-                                        .openRouterKeySaved),
-                                  ),
-                                );
-                                _showModelInfoDialog(context);
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16.0),
                     if (_isFetchingModels)
                       const Padding(
                         padding: EdgeInsets.all(8.0),
@@ -552,50 +638,6 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       ),
                     ],
                   ] else if (Prefs.aiProviderMode == 1) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _openRouterKeyController,
-                            decoration: const InputDecoration(
-                              labelText: 'OpenRouter API Key',
-                              hintText: 'Enter OpenRouter key',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Column(
-                          children: [
-                            TextButton.icon(
-                              icon: const Icon(Icons.help_outline),
-                              label: Text(AppLocalizations.of(context)!.key),
-                              onPressed: () => showAiHelpDialog(context),
-                            ),
-                            TextButton.icon(
-                              icon: const Icon(Icons.save),
-                              label: Text(AppLocalizations.of(context)!.save),
-                              onPressed: () {
-                                Prefs.openRouterKey =
-                                    _openRouterKeyController.text;
-                                Prefs.openRouterHeavyModel =
-                                    _openRouterHeavyModelController.text;
-                                Prefs.openRouterLightModel =
-                                    _openRouterLightModelController.text;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(AppLocalizations.of(context)!
-                                        .openRouterKeySaved),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16.0),
                     TextFormField(
                       controller: _openRouterHeavyModelController,
                       decoration: const InputDecoration(
@@ -639,7 +681,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                                         Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Using Sponsored\nCommunity Key',
+                                  'Using Dāna\nCommunity Key',
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium

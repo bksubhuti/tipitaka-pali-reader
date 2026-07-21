@@ -89,8 +89,9 @@ const String aiProviderModePref = 'aiProviderMode';
 const String aiSponsoredHeavyModelPref = 'aiSponsoredHeavyModel';
 const String aiSponsoredLightModelPref = 'aiSponsoredLightModel';
 const String aiSponsoredProviderPref = 'aiSponsoredProvider';
+const String aiSponsoredInitialModelPref = 'aiSponsoredInitialModel';
 const String aiSponsoredTriesLeftPref = 'aiSponsoredTriesLeft';
-const String aiSponsoredResetDatePref = 'aiSponsoredResetDate';
+const String aiSponsoredResetDatePref = 'aiSponsoredResetDate_v2';
 const String geminiDirectApiKeyPref = 'geminiDirectApiKey';
 const String aiMaxResultsPref = 'aiMaxResults';
 const String windowWidthPref = "windowWidth";
@@ -104,6 +105,7 @@ const String isPaliBoldPref = "isPaliBold";
 const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
 const String hideAiSearchNagPref = "hideAiSearchNag";
+const String aiTermsOfServicePref = "aiTermsOfService";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -147,7 +149,7 @@ const bool defaultExpandedBookList = false;
 const String defaultMessage = "";
 const String defaultMessageDate = "20230701";
 const String defaultLastDateCheckedMessage = "20230701";
-const bool defaultShowWhatsNew = true;
+const bool defaultShowWhatsNew = false;
 const String defaultVersionNumber = "2.3.4+53";
 const int defaultBookViewMode = 0; // horizontal
 const String defaultEmail = '';
@@ -178,6 +180,7 @@ const bool defaultIsPaliBold =
 const bool defaultSangahaFixed = false;
 const bool defaultHideTranslationNag = false;
 const bool defaultHideAiSearchNag = false;
+const bool defaultAiTermsOfService = false;
 
 const String defaultOpenRouterPrompt = """
 Translate the following Pāḷi into clean, readable HTML.
@@ -248,6 +251,11 @@ class Prefs {
       instance.getInt(dictionaryFontSizePref) ?? defaultDictionaryFontSize;
   static set dictionaryFontSize(int value) =>
       instance.setInt(dictionaryFontSizePref, value);
+
+  static bool get aiTermsOfService =>
+      instance.getBool(aiTermsOfServicePref) ?? defaultAiTermsOfService;
+  static set aiTermsOfService(bool value) =>
+      instance.setBool(aiTermsOfServicePref, value);
 
   static int get databaseVersion =>
       instance.getInt(databaseVersionPref) ?? defaultDatabaseVersion;
@@ -407,8 +415,7 @@ class Prefs {
   static set lastDateCheckedMessage(String value) =>
       instance.setString(lastDateCheckedMessagePref, value);
 
-  static bool get showWhatsNew =>
-      instance.getBool(showWhatsNewPref) ?? defaultShowWhatsNew;
+  static bool get showWhatsNew => false;
   static set showWhatsNew(bool value) =>
       instance.setBool(showWhatsNewPref, value);
 
@@ -539,6 +546,11 @@ class Prefs {
   static set aiSponsoredHeavyModel(String value) =>
       instance.setString(aiSponsoredHeavyModelPref, value);
 
+  static String get aiSponsoredInitialModel =>
+      instance.getString(aiSponsoredInitialModelPref) ?? '';
+  static set aiSponsoredInitialModel(String value) =>
+      instance.setString(aiSponsoredInitialModelPref, value);
+
   static String get aiSponsoredLightModel =>
       instance.getString(aiSponsoredLightModelPref) ?? '';
   static set aiSponsoredLightModel(String value) =>
@@ -549,8 +561,17 @@ class Prefs {
   static set aiSponsoredProvider(String value) =>
       instance.setString(aiSponsoredProviderPref, value);
 
-  static int get aiSponsoredTriesLeft =>
-      instance.getInt(aiSponsoredTriesLeftPref) ?? defaultSponsoredTries;
+  static int get aiSponsoredTriesLeft {
+    final now = DateTime.now();
+    final dateStr = '\${now.year}-\${now.month}-\${now.day}';
+    if (aiSponsoredResetDate != dateStr) {
+      aiSponsoredResetDate = dateStr;
+      instance.setInt(aiSponsoredTriesLeftPref, defaultSponsoredTries);
+      return defaultSponsoredTries;
+    }
+    return instance.getInt(aiSponsoredTriesLeftPref) ?? defaultSponsoredTries;
+  }
+
   static set aiSponsoredTriesLeft(int value) =>
       instance.setInt(aiSponsoredTriesLeftPref, value);
 
@@ -663,21 +684,19 @@ class Prefs {
       instance.setDouble(panelWidthKey, value);
   static Future<void> fetchSponsoredModelConfig() async {
     try {
+      final cacheBuster = DateTime.now().millisecondsSinceEpoch;
       final url = Uri.parse(
-          'https://raw.githubusercontent.com/bksubhuti/tipitaka-pali-reader/refs/heads/master/lib/data/ai_model_config.json');
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+          'https://raw.githubusercontent.com/bksubhuti/tipitaka-pali-reader/refs/heads/master/lib/data/ai_model_config.json?v=$cacheBuster');
+      final response = await http.get(url, headers: {
+        'Cache-Control': 'no-cache',
+      }).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['heavy'] != null) aiSponsoredHeavyModel = data['heavy'];
         if (data['light'] != null) aiSponsoredLightModel = data['light'];
         if (data['provider'] != null) aiSponsoredProvider = data['provider'];
-
-        final now = DateTime.now();
-        final dateStr = '\${now.year}-\${now.month}-\${now.day}';
-        if (aiSponsoredResetDate != dateStr) {
-          aiSponsoredResetDate = dateStr;
-          aiSponsoredTriesLeft = defaultSponsoredTries;
-        }
+        if (data['initialModel'] != null)
+          aiSponsoredInitialModel = data['initialModel'];
       }
     } catch (e) {
       debugPrint('Failed to fetch sponsored model config: $e');

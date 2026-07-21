@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:tipitaka_pali/providers/navigation_provider.dart';
 
 import 'package:tipitaka_pali/services/ai_search_service.dart';
 import 'package:tipitaka_pali/services/ai_search_history_manager.dart';
@@ -10,9 +9,9 @@ import 'package:tipitaka_pali/ui/screens/home/search_page/search_page.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/ui/screens/home/widgets/search_result_list_tile.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
-import 'package:tipitaka_pali/ui/screens/settings/settings.dart';
-import 'package:tipitaka_pali/ui/widgets/ai_help_dialog.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:tipitaka_pali/utils/pali_script.dart';
+import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AiSearchPage extends StatefulWidget {
@@ -41,6 +40,13 @@ class _AiSearchPageState extends State<AiSearchPage> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!Prefs.aiTermsOfService) {
+        _showTermsOfServiceDialog();
+      }
+    });
+
     _queryController = TextEditingController(text: widget.query);
     _focusNode = FocusNode(
       onKeyEvent: (FocusNode node, KeyEvent event) {
@@ -152,6 +158,50 @@ class _AiSearchPageState extends State<AiSearchPage> {
     });
   }
 
+  void _showTermsOfServiceDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Suggested API Terms of Use Disclaimer'),
+        content: SizedBox(
+            width: Prefs.panelWidth,
+            child: const SingleChildScrollView(
+              child: Text('''Third-Party API Usage & Liability
+
+Dāna or sponsored service does not use American made AI models.  
+
+This application allows users to connect to third-party AI services (such as OpenRouter and Google AI Studio) using their own personal API keys. By entering your API key, you acknowledge and agree to the following:
+
+Provider Terms of Service: You are solely responsible for complying with the Terms of Service, usage limits, and billing policies of your chosen AI API provider.
+
+Geographic Restrictions & Compliance: You are strictly responsible for ensuring your use of the API complies with the provider's regional availability and export policies. The developer assumes no liability if a user accesses these services from an unsupported region (e.g., via VPN or other masking tools) in violation of the provider's rules.
+
+No App Liability: The developer of this application is not responsible for any account suspensions, API key revocations, or financial charges incurred from your use of third-party APIs. The app functions solely as a local interface to transmit your requests.'''),
+            )),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              // Use the page's context (not the dialog's) to pop
+              if (this.mounted && Navigator.canPop(this.context)) {
+                Navigator.pop(this.context); // Close search window
+              }
+            },
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Prefs.aiTermsOfService = true;
+              Navigator.pop(context); // Close dialog
+            },
+            child: const Text('Agree'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _openBook(AiMatchedResult match) {
     final openningBookProvider = context.read<OpenningBooksProvider>();
     openningBookProvider.add(
@@ -179,6 +229,9 @@ class _AiSearchPageState extends State<AiSearchPage> {
     if (_results.isEmpty) {
       buffer.writeln('No results found.');
     } else {
+      final currentScript =
+          context.read<ScriptLanguageProvider>().currentScript;
+
       for (int i = 0; i < _results.length; i++) {
         final r = _results[i].searchResult;
         final cleanDesc = r.description
@@ -186,12 +239,21 @@ class _AiSearchPageState extends State<AiSearchPage> {
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
 
-        buffer.writeln('${i + 1}. Book: ${r.book.name}');
+        final translatedDesc =
+            PaliScript.getScriptOf(script: currentScript, romanText: cleanDesc);
+        final translatedBook = PaliScript.getScriptOf(
+            script: currentScript, romanText: r.book.name);
+        final translatedPage = PaliScript.getScriptOf(
+            script: currentScript, romanText: r.pageNumber.toString());
+
+        buffer.writeln('${i + 1}. Book: $translatedBook');
         if (r.suttaName.isNotEmpty) {
-          buffer.writeln('   Sutta: ${r.suttaName}');
+          final translatedSutta = PaliScript.getScriptOf(
+              script: currentScript, romanText: r.suttaName);
+          buffer.writeln('   Sutta: $translatedSutta');
         }
-        buffer.writeln('   Page: ${r.pageNumber}');
-        buffer.writeln('   "$cleanDesc"');
+        buffer.writeln('   Page: $translatedPage');
+        buffer.writeln('   "$translatedDesc"');
         buffer.writeln('');
       }
     }
@@ -244,6 +306,20 @@ class _AiSearchPageState extends State<AiSearchPage> {
               tooltip: 'Copy thinking and results',
               onPressed: _copyToClipboard,
             ),
+          if (!_isSearching && _hasSearched)
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'Show History',
+              onPressed: () {
+                setState(() {
+                  _hasSearched = false;
+                  _queryController.clear();
+                  _summary = '';
+                  _results.clear();
+                  _logs.clear();
+                });
+              },
+            ),
           if (!_isSearching &&
               !_hasSearched &&
               _historyManager.history.isNotEmpty)
@@ -292,7 +368,12 @@ class _AiSearchPageState extends State<AiSearchPage> {
                       child: Text(
                         'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: (Theme.of(context).textTheme.bodySmall?.fontSize ?? 12.0) * 1.3,
+                              fontSize: (Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.fontSize ??
+                                      12.0) *
+                                  1.3,
                               color: Prefs.aiSponsoredTriesLeft > 0
                                   ? Colors.green
                                   : Colors.red,
@@ -300,37 +381,38 @@ class _AiSearchPageState extends State<AiSearchPage> {
                       ),
                     ),
                   // Slider for results count
-                  Row(
-                    children: [
-                      Text(
-                        'Results to analyze:',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      Expanded(
-                        child: Slider(
-                          value: _maxResults,
-                          min: 10,
-                          max: 100,
-                          divisions: 9,
-                          label: _maxResults.round().toString(),
-                          onChanged: _isSearching
-                              ? null
-                              : (value) {
-                                  setState(() {
-                                    _maxResults = value;
-                                  });
-                                },
-                          onChangeEnd: (value) {
-                            Prefs.aiMaxResults = value.toInt();
-                          },
+                  if (Prefs.aiProviderMode != 2)
+                    Row(
+                      children: [
+                        Text(
+                          'Results to analyze:',
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
-                      ),
-                      Text(
-                        _maxResults.round().toString(),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                        Expanded(
+                          child: Slider(
+                            value: _maxResults,
+                            min: 10,
+                            max: 100,
+                            divisions: 9,
+                            label: _maxResults.round().toString(),
+                            onChanged: _isSearching
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _maxResults = value;
+                                    });
+                                  },
+                            onChangeEnd: (value) {
+                              Prefs.aiMaxResults = value.toInt();
+                            },
+                          ),
+                        ),
+                        Text(
+                          _maxResults.round().toString(),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
