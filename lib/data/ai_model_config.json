@@ -1,6 +1,6 @@
 {
     "provider": "openrouter.ai",
     "heavy": "deepseek/deepseek-v4-pro",
-    "light": "google/gemini-3.1-flash-lite",
-    "initialModel": "x-ai/grok-4.3"
+    "light": "deepseek/deepseek-v4-flash",
+    "initialModel": "deepseek/deepseek-v4-pro"
 }
