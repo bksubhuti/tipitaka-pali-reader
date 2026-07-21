@@ -1,5 +1,6 @@
 {
     "provider": "openrouter.ai",
     "heavy": "deepseek/deepseek-v4-pro",
-    "light": "google/gemini-3.1-flash-lite"
+    "light": "google/gemini-3.1-flash-lite",
+    "initialModel": "google/gemini-3.5-flash"
 }
