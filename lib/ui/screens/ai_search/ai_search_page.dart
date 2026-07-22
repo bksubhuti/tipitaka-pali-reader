@@ -366,7 +366,7 @@ No App Liability: The developer of this application is not responsible for any a
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Text(
-                        'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today',
+                        'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today.\nSetup a free Gemini API key to get faster and better results.  See the AI Settings panel in TPR Settings.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontSize: (Theme.of(context)
                                           .textTheme

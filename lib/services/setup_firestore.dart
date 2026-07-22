@@ -12,7 +12,7 @@ setupFirestore() async {
   //check for internet connection
 
   if (await InternetConnection().hasInternetAccess) {
-    FirebaseAuth.initialize(apiKey!, VolatileStore());
+    FirebaseAuth.initialize(apiKey, VolatileStore());
     Firestore.initialize(projectId);
     if (Prefs.isSignedIn) {
       try {

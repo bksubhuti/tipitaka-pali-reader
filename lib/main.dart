@@ -97,7 +97,7 @@ void main(List<String> args) async {
     WindowOptions windowOptions = WindowOptions(
       size: Size(800, 600), // Fallback default size
       center: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
     );

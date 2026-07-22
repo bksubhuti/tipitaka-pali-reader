@@ -306,11 +306,14 @@ class _ReaderContainerState extends State<ReaderContainer> {
       ..textStyle = TextStyle(color: Theme.of(context).colorScheme.onBackground)
       ..padding = const EdgeInsets.fromLTRB(10, 4, 4, 4)
       ..buttonsOffset = 18
+      ..normalButtonColor = Theme.of(context).colorScheme.onSurface
+      ..hoverButtonColor = primaryColor
       ..decoration = BoxDecoration(
           shape: BoxShape.rectangle,
           color: Theme.of(context).colorScheme.background,
           border: Border.all(color: Colors.grey),
           borderRadius: borderRadius)
+      ..selectedStatus.normalButtonColor = primaryColor
       ..selectedStatus.decoration = BoxDecoration(
           shape: BoxShape.rectangle,
           color: primaryColor.withValues(alpha: 0.6),
@@ -334,6 +337,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
         ..padding = const EdgeInsets.fromLTRB(8, 4, 8, 4)
         ..buttonsOffset = 4
         ..disabledButtonColor = Colors.grey
+        ..normalButtonColor = Theme.of(context).colorScheme.onSurface
+        ..hoverButtonColor = primaryColor
         ..decoration = const BoxDecoration(
             shape: BoxShape.rectangle,
             border: Border(
