@@ -1,5 +1,5 @@
 {
-    "provider": "openrouter.ai",
+    "provider": "deepseek",
     "heavy": "deepseek/deepseek-v4-pro",
     "light": "deepseek/deepseek-v4-flash",
     "initialModel": "deepseek/deepseek-v4-pro"

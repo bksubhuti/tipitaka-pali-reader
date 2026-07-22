@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
-import 'package:tipitaka_pali/ui/widgets/ai_help_dialog.dart';
 
 class AiSettingsView extends StatefulWidget {
   const AiSettingsView({super.key});
@@ -79,10 +78,10 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (_geminiModels.contains(Prefs.aiHeavyModel)) {
                   _selectedHeavyModel = Prefs.aiHeavyModel;
                 } else {
-                  if (_geminiModels.contains('gemini-3.5-flash')) {
+                  if (_geminiModels.contains('gemini-3.6-flash')) {
+                    _selectedHeavyModel = 'gemini-3.6-flash';
+                  } else if (_geminiModels.contains('gemini-3.5-flash')) {
                     _selectedHeavyModel = 'gemini-3.5-flash';
-                  } else if (_geminiModels.contains('gemini-1.5-flash')) {
-                    _selectedHeavyModel = 'gemini-1.5-flash';
                   } else {
                     _selectedHeavyModel = _geminiModels.firstWhere(
                         (m) => m.contains('pro'),
@@ -97,10 +96,10 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (flashModels.contains(Prefs.aiLightModel)) {
                   _selectedLightModel = Prefs.aiLightModel;
                 } else {
-                  if (_geminiModels.contains('gemini-3.1-flash-lite')) {
+                  if (_geminiModels.contains('gemini-3.5-flash-lite')) {
+                    _selectedLightModel = 'gemini-3.5-flash-lite';
+                  } else if (_geminiModels.contains('gemini-3.1-flash-lite')) {
                     _selectedLightModel = 'gemini-3.1-flash-lite';
-                  } else if (_geminiModels.contains('gemini-1.5-flash-8b')) {
-                    _selectedLightModel = 'gemini-1.5-flash-8b';
                   } else {
                     _selectedLightModel = flashModels.isNotEmpty
                         ? flashModels.first
@@ -212,11 +211,11 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 // Bullet Points for Recommendations
                 _buildBulletPoint(
                     context,
-                    'Gemini 1.5 Flash (Heavy) & 1.5 Flash-8B (Light):',
+                    'Gemini-3.6-flash (Heavy) & Gemini-3.5-flash-lite (Light):',
                     ' Balanced performance.'),
                 _buildBulletPoint(
                     context,
-                    'Gemini 1.5 Flash-8B (Both Heavy & Light):',
+                    'Gemini-3.1-flash-lite (Both Heavy & Light):',
                     ' Best overall usage limits and efficiency.'),
 
                 const SizedBox(height: 12),
@@ -239,7 +238,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
             ),
           ),
           actions: [
-            TextButton(
+            TextButton.icon(
+              icon: const Icon(Icons.speed),
               onPressed: () async {
                 final url =
                     Uri.parse('https://aistudio.google.com/rate-limit/');
@@ -247,7 +247,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                   await launchUrl(url, mode: LaunchMode.externalApplication);
                 }
               },
-              child: const Text('Check the "Rate Limit" in aiStudio'),
+              label: const Text('Check "Rate Limit" in aiStudio'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -259,13 +259,65 @@ class _AiSettingsViewState extends State<AiSettingsView> {
     );
   }
 
+  String _formatKeyPreview(String key) {
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.length <= 8) return trimmed;
+    return '${trimmed.substring(0, 4)}....................${trimmed.substring(trimmed.length - 4)}';
+  }
+
+  Widget _buildKeySetupRow(BuildContext context, int mode, String key) {
+    final trimmedKey = key.trim();
+    final isKeySetup = trimmedKey.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isKeySetup) ...[
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                _formatKeyPreview(trimmedKey),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            onPressed: () => _showSetupDialog(context, mode),
+            icon: const Icon(Icons.settings_outlined),
+            label: Text(isKeySetup ? 'Change Key Now' : 'Setup Now'),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showSetupDialog(BuildContext context, int mode) {
+    if (mode == 0) {
+      _geminiKeyController.text = Prefs.geminiDirectApiKey;
+    } else {
+      _openRouterKeyController.text = Prefs.openRouterKey;
+    }
     showDialog(
       context: context,
       builder: (dialogContext) {
+        final isSetup = mode == 0
+            ? Prefs.geminiDirectApiKey.trim().isNotEmpty
+            : Prefs.openRouterKey.trim().isNotEmpty;
         return AlertDialog(
-          title: Text(
-              mode == 0 ? 'Setup Gemini API Key' : 'Setup OpenRouter API Key'),
+          title: Text(mode == 0
+              ? (isSetup ? 'Change Gemini API Key' : 'Setup Gemini API Key')
+              : (isSetup
+                  ? 'Change OpenRouter API Key'
+                  : 'Setup OpenRouter API Key')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -279,9 +331,10 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       onPressed: () async {
                         final url = Uri.parse(
                             'https://www.youtube.com/watch?v=zgmkYP7UqtU');
-                        if (await canLaunchUrl(url))
+                        if (await canLaunchUrl(url)) {
                           await launchUrl(url,
                               mode: LaunchMode.externalApplication);
+                        }
                       },
                     ),
                   ),
@@ -317,9 +370,10 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       label: const Text('Watch OpenRouter Tutorial'),
                       onPressed: () async {
                         final url = Uri.parse('https://youtu.be/We_kBUyT10E');
-                        if (await canLaunchUrl(url))
+                        if (await canLaunchUrl(url)) {
                           await launchUrl(url,
                               mode: LaunchMode.externalApplication);
+                        }
                       },
                     ),
                   ),
@@ -360,6 +414,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         content: Text(
                             AppLocalizations.of(context)!.openRouterKeySaved)),
                   );
+                }
+                if (mounted) {
+                  setState(() {});
                 }
                 Navigator.of(dialogContext).pop();
               },
@@ -483,15 +540,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _showSetupDialog(context, 0),
-                                      icon: const Icon(Icons.settings_outlined),
-                                      label: const Text('Setup Now'),
-                                    ),
-                                  ),
+                                  _buildKeySetupRow(
+                                      context, 0, Prefs.geminiDirectApiKey),
                                   const SizedBox(height: 8),
                                 ],
                                 if (Prefs.aiProviderMode == 1) ...[
@@ -513,15 +563,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _showSetupDialog(context, 1),
-                                      icon: const Icon(Icons.settings_outlined),
-                                      label: const Text('Setup Now'),
-                                    ),
-                                  ),
+                                  _buildKeySetupRow(
+                                      context, 1, Prefs.openRouterKey),
                                   const SizedBox(height: 8),
                                 ],
                               ],
@@ -542,7 +585,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
-                          icon: const Icon(Icons.open_in_new),
+                          icon: const Icon(Icons.speed),
                           label: const Text('Check "Rate Limit" in aiStudio'),
                           onPressed: () async {
                             final url = Uri.parse(
@@ -582,7 +625,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         child: Row(
                           children: [
                             const Text(
-                              '1.5 flash recommended',
+                              '3.6 Flash recommended',
                               style:
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
@@ -624,7 +667,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         child: Row(
                           children: [
                             const Text(
-                              '1.5 flash 8b recommended',
+                              '3.1-Flash-lite recommended',
                               style:
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
