@@ -213,14 +213,15 @@ class AiSearchService {
     } else if (Prefs.activeAiProviderMode == 2) {
       apiKey = Env.openRouterApiKey;
       await Prefs.fetchSponsoredModelConfig();
-      if (Prefs.aiSponsoredTriesLeft <= 0) {
+      final triesLeft = Prefs.aiSponsoredTriesLeft;
+      if (triesLeft <= 0) {
         return AiSearchResult(
           results: [],
           summary:
               'Daily limit reached for Sponsored Mode. Please try again tomorrow or configure your own API key in AI Settings.',
         );
       }
-      Prefs.aiSponsoredTriesLeft = Prefs.aiSponsoredTriesLeft - 1;
+      Prefs.aiSponsoredTriesLeft = triesLeft - 1;
     }
 
     if (apiKey.isEmpty) {

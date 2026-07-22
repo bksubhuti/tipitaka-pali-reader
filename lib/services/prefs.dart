@@ -563,7 +563,11 @@ class Prefs {
 
   static int get aiSponsoredTriesLeft {
     final now = DateTime.now();
-    final dateStr = '\${now.year}-\${now.month}-\${now.day}';
+    final dateStr = now.year.toString() +
+        '-' +
+        now.month.toString() +
+        '-' +
+        now.day.toString();
     if (aiSponsoredResetDate != dateStr) {
       aiSponsoredResetDate = dateStr;
       instance.setInt(aiSponsoredTriesLeftPref, defaultSponsoredTries);
