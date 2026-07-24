@@ -778,6 +778,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           .split(' ')
           .where((w) => w.isNotEmpty)
           .toList();
+
+      if (words.length > 1) {
+        words.insert(0, words.join(''));
+      }
+
       bool firstMatch = true;
       for (final word in words) {
         // Match the prefix word followed by any word characters (covers kamma -> kammassa, etc.)
@@ -794,8 +799,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           // Don't re-highlight already highlighted text
           if (match.start > 0 &&
               content
-                  .substring(max(0, match.start - 20), match.start)
-                  .contains('class')) {
+                  .substring(max(0, match.start - 60), match.start)
+                  .contains('class="$highlightClass"')) {
             return matched;
           }
           if (firstMatch && addId) {

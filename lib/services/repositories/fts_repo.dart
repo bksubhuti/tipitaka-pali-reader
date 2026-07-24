@@ -23,6 +23,27 @@ class FtsDatabaseRepository implements FtsRespository {
 
     // 1. SANITIZE INPUT: Prevents SQL Injection crashes (e.g., taṇhā'ti)
     String safePhrase = phrase.replaceAll("'", "''");
+/////////////////////////////////////////////////////////////////////////////
+    /// Fix for sutta and vatthu compounds that are written as two words
+/////////////////////////////////////////////////////////////////////////////
+    final originalPhrase = phrase.trim();
+    final words = originalPhrase
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    if (words.length == 2) {
+      final second = words[1].toLowerCase();
+      if (['sutta', 'suttam', 'suttā', 'vatthu', 'vatthuṃ'].contains(second)) {
+        final compound = words[0] + words[1]; // kāyagatāsati + sutta
+        final compoundResults = await _runPrefixSearch(compound);
+
+        if (compoundResults.isNotEmpty) {
+          results.addAll(compoundResults); // Add compound results to the list
+        }
+      }
+    }
+    /////////////////////////////////////////////////////////////////////////////
 
     final db = await databaseHelper.database;
 
@@ -151,8 +172,18 @@ class FtsDatabaseRepository implements FtsRespository {
       }
     }
 
-    debugPrint('total results:${results.length}');
-    return results;
+    // Deduplicate results by ID
+    final uniqueResults = <SearchResult>[];
+    final seenIds = <int>{};
+    for (var r in results) {
+      if (!seenIds.contains(r.id)) {
+        seenIds.add(r.id);
+        uniqueResults.add(r);
+      }
+    }
+
+    debugPrint('total results:${uniqueResults.length}');
+    return uniqueResults;
   }
 
   String _extractDescription(String content, int start, int end) {
@@ -223,5 +254,45 @@ class FtsDatabaseRepository implements FtsRespository {
     return content.replaceAllMapped(
         RegExp(RegExp.escape(phrase), caseSensitive: false),
         (match) => '<$highlightTagName>${match.group(0)}</$highlightTagName>');
+  }
+
+  /// Helper to run a prefix search (used for compound words like kāyagatāsatisutta)
+  Future<List<SearchResult>> _runPrefixSearch(String compoundPhrase) async {
+    final db = await databaseHelper.database;
+    String safe = compoundPhrase.replaceAll("'", "''");
+    final value = '$safe '.replaceAll(' ', '* ').trim();
+
+    final sql = '''
+      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
+        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+      FROM fts_pages 
+      INNER JOIN books ON fts_pages.bookid = books.id
+      LEFT JOIN sutta_page_shortcut
+          ON fts_pages.bookid = sutta_page_shortcut.book_id
+          AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE fts_pages MATCH '$value'
+      ORDER BY books.sort_order ASC
+    ''';
+
+    final maps = await db.rawQuery(sql);
+
+    final results = <SearchResult>[];
+    for (var element in maps) {
+      final id = element['id'] as int;
+      final bookId = element['bookid'] as String;
+      final bookName = element['name'] as String;
+      final pageNumber = element['page'] as int;
+      final content = element['content'] as String;
+      final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
+
+      results.add(SearchResult(
+        id: id,
+        book: Book(id: bookId, name: bookName),
+        pageNumber: pageNumber,
+        description: content,
+        suttaName: suttaName,
+      ));
+    }
+    return results;
   }
 }

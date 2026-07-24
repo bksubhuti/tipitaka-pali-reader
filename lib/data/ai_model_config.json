@@ -3,9 +3,11 @@
     "heavy": "deepseek/deepseek-v4-pro",
     "light": "deepseek/deepseek-v4-flash",
     "initialModel": "deepseek/deepseek-v4-pro",
+    "providerAllow": "openrouter.ai",
     "heavyAllow": "google/gemini-3.1-flash-lite",
     "lightAllow": "google/gemini-3.1-flash-lite",
     "initialModelAllow": "google/gemini-3.1-flash-lite",
+    "providerBlacklist": "openrouter.ai",
     "heavyBlacklist": "deepseek/deepseek-v4-pro",
     "lightBlacklist": "deepseek/deepseek-v4-flash",
     "initialModelBlacklist": "deepseek/deepseek-v4-pro"

@@ -363,23 +363,33 @@ No App Liability: The developer of this application is not responsible for any a
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (Prefs.aiProviderMode == 2)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today.\nSetup a free Gemini API key to get faster and better results.  See the AI Settings panel in TPR Settings.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: (Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.fontSize ??
-                                      12.0) *
-                                  1.3,
-                              color: Prefs.aiSponsoredTriesLeft > 0
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                      ),
-                    ),
+                    Builder(builder: (context) {
+                      String message1 =
+                          'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today.\n';
+                      String message2 =
+                          'Setup a free Gemini API key to get faster and better results.  See the AI Settings panel in TPR Settings.';
+                      if (Prefs.aiSponsoredIsBlacklistedCountry) {
+                        message2 = "";
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Text(
+                          message1 + message2,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: (Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.fontSize ??
+                                            12.0) *
+                                        1.3,
+                                    color: Prefs.aiSponsoredTriesLeft > 0
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                        ),
+                      );
+                    }),
                   // Slider for results count
                   if (Prefs.aiProviderMode != 2)
                     Row(

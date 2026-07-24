@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tipitaka_pali/utils/simple_encryptor.dart';
 
 import '../data/constants.dart';
+import 'package:tipitaka_pali/services/country_service.dart';
 
 enum PageTheme {
   light,
@@ -89,6 +90,9 @@ const String aiProviderModePref = 'aiProviderMode';
 const String aiSponsoredHeavyModelPref = 'aiSponsoredHeavyModel';
 const String aiSponsoredLightModelPref = 'aiSponsoredLightModel';
 const String aiSponsoredProviderPref = 'aiSponsoredProvider';
+const String aiSponsoredIsBlacklistedCountryPref =
+    'aiSponsoredIsBlacklistedCountry';
+const String aiSponsoredBypassOpenRouterPref = 'aiSponsoredBypassOpenRouter';
 const String aiSponsoredInitialModelPref = 'aiSponsoredInitialModel';
 const String aiSponsoredTriesLeftPref = 'aiSponsoredTriesLeft';
 const String aiSponsoredResetDatePref = 'aiSponsoredResetDate_v2';
@@ -561,6 +565,16 @@ class Prefs {
   static set aiSponsoredProvider(String value) =>
       instance.setString(aiSponsoredProviderPref, value);
 
+  static bool get aiSponsoredIsBlacklistedCountry =>
+      instance.getBool(aiSponsoredIsBlacklistedCountryPref) ?? false;
+  static set aiSponsoredIsBlacklistedCountry(bool value) =>
+      instance.setBool(aiSponsoredIsBlacklistedCountryPref, value);
+
+  static bool get aiSponsoredBypassOpenRouter =>
+      instance.getBool(aiSponsoredBypassOpenRouterPref) ?? false;
+  static set aiSponsoredBypassOpenRouter(bool value) =>
+      instance.setBool(aiSponsoredBypassOpenRouterPref, value);
+
   static int get aiSponsoredTriesLeft {
     final now = DateTime.now();
     final dateStr = now.year.toString() +
@@ -696,11 +710,66 @@ class Prefs {
       }).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['heavy'] != null) aiSponsoredHeavyModel = data['heavy'];
-        if (data['light'] != null) aiSponsoredLightModel = data['light'];
-        if (data['provider'] != null) aiSponsoredProvider = data['provider'];
-        if (data['initialModel'] != null)
-          aiSponsoredInitialModel = data['initialModel'];
+
+        // Fetch country code to handle sanctioned/blocked countries
+        final countryCode = await CountryService.getCountryCode();
+        final blockedCountries = {'MM', 'CN', 'RU', 'CU', 'IR', 'KP', 'SY'};
+        final isBlocked = countryCode != null &&
+            blockedCountries.contains(countryCode.toUpperCase());
+
+        if (isBlocked) {
+          aiSponsoredIsBlacklistedCountry = true;
+          // Use Blacklist config if available, otherwise fallback to default
+          if (data['heavyBlacklist'] != null) {
+            aiSponsoredHeavyModel = data['heavyBlacklist'];
+          } else if (data['heavy'] != null) {
+            aiSponsoredHeavyModel = data['heavy'];
+          }
+
+          if (data['lightBlacklist'] != null) {
+            aiSponsoredLightModel = data['lightBlacklist'];
+          } else if (data['light'] != null) {
+            aiSponsoredLightModel = data['light'];
+          }
+
+          if (data['initialModelBlacklist'] != null) {
+            aiSponsoredInitialModel = data['initialModelBlacklist'];
+          } else if (data['initialModel'] != null) {
+            aiSponsoredInitialModel = data['initialModel'];
+          }
+
+          if (data['providerBlacklist'] != null) {
+            aiSponsoredProvider = data['providerBlacklist'];
+          } else if (data['provider'] != null) {
+            aiSponsoredProvider = data['provider'];
+          }
+        } else {
+          aiSponsoredIsBlacklistedCountry = false;
+          // Use Allow config if available, otherwise fallback to default
+          if (data['heavyAllow'] != null) {
+            aiSponsoredHeavyModel = data['heavyAllow'];
+          } else if (data['heavy'] != null) {
+            aiSponsoredHeavyModel = data['heavy'];
+          }
+
+          if (data['lightAllow'] != null) {
+            aiSponsoredLightModel = data['lightAllow'];
+          } else if (data['light'] != null) {
+            aiSponsoredLightModel = data['light'];
+          }
+
+          if (data['initialModelAllow'] != null) {
+            aiSponsoredInitialModel = data['initialModelAllow'];
+          } else if (data['initialModel'] != null) {
+            aiSponsoredInitialModel = data['initialModel'];
+          }
+
+          if (data['providerAllow'] != null) {
+            aiSponsoredProvider = data['providerAllow'];
+          } else if (data['provider'] != null) {
+            aiSponsoredProvider = data['provider'];
+          }
+        }
       }
     } catch (e) {
       debugPrint('Failed to fetch sponsored model config: $e');

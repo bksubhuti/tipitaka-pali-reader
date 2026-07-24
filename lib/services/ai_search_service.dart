@@ -435,7 +435,8 @@ class AiSearchService {
     debugPrint('[AiSearch] 💰 Total Cost: \$${totalCost.toStringAsFixed(6)}');
 
     if (Prefs.activeAiProviderMode == 1) {
-      _addLog('💰 Total Cost: \$${totalCost.toStringAsFixed(6)}');
+      _addLog(
+          '💰 Total Cost: \$${totalCost.toStringAsFixed(6)} | Token Usage:');
       if (_initialModelUsed.isNotEmpty) {
         _addLog(
             '   ↳ Initial Model ($_initialModelUsed): \$${initialCost.toStringAsFixed(6)} (${_initialInputTokens} in, ${_initialOutputTokens} out)');
@@ -498,7 +499,7 @@ The user is asking: "$userQuery"
 
 Task:
 1. Formulate a step-by-step thought process. Identify key figures, events, and core concepts related to the query across the Suttas, Vinaya, and Commentaries (Aṭṭhakathā).
-2. Generate 2 to 3 highly targeted Pāḷi search terms (single words or short phrases) to find relevant passages. 
+2. Generate 6 to 12 highly targeted Pāḷi search terms using a at least 2 words and at most 3 words using aware of partial words as explained below:    If you get useful targeted hits, it is efficient and fast and inexpensive.  Too much data can be a problem.    (single words or short phrases) to find relevant passages. 
    COMMON VS RARE WORDS: DO NOT search for common single words (e.g., 'bhikkhu'). You may search for single words ONLY if they are very rare proper nouns (e.g., 'paṭācārā'). However, if a name is short or could be a common noun (like 'koka' which also means wolf, or 'suka' which means parrot), you MUST pair it with one contextual noun using a space (e.g., 'koka sunakha' or 'suka rukkha'). Pairing a name with a context word is the most powerful way to filter out noise.
    - You CAN search for rare compounds, but remember the database uses substring matching. Search for root words (e.g., search "puris" to get puriso, purisa, purisassa).
 3. CRITICAL RULE FOR SPACES: If you include a space in your query (e.g., "gihi cīvara"), the app executes a DISTANCE SEARCH, requiring both words to be within 12 words of each other. NEVER suggest queries with 3 or more words. Keep phrases to a maximum of 2 words.
@@ -664,16 +665,17 @@ ${buffer.toString().isEmpty ? "(No full text results available)" : buffer.toStri
 ${overflowSummary.isEmpty ? "" : "OVERFLOW SUMMARY (use OF- indices to request):\n$overflowSummary\n"}
 
 Task:
-1. Review the FULL TEXT results carefully.
+1. Review the FULL TEXT results carefully.  You are in a prompt loop. More iterations = more tokens.  Only request more when necessary.   When finished mark  "is_fully_answered": true and STOP.
 2. Select the most relevant ones using their indices [0], [1], etc.
-3. If you want to see more from overflow, list up to a MAXIMUM of 10 OF- indices in "request_overflow_indices".
+3. If you want to see more from overflow, Request up to a MAXIMUM of 15 OF- indices in "request_overflow_indices".
 4. If you have 2-4 strong results that answer the question well, set "is_fully_answered": true and STOP.
 5. If not fully answered, propose new queries based on what failed or succeeded. 
    - RULE: If a query contains a space, the app requires all words to be within 12 words of each other. Maximum 2 words per query. Never write full Pāḷi sentences.
 6. LANGUAGE: You must write your "thought_process" entirely in $targetLang (if you know it, otherwise English).
 7.  Be very concise. Do not repeat the full story.  But give enough for future iterations of ai.   Focus only on whether the passage answers the question. Prefer selecting passages that contain both the name and the key action (searching for seeds).
 8.  You are highly efficient. Request overflow when truly necessary focusing on book and good guess.   Stop as soon as you have sufficient evidence.
-9.  CRITICAL:  If you already have 3+ very strong hits mentioning the key elements (Kisāgotamī + sāsapa + child/death), force is_fully_answered: true
+9.  CRITICAL:  If you already have 3 or more very strong hits mentioning the key elements (Kisāgotamī + sāsapa + child/death), THEN DO THIS:  force the variable is_fully_answered: true
+This will stope the cycle of prompts and cut the cost.
 10.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.
 11.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
 
@@ -731,8 +733,9 @@ Respond ONLY with valid JSON:
       heavyPref = Prefs.aiSponsoredHeavyModel;
     }
 
-    final lightModel = lightPref.isNotEmpty ? lightPref : 'gemini-1.5-flash-8b';
-    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-1.5-flash';
+    final lightModel =
+        lightPref.isNotEmpty ? lightPref : 'gemini-3.5-flash-lite';
+    final heavyModel = heavyPref.isNotEmpty ? heavyPref : 'gemini-3.6-flash';
 
     if (!isHeavy) {
       return [lightModel];
@@ -748,16 +751,44 @@ Respond ONLY with valid JSON:
       return _callGemini(prompt, apiKey, isHeavy: isHeavy);
     } else {
       String apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-      if (Prefs.activeAiProviderMode == 2 &&
-          Prefs.aiSponsoredProvider.isNotEmpty) {
-        apiUrl = Prefs.aiSponsoredProvider.contains('deepseek')
-            ? 'https://api.deepseek.com/chat/completions'
-            : 'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
+
+      if (Prefs.activeAiProviderMode == 2) {
+        if (Prefs.aiSponsoredBypassOpenRouter) {
+          apiUrl = 'https://api.deepseek.com/chat/completions';
+          apiKey = Env.deepSeekApiKey;
+        } else if (Prefs.aiSponsoredProvider.isNotEmpty) {
+          apiUrl = Prefs.aiSponsoredProvider.contains('deepseek')
+              ? 'https://api.deepseek.com/chat/completions'
+              : 'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
+          if (apiUrl == 'https://api.deepseek.com/chat/completions') {
+            apiKey = Env.deepSeekApiKey;
+          }
+        }
       }
 
       return _callOpenRouter(prompt, apiKey,
           isHeavy: isHeavy, apiUrl: apiUrl, isInitialQuery: isInitialQuery);
     }
+  }
+
+  double _estimateModelCost(
+      String model, int promptTokens, int completionTokens) {
+    final m = model.toLowerCase();
+    double inputRate = 0.14 / 1000000;
+    double outputRate = 0.28 / 1000000;
+
+    if (m.contains('reasoner') || m.contains('r1')) {
+      inputRate = 0.55 / 1000000;
+      outputRate = 2.19 / 1000000;
+    } else if (m.contains('sonnet')) {
+      inputRate = 3.0 / 1000000;
+      outputRate = 15.0 / 1000000;
+    } else if (m.contains('llama') || m.contains('flash')) {
+      inputRate = 0.075 / 1000000;
+      outputRate = 0.30 / 1000000;
+    }
+
+    return (promptTokens * inputRate) + (completionTokens * outputRate);
   }
 
   Future<String?> _callOpenRouter(String prompt, String apiKey,
@@ -788,6 +819,27 @@ Respond ONLY with valid JSON:
         Prefs.aiSponsoredInitialModel.isNotEmpty) {
       models = [Prefs.aiSponsoredInitialModel];
     }
+
+    // Standardize model IDs based on endpoint (OpenRouter vs Direct DeepSeek)
+    models = models.map((m) {
+      final mLower = m.toLowerCase();
+      if (apiUrl.contains('api.deepseek.com')) {
+        if (mLower.contains('reasoner') || mLower.contains('r1')) {
+          return 'deepseek-reasoner';
+        }
+        return 'deepseek-chat';
+      } else {
+        // OpenRouter endpoint requires valid model IDs with provider prefix
+        if ((mLower.contains('deepseek') && mLower.contains('v4')) ||
+            mLower == 'deepseek-chat') {
+          return 'deepseek/deepseek-chat';
+        }
+        if (mLower == 'deepseek-reasoner') {
+          return 'deepseek/deepseek-r1';
+        }
+        return m;
+      }
+    }).toList();
 
     final Map<String, dynamic> requestBody = {
       "messages": [
@@ -852,7 +904,10 @@ Respond ONLY with valid JSON:
           if (usage != null) {
             final pTokens = usage['prompt_tokens'] as int? ?? 0;
             final cTokens = usage['completion_tokens'] as int? ?? 0;
-            final cost = (usage['cost'] as num?)?.toDouble() ?? 0.0;
+            double cost = (usage['cost'] as num?)?.toDouble() ?? 0.0;
+            if (cost == 0.0 && (pTokens > 0 || cTokens > 0)) {
+              cost = _estimateModelCost(model, pTokens, cTokens);
+            }
             if (isInitialQuery &&
                 Prefs.activeAiProviderMode == 2 &&
                 Prefs.aiSponsoredInitialModel.isNotEmpty) {

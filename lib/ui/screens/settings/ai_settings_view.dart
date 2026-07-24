@@ -743,6 +743,23 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                             const SizedBox(height: 8),
                             Text(
                                 'Light Model: ${Prefs.aiSponsoredLightModel.isEmpty ? "google/gemini-1.5-flash-8b" : Prefs.aiSponsoredLightModel}'),
+                            const SizedBox(height: 12),
+                            Material(
+                              color: Colors.transparent,
+                              child: SwitchListTile(
+                                title: const Text(
+                                    'Bypass OpenRouter for DeepSeek'),
+                                subtitle: const Text(
+                                    'Route directly to deepseek.com (temporary override)'),
+                                value: Prefs.aiSponsoredBypassOpenRouter,
+                                onChanged: (val) {
+                                  setState(() {
+                                    Prefs.aiSponsoredBypassOpenRouter = val;
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
                           ],
                         ),
                       ),
