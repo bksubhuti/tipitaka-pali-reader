@@ -429,7 +429,9 @@ class AiSearchService {
         ? 'Gemini Direct (calculated)'
         : (Prefs.activeAiProviderMode == 1
             ? 'OpenRouter (reported)'
-            : 'OpenRouter Sponsored (reported)');
+            : (Prefs.aiSponsoredProvider.contains('deepseek')
+                ? 'DeepSeek Sponsored (calculated)'
+                : 'OpenRouter Sponsored (reported)'));
 
     double initialCost = 0.0;
     if (Prefs.activeAiProviderMode == 0) {
@@ -786,18 +788,20 @@ Respond ONLY with valid JSON:
       String apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
       if (Prefs.activeAiProviderMode == 2) {
-        if (Prefs.aiSponsoredBypassOpenRouter) {
-          apiUrl = 'https://api.deepseek.com/chat/completions';
-          apiKey = Env.deepSeekApiKey;
-        } else if (Prefs.aiSponsoredProvider.isNotEmpty) {
-          apiUrl = Prefs.aiSponsoredProvider.contains('deepseek')
-              ? 'https://api.deepseek.com/chat/completions'
-              : 'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
-          if (apiUrl == 'https://api.deepseek.com/chat/completions') {
+        if (Prefs.aiSponsoredProvider.isNotEmpty) {
+          if (Prefs.aiSponsoredProvider.startsWith('http')) {
+            apiUrl = Prefs.aiSponsoredProvider;
+          } else {
+            apiUrl =
+                'https://${Prefs.aiSponsoredProvider}/api/v1/chat/completions';
+          }
+
+          if (apiUrl.contains('deepseek')) {
             apiKey = Env.deepSeekApiKey;
           }
         }
       }
+      debugPrint('[AiSearch] _callAi resolved apiUrl: $apiUrl');
 
       return _callOpenRouter(prompt, apiKey,
           isHeavy: isHeavy, apiUrl: apiUrl, isInitialQuery: isInitialQuery);
@@ -855,23 +859,11 @@ Respond ONLY with valid JSON:
 
     // Standardize model IDs based on endpoint (OpenRouter vs Direct DeepSeek)
     models = models.map((m) {
-      final mLower = m.toLowerCase();
-      if (apiUrl.contains('api.deepseek.com')) {
-        if (mLower.contains('reasoner') || mLower.contains('r1')) {
-          return 'deepseek-reasoner';
-        }
-        return 'deepseek-chat';
-      } else {
-        // OpenRouter endpoint requires valid model IDs with provider prefix
-        if ((mLower.contains('deepseek') && mLower.contains('v4')) ||
-            mLower == 'deepseek-chat') {
-          return 'deepseek/deepseek-chat';
-        }
-        if (mLower == 'deepseek-reasoner') {
-          return 'deepseek/deepseek-r1';
-        }
-        return m;
+      if (apiUrl.contains('api.deepseek.com') &&
+          m.toLowerCase().startsWith('deepseek/')) {
+        return m.substring(9);
       }
+      return m;
     }).toList();
 
     final Map<String, dynamic> requestBody = {
@@ -888,8 +880,11 @@ Respond ONLY with valid JSON:
 
       for (int attempt = 0; attempt < 2; attempt++) {
         try {
+          final providerName =
+              endpoint.contains('deepseek') ? 'DeepSeek' : 'OpenRouter';
           debugPrint(
-              '[AiSearch] Attempting connection to OpenRouter model $model (Try ${attempt + 1})...');
+              '[AiSearch] Attempting connection to $providerName model $model (Try ${attempt + 1}) at $endpoint...');
+          debugPrint('[AiSearch] Request Body: ${jsonEncode(requestBody)}');
 
           final response = await _httpClient
               .post(
@@ -918,7 +913,8 @@ Respond ONLY with valid JSON:
           }
 
           if (response.statusCode != 200) {
-            debugPrint('[AiSearch] API Error HTTP ${response.statusCode}');
+            debugPrint(
+                '[AiSearch] API Error HTTP ${response.statusCode}: ${response.body}');
             break;
           }
 

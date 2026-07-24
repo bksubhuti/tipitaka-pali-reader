@@ -92,7 +92,7 @@ const String aiSponsoredLightModelPref = 'aiSponsoredLightModel';
 const String aiSponsoredProviderPref = 'aiSponsoredProvider';
 const String aiSponsoredIsBlacklistedCountryPref =
     'aiSponsoredIsBlacklistedCountry';
-const String aiSponsoredBypassOpenRouterPref = 'aiSponsoredBypassOpenRouter';
+
 const String aiSponsoredInitialModelPref = 'aiSponsoredInitialModel';
 const String aiSponsoredTriesLeftPref = 'aiSponsoredTriesLeft';
 const String aiSponsoredResetDatePref = 'aiSponsoredResetDate_v2';
@@ -575,10 +575,7 @@ class Prefs {
   static set aiSponsoredIsBlacklistedCountry(bool value) =>
       instance.setBool(aiSponsoredIsBlacklistedCountryPref, value);
 
-  static bool get aiSponsoredBypassOpenRouter =>
-      instance.getBool(aiSponsoredBypassOpenRouterPref) ?? false;
-  static set aiSponsoredBypassOpenRouter(bool value) =>
-      instance.setBool(aiSponsoredBypassOpenRouterPref, value);
+
 
   static int get aiSponsoredTriesLeft {
     final now = DateTime.now();
