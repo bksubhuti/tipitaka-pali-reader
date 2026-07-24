@@ -1,14 +1,14 @@
 {
     "provider": "openrouter.ai",
-    "heavy": "deepseek/deepseek-chat",
-    "light": "deepseek/deepseek-chat",
-    "initialModel": "deepseek/deepseek-chat",
+    "heavy": "deepseek/deepseek-v4-pro",
+    "light": "deepseek/deepseek-v4-flash",
+    "initialModel": "deepseek/deepseek-v4-pro",
     "providerAllow": "openrouter.ai",
     "heavyAllow": "google/gemini-3.1-flash-lite",
     "lightAllow": "google/gemini-3.1-flash-lite",
     "initialModelAllow": "google/gemini-3.1-flash-lite",
     "providerBlacklist": "https://api.deepseek.com/chat/completions",
-    "heavyBlacklist": "deepseek-reasoner",
-    "lightBlacklist": "deepseek-chat",
-    "initialModelBlacklist": "deepseek-chat"
+    "heavyBlacklist": "deepseek-v4-pro",
+    "lightBlacklist": "deepseek-v4-flash",
+    "initialModelBlacklist": "deepseek-v4-pro"
 }
