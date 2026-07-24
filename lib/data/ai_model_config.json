@@ -7,7 +7,7 @@
     "heavyAllow": "google/gemini-3.1-flash-lite",
     "lightAllow": "google/gemini-3.1-flash-lite",
     "initialModelAllow": "google/gemini-3.1-flash-lite",
-    "providerBlacklist": "openrouter.ai",
+    "providerBlacklist": "https://api.deepseek.com/chat/completions",
     "heavyBlacklist": "deepseek/deepseek-v4-pro",
     "lightBlacklist": "deepseek/deepseek-v4-flash",
     "initialModelBlacklist": "deepseek/deepseek-v4-pro"
