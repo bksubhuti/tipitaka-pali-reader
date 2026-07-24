@@ -247,6 +247,7 @@ class AiSearchService {
     List<int> requestOverflowIndices = [];
 
     // Run the Agentic Loop
+    int consecutiveZeroFinds = 0;
     try {
       for (int iteration = 1; iteration <= 5; iteration++) {
         if (_isCancelled) break;
@@ -380,6 +381,19 @@ class AiSearchService {
           _addLog('🎯 Kept $newFinds highly relevant passages.');
         }
 
+        // Track consecutive failed iterations
+        if (newFinds == 0) {
+          consecutiveZeroFinds++;
+        } else {
+          consecutiveZeroFinds = 0;
+        }
+
+        if (consecutiveZeroFinds >= 2) {
+          _addLog(
+              '🛑 AI has stalled without finding new relevant passages. Forcing early stop to save tokens.');
+          break;
+        }
+
         if (plan.requestOverflowIndices.isNotEmpty) {
           _addLog(
               '📥 AI requested to view ${plan.requestOverflowIndices.length} items from overflow for the next iteration.');
@@ -499,22 +513,20 @@ The user is asking: "$userQuery"
 
 Task:
 1. Formulate a step-by-step thought process. Identify key figures, events, and core concepts related to the query across the Suttas, Vinaya, and Commentaries (Aṭṭhakathā).
-2. Generate 6 to 12 highly targeted Pāḷi search terms using a at least 2 words and at most 3 words using aware of partial words as explained below:    If you get useful targeted hits, it is efficient and fast and inexpensive.  Too much data can be a problem.    (single words or short phrases) to find relevant passages. 
-   COMMON VS RARE WORDS: DO NOT search for common single words (e.g., 'bhikkhu'). You may search for single words ONLY if they are very rare proper nouns (e.g., 'paṭācārā'). However, if a name is short or could be a common noun (like 'koka' which also means wolf, or 'suka' which means parrot), you MUST pair it with one contextual noun using a space (e.g., 'koka sunakha' or 'suka rukkha'). Pairing a name with a context word is the most powerful way to filter out noise.
-   - You CAN search for rare compounds, but remember the database uses substring matching. Search for root words (e.g., search "puris" to get puriso, purisa, purisassa).
-3. CRITICAL RULE FOR SPACES: If you include a space in your query (e.g., "gihi cīvara"), the app executes a DISTANCE SEARCH, requiring both words to be within 12 words of each other. NEVER suggest queries with 3 or more words. Keep phrases to a maximum of 2 words.
+2. Generate 6 to 12 highly targeted Pāḷi search terms.
+3. CRITICAL TWO-WORD RULE: EVERY query MUST consist of EXACTLY TWO words separated by a space (e.g., "upāli vinaya", "assaji upatissa"). Single-word queries and queries with 3 or more words are STRICTLY FORBIDDEN. The app executes a distance search, requiring both words to be within 12 words of each other. This is the most powerful way to filter out noise. You CAN search for short root words (e.g., search "puris" to get puriso, purisa), but they MUST be paired with a second word.
 4. CRITICAL: Do NOT include book names (e.g., 'dhammapada', 'majjhima') in search terms.
 5. You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
 6. TEXTUAL VARIANTS: The database uses the Chaṭṭha Saṅgāyana (CSCD) edition. If a common word has alternative spellings or synonyms in different traditions (e.g., 'suka' vs 'suva' for parrot, or 'kapi' vs 'makkaṭa' vs 'vānara' for monkey), include searches for BOTH root words. Do not assume your preferred spelling is the only one.
 7. LANGUAGE: You must formulate your "thinking" field entirely in $targetLang (if you know it, otherwise English).  Search terms should in roman pāḷi characters.
-8.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.  
-9.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
+8. SUTTAS AND STORIES: The app has a special backend feature: if your second word is "sutta" or "vatthu", it will automatically join them to search for the compound title. Therefore, to search for a specific text, ALWAYS split it into two words (e.g., query "aṅgulimāla sutta" to find aṅgulimālasuttaṃ, or query "kisāgota vatthu" to find kisāgotamīvatthu). This perfectly obeys the two-word rule while getting a direct hit on the title.
+9. UNIQUE CHARACTERS: Never search for a character's name as a single word. Always pair their name (or partial name) with a highly relevant context word (e.g., instead of just "paṭācārā", search "paṭācārā udaka").
 
 Respond ONLY with a JSON object in this exact format:
 {
   "thinking": "(Write your detailed thought process here in $targetLang)",
-  "next_queries": ["ānanda rodati", "assu", "soka"]
-}''';
+  "next_queries": ["ānanda rodati", "assaji upatissa", "sāriputta nirodha"]
+''';
 
     try {
       final String? response = await _callAi(
@@ -666,18 +678,22 @@ ${overflowSummary.isEmpty ? "" : "OVERFLOW SUMMARY (use OF- indices to request):
 
 Task:
 1. Review the FULL TEXT results carefully.  You are in a prompt loop. More iterations = more tokens.  Only request more when necessary.   When finished mark  "is_fully_answered": true and STOP.
-2. Select the most relevant ones using their indices [0], [1], etc.
-3. If you want to see more from overflow, Request up to a MAXIMUM of 15 OF- indices in "request_overflow_indices".
-4. If you have 2-4 strong results that answer the question well, set "is_fully_answered": true and STOP.
-5. If not fully answered, propose new queries based on what failed or succeeded. 
-   - RULE: If a query contains a space, the app requires all words to be within 12 words of each other. Maximum 2 words per query. Never write full Pāḷi sentences.
-6. LANGUAGE: You must write your "thought_process" entirely in $targetLang (if you know it, otherwise English).
-7.  Be very concise. Do not repeat the full story.  But give enough for future iterations of ai.   Focus only on whether the passage answers the question. Prefer selecting passages that contain both the name and the key action (searching for seeds).
-8.  You are highly efficient. Request overflow when truly necessary focusing on book and good guess.   Stop as soon as you have sufficient evidence.
-9.  CRITICAL:  If you already have 3 or more very strong hits mentioning the key elements (Kisāgotamī + sāsapa + child/death), THEN DO THIS:  force the variable is_fully_answered: true
-This will stope the cycle of prompts and cut the cost.
-10.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.
-11.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
+2. Generate 6 to 10 highly targeted Pāḷi search queries.
+3. CRITICAL TWO-WORD RULE: EVERY query MUST consist of EXACTLY TWO words separated by a space (e.g., "upāli vinaya", "kassapa sāsana"). Single-word queries are STRICTLY FORBIDDEN because they return too much noise. Since searches are fast, rely on combinations of two relevant words to pinpoint the exact context. (The app requires both words to be within 12 words of each other).
+4. Select the most relevant passages from the FULL TEXT above using their indices [0], [1], etc., and put them in "selected_new_indices". You MUST extract evidence from the provided search results, NOT from your internal memory.
+5. If you want to see more from overflow, request up to a MAXIMUM of 15 OF- indices. (CRITICAL: I will truncate any request over 15 in code. Do not waste output tokens).
+6. If you have successfully SELECTED strong results from the FULL TEXT that answer the question, set "is_fully_answered": true and STOP.
+7. If not fully answered, propose new queries based on what failed or succeeded. 
+   - PIVOT RULE: If your previous searches yielded 0 results or irrelevant results, you MUST brainstorm Pāḷi synonyms (e.g., if 'jīvita' fails, try 'āyu'). Do not keep searching the same failed roots.
+   - DISTANCE RULE: If a query contains a space, the app requires all words to be within 12 words of each other. Maximum 2 words per query. Never write full Pāḷi sentences.
+8. LANGUAGE: You must write your "thought_process" entirely in $targetLang (if you know it, otherwise English).
+9. TEXTUAL HIERARCHY: You must PRIORITIZE primary canonical texts (Mūla / Pāḷi / Sutta / Vinaya) over commentaries (Aṭṭhakathā) and sub-commentaries (Ṭīkā). Scan the "Book:" titles in the provided FULL TEXT carefully. If a primary root text and a commentary both contain the answer, you MUST select the index of the primary root text. Prefer selecting passages that contain the core subjects and key actions.
+10.  You are highly efficient. Request overflow when truly necessary focusing on book and good guess.   Stop as soon as you have sufficient evidence.
+11. CRITICAL: Do not artificially prolong the search to meet a quota. However, NEVER stop empty-handed. You must set "is_fully_answered": true ONLY IF you have placed at least 1 excellent, highly relevant hit into "selected_new_indices". If your "selected_new_indices" array is empty, you are NOT finished.
+12.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.
+13.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
+14.  sql searches locally do not take much time and can answer your questions well without noise.
+15.  ACCEPTING SNIPPETS: The database returns short text snippets, not full suttas. If a snippet clearly points to the correct event, sutta, or doctrine, that is a 100% successful hit. DO NOT keep searching just because the snippet doesn't contain the "full narrative" or the entire story. Select the index of the successful snippet and immediately set "is_fully_answered": true.
 
 Respond ONLY with valid JSON:
 {
@@ -701,15 +717,32 @@ Respond ONLY with valid JSON:
       if (jsonStr == null) return null;
 
       final data = jsonDecode(jsonStr);
+
+      // SAFEGUARD 1: Force the 15-item limit in code
+      final rawOverflow = _parseIntList(data['request_overflow_indices']);
+      final safeOverflow = rawOverflow.take(15).toList();
+
+      // SAFEGUARD 2: Prevent context explosion by capping selected indices per iteration
+      final rawSelected = _parseIntList(data['selected_new_indices']);
+      final safeSelected =
+          rawSelected.take(10).toList(); // Max 10 new selections per turn
+
+      // SAFEGUARD 3: Prevent infinite loops by blocking already tried queries
+      final rawQueries = _parseStringList(data['next_queries'])
+          .map((e) => e.toLowerCase().trim())
+          .where((q) => q.isNotEmpty)
+          .toList();
+      final safeQueries =
+          rawQueries.where((q) => !triedQueries.contains(q)).toList();
+
       return AiPlan(
-        selectedIndices: _parseIntList(data['selected_new_indices']),
-        requestOverflowIndices: _parseIntList(data['request_overflow_indices']),
+        selectedIndices: safeSelected,
+        requestOverflowIndices: safeOverflow,
         thoughtProcess: _parseStringList(data['thought_process']),
-        isFullyAnswered: data['is_fully_answered'] == true,
-        nextQueries: _parseStringList(data['next_queries'])
-            .map((e) => e.toLowerCase().trim())
-            .where((q) => q.isNotEmpty)
-            .toList(),
+        // SAFEGUARD 4: If it generated queries but they were all filtered out as duplicates, force a stop.
+        isFullyAnswered: data['is_fully_answered'] == true ||
+            (rawQueries.isNotEmpty && safeQueries.isEmpty),
+        nextQueries: safeQueries,
       );
     } catch (e) {
       debugPrint('Plan error: $e');

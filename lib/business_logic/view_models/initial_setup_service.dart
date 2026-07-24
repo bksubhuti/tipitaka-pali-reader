@@ -13,6 +13,7 @@ import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 
 //singleton model so setup will only get called one time in constructor
 class InitialSetupService {
@@ -35,6 +36,12 @@ class InitialSetupService {
   Future<void> setUp(bool isUpdateMode) async {
     _intialSetupNotifier.setupIsFinished = false;
     debugPrint('--> Setup Starting. Update Mode: $isUpdateMode');
+
+    if (!isUpdateMode) {
+      if (!PlatformInfo.isDesktop) {
+        Prefs.hideScrollbar = true;
+      }
+    }
 
     // 1. Define the NEW Path (The "FFI" Goal)
     // We want the DB to live here permanently from now on.

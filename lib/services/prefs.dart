@@ -481,6 +481,11 @@ class Prefs {
   static set hideSanskrit(bool value) =>
       instance.setBool(hideSanskritPref, value);
 
+  static bool get hideScrollbar =>
+      instance.getBool(hideScrollbarPref) ?? defaultHideScrollbar;
+  static set hideScrollbar(bool value) =>
+      instance.setBool(hideScrollbarPref, value);
+
 // openRouter ai stuff
 // encrypted is hidden from other callers.
   static String get openRouterApiKey {

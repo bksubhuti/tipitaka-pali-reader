@@ -448,14 +448,35 @@ No App Liability: The developer of this application is not responsible for any a
                         ),
                       ),
                       const SizedBox(width: 8),
-                      IconButton.filled(
-                        icon: const Icon(Icons.send),
-                        onPressed: _isSearching
-                            ? null
-                            : () {
-                                FocusScope.of(context).unfocus();
-                                _runAiSearch();
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (!_isSearching && _hasSearched)
+                            IconButton(
+                              icon: const Icon(Icons.clear),
+                              tooltip: 'Clear search',
+                              onPressed: () {
+                                setState(() {
+                                  _hasSearched = false;
+                                  _queryController.clear();
+                                  _summary = '';
+                                  _results.clear();
+                                  _logs.clear();
+                                });
                               },
+                            ),
+                          if (!_isSearching && _hasSearched)
+                            const SizedBox(height: 8),
+                          IconButton.filled(
+                            icon: const Icon(Icons.send),
+                            onPressed: _isSearching
+                                ? null
+                                : () {
+                                    FocusScope.of(context).unfocus();
+                                    _runAiSearch();
+                                  },
+                          ),
+                        ],
                       ),
                     ],
                   ),
