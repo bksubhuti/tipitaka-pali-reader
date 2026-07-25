@@ -215,7 +215,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                     ' Balanced performance.'),
                 _buildBulletPoint(
                     context,
-                    'Gemini-3.1-flash-lite (Both Heavy & Light):',
+                    'Gemini-3.5-flash-lite (Both Heavy & Light):',
                     ' Best overall usage limits and efficiency.'),
 
                 const SizedBox(height: 12),
@@ -667,7 +667,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         child: Row(
                           children: [
                             const Text(
-                              '3.1-Flash-lite recommended',
+                              '3.5-Flash-lite recommended',
                               style:
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
