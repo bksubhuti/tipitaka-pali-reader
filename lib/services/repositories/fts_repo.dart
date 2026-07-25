@@ -51,13 +51,12 @@ class FtsDatabaseRepository implements FtsRespository {
 
     if (queryMode == QueryMode.exact) {
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
-        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
       FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON fts_pages.bookid = sutta_page_shortcut.book_id
             AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '"$safePhrase"'
+      WHERE fts_pages MATCH '"$safePhrase"' AND fts_pages.content LIKE '%$originalPhrase%'
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -128,9 +127,7 @@ class FtsDatabaseRepository implements FtsRespository {
       // ==========================================
       // EXACT, PREFIX, and DISTANCE all use the DB Snippet
       // ==========================================
-      if (queryMode == QueryMode.distance ||
-          queryMode == QueryMode.exact ||
-          queryMode == QueryMode.prefix) {
+      if (queryMode == QueryMode.distance || queryMode == QueryMode.prefix) {
         results.add(SearchResult(
           id: id,
           book: Book(id: bookId, name: bookName),
