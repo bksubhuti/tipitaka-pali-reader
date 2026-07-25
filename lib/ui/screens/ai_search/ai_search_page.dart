@@ -435,7 +435,7 @@ No App Liability: The developer of this application is not responsible for any a
                           textInputAction: TextInputAction.search,
                           decoration: InputDecoration(
                             hintText:
-                                'Ask in English (e.g. When did the Buddha teach dullabho?)',
+                                'Ask in English (e.g. When did the Buddha teach dullabho daily?)',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
