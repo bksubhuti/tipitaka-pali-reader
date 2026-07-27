@@ -277,7 +277,7 @@ class AiSearchService {
               final isMultiWord = query.contains(' ');
               final queryMode =
                   isMultiWord ? QueryMode.distance : QueryMode.prefix;
-              final wordDistance = isMultiWord ? 12 : 0;
+              final wordDistance = isMultiWord ? 20 : 0;
 
               final results =
                   await ftsRepo.getResults(query, queryMode, wordDistance);
@@ -388,7 +388,7 @@ class AiSearchService {
           consecutiveZeroFinds = 0;
         }
 
-        if (consecutiveZeroFinds >= 2) {
+        if (consecutiveZeroFinds >= 3) {
           _addLog(
               '🛑 AI has stalled without finding new relevant passages. Forcing early stop to save tokens.');
           break;
@@ -508,27 +508,10 @@ class AiSearchService {
   Future<List<String>> _generateInitialQueries(
       String userQuery, String apiKey, void Function(String) onThought) async {
     final String targetLang = _getTargetLanguage(Prefs.currentScriptLanguage);
-
-    final prompt =
-        '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
-The user is asking: "$userQuery"
-
-Task:
-1. Formulate a step-by-step thought process. Identify key figures, events, and core concepts related to the query across the Suttas, Vinaya, and Commentaries (Aṭṭhakathā).
-2. Generate 6 to 12 highly targeted Pāḷi search terms.
-3. CRITICAL TWO-WORD RULE: EVERY query MUST consist of EXACTLY TWO words separated by a space (e.g., "upāli vinaya", "assaji upatissa"). Single-word queries and queries with 3 or more words are STRICTLY FORBIDDEN. The app executes a distance search, requiring both words to be within 12 words of each other. This is the most powerful way to filter out noise. You CAN search for short root words (e.g., search "puris" to get puriso, purisa), but they MUST be paired with a second word.
-4. CRITICAL: Do NOT include book names (e.g., 'dhammapada', 'majjhima') in search terms.
-5. You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
-6. TEXTUAL VARIANTS: The database uses the Chaṭṭha Saṅgāyana (CSCD) edition. If a common word has alternative spellings or synonyms in different traditions (e.g., 'suka' vs 'suva' for parrot, or 'kapi' vs 'makkaṭa' vs 'vānara' for monkey), include searches for BOTH root words. Do not assume your preferred spelling is the only one.
-7. LANGUAGE: You must formulate your "thinking" field entirely in $targetLang (if you know it, otherwise English).  Search terms should in roman pāḷi characters.
-8. SUTTAS AND STORIES: The app has a special backend feature: if your second word is "sutta" or "vatthu", it will automatically join them to search for the compound title. Therefore, to search for a specific text, ALWAYS split it into two words (e.g., query "aṅgulimāla sutta" to find aṅgulimālasuttaṃ, or query "kisāgota vatthu" to find kisāgotamīvatthu). This perfectly obeys the two-word rule while getting a direct hit on the title.
-9. UNIQUE CHARACTERS: Never search for a character's name as a single word. Always pair their name (or partial name) with a highly relevant context word (e.g., instead of just "paṭācārā", search "paṭācārā udaka").
-
-Respond ONLY with a JSON object in this exact format:
-{
-  "thinking": "(Write your detailed thought process here in $targetLang)",
-  "next_queries": ["ānanda rodati", "assaji upatissa", "sāriputta nirodha"]
-''';
+    String promptTemplate = await _getInitialPromptString(false);
+    final prompt = promptTemplate
+        .replaceAll('{{userQuery}}', userQuery)
+        .replaceAll('{{targetLang}}', targetLang);
 
     try {
       final String? response = await _callAi(
@@ -660,51 +643,24 @@ ${cumBuffer.toString()}''';
     final overflowSummary = overflowBuffer.toString();
 
     final String targetLang = _getTargetLanguage(Prefs.currentScriptLanguage);
-
-    final prompt =
-        '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
-The user asks: "$userQuery"
-
-We are running an autonomous search loop.
-$cumulativeContext
-
-PREVIOUS AI THOUGHTS (For context):
-$previousThoughts
-
-Queries we have already tried (do not repeat these): ${triedQueries.join(', ')}
-
-Here are the FULL TEXT results for this round (use their numeric indices [0], [1], ... to select):
-${buffer.toString().isEmpty ? "(No full text results available)" : buffer.toString()}
-
-${overflowSummary.isEmpty ? "" : "OVERFLOW SUMMARY (use OF- indices to request):\n$overflowSummary\n"}
-
-Task:
-1. Review the FULL TEXT results carefully.  You are in a prompt loop. More iterations = more tokens.  Only request more when necessary.   When finished mark  "is_fully_answered": true and STOP.
-2. Generate 6 to 10 highly targeted Pāḷi search queries.
-3. CRITICAL TWO-WORD RULE: EVERY query MUST consist of EXACTLY TWO words separated by a space (e.g., "upāli vinaya", "kassapa sāsana"). Single-word queries are STRICTLY FORBIDDEN because they return too much noise. Since searches are fast, rely on combinations of two relevant words to pinpoint the exact context. (The app requires both words to be within 12 words of each other).
-4. Select the most relevant passages from the FULL TEXT above using their indices [0], [1], etc., and put them in "selected_new_indices". You MUST extract evidence from the provided search results, NOT from your internal memory.
-5. If you want to see more from overflow, request up to a MAXIMUM of 15 OF- indices. (CRITICAL: I will truncate any request over 15 in code. Do not waste output tokens).
-6. If you have successfully SELECTED strong results from the FULL TEXT that answer the question, set "is_fully_answered": true and STOP.
-7. If not fully answered, propose new queries based on what failed or succeeded. 
-   - PIVOT RULE: If your previous searches yielded 0 results or irrelevant results, you MUST brainstorm Pāḷi synonyms (e.g., if 'jīvita' fails, try 'āyu'). Do not keep searching the same failed roots.
-   - DISTANCE RULE: If a query contains a space, the app requires all words to be within 12 words of each other. Maximum 2 words per query. Never write full Pāḷi sentences.
-8. LANGUAGE: You must write your "thought_process" entirely in $targetLang (if you know it, otherwise English).
-9. TEXTUAL HIERARCHY: You must PRIORITIZE primary canonical texts (Mūla / Pāḷi / Sutta / Vinaya) over commentaries (Aṭṭhakathā) and sub-commentaries (Ṭīkā). Scan the "Book:" titles in the provided FULL TEXT carefully. If a primary root text and a commentary both contain the answer, you MUST select the index of the primary root text. Prefer selecting passages that contain the core subjects and key actions.
-10.  You are highly efficient. Request overflow when truly necessary focusing on book and good guess.   Stop as soon as you have sufficient evidence.
-11. CRITICAL: Do not artificially prolong the search to meet a quota. However, NEVER stop empty-handed. You must set "is_fully_answered": true ONLY IF you have placed at least 1 excellent, highly relevant hit into "selected_new_indices". If your "selected_new_indices" array is empty, you are NOT finished.
-12.  If looking for story or short sutta, you can search for the title.  If you find that.  That is a direct hit.  Remember it is CST and you can search for partial words.  Sutta and Story Names are often one word.
-13.  If it is a unique character.  Search for that.  kisāgota is better than searching for kisāgotamī.  A sutta might be kisāgotamīsuttaṃ a story might be kisāgotamīvatthu
-14.  sql searches locally do not take much time and can answer your questions well without noise.
-15.  ACCEPTING SNIPPETS: The database returns short text snippets, not full suttas. If a snippet clearly points to the correct event, sutta, or doctrine, that is a 100% successful hit. DO NOT keep searching just because the snippet doesn't contain the "full narrative" or the entire story. Select the index of the successful snippet and immediately set "is_fully_answered": true.
-
-Respond ONLY with valid JSON:
-{
-  "thought_process": ["write your thoughts here in $targetLang"],
-  "selected_new_indices": [0, 2],
-  "request_overflow_indices": [5, 8],
-  "is_fully_answered": false,
-  "next_queries": ["query1", "query2"]
-}''';
+    String promptTemplate =
+        await _getPromptPlanEvaluatePromptString(goOnline: false);
+    final prompt = promptTemplate
+        .replaceAll('{{userQuery}}', userQuery)
+        .replaceAll('{{cumulativeContext}}', cumulativeContext)
+        .replaceAll('{{previousThoughts}}', previousThoughts)
+        .replaceAll('{{triedQueries}}', triedQueries.join(', '))
+        .replaceAll(
+            '{{fullTextResults}}',
+            buffer.toString().isEmpty
+                ? "(No full text results available)"
+                : buffer.toString())
+        .replaceAll(
+            '{{overflowSummaryText}}',
+            overflowSummary.isEmpty
+                ? ""
+                : "OVERFLOW SUMMARY (use OF- indices to request):\n$overflowSummary\n")
+        .replaceAll('{{targetLang}}', targetLang);
 
     debugPrint('[AiSearch] Prompt length: ${prompt.length} chars');
     final approxWords = prompt.split(RegExp(r'\s+')).length;
@@ -722,7 +678,7 @@ Respond ONLY with valid JSON:
 
       // SAFEGUARD 1: Force the 15-item limit in code
       final rawOverflow = _parseIntList(data['request_overflow_indices']);
-      final safeOverflow = rawOverflow.take(15).toList();
+      final safeOverflow = rawOverflow.take(30).toList();
 
       // SAFEGUARD 2: Prevent context explosion by capping selected indices per iteration
       final rawSelected = _parseIntList(data['selected_new_indices']);
@@ -1118,5 +1074,132 @@ Respond ONLY with valid JSON:
     } catch (e) {
       debugPrint('[AiSearch] Error logging cost to file: $e');
     }
+  }
+
+  Future<String> _getInitialPromptString(bool goOnline) async {
+    return '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
+The user is asking: "{{userQuery}}"
+
+Task:
+1. Formulate a step-by-step thought process. Identify key figures, events, and core concepts related to the query across the Suttas, Vinaya, and Commentaries (Aṭṭhakathā).
+2. Generate 6 to 12 highly targeted Pāḷi search terms.
+3. CRITICAL TWO-WORD RULE + STEM MATCHING:  
+EVERY query MUST consist of EXACTLY TWO words separated by a space (e.g., "upāli vinaya", "assaji upatissa").  
+Single-word queries and queries with 3 or more words are STRICTLY FORBIDDEN.  
+The app executes a distance search, requiring both words to be within ~12–20 words of each other.  
+
+Because the FTS engine uses substring / partial-wildcard matching, ALWAYS prefer the shortest meaningful stem rather than a fully declined form:  
+- Search “puris” (not “puriso”, “purisa”, or “purisassa”) so that all cases and compounds are found.  
+- The same rule applies to singular vs plural. For “eyes” do NOT search only the singular “cakkhu”. Search the stem without the vowel ending “cakkh” to catch variants, like cakkūni (this also catches the plural “cakkhūni”, “cakkhūnaṃ”, etc.).  
+Never assume the singular form is enough; always choose the root that covers both singular and plural (and all cases).  
+You CAN use short root words, but they MUST still be paired with a second contextual word.
+
+4. CRITICAL: Do NOT include book names (e.g., 'dhammapada', 'majjhimanikaya', 'saṃyuttanikāya') in search terms.
+5. You must use proper Pāḷi diacritics (ā, ī, ū, ṃ, ṭ, ḍ, ṇ, ñ, ṅ, ḷ).
+6. TEXTUAL VARIANTS: The database uses the Chaṭṭha Saṅgāyana (CSCD) edition. If a common word has alternative spellings or synonyms in different traditions (e.g., 'suka' vs 'suva' for parrot, or 'kapi' vs 'makkaṭa' vs 'vānara' for monkey), include searches for BOTH root words. Do not assume your preferred spelling is the only one.
+7. LANGUAGE: You must formulate your "thinking" field entirely in {{targetLang}} (if you know it, otherwise English).  Search terms should in roman pāḷi characters.
+8. SUTTAS AND STORIES: The app has a special backend feature: if your second word is "sutta" or "vatthu", it will automatically join them to search for the compound title. Therefore, to search for a specific text, ALWAYS split it into two words (e.g., query "aṅgulimāla sutta" to find aṅgulimālasuttaṃ, or query "kisāgota vatthu" to find kisāgotamīvatthu). This perfectly obeys the two-word rule while getting a direct hit on the title.
+9. UNIQUE CHARACTERS: Never search for a character's name as a single word. Always pair their name (or partial name) with a highly relevant context word (e.g., instead of just "paṭācārā", search "paṭācārā udaka").
+
+
+CRITICAL SPELLING RULE (CSCD only):
+You MUST use only the exact spellings found in the Chaṭṭha Saṅgāyana edition.
+Never invent or “correct” diacritics.
+Especially:
+- saliva / phlegm = kheḷa (ḷ, NOT ṭ). Never write kheṭa.
+- When in doubt about a rare technical term, prefer the shortest stem that is known to exist in CSCD and pair it with a second word.
+If you are unsure of the correct CSCD spelling, do not generate that query.
+
+
+Respond ONLY with a JSON object in this exact format:
+{
+  "thinking": "(Write your detailed thought process here in {{targetLang}})",
+  "next_queries": ["ānanda rodati", "assaji upatissa", "sāriputta nirodha"]
+}''';
+  }
+
+  Future<String> _getPromptPlanEvaluatePromptString(
+      {bool goOnline = false}) async {
+    return '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
+The user asks: "{{userQuery}}"
+
+We are running an autonomous search loop (maximum 5 iterations).
+{{cumulativeContext}}
+
+PREVIOUS AI THOUGHTS (For context):
+{{previousThoughts}}
+
+Queries we have already tried (do not repeat these): {{triedQueries}}
+
+Here are the FULL TEXT results for this round (use their numeric indices [0], [1], ... to select):
+{{fullTextResults}}
+
+{{overflowSummaryText}}
+
+Task:
+1. Carefully review the FULL TEXT results.
+2. Select the most relevant passages using their indices and put them in "selected_new_indices". You MUST only select evidence that actually appears in the provided results.
+3. Generate 6 to 10 highly targeted two-word Pāḷi search queries for the next round (if needed).
+4. You may request up to 30 overflow items using "request_overflow_indices".
+
+CRITICAL RULES:
+
+TWO-WORD RULE:
+Every query MUST consist of exactly two words separated by a space. Single-word queries are forbidden. The app requires both words to be within ~20 words of each other.
+
+3. CRITICAL TWO-WORD RULE + STEM MATCHING:  
+EVERY query MUST consist of EXACTLY TWO words separated by a space (e.g., "upāli vinaya", "assaji upatissa").  
+Single-word queries and queries with 3 or more words are STRICTLY FORBIDDEN.  
+The app executes a distance search, requiring both words to be within ~12–20 words of each other.  
+
+Because the FTS engine uses substring / partial-wildcard matching, ALWAYS prefer the shortest meaningful stem rather than a fully declined form:  
+- Search “puris” (not “puriso”, “purisa”, or “purisassa”) so that all cases and compounds are found.  
+- The same rule applies to singular vs plural. For “eyes” do NOT search only the singular “cakkhu”. Search the stem without the vowel ending “cakkh” to catch variants, like cakkūni (this also catches the plural “cakkhūni”, “cakkhūnaṃ”, etc.).  
+Never assume the singular form is enough; always choose the root that covers both singular and plural (and all cases).  
+You CAN use short root words, but they MUST still be paired with a second contextual word.
+
+TEXTUAL HIERARCHY:
+Prefer primary canonical texts (Mūla / Vinaya / Sutta) over commentaries (Aṭṭhakathā) and later manuals. When both a root text and a commentary contain the answer, select the primary text.
+
+CRITICAL SPELLING RULE (CSCD only):
+You MUST use only the exact spellings found in the Chaṭṭha Saṅgāyana edition.
+Never invent or “correct” diacritics.
+Especially:
+- saliva / phlegm = kheḷa (ḷ, NOT ṭ). Never write kheṭa.
+- When in doubt about a rare technical term, prefer the shortest stem that is known to exist in CSCD and pair it with a second word.
+If you are unsure of the correct CSCD spelling, do not generate that query.
+
+PERSISTENCE & STOPPING RULE (very important):
+- Do NOT set "is_fully_answered": true after only one evaluation round unless the results contain a precise, direct ruling that fully answers the question.
+- For technical Vinaya or commentary questions, prefer continuing for at least one more round when the current results are only approximate or general.
+- Set "is_fully_answered": true ONLY when the selected passages provide a clear, factual, and specific answer to the user’s exact question.
+- General etiquette passages, Sekhiya rules, or related but non-specific texts are not enough to stop.
+
+OVERFLOW USAGE (important):
+- If the current results do not fully and precisely answer the question, you SHOULD request overflow items.
+- Prefer requesting overflow from commentary books when looking for specific Vinaya rulings.
+- It is better to request overflow items and continue than to stop early with only approximate results.
+- Only skip overflow when you already have clear, direct evidence that answers the question.
+
+DISCOVERY & CONTINUATION RULE:
+- Keep all good results you have already selected.
+- When a concrete, unusual, or highly specific technical phrase appears in the results or overflow, treat it as a discovery.
+- In the next round you may generate new queries that reuse parts of that discovered phrase.
+- Do not invent theoretical combinations that have not appeared in the results.  
+- Only follow up on phrases that actually appeared in the current search results of this session.
+
+OTHER GUIDANCE:
+- If previous searches returned 0 or poor results, pivot to new synonyms or related concepts.
+- SQL searches are fast — it is better to try more targeted queries than to stop early.
+- Write your "thought_process" in {{targetLang}} (or English if unknown).
+
+Respond ONLY with valid JSON:
+{
+  "thought_process": ["write your thoughts here in {{targetLang}}"],
+  "selected_new_indices": [0, 2],
+  "request_overflow_indices": [5, 8],
+  "is_fully_answered": false,
+  "next_queries": ["query1", "query2"]
+}''';
   }
 }
