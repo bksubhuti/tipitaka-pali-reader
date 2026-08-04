@@ -63,6 +63,7 @@ dependencies:
   devicelocale: ^0.8.1
   dio: ^5.5.0
   share_plus: ^12.0.1
+  flutter_tts: ^4.0.2
   streaming_shared_preferences: ^2.0.0
   ms_material_color: ^1.0.0
   uuid: ^4.4.2

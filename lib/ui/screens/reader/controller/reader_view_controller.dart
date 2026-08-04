@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
+import 'package:tipitaka_pali/services/tts_service.dart';
 
 import '../../../../business_logic/models/book.dart';
 import '../../../../business_logic/models/bookmark.dart';
@@ -58,6 +59,10 @@ class ReaderViewController extends ChangeNotifier {
   final ValueNotifier<bool> _highlightEveryMatch = ValueNotifier(true);
   ValueListenable<bool> get highlightEveryMatch => _highlightEveryMatch;
 
+  final ValueNotifier<String?> _ttsCurrentText = ValueNotifier(null);
+  ValueListenable<String?> get ttsCurrentText => _ttsCurrentText;
+  int _ttsSentenceIndex = 0;
+
   bool isloadingFinished = false;
 
   late ValueNotifier<int> _currentPage;
@@ -78,6 +83,7 @@ class ReaderViewController extends ChangeNotifier {
   bool get showSearch => _showSearch;
 
   String bookUuid;
+  List<String> _currentTtsMatches = [];
 
   // // script features
   // late final bool _isShowAlternatePali;
@@ -92,7 +98,9 @@ class ReaderViewController extends ChangeNotifier {
     this.textToHighlight,
     this.queryMode,
     required this.bookUuid,
-  });
+  }) {
+    final ttsService = Provider.of<TtsService>(context, listen: false);
+  }
 
   void onSearchTermChanged(String text) {
     if (text.isEmpty || text.length < 2) {
@@ -391,6 +399,10 @@ class ReaderViewController extends ChangeNotifier {
   }
 
   void gotoPage({required int pageNumber}) {
+    // Only reset TTS highlight when the page actually changes
+    if (_currentPage.value != pageNumber) {
+      _ttsCurrentText.value = null;
+    }
     _currentPage.value = pageNumber;
     final openedBookController = context.read<OpenningBooksProvider>();
     openedBookController.update(
@@ -493,6 +505,102 @@ class ReaderViewController extends ChangeNotifier {
     final RecentRepository recentRepository =
         RecentDatabaseRepository(DatabaseHelper(), RecentDao());
     recentRepository.insertOrReplace(Recent(book.id, _currentPage.value));
+  }
+
+  Future<void> startTtsForCurrentPage({bool fromBeginning = true}) async {
+    final ttsService = Provider.of<TtsService>(context, listen: false);
+    debugPrint(
+        'TTS_DEBUG: startTtsForCurrentPage called, fromBeginning=$fromBeginning');
+
+    if (fromBeginning) {
+      final pageContent = await pageContentRepository.getPageByBookAndPage(
+          book.id, _currentPage.value);
+
+      if (pageContent == null) {
+        debugPrint(
+            'TTS_DEBUG: pageContent is null for page ${_currentPage.value}');
+        if (_currentPage.value < book.lastPage!) {
+          gotoPage(pageNumber: _currentPage.value + 1);
+          Future.delayed(const Duration(milliseconds: 500),
+              () => startTtsForCurrentPage(fromBeginning: true));
+        }
+        return;
+      }
+
+      final soup = BeautifulSoup(pageContent.content);
+      final matches = soup.findAll('span').where((e) {
+        return e.className.contains('translation_text');
+      }).toList();
+
+      _currentTtsMatches = matches.map((e) => e.text).toList();
+      _ttsSentenceIndex = 0;
+      debugPrint(
+          'TTS_DEBUG: Found ${_currentTtsMatches.length} English text blocks on page ${_currentPage.value}');
+    }
+
+    if (_currentTtsMatches.isEmpty) {
+      debugPrint('TTS_DEBUG: _currentTtsMatches is EMPTY');
+      if (_currentPage.value < book.lastPage!) {
+        gotoPage(pageNumber: _currentPage.value + 1);
+        Future.delayed(const Duration(milliseconds: 500),
+            () => startTtsForCurrentPage(fromBeginning: true));
+      }
+      return;
+    }
+
+    if (_ttsSentenceIndex < _currentTtsMatches.length) {
+      final int currentIdx = _ttsSentenceIndex;
+      String text = _currentTtsMatches[currentIdx];
+      final String rawText = text; // Keep original for widget matching
+
+      // Sanitize the text for speaking
+      text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+      debugPrint(
+          'TTS_DEBUG: Speaking index $currentIdx, text length=${text.length}');
+
+      if (text.isEmpty) {
+        debugPrint('TTS_DEBUG: Skipping empty text at index $currentIdx');
+        _ttsSentenceIndex = currentIdx + 1;
+        startTtsForCurrentPage(fromBeginning: false);
+        return;
+      }
+
+      // Broadcast the RAW text so the correct widget chunk can highlight it
+      _ttsCurrentText.value = rawText;
+
+      ttsService.onCompletion = () {
+        debugPrint('TTS_DEBUG: onCompletion fired for index $currentIdx');
+        ttsService.onCompletion = null;
+        _ttsSentenceIndex = currentIdx + 1;
+
+        if (_ttsSentenceIndex < _currentTtsMatches.length) {
+          startTtsForCurrentPage(fromBeginning: false);
+        } else {
+          debugPrint(
+              'TTS_DEBUG: Finished all blocks on page ${_currentPage.value}');
+          if (_currentPage.value < book.lastPage!) {
+            _ttsCurrentText.value = null;
+            gotoPage(pageNumber: _currentPage.value + 1);
+            Future.delayed(const Duration(milliseconds: 500), () {
+              startTtsForCurrentPage(fromBeginning: true);
+            });
+          } else {
+            _ttsCurrentText.value = null;
+          }
+        }
+      };
+      debugPrint('TTS_DEBUG: Calling ttsService.speak() for index $currentIdx');
+      ttsService.speak(text);
+    } else {
+      debugPrint('TTS_DEBUG: Index out of range. index=$_ttsSentenceIndex');
+    }
+  }
+
+  void stopTts() {
+    final ttsService = Provider.of<TtsService>(context, listen: false);
+    ttsService.onCompletion = null;
+    ttsService.stop();
+    _ttsCurrentText.value = null;
   }
 }
 

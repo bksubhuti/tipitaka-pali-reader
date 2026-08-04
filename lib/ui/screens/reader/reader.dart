@@ -16,6 +16,7 @@ import 'package:tipitaka_pali/ui/screens/reader/widgets/interactive_html_text.da
 import 'package:tipitaka_pali/ui/screens/reader/widgets/search_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/services/tts_service.dart';
 
 import '../../../app.dart';
 import '../../../business_logic/models/book.dart';
@@ -222,6 +223,52 @@ class ReaderView extends StatelessWidget implements Searchable {
 
                   // Translation Loading Overlay
                   _buildTranslationLoadingOverlay(context),
+
+                  // TTS Floating Controls
+                  Consumer<TtsService>(
+                    builder: (context, ttsService, child) {
+                      if (ttsService.isStopped) {
+                        return const SizedBox.shrink();
+                      }
+                      return Positioned(
+                        bottom: 120, // Above the slidable bar
+                        right: 16,
+                        child: Material(
+                          elevation: 4,
+                          borderRadius: BorderRadius.circular(32),
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(ttsService.isPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow),
+                                onPressed: () {
+                                  if (ttsService.isPlaying) {
+                                    ttsService.pause();
+                                  } else {
+                                    final rc =
+                                        context.read<ReaderViewController>();
+                                    rc.startTtsForCurrentPage();
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.stop),
+                                tooltip: 'Stop',
+                                onPressed: () {
+                                  final rc =
+                                      context.read<ReaderViewController>();
+                                  rc.stopTts();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

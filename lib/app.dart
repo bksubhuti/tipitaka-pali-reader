@@ -23,6 +23,7 @@ import 'package:tipitaka_pali/services/provider/user_notifier.dart';
 import 'package:tipitaka_pali/services/repositories/sutta_repository.dart';
 import 'package:tipitaka_pali/ui/dialogs/show_tpr_message_dlg.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
+import 'package:tipitaka_pali/services/tts_service.dart';
 import 'package:tipitaka_pali/unsupported_language_classes/ccp_intl.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:window_manager/window_manager.dart';
@@ -292,6 +293,8 @@ class _AppState extends State<App> with WindowListener {
                 create: (_) => ScriptLanguageProvider()),
             ChangeNotifierProvider<ReaderFontProvider>(
                 create: (_) => ReaderFontProvider()),
+            ChangeNotifierProvider<TtsService>(
+                create: (_) => TtsService()),
             ChangeNotifierProvider<OpenningBooksProvider>(
                 create: (_) => OpenningBooksProvider()),
             ChangeNotifierProvider<BookmarkPageViewModel>(

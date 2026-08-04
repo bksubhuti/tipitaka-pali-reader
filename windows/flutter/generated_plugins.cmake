@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   connectivity_plus
+  flutter_tts
   permission_handler_windows
   screen_retriever_windows
   share_plus

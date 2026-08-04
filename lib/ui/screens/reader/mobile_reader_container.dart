@@ -5,6 +5,7 @@ import 'package:tipitaka_pali/ui/screens/reader/reader.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/openning_book_list_view.dart';
 import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/ui/widgets/tab_count_icon.dart';
+import 'package:tipitaka_pali/utils/tts_helpers.dart';
 
 import '../../../business_logic/models/book.dart';
 import '../../../services/provider/script_language_provider.dart';

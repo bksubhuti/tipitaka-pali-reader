@@ -12,6 +12,7 @@ import 'package:tipitaka_pali/ui/screens/reader/widgets/mat_button.dart';
 import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:tipitaka_pali/utils/tts_helpers.dart';
 
 import '../../../../app.dart';
 import '../../../../business_logic/models/book.dart';
@@ -136,6 +137,22 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined),
               tooltip: AppLocalizations.of(context)!.bookmark),
+          FutureBuilder<bool>(
+            future: TtsHelpers.isTtsSupported(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data == true) {
+                return IconButton(
+                  onPressed: () {
+                    final vm = context.read<ReaderViewController>();
+                    vm.startTtsForCurrentPage();
+                  },
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Read English',
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           IconButton(
               onPressed: () => _openTocDialog(context),
               icon: const Icon(Icons.list),

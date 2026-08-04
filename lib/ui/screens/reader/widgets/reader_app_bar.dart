@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/utils/tts_helpers.dart';
 import '../../../../app.dart';
 import '../controller/reader_view_controller.dart';
 import '../../../../services/provider/script_language_provider.dart';
@@ -18,6 +20,20 @@ class ReaderAppBar extends StatelessWidget implements PreferredSizeWidget {
           script: context.read<ScriptLanguageProvider>().currentScript,
           romanText: vm.book.name)),
       actions: [
+        FutureBuilder<bool>(
+          future: TtsHelpers.isTtsSupported(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data == true) {
+              return IconButton(
+                onPressed: () {
+                  vm.startTtsForCurrentPage();
+                },
+                icon: const Icon(Icons.volume_up),
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         IconButton(
           onPressed: () {},
           icon: const Icon(Icons.looks_one_outlined),
