@@ -3,10 +3,10 @@ name: Build Windows (MSIX & Store Upload)
 on:
   workflow_dispatch:
     inputs:
-      version_tag:
-        description: 'Release Tag (e.g., v1.0.0)'
-        required: false
-        default: 'v1.0.0'
+      version:
+        description: 'MSIX Version (e.g. 1.0.5.0 - MUST be higher than 1.0.4.0)'
+        required: true
+        default: '1.0.5.0'
 
 permissions:
   contents: write
@@ -72,11 +72,11 @@ jobs:
       - name: Run Build Runner (Envied CodeGen)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # --- 4. FLUTTER BUILD WINDOWS (WITH MSVC COROUTINE SILENCE FLAG) ---
+      # --- 4. FLUTTER BUILD WINDOWS ---
       - name: Flutter build (Windows)
         run: |
           flutter gen-l10n
-          flutter build windows --release --extra-front-end-options=--no-implicit-casts 2>&1
+          flutter build windows --release
         env:
           CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
 
@@ -113,9 +113,9 @@ jobs:
             Get-ChildItem $dst
           }
 
-      # --- 7. CREATE MSIX PACKAGE ---
+      # --- 7. CREATE MSIX PACKAGE WITH INPUT VERSION ---
       - name: Create MSIX Package
-        run: dart run msix:create --build-windows false --output-path build/msix --output-name tipitaka
+        run: dart run msix:create --version ${{ inputs.version }} --build-windows false --output-path build/msix --output-name tipitaka
 
       # --- 8. SETUP OFFICIAL MSSTORE CLI ---
       - name: Setup Microsoft Store Developer CLI
