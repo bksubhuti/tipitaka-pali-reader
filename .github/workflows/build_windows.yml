@@ -117,17 +117,17 @@ jobs:
       - name: Create MSIX Package
         run: dart run msix:create --version ${{ inputs.version }} --build-windows false --output-path build/msix --output-name tipitaka
 
-      # --- 8. SETUP OFFICIAL MSSTORE CLI ---
-      - name: Setup Microsoft Store Developer CLI
-        uses: microsoft/microsoft-store-apppublisher@v1.3
-
-      # --- 9. UPLOAD TO MICROSOFT STORE ---
+      # --- 8. PUBLISH TO MICROSOFT STORE ---
       - name: Publish MSIX to Microsoft Store
-        run: |
-          msstore reconfigure --tenantId ${{ secrets.MS_STORE_TENANT_ID }} --clientId ${{ secrets.MS_STORE_CLIENT_ID }} --clientSecret ${{ secrets.MS_STORE_CLIENT_SECRET }} --force
-          msstore publish --productId ${{ secrets.MS_STORE_APP_ID }} --packagePath build/msix/tipitaka.msix
+        uses: microsoft/microsoft-store-apppublisher@v1.3
+        with:
+          tenant-id: ${{ secrets.MS_STORE_TENANT_ID }}
+          client-id: ${{ secrets.MS_STORE_CLIENT_ID }}
+          client-secret: ${{ secrets.MS_STORE_CLIENT_SECRET }}
+          product-id: ${{ secrets.MS_STORE_APP_ID }}
+          package-path: build/msix/tipitaka.msix
 
-      # --- 10. ARTIFACT UPLOADS ---
+      # --- 9. ARTIFACT UPLOADS ---
       - name: Upload MSIX Artifact
         uses: actions/upload-artifact@v4
         with:
