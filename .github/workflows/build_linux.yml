@@ -56,12 +56,26 @@ jobs:
       - name: Flutter doctor
         run: flutter doctor -v
 
-      - name: Flutter build (Linux)
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Generate .env File for Envied
+        shell: bash
         run: |
-          flutter pub get
-          flutter gen-l10n
-          flutter build linux --release
-          
+          cat <<EOF > .env
+          FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}"
+          OPEN_ROUTER_API_KEY="${{ secrets.OPEN_ROUTER_API_KEY }}"
+          DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
+          EOF
+
+      - name: Run Build Runner (Envied CodeGen)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate Localization
+        run: flutter gen-l10n
+
+      - name: Flutter build (Linux)
+        run: flutter build linux --release          
       - name: Make build_appimage2.sh executable
         run: chmod +x build_appimage2.sh
 
