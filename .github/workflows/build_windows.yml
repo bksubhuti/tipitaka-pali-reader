@@ -117,7 +117,7 @@ jobs:
 
       # --- 8. UPLOAD TO MICROSOFT STORE ---
       - name: Upload Package to Microsoft Store
-        uses: Microsoft/ms-store-publish-action@v1
+        uses: StoreBroker/ms-store-publish-action@v1
         with:
           tenant-id: ${{ secrets.MS_STORE_TENANT_ID }}
           client-id: ${{ secrets.MS_STORE_CLIENT_ID }}
