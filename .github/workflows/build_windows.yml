@@ -124,7 +124,7 @@ jobs:
       # --- 9. UPLOAD TO MICROSOFT STORE ---
       - name: Publish MSIX to Microsoft Store
         run: |
-          msstore reconfigure --tenantId ${{ secrets.MS_STORE_TENANT_ID }} --clientId ${{ secrets.MS_STORE_CLIENT_ID }} --clientSecret ${{ secrets.MS_STORE_CLIENT_SECRET }}
+          msstore reconfigure --tenantId ${{ secrets.MS_STORE_TENANT_ID }} --clientId ${{ secrets.MS_STORE_CLIENT_ID }} --clientSecret ${{ secrets.MS_STORE_CLIENT_SECRET }} --force
           msstore publish --productId ${{ secrets.MS_STORE_APP_ID }} --packagePath build/msix/tipitaka.msix
 
       # --- 10. ARTIFACT UPLOADS ---
