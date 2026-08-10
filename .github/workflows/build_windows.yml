@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'MSIX Version (e.g. 1.0.5.0 - MUST be higher than 1.0.4.0)'
+        description: 'MSIX Version (e.g. 1.0.5.0 - MUST be higher than previous version)'
         required: true
         default: '1.0.5.0'
 
@@ -46,7 +46,7 @@ jobs:
           Expand-Archive -Path "assets/database/tipitaka_pali.db.zip" -DestinationPath "assets/database" -Force
           Remove-Item "assets/database/tipitaka_pali.db.zip" -Force
 
-      # --- 2. SPLIT DATABASE (BASH) ---
+      # --- 2. SPLIT DATABASE ---
       - name: Run split.sh
         shell: bash
         run: |
@@ -86,7 +86,6 @@ jobs:
         run: |
           $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
           Invoke-WebRequest -Uri $dllUrl -OutFile "dlls.tar.gz"
-
           if (Test-Path "build/windows/x64/runner/Release") {
             $releaseDir = "build/windows/x64/runner/Release"
           } elseif (Test-Path "build/windows/runner/Release") {
@@ -94,7 +93,6 @@ jobs:
           } else {
             throw "Windows Release directory not found. Did the build step succeed?"
           }
-
           Write-Host "Using Release dir: $releaseDir"
           tar -xzf "dlls.tar.gz" -C $releaseDir
           Remove-Item "dlls.tar.gz" -Force
@@ -105,7 +103,6 @@ jobs:
         run: |
           $src = "build/windows/x64/runner/Release"
           $dst = "build/windows/runner/Release"
-
           if (Test-Path $src) {
             New-Item -ItemType Directory -Force -Path $dst | Out-Null
             Copy-Item -Recurse -Force "$src\*" "$dst\"
@@ -113,28 +110,31 @@ jobs:
             Get-ChildItem $dst
           }
 
-      # --- 7. CREATE MSIX PACKAGE WITH INPUT VERSION ---
+      # --- 7. CREATE MSIX PACKAGE ---
       - name: Create MSIX Package
         run: dart run msix:create --version ${{ inputs.version }} --build-windows false --output-path build/msix --output-name tipitaka
 
-      # --- 8. INSTALL MICROSOFT STORE CLI ---
+      # --- 8. SETUP MICROSOFT STORE CLI ---
       - name: Setup Microsoft Store Developer CLI
         uses: microsoft/microsoft-store-apppublisher@v1.3
-        with:
-          version: 'latest'
 
-      # --- 9. PUBLISH TO MICROSOFT STORE ---
+      # --- 9. CONFIGURE CREDENTIALS (THIS WAS MISSING) ---
+      - name: Configure MSStore CLI
+        shell: pwsh
+        run: |
+          msstore reconfigure `
+            --tenantId "${{ secrets.MS_STORE_TENANT_ID }}" `
+            --sellerId "${{ secrets.MS_STORE_SELLER_ID }}" `
+            --clientId "${{ secrets.MS_STORE_CLIENT_ID }}" `
+            --clientSecret "${{ secrets.MS_STORE_CLIENT_SECRET }}"
+
+      # --- 10. PUBLISH TO MICROSOFT STORE ---
       - name: Publish MSIX to Microsoft Store
         shell: pwsh
         run: |
-          msstore publish --productId "$env:PRODUCT_ID" --packagePath "build/msix/tipitaka.msix" --tenantId "$env:TENANT_ID" --clientId "$env:CLIENT_ID" --clientSecret "$env:CLIENT_SECRET"
-        env:
-          TENANT_ID: ${{ secrets.MS_STORE_TENANT_ID }}
-          CLIENT_ID: ${{ secrets.MS_STORE_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.MS_STORE_CLIENT_SECRET }}
-          PRODUCT_ID: ${{ secrets.MS_STORE_APP_ID }}
+          msstore publish "build/msix/tipitaka.msix" -id "${{ secrets.MS_STORE_APP_ID }}"
 
-      # --- 10. ARTIFACT UPLOADS ---
+      # --- 11. ARTIFACT UPLOADS ---
       - name: Upload MSIX Artifact
         uses: actions/upload-artifact@v4
         with:
