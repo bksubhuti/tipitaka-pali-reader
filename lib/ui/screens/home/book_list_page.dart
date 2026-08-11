@@ -20,6 +20,7 @@ import '../../../utils/platform_info.dart';
 import '../../dialogs/about_tpr_dialog.dart';
 import '../../dialogs/sutta_list_dialog.dart';
 import '../../widgets/colored_text.dart';
+import '../settings/download_view.dart';
 import 'openning_books_provider.dart';
 
 class BookListPage extends StatelessWidget {
@@ -320,24 +321,11 @@ class BookListPage extends StatelessWidget {
   }
 
   _openInstallEnglishTranslationPage(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
-          content: Text(
-              AppLocalizations.of(context)!.installTranslationInstructions),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                Navigator.pushNamed(context, '/download-view');
-              },
-              child: Text(AppLocalizations.of(context)!.ok),
-            ),
-          ],
-        );
-      },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DownloadView(autoInstallEnglish: true),
+      ),
     );
   }
 

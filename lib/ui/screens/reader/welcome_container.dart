@@ -36,7 +36,7 @@ class _WelcomeContainerState extends State<WelcomeContainer> {
     // Fetch the message from the internet
     try {
       final response = await http.get(Uri.parse(
-          'https://github.com/bksubhuti/tipitaka-pali-reader/raw/master/messages.json'));
+          'https://cdn.jsdelivr.net/gh/bksubhuti/tipitaka-pali-reader@master/messages.json'));
 
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);

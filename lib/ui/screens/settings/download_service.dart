@@ -75,6 +75,8 @@ class DownloadService {
     Database db = await dbService.database;
     downloadNotifier.connectionChecking = false;
     downloadNotifier.downloading = true;
+    downloadNotifier.totalSteps = 3;
+    downloadNotifier.stepsCompleted = 0;
     downloadNotifier.message =
         "\nNow downloading file.. ${downloadListItem.size}\nPlease wait.";
 
@@ -87,6 +89,7 @@ class DownloadService {
     //final sqlFiles = await getTestZip();
 //////////////////////////////////////////////
 
+    downloadNotifier.stepsCompleted = 1;
     // ACCUMULATOR: Keep track of every book added across all files
     final Set<String> allNewBooks = {};
     // --- SPEED BOOST: Turn off foreign key checks during bulk import ---
@@ -102,6 +105,7 @@ class DownloadService {
 // --- Restore normal database safety rules ---
     await db.execute("PRAGMA foreign_keys = ON;");
 
+    downloadNotifier.stepsCompleted = 2;
     // 2. INDEXING LOOP (Runs only once)
     if (downloadListItem.type.contains("index") && allNewBooks.isNotEmpty) {
       downloadNotifier.message = 'Building fts';
@@ -120,6 +124,7 @@ class DownloadService {
       Prefs.isDpdGrammarOn = true;
     }
 
+    downloadNotifier.stepsCompleted = 3;
     downloadNotifier.message = "Rebuilding Index";
     await dbService.buildBothIndexes();
     downloadNotifier.message = "Reloading Extension List";
@@ -237,13 +242,38 @@ class DownloadService {
   }
 
   Future<void> doFts(Database db, Set<String> newBooks) async {
-    int maxWrites = 50;
+    // Ensure virtual FTS tables exist
+    await db.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING FTS5(
+    id UNINDEXED, 
+    bookid UNINDEXED, 
+    page UNINDEXED, 
+    content, 
+    paranum UNINDEXED, 
+    sutta_name,
+    tokenize = 'porter' 
+);''');
+
+    // Drop and recreate fts_translation_pages for clean installation
+    await db.execute('DROP TABLE IF EXISTS fts_translation_pages;');
+    await db.execute('''CREATE VIRTUAL TABLE fts_translation_pages USING FTS5(
+    id UNINDEXED, 
+    bookid UNINDEXED, 
+    page UNINDEXED, 
+    content, 
+    paranum UNINDEXED, 
+    sutta_name,
+    tokenize = 'porter' 
+);''');
+
+    int maxWrites = 200;
     var batch = db.batch();
     int counter = 0;
 
     for (final bookId in newBooks) {
       // 1. SAFEGUARD: Delete old FTS records for this book to prevent ID collisions
       await db.rawDelete("DELETE FROM fts_pages WHERE bookid = ?", [bookId]);
+      await db.rawDelete(
+          "DELETE FROM fts_translation_pages WHERE bookid = ?", [bookId]);
 
       // Parameterized query to safely handle IDs like 'vin01m.mul'
       final querySql =
@@ -252,22 +282,44 @@ class DownloadService {
       final maps = await db.rawQuery(querySql, [bookId]);
 
       for (var element in maps) {
-        // Remove HTML tags before indexing
-        final value = <String, Object?>{
+        final rawContent = element['content'] as String;
+
+        // 1. Extract pure Pali content for fts_pages
+        final paliText = _extractPaliText(rawContent);
+        final paliValue = <String, Object?>{
+          'rowid': element['id'] as int,
           'id': element['id'] as int,
           'bookid': element['bookid'] as String,
           'page': element['page'] as int,
-          'content': _cleanText(element['content'] as String),
+          'content': paliText,
           'paranum': element['paranum'] as String,
         };
-        batch.insert('fts_pages', value);
+        batch.insert('fts_pages', paliValue,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+
+        // 2. Extract translation content for fts_translation_pages (if present)
+        final translationText = _extractTranslationText(rawContent);
+        if (translationText.isNotEmpty) {
+          final transValue = <String, Object?>{
+            'rowid': element['id'] as int,
+            'id': element['id'] as int,
+            'bookid': element['bookid'] as String,
+            'page': element['page'] as int,
+            'content': translationText,
+            'paranum': element['paranum'] as String,
+          };
+          batch.insert('fts_translation_pages', transValue,
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+
         counter++;
 
-        // Commit every 50 records and safely REINITIALIZE the batch
+        // Commit every 500 records and yield to event loop for smooth UI rendering
         if (counter % maxWrites == 0) {
           await batch.commit(noResult: true);
           batch = db.batch();
           downloadNotifier.message = "Indexing... $counter FTS pages";
+          await Future.delayed(Duration.zero);
         }
       }
     }
@@ -277,6 +329,30 @@ class DownloadService {
     await batch.commit(noResult: true);
 
     downloadNotifier.message = "FTS is complete";
+  }
+
+  String _extractPaliText(String html) {
+    if (html.contains('palitext')) {
+      final palitextRegex = RegExp(r'<span class="palitext"[^>]*>(.*?)</span>',
+          dotAll: true, caseSensitive: false);
+      final matches = palitextRegex.allMatches(html);
+      final paliParts = matches.map((m) => m.group(1) ?? '').join(' ');
+      return _cleanText(paliParts);
+    }
+    return _cleanText(html);
+  }
+
+  String _extractTranslationText(String html) {
+    if (html.contains('translation_text')) {
+      final translationRegex = RegExp(
+          r'<span class="translation_text[^"]*"[^>]*>(.*?)</span>',
+          dotAll: true,
+          caseSensitive: false);
+      final matches = translationRegex.allMatches(html);
+      final transParts = matches.map((m) => m.group(1) ?? '').join(' ');
+      return _cleanText(transParts);
+    }
+    return '';
   }
 
   void showDownloadProgress(received, total) {
@@ -658,7 +734,7 @@ class DownloadService {
             ''', [word, word]);
 
         counter++;
-        if (counter % 500 == 0) {
+        if (counter % 200 == 0) {
           batch.commit(noResult: true);
           batch = txn.batch();
           downloadNotifier.message =
@@ -676,6 +752,8 @@ class DownloadService {
     Database db = await dbService.database;
     downloadNotifier.connectionChecking = false;
     downloadNotifier.downloading = true;
+    downloadNotifier.totalSteps = 3;
+    downloadNotifier.stepsCompleted = 0;
     downloadNotifier.message =
         "\nExtracting local file.. ${downloadListItem.size}\nPlease wait.";
 
@@ -691,6 +769,7 @@ class DownloadService {
     // 2. Unarchive directly without downloading
     final sqlFiles = await unarchiveAndSave(localZipFile);
 
+    downloadNotifier.stepsCompleted = 1;
     // ACCUMULATOR: Keep track of every book added across all files
     final Set<String> allNewBooks = {};
 
@@ -707,6 +786,7 @@ class DownloadService {
     // --- Restore normal database safety rules ---
     await db.execute("PRAGMA foreign_keys = ON;");
 
+    downloadNotifier.stepsCompleted = 2;
     // 4. INDEXING LOOP (Runs only once)
     // Thanks to the JSON mapping, this correctly triggers for ePitaka and other 'books index' types
     if (downloadListItem.type.contains("index") && allNewBooks.isNotEmpty) {
@@ -724,9 +804,278 @@ class DownloadService {
       Prefs.isDpdGrammarOn = true;
     }
 
+    downloadNotifier.stepsCompleted = 3;
     downloadNotifier.message = "Rebuilding Index";
     await dbService.buildBothIndexes();
     downloadNotifier.message = "Local Restore Complete";
+    downloadNotifier.downloading = false;
+  }
+
+  bool isDbZip(File zipFile) {
+    try {
+      final bytes = zipFile.readAsBytesSync();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      return archive.any((f) => f.name.toLowerCase().endsWith('.db'));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  File? findDesktopZipFile() {
+    // 1. Check App Database directory first for zip containing a .db file or testing.db/testingdb/full_en
+    try {
+      final dbDir = Directory(Prefs.databaseDirPath);
+      if (dbDir.existsSync()) {
+        final files = dbDir.listSync().whereType<File>().toList();
+        for (final f in files) {
+          final pathLower = f.path.toLowerCase();
+          if (pathLower.endsWith('.zip') &&
+              (pathLower.contains('testing') ||
+                  pathLower.contains('full_en') ||
+                  isDbZip(f))) {
+            return f;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching app DB dir: $e');
+    }
+
+    // 2. Try un-sandboxed user home Desktop path
+    try {
+      final realDesktopDir = Directory('/Users/bhantesubhuti/Desktop/test_db');
+      if (realDesktopDir.existsSync()) {
+        final files = realDesktopDir.listSync().whereType<File>().toList();
+        for (final f in files) {
+          final pathLower = f.path.toLowerCase();
+          if (pathLower.endsWith('.zip') &&
+              (pathLower.contains('testing') ||
+                  pathLower.contains('full_en') ||
+                  isDbZip(f))) {
+            return f;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Could not read /Users/bhantesubhuti/Desktop/test_db: $e');
+    }
+
+    // 3. Fallback check for sandboxed $HOME/Desktop/test_db/
+    try {
+      final home = Platform.environment['HOME'] ?? '';
+      if (home.isNotEmpty) {
+        final testDbDir = Directory('$home/Desktop/test_db');
+        if (testDbDir.existsSync()) {
+          final files = testDbDir.listSync().whereType<File>().toList();
+          for (final f in files) {
+            final pathLower = f.path.toLowerCase();
+            if (pathLower.endsWith('.zip') &&
+                (pathLower.contains('testing') ||
+                    pathLower.contains('full_en') ||
+                    isDbZip(f))) {
+              return f;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Could not read sandboxed Desktop dir: $e');
+    }
+
+    return null;
+  }
+
+  Future<List<File>> unarchiveAndSaveExtractedDbFiles(File zippedFile) async {
+    var bytes = zippedFile.readAsBytesSync();
+    var archive = ZipDecoder().decodeBytes(bytes);
+    List<File> extractedFiles = [];
+
+    for (var file in archive) {
+      final outPath = '$_dir/${file.name}';
+      if (!file.isFile || outPath.contains('__MACOSX')) continue;
+
+      final outFile = File(outPath);
+      await outFile.create(recursive: true);
+      await outFile.writeAsBytes(file.content);
+      extractedFiles.add(outFile);
+    }
+    return extractedFiles;
+  }
+
+  Future<void> installDbExtensionFromDesktopZip() async {
+    await initDir();
+    Database db = await dbService.database;
+    downloadNotifier.connectionChecking = false;
+    downloadNotifier.downloading = true;
+    downloadNotifier.totalSteps = 4;
+    downloadNotifier.stepsCompleted = 0;
+
+    downloadNotifier.message =
+        "Locating DB extension zip in working DB directory...";
+
+    debugPrint(
+        'installDbExtensionFromDesktopZip: searching in ${Prefs.databaseDirPath}');
+    File? zipFile = findDesktopZipFile();
+    debugPrint(
+        'installDbExtensionFromDesktopZip: findDesktopZipFile returned: ${zipFile?.path}');
+
+    if (zipFile == null || !await zipFile.exists()) {
+      if (downloadListItem.url.startsWith('http')) {
+        downloadNotifier.message = "Downloading ${downloadListItem.name}...";
+        try {
+          zipFile = await downloadFile(
+              downloadListItem.url, downloadListItem.filename);
+        } catch (e) {
+          downloadNotifier.message = "Download Failed: $e";
+          downloadNotifier.downloading = false;
+          return;
+        }
+      } else {
+        downloadNotifier.message =
+            "Error: No DB extension zip (testing.db.zip) found in:\n${Prefs.databaseDirPath}";
+        downloadNotifier.downloading = false;
+        return;
+      }
+    }
+
+    downloadNotifier.message =
+        "Found ${zipFile.path.split('/').last}. Extracting...";
+
+    // 1. Copy desktop zip into app database dir if not already there
+    final localZipFile =
+        File('${Prefs.databaseDirPath}/${zipFile.path.split('/').last}');
+    if (zipFile.path != localZipFile.path) {
+      await zipFile.copy(localZipFile.path);
+    }
+
+    // 2. Unarchive zip to get extracted .db file
+    final extractedFiles = await unarchiveAndSaveExtractedDbFiles(localZipFile);
+
+    File? extractedDbFile;
+    for (final f in extractedFiles) {
+      if (f.path.endsWith('.db')) {
+        extractedDbFile = f;
+        break;
+      }
+    }
+
+    if (extractedDbFile == null || !await extractedDbFile.exists()) {
+      downloadNotifier.message =
+          "Error: No .db file found inside ${zipFile.path.split('/').last}";
+      downloadNotifier.downloading = false;
+      return;
+    }
+
+    // Step 1 Complete (Downloading & Extracting done -> Move to Step 2: Copying Tables)
+    downloadNotifier.stepsCompleted = 1;
+    final extPath = extractedDbFile.path;
+    downloadNotifier.message = "Attaching & copying tables...";
+
+    await db.execute("ATTACH DATABASE ? AS ext;", [extPath]);
+
+    // Find all new books in ext database
+    final bookRows = await db.rawQuery("SELECT id FROM ext.books;");
+    final Set<String> allNewBooks =
+        bookRows.map((r) => r['id'] as String).toSet();
+
+    downloadNotifier.message =
+        "Found ${allNewBooks.length} books. Copying tables...";
+
+    await db.execute("PRAGMA foreign_keys = OFF;");
+
+    // Fetch existing table names in ext
+    final extTables = await db
+        .rawQuery("SELECT name FROM ext.sqlite_master WHERE type='table';");
+    final extTableNames = extTables.map((r) => r['name'] as String).toSet();
+
+    Stopwatch copyStopwatch = Stopwatch()..start();
+    await db.transaction((txn) async {
+      final targetTables = [
+        'books',
+        'category',
+        'pages',
+        'paragraph_mapping',
+        'paragraphs',
+        'special_books',
+        'sutta_page_shortcut',
+        'suttas',
+        'tocs'
+      ];
+
+      for (String table in targetTables) {
+        if (extTableNames.contains(table)) {
+          downloadNotifier.message = "Copying table '$table'...";
+          if (table == 'books') {
+            await txn.execute(
+                "DELETE FROM main.books WHERE id IN (SELECT id FROM ext.books);");
+          } else if (table == 'pages') {
+            await txn.execute(
+                "DELETE FROM main.pages WHERE bookid IN (SELECT id FROM ext.books);");
+          } else if (table == 'tocs' ||
+              table == 'suttas' ||
+              table == 'sutta_page_shortcut' ||
+              table == 'paragraphs') {
+            await txn.execute(
+                "DELETE FROM main.$table WHERE book_id IN (SELECT id FROM ext.books);");
+          } else if (table == 'paragraph_mapping') {
+            await txn.execute(
+                "DELETE FROM main.paragraph_mapping WHERE base_book_id IN (SELECT id FROM ext.books);");
+          }
+
+          // Column matching for safe bulk insert
+          final mainColsRes =
+              await txn.rawQuery("PRAGMA main.table_info($table);");
+          final extColsRes =
+              await txn.rawQuery("PRAGMA ext.table_info($table);");
+
+          final mainCols = mainColsRes.map((r) => r['name'] as String).toSet();
+          final extCols = extColsRes.map((r) => r['name'] as String).toSet();
+
+          final commonCols = mainCols.intersection(extCols).toList();
+          if (commonCols.isNotEmpty) {
+            final colList = commonCols.map((c) => '"$c"').join(', ');
+            await txn.execute(
+                'INSERT OR REPLACE INTO main."$table" ($colList) SELECT $colList FROM ext."$table";');
+          }
+        }
+      }
+    });
+
+    debugPrint('ATTACH DB table copy took ${copyStopwatch.elapsed}.');
+
+    await db.execute("PRAGMA foreign_keys = ON;");
+    await db.execute("DETACH DATABASE ext;");
+
+    // Delete temp extracted files
+    for (final f in extractedFiles) {
+      if (await f.exists()) await f.delete();
+    }
+    if (await localZipFile.exists()) await localZipFile.delete();
+
+    // Step 2 Complete (Tables copied -> Move to Step 3: Indexing FTS Pages)
+    downloadNotifier.stepsCompleted = 2;
+
+    if (allNewBooks.isNotEmpty) {
+      downloadNotifier.message = 'Building FTS index...';
+      await doFts(db, allNewBooks);
+    }
+
+    // Step 3 Complete (FTS done -> Move to Step 4: Rebuilding Indexes)
+    downloadNotifier.stepsCompleted = 3;
+
+    if (allNewBooks.isNotEmpty) {
+      Stopwatch stopwatch = Stopwatch()..start();
+      downloadNotifier.message = 'Building word list index...';
+      await makeUniversalWordList(allNewBooks);
+      debugPrint('Making Word List took ${stopwatch.elapsed}.');
+    }
+
+    downloadNotifier.message = "Rebuilding Book Indexes...";
+    await dbService.buildBothIndexes();
+
+    // Step 4 Complete (Finished!)
+    downloadNotifier.stepsCompleted = 4;
+    downloadNotifier.message = "ePitaka DB Extension Import Complete!";
     downloadNotifier.downloading = false;
   }
 }

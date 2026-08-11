@@ -58,6 +58,10 @@ class ReaderViewController extends ChangeNotifier {
   final ValueNotifier<bool> _highlightEveryMatch = ValueNotifier(true);
   ValueListenable<bool> get highlightEveryMatch => _highlightEveryMatch;
 
+  final ValueNotifier<String?> _ttsCurrentText = ValueNotifier(null);
+  ValueListenable<String?> get ttsCurrentText => _ttsCurrentText;
+  int _ttsSentenceIndex = 0;
+
   bool isloadingFinished = false;
 
   late ValueNotifier<int> _currentPage;
@@ -92,7 +96,7 @@ class ReaderViewController extends ChangeNotifier {
     this.textToHighlight,
     this.queryMode,
     required this.bookUuid,
-  });
+  }) {}
 
   void onSearchTermChanged(String text) {
     if (text.isEmpty || text.length < 2) {
@@ -391,6 +395,10 @@ class ReaderViewController extends ChangeNotifier {
   }
 
   void gotoPage({required int pageNumber}) {
+    // Only reset TTS highlight when the page actually changes
+    if (_currentPage.value != pageNumber) {
+      _ttsCurrentText.value = null;
+    }
     _currentPage.value = pageNumber;
     final openedBookController = context.read<OpenningBooksProvider>();
     openedBookController.update(

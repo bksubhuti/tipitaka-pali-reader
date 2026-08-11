@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
 import 'package:tipitaka_pali/ui/dialogs/extension_prompt_dialog.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/dictionary_page.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/text_converter_view.dart';
@@ -115,5 +117,28 @@ class NestedNavigationHelper {
         return MaterialPageRoute(builder: (_) => screen);
       },
     );
+  }
+
+  static void openDownloadView(BuildContext context,
+      {bool autoInstallEnglish = false}) {
+    final route = MaterialPageRoute(
+      builder: (context) =>
+          DownloadView(autoInstallEnglish: autoInstallEnglish),
+    );
+
+    if (!Mobile.isPhone(context) && settingNavigationKey.currentState != null) {
+      final navProvider = context.read<NavigationProvider>();
+      if (!navProvider.isNavigationPaneOpened) {
+        navProvider.toggleNavigationPane();
+      }
+      navProvider.moveToSettingPage();
+      goto(
+        context: context,
+        route: route,
+        navkey: settingNavigationKey,
+      );
+    } else {
+      Navigator.push(context, route);
+    }
   }
 }

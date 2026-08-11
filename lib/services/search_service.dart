@@ -17,10 +17,12 @@ class SearchService {
   }
 
   static Future<List<SearchResult>> getResultsByFTS(
-      String searchWord, QueryMode queryMode, int wordDistance) async {
+      String searchWord, QueryMode queryMode, int wordDistance,
+      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
     final DatabaseHelper databaseHelper = DatabaseHelper();
     final FtsRespository respository = FtsDatabaseRepository(databaseHelper);
-    return await respository.getResults(searchWord, queryMode, wordDistance);
+    return await respository.getResults(searchWord, queryMode, wordDistance,
+        isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);
   }
 
   ///

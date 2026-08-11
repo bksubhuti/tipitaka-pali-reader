@@ -60,10 +60,7 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
       padding: const EdgeInsets.only(left: 32.0),
       child: ListTile(
         onTap: () {
-          final route =
-              MaterialPageRoute(builder: (context) => const DownloadView());
-          NestedNavigationHelper.goto(
-              context: context, route: route, navkey: settingNavigationKey);
+          NestedNavigationHelper.openDownloadView(context);
         },
         leading: const Icon(Icons.extension),
         title: ColoredText(
@@ -152,16 +149,18 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
             context: context,
             builder: (BuildContext dialogContext) {
               return AlertDialog(
-                title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
-                content: Text(AppLocalizations.of(context)!.installTranslationInstructions),
+                title: Text(
+                    AppLocalizations.of(context)!.installEnglishTranslations),
+                content: Text(AppLocalizations.of(context)!
+                    .installTranslationInstructions),
                 actions: [
                   TextButton(
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
-                      final route = MaterialPageRoute(
-                          builder: (context) => const DownloadView());
-                      NestedNavigationHelper.goto(
-                          context: context, route: route, navkey: settingNavigationKey);
+                      NestedNavigationHelper.openDownloadView(
+                        context,
+                        autoInstallEnglish: true,
+                      );
                     },
                     child: Text(AppLocalizations.of(context)!.ok),
                   ),

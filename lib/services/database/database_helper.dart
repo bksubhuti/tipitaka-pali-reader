@@ -250,6 +250,9 @@ class DatabaseHelper {
     await dbInstance.execute(
       'CREATE INDEX IF NOT EXISTS word_index ON words ( "word", "plain");',
     );
+    await dbInstance.execute(
+      'CREATE INDEX IF NOT EXISTS word_plain_index ON words ( plain );',
+    );
 
     return true;
   }
@@ -318,6 +321,19 @@ class DatabaseHelper {
 );''',
     );
 
+    await dbInstance.execute('DROP TABLE IF EXISTS fts_translation_pages;');
+    await dbInstance.execute(
+      '''CREATE VIRTUAL TABLE fts_translation_pages USING FTS5(
+    id UNINDEXED, 
+    bookid UNINDEXED, 
+    page UNINDEXED, 
+    content, 
+    paranum UNINDEXED, 
+    sutta_name,
+    tokenize = 'porter' 
+);''',
+    );
+
     final mapsOfCount = await dbInstance.rawQuery(
       'SELECT count(*) cnt FROM pages',
     );
@@ -338,15 +354,36 @@ class DatabaseHelper {
 
       Batch batch = dbInstance.batch();
       for (var element in maps) {
-        // before populating to fts, need to remove html tag
-        final value = <String, Object?>{
+        final rawContent = element['content'] as String;
+
+        // 1. Extract pure Pali content for fts_pages
+        final paliText = _extractPaliText(rawContent);
+        final paliValue = <String, Object?>{
+          'rowid': element['id'] as int,
           'id': element['id'] as int,
           'bookid': element['bookid'] as String,
           'page': element['page'] as int,
-          'content': _cleanText(element['content'] as String),
+          'content': paliText,
           'paranum': element['paranum'] as String,
         };
-        batch.insert('fts_pages', value);
+        batch.insert('fts_pages', paliValue,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+
+        // 2. Extract translation content for fts_translation_pages (if present)
+        final translationText = _extractTranslationText(rawContent);
+        if (translationText.isNotEmpty) {
+          final transValue = <String, Object?>{
+            'rowid': element['id'] as int,
+            'id': element['id'] as int,
+            'bookid': element['bookid'] as String,
+            'page': element['page'] as int,
+            'content': translationText,
+            'paranum': element['paranum'] as String,
+          };
+          batch.insert('fts_translation_pages', transValue,
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+
         lastId = element['id'] as int;
       }
       await batch.commit(noResult: true);
@@ -362,6 +399,30 @@ class DatabaseHelper {
       }
     }
     return true;
+  }
+
+  String _extractPaliText(String html) {
+    if (html.contains('palitext')) {
+      final palitextRegex = RegExp(r'<span class="palitext"[^>]*>(.*?)</span>',
+          dotAll: true, caseSensitive: false);
+      final matches = palitextRegex.allMatches(html);
+      final paliParts = matches.map((m) => m.group(1) ?? '').join(' ');
+      return _cleanText(paliParts);
+    }
+    return _cleanText(html);
+  }
+
+  String _extractTranslationText(String html) {
+    if (html.contains('translation_text')) {
+      final translationRegex = RegExp(
+          r'<span class="translation_text[^"]*"[^>]*>(.*?)</span>',
+          dotAll: true,
+          caseSensitive: false);
+      final matches = translationRegex.allMatches(html);
+      final transParts = matches.map((m) => m.group(1) ?? '').join(' ');
+      return _cleanText(transParts);
+    }
+    return '';
   }
 
   String _cleanText(String text) {

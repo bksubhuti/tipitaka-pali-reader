@@ -77,18 +77,35 @@ class SearchResultListTile extends StatelessWidget {
                 Divider(color: Theme.of(context).colorScheme.primary),
                 // description text
                 StyledText(
-                  text: PaliScript.getScriptOf(
-                      script:
-                          context.read<ScriptLanguageProvider>().currentScript,
-                      romanText: result.description,
-                      // <highlight> are used for highlight
-                      // text is somehow html
-                      isHtmlText: true),
+                  text: result.isTranslation
+                      ? result.description
+                      : PaliScript.getScriptOf(
+                          script: context
+                              .read<ScriptLanguageProvider>()
+                              .currentScript,
+                          romanText: result.description,
+                          // <highlight> are used for highlight
+                          // text is somehow html
+                          isHtmlText: true),
                   // overflow: TextOverflow.ellipsis,
                   // maxLines: 4,
                   style: style,
                   tags: styles,
-                )
+                ),
+                if (result.translation != null &&
+                    result.translation!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6.0),
+                  Text(
+                    result.translation!,
+                    style: style.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.7),
+                    ),
+                  ),
+                ]
               ],
             ),
           ),

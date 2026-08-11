@@ -575,8 +575,6 @@ class Prefs {
   static set aiSponsoredIsBlacklistedCountry(bool value) =>
       instance.setBool(aiSponsoredIsBlacklistedCountryPref, value);
 
-
-
   static int get aiSponsoredTriesLeft {
     final now = DateTime.now();
     final dateStr = now.year.toString() +
@@ -706,7 +704,7 @@ class Prefs {
     try {
       final cacheBuster = DateTime.now().millisecondsSinceEpoch;
       final url = Uri.parse(
-          'https://raw.githubusercontent.com/bksubhuti/tipitaka-pali-reader/refs/heads/master/lib/data/ai_model_config.json?v=$cacheBuster');
+          'https://cdn.jsdelivr.net/gh/bksubhuti/tipitaka-pali-reader@master/lib/data/ai_model_config.json?v=$cacheBuster');
       final response = await http.get(url, headers: {
         'Cache-Control': 'no-cache',
       }).timeout(const Duration(seconds: 5));

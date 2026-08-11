@@ -10,7 +10,7 @@ class NavigationProvider extends ChangeNotifier {
   // Todo - fix hardcoding
   final int _indexOfSearchNavigation = 3;
   final int _indexOfDictionaryNavigation = 4;
-  final int _indexOfSettingNavigation = 5; 
+  final int _indexOfSettingNavigation = 5;
   int get indexOfSettingNavigation => _indexOfSettingNavigation;
 
   void onClickedNavigationItem(int index) {
@@ -37,6 +37,11 @@ class NavigationProvider extends ChangeNotifier {
 
   void moveToSearchPage() {
     currentNavigation = _indexOfSearchNavigation;
+    notifyListeners();
+  }
+
+  void moveToSettingPage() {
+    currentNavigation = _indexOfSettingNavigation;
     notifyListeners();
   }
 }

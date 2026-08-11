@@ -18,4 +18,20 @@ class DownloadNotifier extends ChangeNotifier {
     _downloading = val;
     notifyListeners();
   }
+
+  int _totalSteps = 0;
+  int get totalSteps => _totalSteps;
+
+  set totalSteps(int val) {
+    _totalSteps = val;
+    notifyListeners();
+  }
+
+  int _stepsCompleted = 0;
+  int get stepsCompleted => _stepsCompleted;
+
+  set stepsCompleted(int val) {
+    _stepsCompleted = val;
+    notifyListeners();
+  }
 }

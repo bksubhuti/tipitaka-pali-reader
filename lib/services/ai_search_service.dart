@@ -279,8 +279,9 @@ class AiSearchService {
                   isMultiWord ? QueryMode.distance : QueryMode.prefix;
               final wordDistance = isMultiWord ? 20 : 0;
 
-              final results =
-                  await ftsRepo.getResults(query, queryMode, wordDistance);
+              final results = await ftsRepo.getResults(
+                  query, queryMode, wordDistance,
+                  joinEnglish: false);
               _addLog('   ↳ Found ${results.length} raw matches.');
 
               for (final r in results) {

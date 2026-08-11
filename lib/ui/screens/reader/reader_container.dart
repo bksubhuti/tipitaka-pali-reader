@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:ms_material_color/ms_material_color.dart';
 import 'package:provider/provider.dart';
 import 'package:tabbed_view/tabbed_view.dart';
+import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
@@ -35,6 +36,13 @@ class _ReaderContainerState extends State<ReaderContainer> {
   final Map<String, TabData> _tabDataCache = {};
 
   Future<bool> _hasTranslationExtension() async {
+    try {
+      final db = await DatabaseHelper().database;
+      final res =
+          await db.rawQuery('SELECT count(*) cnt FROM fts_translation_pages');
+      final count = (res.first['cnt'] as int?) ?? 0;
+      if (count > 0) return true;
+    } catch (_) {}
     final hasEnglish =
         await File('${Prefs.databaseDirPath}/full_english.sql').exists();
     final hasVietnamese =
@@ -183,7 +191,9 @@ class _ReaderContainerState extends State<ReaderContainer> {
               FutureBuilder<bool>(
                 future: _hasTranslationExtension(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasData && !snapshot.data! && !Prefs.hideTranslationNag) {
+                  if (snapshot.hasData &&
+                      !snapshot.data! &&
+                      !Prefs.hideTranslationNag) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 24.0),
                       child: Row(
@@ -210,7 +220,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
                                               .push(
                                             MaterialPageRoute(
                                               builder: (context) =>
-                                                  const DownloadView(),
+                                                  const DownloadView(
+                                                      autoInstallEnglish: true),
                                             ),
                                           )
                                               .then((_) {
@@ -219,8 +230,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
                                             }
                                           });
                                         },
-                                        child:
-                                            Text(AppLocalizations.of(context)!.ok),
+                                        child: Text(
+                                            AppLocalizations.of(context)!.ok),
                                       ),
                                     ],
                                   );
@@ -253,8 +264,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
                     children: [
                       ElevatedButton.icon(
                         icon: const Icon(Icons.video_library),
-                        label:
-                            Text(AppLocalizations.of(context)!.learnAboutAiSearch),
+                        label: Text(
+                            AppLocalizations.of(context)!.learnAboutAiSearch),
                         onPressed: () {
                           launchUrl(
                             Uri.parse(

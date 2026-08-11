@@ -7,13 +7,18 @@ class SearchResult {
   final int pageNumber;
   final String description;
   final String suttaName;
+  final bool isTranslation;
+  final String? translation;
 
-  SearchResult(
-      {required this.id,
-      required this.book,
-      required this.pageNumber,
-      required this.description,
-      required this.suttaName});
+  SearchResult({
+    required this.id,
+    required this.book,
+    required this.pageNumber,
+    required this.description,
+    required this.suttaName,
+    this.isTranslation = false,
+    this.translation,
+  });
 
   Map<String, dynamic> toJson() {
     return {
@@ -22,6 +27,8 @@ class SearchResult {
       'pageNumber': pageNumber,
       'description': description,
       'suttaName': suttaName,
+      'isTranslation': isTranslation,
+      'translation': translation,
     };
   }
 
@@ -32,6 +39,8 @@ class SearchResult {
       pageNumber: json['pageNumber'] as int,
       description: json['description'] as String,
       suttaName: json['suttaName'] as String,
+      isTranslation: (json['isTranslation'] as bool?) ?? false,
+      translation: json['translation'] as String?,
     );
   }
 }

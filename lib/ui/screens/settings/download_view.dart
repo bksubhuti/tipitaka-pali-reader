@@ -14,17 +14,40 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 class DownloadView extends StatefulWidget {
   final bool showLocalRestores;
-  const DownloadView({super.key, this.showLocalRestores = false});
+  final bool autoInstallEnglish;
+  const DownloadView({
+    super.key,
+    this.showLocalRestores = false,
+    this.autoInstallEnglish = false,
+  });
 
   @override
   State<DownloadView> createState() => _DownloadViewState();
 }
 
 class _DownloadViewState extends State<DownloadView> {
+  bool _hasAutoStarted = false;
+
   @override
   void initState() {
     super.initState();
     WakelockPlus.enable();
+  }
+
+  void _startLocalEnglishInstall(DownloadNotifier dn) {
+    if (_hasAutoStarted) return;
+    _hasAutoStarted = true;
+
+    final localItem = DownloadListItem(
+      name: 'ePitaka English Translation',
+      releaseDate: '',
+      type: 'database',
+      url: '', // Empty URL — forces local file only, never downloads
+      filename: 'testing.db.zip',
+      size: '',
+      category: 'Full ePitaka Integration',
+    );
+    getDownload(context, dn, localItem);
   }
 
   @override
@@ -44,6 +67,14 @@ class _DownloadViewState extends State<DownloadView> {
           ),
           body: Consumer<DownloadNotifier>(
             builder: (context, downloadModel, child) {
+              // When autoInstallEnglish, bypass the online list entirely
+              // and go straight to the local testing.db.zip file.
+              if (widget.autoInstallEnglish && !_hasAutoStarted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _startLocalEnglishInstall(downloadModel);
+                });
+              }
+
               return Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -61,40 +92,46 @@ class _DownloadViewState extends State<DownloadView> {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    if (downloadModel.downloading &&
+                        downloadModel.totalSteps > 0)
+                      _buildVerticalStepProgress(context, downloadModel),
+                    const SizedBox(height: 10),
                     if (downloadModel.downloading ||
                         downloadModel.connectionChecking)
-                      const CircularProgressIndicator(),
+                      const SizedBox.shrink(),
                     const SizedBox(height: 20),
-                    FutureBuilder<bool>(
-                      future: checkInternetConnection(downloadModel),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const SizedBox.shrink();
-                        }
-                        if (snapshot.hasData && snapshot.data!) {
-                          return getFutureBuilder(context, downloadModel);
-                        } else {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.signal_wifi_off,
-                                    size: 80,
-                                    color: (!Prefs.darkThemeOn)
-                                        ? Theme.of(context)
-                                            .appBarTheme
-                                            .backgroundColor
-                                        : null),
-                                const SizedBox(height: 20),
-                                Text(AppLocalizations.of(context)!
-                                    .turnOnInternet),
-                              ],
-                            ),
-                          );
-                        }
-                      },
-                    ),
+                    // Skip list fetch entirely when autoInstallEnglish
+                    if (!widget.autoInstallEnglish)
+                      FutureBuilder<bool>(
+                        future: checkInternetConnection(downloadModel),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const SizedBox.shrink();
+                          }
+                          if (snapshot.hasData && snapshot.data!) {
+                            return getFutureBuilder(context, downloadModel);
+                          } else {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.signal_wifi_off,
+                                      size: 80,
+                                      color: (!Prefs.darkThemeOn)
+                                          ? Theme.of(context)
+                                              .appBarTheme
+                                              .backgroundColor
+                                          : null),
+                                  const SizedBox(height: 20),
+                                  Text(AppLocalizations.of(context)!
+                                      .turnOnInternet),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                      ),
                   ],
                 ),
               );
@@ -105,13 +142,154 @@ class _DownloadViewState extends State<DownloadView> {
     );
   }
 
-  Future<bool> checkInternetConnection(DownloadNotifier downloadModel) async {
-    // 1. NEW: Bypass the internet check entirely if we are in local restore mode!
-    if (widget.showLocalRestores) {
-      return true;
-    }
+  Widget _buildVerticalStepProgress(
+      BuildContext context, DownloadNotifier downloadModel) {
+    final stepTitles = [
+      'Downloading / Locating Archive',
+      'Copying Database Tables',
+      'Indexing FTS Pages',
+      'Rebuilding Book Indexes',
+    ];
 
-    if (downloadModel.downloading) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(stepTitles.length, (index) {
+          final isDone = downloadModel.stepsCompleted > index;
+          final isActive = downloadModel.stepsCompleted == index &&
+              downloadModel.downloading;
+          final isLast = index == stepTitles.length - 1;
+
+          Color circleColor;
+          Widget circleChild;
+
+          if (isDone) {
+            circleColor = Colors.green;
+            circleChild =
+                const Icon(Icons.check, size: 14, color: Colors.white);
+          } else if (isActive) {
+            circleColor = Colors.blue;
+            circleChild = Text(
+              '${index + 1}',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12),
+            );
+          } else {
+            circleColor = Colors.grey.shade400;
+            circleChild = Text(
+              '${index + 1}',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12),
+            );
+          }
+
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Column(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: circleColor,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: circleChild,
+                    ),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 2,
+                          color: isDone ? Colors.green : Colors.grey.shade300,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: isLast ? 0 : 16.0, top: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stepTitles[index],
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isActive || isDone
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isActive
+                                ? Colors.blue
+                                : (isDone
+                                    ? Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.color
+                                    : Theme.of(context).disabledColor),
+                          ),
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.blue),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  downloadModel.message,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.blue,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Future<bool> checkInternetConnection(DownloadNotifier downloadModel) async {
+    // Always bypass internet check for local restores, autoInstallEnglish, or active downloads!
+    if (widget.showLocalRestores ||
+        widget.autoInstallEnglish ||
+        downloadModel.downloading) {
       return true;
     }
 
@@ -127,6 +305,16 @@ class _DownloadViewState extends State<DownloadView> {
         downloadNotifier: dn, downloadListItem: downloadListItem);
 
     dn.downloading = true;
+
+    // Check if selecting ePitaka English extension or test DB zip
+    if (downloadListItem.filename.contains('full_en') ||
+        downloadListItem.filename.contains('testingdb') ||
+        downloadListItem.filename.contains('testing.db') ||
+        downloadListItem.name.toLowerCase().contains('epitaka.org english') ||
+        downloadListItem.name.toLowerCase().contains('epub english')) {
+      await downloadService.installDbExtensionFromDesktopZip();
+      return;
+    }
 
     // Robust check: Remote URLs start with http/https. Local file paths do not.
     bool isLocalFile = !downloadListItem.url.startsWith('http');
@@ -173,6 +361,8 @@ class _DownloadViewState extends State<DownloadView> {
               );
             }
 
+            // autoInstallEnglish is handled in initState — no online fetch needed
+
             // Group the items by category
             Map<String, List<DownloadListItem>> categorizedItems = {};
             for (var item in dlList) {
@@ -197,6 +387,14 @@ class _DownloadViewState extends State<DownloadView> {
                 final entry = categories[index];
                 String category = entry.key;
                 List<DownloadListItem> items = entry.value;
+
+                bool isEnglishCategory =
+                    category == 'Full ePitaka Integration' ||
+                        category.toLowerCase().contains('epitaka') ||
+                        category.toLowerCase().contains('pali english');
+
+                // Only show RECOMMENDED badge on the top item (index == 0)
+                bool isRecommendedCategory = index == 0 && isEnglishCategory;
 
                 return Card(
                   margin: const EdgeInsets.symmetric(
@@ -223,27 +421,88 @@ class _DownloadViewState extends State<DownloadView> {
                         });
                       }
                     },
-                    initiallyExpanded: Prefs.expandedBookList,
-                    title: Text(
-                      category,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    initiallyExpanded:
+                        isEnglishCategory || Prefs.expandedBookList,
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (isRecommendedCategory) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade700,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'RECOMMENDED',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     tilePadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     childrenPadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     children: items.map<Widget>((item) {
+                      bool isEnglishItem = item.filename == 'full_en.zip' ||
+                          item.filename.contains('full_en') ||
+                          (item.category == 'Full ePitaka Integration' &&
+                              item.name.toLowerCase().contains('english'));
+
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 4.0),
-                        elevation: 2.0,
+                        elevation: isEnglishItem ? 4.0 : 2.0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8.0),
+                          side: isEnglishItem
+                              ? BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 2.0,
+                                )
+                              : BorderSide.none,
                         ),
+                        color: isEnglishItem
+                            ? Theme.of(context)
+                                .colorScheme
+                                .primaryContainer
+                                .withOpacity(0.3)
+                            : null,
                         child: ListTile(
-                          title: Text("${item.name} (${item.size})"),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "${item.name} (${item.size})",
+                                  style: TextStyle(
+                                    fontWeight: isEnglishItem
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              if (isEnglishItem)
+                                Icon(
+                                  Icons.star,
+                                  color: Colors.amber.shade700,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
                           subtitle: Text(item.releaseDate),
                           onTap: () async {
                             await getDownload(context, downloadModel, item);
@@ -272,7 +531,7 @@ class _DownloadViewState extends State<DownloadView> {
     if (!widget.showLocalRestores) {
       try {
         final response = await http.get(Uri.parse(
-            'https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/download_list.json'));
+            'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list.json'));
         if (response.statusCode == 200) {
           masterList = downloadListItemFromJson(response.body);
           // CACHE THE LIST FOR FUTURE OFFLINE RESTORES!
@@ -300,7 +559,7 @@ class _DownloadViewState extends State<DownloadView> {
         // Fallback: Try online if they somehow wiped the cache but kept the zips
         try {
           final response = await http.get(Uri.parse(
-              'https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/download_list.json'));
+              'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list.json'));
           if (response.statusCode == 200) {
             masterList = downloadListItemFromJson(response.body);
             await cacheFile.writeAsString(response.body);
@@ -360,7 +619,7 @@ class _DownloadViewState extends State<DownloadView> {
           "Cache missing. Forcing background download of JSON mapping...");
       try {
         final response = await http.get(Uri.parse(
-            'https://github.com/bksubhuti/tpr_downloads/raw/master/download_source_files/download_list.json'));
+            'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list.json'));
 
         if (response.statusCode == 200) {
           await cacheFile.parent.create(recursive: true);

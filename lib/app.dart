@@ -474,7 +474,7 @@ class _AppState extends State<App> with WindowListener {
       // 5. Mark as done
       Prefs.sangahaFixed = true;
       debugPrint('SangahaFix: complete');
-      
+
       // Close automatically on success
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();

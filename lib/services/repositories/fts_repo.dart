@@ -8,7 +8,8 @@ import '../database/database_helper.dart';
 
 abstract class FtsRespository {
   Future<List<SearchResult>> getResults(
-      String phrase, QueryMode queryMode, int wordDistance);
+      String phrase, QueryMode queryMode, int wordDistance,
+      {bool isTranslationSearch = false, bool joinEnglish = true});
 }
 
 class FtsDatabaseRepository implements FtsRespository {
@@ -18,8 +19,31 @@ class FtsDatabaseRepository implements FtsRespository {
 
   @override
   Future<List<SearchResult>> getResults(
-      String phrase, QueryMode queryMode, int wordDistance) async {
+      String phrase, QueryMode queryMode, int wordDistance,
+      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
+    if (isTranslationSearch) {
+      return await _querySingleTable(phrase, queryMode, wordDistance,
+          isTranslation: true);
+    }
+
+    // 1. Search Pali table (fts_pages) with parallel translation LEFT JOIN
+    final paliResults = await _querySingleTable(phrase, queryMode, wordDistance,
+        isTranslation: false);
+    if (paliResults.isNotEmpty) {
+      return paliResults;
+    }
+
+    // 2. Fallback to translation table (fts_translation_pages) if no Pali matches
+    return await _querySingleTable(phrase, queryMode, wordDistance,
+        isTranslation: true);
+  }
+
+  Future<List<SearchResult>> _querySingleTable(
+      String phrase, QueryMode queryMode, int wordDistance,
+      {required bool isTranslation}) async {
     final results = <SearchResult>[];
+
+    final ftsTable = isTranslation ? 'fts_translation_pages' : 'fts_pages';
 
     // 1. SANITIZE INPUT: Prevents SQL Injection crashes (e.g., taṇhā'ti)
     String safePhrase = phrase.replaceAll("'", "''");
@@ -32,7 +56,7 @@ class FtsDatabaseRepository implements FtsRespository {
         .where((w) => w.isNotEmpty)
         .toList();
 
-    if (words.length == 2) {
+    if (!isTranslation && words.length == 2) {
       final second = words[1].toLowerCase();
       if (['sutta', 'suttam', 'suttā', 'vatthu', 'vatthuṃ'].contains(second)) {
         final compound = words[0] + words[1]; // kāyagatāsati + sutta
@@ -51,12 +75,12 @@ class FtsDatabaseRepository implements FtsRespository {
 
     if (queryMode == QueryMode.exact) {
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
-      FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
+      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.content, $ftsTable.sutta_name
+      FROM $ftsTable INNER JOIN books ON $ftsTable.bookid = books.id
         LEFT JOIN sutta_page_shortcut
-            ON fts_pages.bookid = sutta_page_shortcut.book_id
-            AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '"$safePhrase"' AND fts_pages.content LIKE '%$originalPhrase%'
+            ON $ftsTable.bookid = sutta_page_shortcut.book_id
+            AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE $ftsTable MATCH '"$safePhrase"' AND $ftsTable.content LIKE '%$originalPhrase%'
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -65,13 +89,13 @@ class FtsDatabaseRepository implements FtsRespository {
       final value = '$safePhrase '.replaceAll(' ', '* ').trim();
       // FIX: Prefix now uses SNIPPET to get the long description from SQLite
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
-        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
-      FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
+      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.sutta_name,
+        SNIPPET($ftsTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+      FROM $ftsTable INNER JOIN books ON $ftsTable.bookid = books.id
         LEFT JOIN sutta_page_shortcut
-            ON fts_pages.bookid = sutta_page_shortcut.book_id
-            AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '$value'
+            ON $ftsTable.bookid = sutta_page_shortcut.book_id
+            AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE $ftsTable MATCH '$value'
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -82,14 +106,14 @@ class FtsDatabaseRepository implements FtsRespository {
       final value = 'NEAR($formattedWords, $wordDistance)';
 
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
-        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
-      FROM fts_pages 
-      INNER JOIN books ON fts_pages.bookid = books.id
+      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.sutta_name,
+        SNIPPET($ftsTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+      FROM $ftsTable 
+      INNER JOIN books ON $ftsTable.bookid = books.id
       LEFT JOIN sutta_page_shortcut
-          ON fts_pages.bookid = sutta_page_shortcut.book_id
-          AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '$value'
+          ON $ftsTable.bookid = sutta_page_shortcut.book_id
+          AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE $ftsTable MATCH '$value'
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -97,12 +121,12 @@ class FtsDatabaseRepository implements FtsRespository {
     if (queryMode == QueryMode.anywhere) {
       // Anywhere MUST use the raw content and LIKE operator
       sql = '''
-      SELECT fts_pages.id, bookid, name, page, content, fts_pages.sutta_name
-      FROM fts_pages INNER JOIN books ON fts_pages.bookid = books.id
+      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.content, $ftsTable.sutta_name
+      FROM $ftsTable INNER JOIN books ON $ftsTable.bookid = books.id
         LEFT JOIN sutta_page_shortcut
-            ON fts_pages.bookid = sutta_page_shortcut.book_id
-            AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE content LIKE '%$safePhrase%'
+            ON $ftsTable.bookid = sutta_page_shortcut.book_id
+            AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE $ftsTable.content LIKE '%$safePhrase%'
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -134,6 +158,7 @@ class FtsDatabaseRepository implements FtsRespository {
           pageNumber: pageNumber,
           description: content,
           suttaName: suttaName,
+          isTranslation: isTranslation,
         ));
         continue;
       }
@@ -156,6 +181,7 @@ class FtsDatabaseRepository implements FtsRespository {
             pageNumber: pageNumber,
             description: description,
             suttaName: suttaName,
+            isTranslation: isTranslation,
           ));
         }
       } else if (queryMode == QueryMode.anywhere) {
@@ -165,7 +191,39 @@ class FtsDatabaseRepository implements FtsRespository {
           pageNumber: pageNumber,
           description: _getRightHandSideWords(content, 25),
           suttaName: suttaName,
+          isTranslation: isTranslation,
         ));
+      }
+    }
+
+    // Batch enrich parallel translations for Pali results
+    if (!isTranslation && results.isNotEmpty) {
+      final ids = results.map((r) => r.id).toSet().join(',');
+      final transMaps = await db.rawQuery(
+          'SELECT rowid AS id, content FROM fts_translation_pages WHERE rowid IN ($ids)');
+
+      final transMap = <int, String>{};
+      for (var row in transMaps) {
+        var content = row['content'] as String;
+        if (content.length > 250) {
+          content = '${content.substring(0, 250)}...';
+        }
+        transMap[row['id'] as int] = content;
+      }
+
+      for (int i = 0; i < results.length; i++) {
+        final r = results[i];
+        if (transMap.containsKey(r.id)) {
+          results[i] = SearchResult(
+            id: r.id,
+            book: r.book,
+            pageNumber: r.pageNumber,
+            description: r.description,
+            suttaName: r.suttaName,
+            isTranslation: r.isTranslation,
+            translation: transMap[r.id],
+          );
+        }
       }
     }
 
@@ -179,7 +237,7 @@ class FtsDatabaseRepository implements FtsRespository {
       }
     }
 
-    debugPrint('total results:${uniqueResults.length}');
+    debugPrint('total results (${ftsTable}): ${uniqueResults.length}');
     return uniqueResults;
   }
 
@@ -260,7 +318,7 @@ class FtsDatabaseRepository implements FtsRespository {
     final value = '$safe '.replaceAll(' ', '* ').trim();
 
     final sql = '''
-      SELECT fts_pages.id, bookid, name, page, fts_pages.sutta_name,
+      SELECT fts_pages.id, fts_pages.bookid, name, fts_pages.page, fts_pages.sutta_name,
         SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
       FROM fts_pages 
       INNER JOIN books ON fts_pages.bookid = books.id
