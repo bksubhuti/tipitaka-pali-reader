@@ -821,7 +821,7 @@ class DownloadService {
     }
   }
 
-  File? findDesktopZipFile() {
+  File? findLocalZipFile() {
     // 1. Check App Database directory first for zip containing a .db file or testing.db/testingdb/full_en
     try {
       final dbDir = Directory(Prefs.databaseDirPath);
@@ -915,7 +915,7 @@ class DownloadService {
 
     debugPrint(
         'installDbExtensionFromDesktopZip: searching in ${Prefs.databaseDirPath}');
-    File? zipFile = findDesktopZipFile();
+    File? zipFile = findLocalZipFile();
     debugPrint(
         'installDbExtensionFromDesktopZip: findDesktopZipFile returned: ${zipFile?.path}');
 
