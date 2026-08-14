@@ -1,0 +1,92 @@
+name: Build Apple (macOS & iOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version Name (e.g. 1.0.5)'
+        required: true
+        default: '1.0.5'
+
+permissions:
+  contents: read
+
+jobs:
+  build-apple:
+    name: Build macOS & iOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.9'
+
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      # --- 1. DOWNLOAD DATABASE ---
+      - name: Download database zip
+        run: |
+          mkdir -p assets/database
+          curl -L "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1" -o assets/database/tipitaka_pali.db.zip
+
+      - name: Extract database zip
+        run: |
+          unzip -o assets/database/tipitaka_pali.db.zip -d assets/database
+          rm assets/database/tipitaka_pali.db.zip
+
+      # --- 2. SPLIT DATABASE (BASH) ---
+      - name: Run split.sh
+        run: |
+          set -euo pipefail
+          cd assets/database
+          chmod +x split.sh
+          ./split.sh
+          ls -l tipitaka_pali_part.* || true
+
+      # --- 3. DEPENDENCIES & ENVIED KEY INJECTION ---
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Generate .env File for Envied
+        run: |
+          cat <<EOF > .env
+          FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}"
+          OPEN_ROUTER_API_KEY="${{ secrets.OPEN_ROUTER_API_KEY }}"
+          DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
+          EOF
+
+      - name: Run Build Runner (Envied CodeGen)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # --- 4. BUILD MACOS ---
+      - name: Flutter build (macOS)
+        run: |
+          flutter gen-l10n
+          flutter build macos --release --build-name=${{ inputs.version }}
+
+      # --- 5. BUILD IOS (UNSIGNED) ---
+      - name: Flutter build (iOS)
+        run: |
+          flutter build ios --release --no-codesign --build-name=${{ inputs.version }}
+
+      # --- 6. ARTIFACT UPLOADS ---
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: build/macos/Build/Products/Release/*.app
+
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: build/ios/iphoneos/Runner.app
