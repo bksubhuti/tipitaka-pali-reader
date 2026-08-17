@@ -42,13 +42,10 @@ class _ReaderContainerState extends State<ReaderContainer> {
       final res =
           await db.rawQuery('SELECT count(*) cnt FROM fts_translation_pages');
       final count = (res.first['cnt'] as int?) ?? 0;
-      if (count > 0) return true;
-    } catch (_) {}
-    final hasEnglish =
-        await File('${Prefs.databaseDirPath}/full_english.sql').exists();
-    final hasVietnamese =
-        await File('${Prefs.databaseDirPath}/full_vietnamese.sql').exists();
-    return hasEnglish || hasVietnamese;
+      return count > 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override

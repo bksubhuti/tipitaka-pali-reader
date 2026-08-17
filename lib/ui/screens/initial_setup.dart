@@ -375,12 +375,20 @@ class _InitialSetupState extends State<InitialSetup> {
 
   List<File> getExtensionFiles() {
     final directory = Directory(Prefs.databaseDirPath);
+    if (!directory.existsSync()) return [];
     final files = directory.listSync().whereType<File>().toList();
     List<File> extensions = [];
 
+    const legacyZips = {
+      'full_en.zip',
+      'full_vn.zip',
+      'en_full.zip',
+      'vn_full.zip',
+    };
+
     for (final file in files) {
-      if (file.path.endsWith('.zip')) {
-        //await processLocalFile(file);
+      final nameLower = path.basename(file.path).toLowerCase();
+      if (nameLower.endsWith('.zip') && !legacyZips.contains(nameLower)) {
         extensions.add(file);
       }
     }

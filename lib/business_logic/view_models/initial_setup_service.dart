@@ -115,6 +115,9 @@ class InitialSetupService {
     Prefs.isDatabaseSaved = true;
     Prefs.databaseVersion = DatabaseInfo.version;
 
+    // 5b. CLEAN UP OBSOLETE LEGACY EXTENSIONS
+    _cleanupLegacyFiles(newDbDir);
+
     // 6. RESTORE DATA
     if (bookmarksToRestore.isNotEmpty) {
       debugPrint('--> Restoring bookmarks to new DB...');
@@ -131,6 +134,28 @@ class InitialSetupService {
 
     // 7. FINISH
     _intialSetupNotifier.setupIsFinished = true;
+  }
+
+  void _cleanupLegacyFiles(String dbDir) {
+    const legacyNames = [
+      'full_en.zip',
+      'full_vn.zip',
+      'en_full.zip',
+      'vn_full.zip',
+      'full_english.sql',
+      'full_vietnamese.sql',
+    ];
+    for (final name in legacyNames) {
+      final file = File(join(dbDir, name));
+      if (file.existsSync()) {
+        try {
+          file.deleteSync();
+          debugPrint('Deleted obsolete legacy file: $name');
+        } catch (e) {
+          debugPrint('Could not delete legacy file $name: $e');
+        }
+      }
+    }
   }
 
   Future<void> _copyFromAssets(String dbFilePath) async {

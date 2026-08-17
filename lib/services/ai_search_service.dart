@@ -568,7 +568,7 @@ class AiSearchService {
     int wordCount = 0;
     int maxWords = Prefs.aiMaxResults * 40;
     if (Prefs.activeAiProviderMode == 2) {
-      maxWords = 900;
+      maxWords = 1000;
     }
 
     final pageContentRepo = PageContentDatabaseRepository(_dbHelper);

@@ -46,7 +46,7 @@ class _SearchTypeSegmentedControlState
     _segmentValues[1] = AppLocalizations.of(context)!.prefix;
     _segmentValues[2] = AppLocalizations.of(context)!.distance;
     _segmentValues[3] = AppLocalizations.of(context)!.anyPart;
-    _segmentValues[4] = 'AI ✨';
+    _segmentValues[4] = 'AI';
   }
 
   @override
@@ -76,7 +76,7 @@ class _SearchTypeSegmentedControlState
                         widget.onModeChanged(QueryMode.ai);
                         return; // Prevent updating UI selectedIndex for AI
                       }
-                      
+
                       setState(() {
                         _selectedIndex = entry.key;
 

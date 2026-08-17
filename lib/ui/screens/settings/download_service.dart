@@ -14,6 +14,10 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:dio/dio.dart';
 import 'package:tipitaka_pali/business_logic/models/page_content.dart';
 
+/// SET THIS TO TRUE FOR LOCAL TESTING VIA <app-support-dir>/test_db.
+/// IN PRODUCTION, KEEP THIS FALSE.
+const bool isTestingDbMode = true;
+
 class DatabaseUpdate {
   final insertLines = [];
   final updateLines = [];
@@ -42,7 +46,18 @@ class DownloadService {
       {required this.downloadNotifier, required this.downloadListItem}) {
     _zipPath = downloadListItem.url;
 
-    _localZipFileName = downloadListItem.filename;
+    String filename = downloadListItem.filename;
+    if (_zipPath.startsWith('http')) {
+      try {
+        final uri = Uri.parse(_zipPath);
+        final lastSegment =
+            uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+        if (lastSegment.toLowerCase().endsWith('.zip')) {
+          filename = lastSegment;
+        }
+      } catch (_) {}
+    }
+    _localZipFileName = filename;
   }
 
   Future<String> get _localPath async {
@@ -749,17 +764,24 @@ class DownloadService {
             ''', [word, word]);
 
         counter++;
-        if (counter % 200 == 0) {
-          batch.commit(noResult: true);
+        if (counter % 1000 == 0) {
+          await batch.commit(noResult: true);
           batch = txn.batch();
           downloadNotifier.message =
               "Saved $counter of ${uniqueWords.length} words";
+          await Future.delayed(Duration.zero);
         }
       }
-      batch.commit(noResult: true);
+      await batch.commit(noResult: true);
+      downloadNotifier.message =
+          "Saved ${uniqueWords.length} of ${uniqueWords.length} words";
+      await Future.delayed(Duration.zero);
     });
 
-    if (!_cancelled) downloadNotifier.message = "Word list complete";
+    if (!_cancelled) {
+      downloadNotifier.message = "Word list complete";
+      await Future.delayed(Duration.zero);
+    }
   }
 
   Future<void> installLocalSqlZip() async {
@@ -841,65 +863,24 @@ class DownloadService {
     }
   }
 
-  File? findLocalZipFile() {
-    // 1. Check App Database directory first for zip containing a .db file or testing.db/testingdb/full_en
-    try {
-      final dbDir = Directory(Prefs.databaseDirPath);
-      if (dbDir.existsSync()) {
-        final files = dbDir.listSync().whereType<File>().toList();
-        for (final f in files) {
-          final pathLower = f.path.toLowerCase();
-          if (pathLower.endsWith('.zip') &&
-              (pathLower.contains('testing') ||
-                  pathLower.contains('full_en') ||
-                  isDbZip(f))) {
-            return f;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error searching app DB dir: $e');
-    }
+  File? findTestDesktopZipFile() {
+    if (!isTestingDbMode) return null;
 
-    // 2. Try un-sandboxed user home Desktop path
+    // 1. Check Application Support sub-folder: <app-support-dir>/test_db
     try {
-      final realDesktopDir = Directory('/Users/bhantesubhuti/Desktop/test_db');
-      if (realDesktopDir.existsSync()) {
-        final files = realDesktopDir.listSync().whereType<File>().toList();
-        for (final f in files) {
-          final pathLower = f.path.toLowerCase();
-          if (pathLower.endsWith('.zip') &&
-              (pathLower.contains('testing') ||
-                  pathLower.contains('full_en') ||
-                  isDbZip(f))) {
-            return f;
-          }
+      final appSupportTestDir = Directory('${Prefs.databaseDirPath}/test_db');
+      if (!appSupportTestDir.existsSync()) {
+        appSupportTestDir.createSync(recursive: true);
+      }
+      final files = appSupportTestDir.listSync().whereType<File>().toList();
+      for (final f in files) {
+        if (f.path.toLowerCase().endsWith('.zip') && isDbZip(f)) {
+          debugPrint('Found test zip in app-support/test_db: ${f.path}');
+          return f;
         }
       }
     } catch (e) {
-      debugPrint('Could not read /Users/bhantesubhuti/Desktop/test_db: $e');
-    }
-
-    // 3. Fallback check for sandboxed $HOME/Desktop/test_db/
-    try {
-      final home = Platform.environment['HOME'] ?? '';
-      if (home.isNotEmpty) {
-        final testDbDir = Directory('$home/Desktop/test_db');
-        if (testDbDir.existsSync()) {
-          final files = testDbDir.listSync().whereType<File>().toList();
-          for (final f in files) {
-            final pathLower = f.path.toLowerCase();
-            if (pathLower.endsWith('.zip') &&
-                (pathLower.contains('testing') ||
-                    pathLower.contains('full_en') ||
-                    isDbZip(f))) {
-              return f;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Could not read sandboxed Desktop dir: $e');
+      debugPrint('Error reading app-support test dir: $e');
     }
 
     return null;
@@ -930,21 +911,32 @@ class DownloadService {
     downloadNotifier.totalSteps = 4;
     downloadNotifier.stepsCompleted = 0;
 
-    downloadNotifier.message =
-        "Locating DB extension zip in working DB directory...";
+    File? zipFile;
 
-    debugPrint(
-        'installDbExtensionFromDesktopZip: searching in ${Prefs.databaseDirPath}');
-    File? zipFile = findLocalZipFile();
-    debugPrint(
-        'installDbExtensionFromDesktopZip: findDesktopZipFile returned: ${zipFile?.path}');
+    // 1. If in Testing Mode, check Desktop test folder first
+    if (isTestingDbMode) {
+      zipFile = findTestDesktopZipFile();
+      if (zipFile != null) {
+        debugPrint('TEST MODE: using desktop zip: ${zipFile.path}');
+      }
+    }
 
-    if (zipFile == null || !await zipFile.exists()) {
+    // 2. If it's a Local Restore (downloadListItem.url is a local file path)
+    if (zipFile == null &&
+        !downloadListItem.url.startsWith('http') &&
+        downloadListItem.url.isNotEmpty) {
+      final localFile = File(downloadListItem.url);
+      if (localFile.existsSync()) {
+        zipFile = localFile;
+      }
+    }
+
+    // 3. If Online Download: download from URL
+    if (zipFile == null || !zipFile.existsSync()) {
       if (downloadListItem.url.startsWith('http')) {
         downloadNotifier.message = "Downloading ${downloadListItem.name}...";
         try {
-          zipFile = await downloadFile(
-              downloadListItem.url, downloadListItem.filename);
+          zipFile = await downloadFile(downloadListItem.url, _localZipFileName);
         } catch (e) {
           downloadNotifier.message = "Download Failed: $e";
           downloadNotifier.downloading = false;
@@ -952,7 +944,7 @@ class DownloadService {
         }
       } else {
         downloadNotifier.message =
-            "Error: No DB extension zip (testing.db.zip) found in:\n${Prefs.databaseDirPath}";
+            "Error: Extension file not found locally on device:\n${downloadListItem.filename}";
         downloadNotifier.downloading = false;
         return;
       }
@@ -1068,11 +1060,10 @@ class DownloadService {
     await db.execute("PRAGMA foreign_keys = ON;");
     await db.execute("DETACH DATABASE ext;");
 
-    // Delete temp extracted files
+    // Delete temp extracted files (.db), but KEEP localZipFile for reset/offline restores
     for (final f in extractedFiles) {
       if (await f.exists()) await f.delete();
     }
-    if (await localZipFile.exists()) await localZipFile.delete();
 
     if (_cancelled) return;
     // Step 2 Complete (Tables copied -> Move to Step 3: Indexing FTS Pages)
@@ -1096,6 +1087,7 @@ class DownloadService {
 
     if (_cancelled) return;
     downloadNotifier.message = "Rebuilding Book Indexes...";
+    await Future.delayed(Duration.zero);
     await dbService.buildBothIndexes();
 
     // Step 4 Complete (Finished!)

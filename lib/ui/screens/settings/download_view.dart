@@ -39,13 +39,15 @@ class _DownloadViewState extends State<DownloadView> {
     _hasAutoStarted = true;
 
     final localItem = DownloadListItem(
-      name: 'ePitaka English Translation',
-      releaseDate: '',
-      type: 'database',
-      url: '', // Empty URL — forces local file only, never downloads
-      filename: 'testing.db.zip',
-      size: '',
-      category: 'Full ePitaka Integration',
+      name:
+          'ePitaka.org English (Full replacement of core texts with Pāḷi / English texts)',
+      releaseDate: '24.2.2026',
+      type: 'books index',
+      url:
+          'https://www.dropbox.com/scl/fi/jfr93gi4k8hnv9016bjw1/epitaka_full_en.zip?rlkey=8ovolzb3eo1n9jp4fl2vw47qd&st=onglx7un&dl=1',
+      filename: 'epitaka_full_en.zip',
+      size: '80.8 MB',
+      category: 'Full Translations',
     );
     getDownload(context, dn, localItem);
   }
@@ -368,12 +370,32 @@ class _DownloadViewState extends State<DownloadView> {
 
     dn.downloading = true;
 
-    // Check if selecting ePitaka English extension or test DB zip
-    if (downloadListItem.filename.contains('full_en') ||
-        downloadListItem.filename.contains('testingdb') ||
-        downloadListItem.filename.contains('testing.db') ||
-        downloadListItem.name.toLowerCase().contains('epitaka.org english') ||
-        downloadListItem.name.toLowerCase().contains('epub english')) {
+    // Check if selecting ePitaka English / Vietnamese DB extension or test DB zip
+    final nameLower = downloadListItem.name.toLowerCase();
+    final filenameLower = downloadListItem.filename.toLowerCase();
+    final urlLower = downloadListItem.url.toLowerCase();
+    final categoryLower = (downloadListItem.category ?? '').toLowerCase();
+
+    bool isDbExtension = filenameLower.contains('epitaka') ||
+        filenameLower.contains('testingdb') ||
+        filenameLower.contains('testing.db') ||
+        urlLower.contains('epitaka') ||
+        urlLower.contains('testing') ||
+        nameLower.contains('epitaka') ||
+        nameLower.contains('epub english') ||
+        categoryLower.contains('full translations') ||
+        categoryLower.contains('full epitaka integration') ||
+        downloadListItem.type.toLowerCase() == 'database';
+
+    // If local file path, check if zip contains a .db file
+    if (!isDbExtension && !downloadListItem.url.startsWith('http')) {
+      final localFile = File(downloadListItem.url);
+      if (localFile.existsSync()) {
+        isDbExtension = downloadService.isDbZip(localFile);
+      }
+    }
+
+    if (isDbExtension) {
       await downloadService.installDbExtensionFromDesktopZip();
       return;
     }
@@ -450,10 +472,10 @@ class _DownloadViewState extends State<DownloadView> {
                 String category = entry.key;
                 List<DownloadListItem> items = entry.value;
 
-                bool isEnglishCategory =
+                bool isEnglishCategory = category == 'Full Translations' ||
                     category == 'Full ePitaka Integration' ||
-                        category.toLowerCase().contains('epitaka') ||
-                        category.toLowerCase().contains('pali english');
+                    category.toLowerCase().contains('epitaka') ||
+                    category.toLowerCase().contains('pali english');
 
                 // Only show RECOMMENDED badge on the top item (index == 0)
                 bool isRecommendedCategory = index == 0 && isEnglishCategory;
@@ -521,10 +543,13 @@ class _DownloadViewState extends State<DownloadView> {
                     childrenPadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     children: items.map<Widget>((item) {
-                      bool isEnglishItem = item.filename == 'full_en.zip' ||
-                          item.filename.contains('full_en') ||
-                          (item.category == 'Full ePitaka Integration' &&
-                              item.name.toLowerCase().contains('english'));
+                      bool isEnglishItem =
+                          item.filename == 'epitaka_full_en.zip' ||
+                              item.filename == 'epitaka_viet_full.zip' ||
+                              item.filename.contains('epitaka') ||
+                              item.category == 'Full Translations' ||
+                              item.category == 'Full ePitaka Integration' ||
+                              item.name.toLowerCase().contains('epitaka');
 
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 4.0),
@@ -642,15 +667,37 @@ class _DownloadViewState extends State<DownloadView> {
           .whereType<File>()
           .where((f) => f.path.toLowerCase().endsWith('.zip'));
 
+      const legacyZips = {
+        'full_en.zip',
+        'full_vn.zip',
+        'en_full.zip',
+        'vn_full.zip',
+      };
+
       for (var file in files) {
         final stat = await file.stat();
         final fileName = file.path.split(Platform.pathSeparator).last;
+        final fileNameLower = fileName.toLowerCase();
+
+        // Skip legacy outdated zips
+        if (legacyZips.contains(fileNameLower)) {
+          continue;
+        }
+
         final sizeInKb = "${(stat.size / 1024).toStringAsFixed(0)} KB";
         final modifiedDate = DateFormat('dd.MM.yyyy').format(stat.modified);
 
         // --- CROSS-REFERENCE WITH CACHED MASTER LIST ---
-        final knownItems =
-            masterList.where((item) => item.filename == fileName);
+        final knownItems = masterList.where((item) {
+          if (item.filename == fileName) return true;
+          if (item.url.isNotEmpty) {
+            try {
+              final lastSeg = Uri.parse(item.url).pathSegments.last;
+              if (lastSeg == fileName) return true;
+            } catch (_) {}
+          }
+          return false;
+        });
         final knownItem = knownItems.isNotEmpty ? knownItems.first : null;
 
         String fileType = knownItem?.type ?? 'dictionary';
