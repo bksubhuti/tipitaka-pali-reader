@@ -231,6 +231,12 @@ class AiSearchService {
       );
     }
 
+    final bool goOnline = !userQuery.trimLeft().startsWith('@');
+    if (!goOnline) {
+      userQuery = userQuery.trimLeft().substring(1).trim();
+      _addLog('🧪 Secret code "@" detected: using local prompts for testing.');
+    }
+
     final bestResults = <AiMatchedResult>[];
     final generalOverflow = <AiMatchedResult>[];
     final triedQueries = <String>[];
@@ -243,7 +249,7 @@ class AiSearchService {
     List<String> nextQueriesToSearch =
         await _generateInitialQueries(userQuery, apiKey, (thought) {
       aiMemory = thought;
-    });
+    }, goOnline: goOnline);
     List<int> requestOverflowIndices = [];
 
     // Run the Agentic Loop
@@ -348,6 +354,7 @@ class AiSearchService {
           generalOverflow: generalOverflow,
           isHeavy: isHeavyLifting,
           previousThoughts: aiMemory,
+          goOnline: goOnline,
         );
 
         // Update memory for the NEXT iteration using the current thoughts
@@ -507,9 +514,10 @@ class AiSearchService {
   }
 
   Future<List<String>> _generateInitialQueries(
-      String userQuery, String apiKey, void Function(String) onThought) async {
+      String userQuery, String apiKey, void Function(String) onThought,
+      {bool goOnline = true}) async {
     final String targetLang = _getTargetLanguage(Prefs.currentScriptLanguage);
-    String promptTemplate = await _getInitialPromptString(false);
+    String promptTemplate = await _getInitialPromptString(goOnline);
     final prompt = promptTemplate
         .replaceAll('{{userQuery}}', userQuery)
         .replaceAll('{{targetLang}}', targetLang);
@@ -554,6 +562,7 @@ class AiSearchService {
     required List<AiMatchedResult> generalOverflow,
     required bool isHeavy,
     required String previousThoughts,
+    bool goOnline = true,
   }) async {
     final buffer = StringBuffer();
     int wordCount = 0;
@@ -645,7 +654,7 @@ ${cumBuffer.toString()}''';
 
     final String targetLang = _getTargetLanguage(Prefs.currentScriptLanguage);
     String promptTemplate =
-        await _getPromptPlanEvaluatePromptString(goOnline: false);
+        await _getPromptPlanEvaluatePromptString(goOnline: goOnline);
     final prompt = promptTemplate
         .replaceAll('{{userQuery}}', userQuery)
         .replaceAll('{{cumulativeContext}}', cumulativeContext)
@@ -1078,6 +1087,22 @@ ${cumBuffer.toString()}''';
   }
 
   Future<String> _getInitialPromptString(bool goOnline) async {
+    if (goOnline) {
+      try {
+        final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+        final url = Uri.parse(
+            'https://cdn.jsdelivr.net/gh/bksubhuti/tipitaka-pali-reader@master/mydownloads/initial_prompt_string.txt?v=$cacheBuster');
+        final response = await http.get(url, headers: {
+          'Cache-Control': 'no-cache',
+        }).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200 && response.body.trim().isNotEmpty) {
+          debugPrint('[AiSearch] Successfully fetched initial prompt online.');
+          return response.body.trim();
+        }
+      } catch (e) {
+        debugPrint('[AiSearch] Error fetching initial prompt online: $e');
+      }
+    }
     return '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user is asking: "{{userQuery}}"
 
@@ -1120,7 +1145,23 @@ Respond ONLY with a JSON object in this exact format:
   }
 
   Future<String> _getPromptPlanEvaluatePromptString(
-      {bool goOnline = false}) async {
+      {bool goOnline = true}) async {
+    if (goOnline) {
+      try {
+        final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+        final url = Uri.parse(
+            'https://cdn.jsdelivr.net/gh/bksubhuti/tipitaka-pali-reader@master/mydownloads/prompt_plan_evaluate_string.txt?v=$cacheBuster');
+        final response = await http.get(url, headers: {
+          'Cache-Control': 'no-cache',
+        }).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200 && response.body.trim().isNotEmpty) {
+          debugPrint('[AiSearch] Successfully fetched evaluate prompt online.');
+          return response.body.trim();
+        }
+      } catch (e) {
+        debugPrint('[AiSearch] Error fetching evaluate prompt online: $e');
+      }
+    }
     return '''You are an expert in Theravāda Buddhism and the Pāḷi Tipiṭaka.
 The user asks: "{{userQuery}}"
 

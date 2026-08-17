@@ -56,87 +56,149 @@ class _DownloadViewState extends State<DownloadView> {
     super.dispose();
   }
 
+  Future<bool> _confirmExit(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          icon: const Icon(Icons.warning_amber_rounded,
+              color: Colors.orange, size: 48),
+          title: const Text('Download In Progress'),
+          content: const Text(
+            'A database operation is still running.\n\n'
+            'Leaving now may corrupt the database and require a reinstall.\n\n'
+            'Are you sure you want to exit?',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Stay'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Exit Anyway'),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<DownloadNotifier>(
       create: (context) => DownloadNotifier(),
       child: SafeArea(
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(AppLocalizations.of(context)!.downloadTitle),
-          ),
-          body: Consumer<DownloadNotifier>(
-            builder: (context, downloadModel, child) {
-              // When autoInstallEnglish, bypass the online list entirely
-              // and go straight to the local testing.db.zip file.
-              if (widget.autoInstallEnglish && !_hasAutoStarted) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _startLocalEnglishInstall(downloadModel);
-                });
-              }
-
-              return Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      height: 50,
-                      alignment: Alignment.center,
-                      child: Center(
-                        child: Text(
-                          downloadModel.message,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (downloadModel.downloading &&
-                        downloadModel.totalSteps > 0)
-                      _buildVerticalStepProgress(context, downloadModel),
-                    const SizedBox(height: 10),
-                    if (downloadModel.downloading ||
-                        downloadModel.connectionChecking)
-                      const SizedBox.shrink(),
-                    const SizedBox(height: 20),
-                    // Skip list fetch entirely when autoInstallEnglish
-                    if (!widget.autoInstallEnglish)
-                      FutureBuilder<bool>(
-                        future: checkInternetConnection(downloadModel),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const SizedBox.shrink();
-                          }
-                          if (snapshot.hasData && snapshot.data!) {
-                            return getFutureBuilder(context, downloadModel);
-                          } else {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.signal_wifi_off,
-                                      size: 80,
-                                      color: (!Prefs.darkThemeOn)
-                                          ? Theme.of(context)
-                                              .appBarTheme
-                                              .backgroundColor
-                                          : null),
-                                  const SizedBox(height: 20),
-                                  Text(AppLocalizations.of(context)!
-                                      .turnOnInternet),
-                                ],
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                  ],
+        child: Consumer<DownloadNotifier>(
+          builder: (context, downloadModel, child) {
+            return PopScope(
+              canPop: !downloadModel.downloading,
+              onPopInvokedWithResult: (didPop, result) async {
+                if (didPop) return;
+                final shouldExit = await _confirmExit(context);
+                if (shouldExit && context.mounted) {
+                  downloadModel.downloading = false;
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Scaffold(
+                appBar: AppBar(
+                  title: Text(AppLocalizations.of(context)!.downloadTitle),
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () async {
+                      if (downloadModel.downloading) {
+                        final shouldExit = await _confirmExit(context);
+                        if (shouldExit && context.mounted) {
+                          downloadModel.downloading = false;
+                          Navigator.of(context).pop();
+                        }
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
                 ),
-              );
-            },
-          ),
+                body: Builder(
+                  builder: (context) {
+                    // When autoInstallEnglish, bypass the online list entirely
+                    // and go straight to the local testing.db.zip file.
+                    if (widget.autoInstallEnglish && !_hasAutoStarted) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _startLocalEnglishInstall(downloadModel);
+                      });
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            height: 50,
+                            alignment: Alignment.center,
+                            child: Center(
+                              child: Text(
+                                downloadModel.message,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          if (downloadModel.downloading &&
+                              downloadModel.totalSteps > 0)
+                            _buildVerticalStepProgress(context, downloadModel),
+                          const SizedBox(height: 10),
+                          if (downloadModel.downloading ||
+                              downloadModel.connectionChecking)
+                            const SizedBox.shrink(),
+                          const SizedBox(height: 20),
+                          // Skip list fetch entirely when autoInstallEnglish
+                          if (!widget.autoInstallEnglish)
+                            FutureBuilder<bool>(
+                              future: checkInternetConnection(downloadModel),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (snapshot.hasData && snapshot.data!) {
+                                  return getFutureBuilder(
+                                      context, downloadModel);
+                                } else {
+                                  return Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.signal_wifi_off,
+                                            size: 80,
+                                            color: (!Prefs.darkThemeOn)
+                                                ? Theme.of(context)
+                                                    .appBarTheme
+                                                    .backgroundColor
+                                                : null),
+                                        const SizedBox(height: 20),
+                                        Text(AppLocalizations.of(context)!
+                                            .turnOnInternet),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -531,7 +593,7 @@ class _DownloadViewState extends State<DownloadView> {
     if (!widget.showLocalRestores) {
       try {
         final response = await http.get(Uri.parse(
-            'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list.json'));
+            'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list_2.json'));
         if (response.statusCode == 200) {
           masterList = downloadListItemFromJson(response.body);
           // CACHE THE LIST FOR FUTURE OFFLINE RESTORES!
@@ -559,7 +621,7 @@ class _DownloadViewState extends State<DownloadView> {
         // Fallback: Try online if they somehow wiped the cache but kept the zips
         try {
           final response = await http.get(Uri.parse(
-              'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list.json'));
+              'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list_2.json'));
           if (response.statusCode == 200) {
             masterList = downloadListItemFromJson(response.body);
             await cacheFile.writeAsString(response.body);
@@ -619,7 +681,7 @@ class _DownloadViewState extends State<DownloadView> {
           "Cache missing. Forcing background download of JSON mapping...");
       try {
         final response = await http.get(Uri.parse(
-            'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list.json'));
+            'https://cdn.jsdelivr.net/gh/bksubhuti/tpr_downloads@master/download_source_files/download_list_2.json'));
 
         if (response.statusCode == 200) {
           await cacheFile.parent.create(recursive: true);

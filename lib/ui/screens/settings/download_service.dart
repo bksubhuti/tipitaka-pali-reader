@@ -35,6 +35,9 @@ class DownloadService {
   late final String _localZipFileName;
   final dbService = DatabaseHelper();
 
+  /// Returns true if the user has exited and we should stop work.
+  bool get _cancelled => downloadNotifier.isDisposed;
+
   DownloadService(
       {required this.downloadNotifier, required this.downloadListItem}) {
     _zipPath = downloadListItem.url;
@@ -89,6 +92,7 @@ class DownloadService {
     //final sqlFiles = await getTestZip();
 //////////////////////////////////////////////
 
+    if (_cancelled) return;
     downloadNotifier.stepsCompleted = 1;
     // ACCUMULATOR: Keep track of every book added across all files
     final Set<String> allNewBooks = {};
@@ -97,6 +101,7 @@ class DownloadService {
 
     // 1. IMPORT LOOP
     for (final sqlFile in sqlFiles) {
+      if (_cancelled) break;
       downloadNotifier.message = "Importing ${sqlFile.path.split('/').last}...";
       final booksInFile = await processLocalFile(sqlFile);
       allNewBooks.addAll(booksInFile);
@@ -105,6 +110,7 @@ class DownloadService {
 // --- Restore normal database safety rules ---
     await db.execute("PRAGMA foreign_keys = ON;");
 
+    if (_cancelled) return;
     downloadNotifier.stepsCompleted = 2;
     // 2. INDEXING LOOP (Runs only once)
     if (downloadListItem.type.contains("index") && allNewBooks.isNotEmpty) {
@@ -112,6 +118,7 @@ class DownloadService {
       Database db = await dbService.database;
 
       await doFts(db, allNewBooks);
+      if (_cancelled) return;
 
       Stopwatch stopwatch = Stopwatch()..start();
       // Call our new targeted word builder
@@ -119,6 +126,7 @@ class DownloadService {
       debugPrint('Making English Word List took ${stopwatch.elapsed}.');
     }
 
+    if (_cancelled) return;
     if (downloadListItem.type.contains("dpd_grammar")) {
       downloadNotifier.message = 'adding dpd grammar flag';
       Prefs.isDpdGrammarOn = true;
@@ -132,18 +140,21 @@ class DownloadService {
   }
 
   Future processEntries(DatabaseUpdate dbUpdate, Database db, int limit) async {
+    if (_cancelled) return;
     if (dbUpdate.insertLines.length >= limit) {
       await execSQL(db, dbUpdate.insertLines, 'insert');
       dbUpdate.insertLines.clear();
       notifyProcessed('Inserted', dbUpdate.insertCount);
     }
 
+    if (_cancelled) return;
     if (dbUpdate.updateLines.length >= limit) {
       await execSQL(db, dbUpdate.updateLines, 'update');
       dbUpdate.updateLines.clear();
       notifyProcessed('Updated', dbUpdate.updateCount);
     }
 
+    if (_cancelled) return;
     if (dbUpdate.deleteLines.isNotEmpty) {
       await execSQL(db, dbUpdate.deleteLines, 'delete');
       dbUpdate.deleteLines.clear();
@@ -270,6 +281,7 @@ class DownloadService {
     int counter = 0;
 
     for (final bookId in newBooks) {
+      if (_cancelled) break;
       // 1. SAFEGUARD: Delete old FTS records for this book to prevent ID collisions
       await db.rawDelete("DELETE FROM fts_pages WHERE bookid = ?", [bookId]);
       await db.rawDelete(
@@ -282,6 +294,7 @@ class DownloadService {
       final maps = await db.rawQuery(querySql, [bookId]);
 
       for (var element in maps) {
+        if (_cancelled) break;
         final rawContent = element['content'] as String;
 
         // 1. Extract pure Pali content for fts_pages
@@ -328,7 +341,7 @@ class DownloadService {
     // This catches the remainder of the pages after all books are processed.
     await batch.commit(noResult: true);
 
-    downloadNotifier.message = "FTS is complete";
+    if (!_cancelled) downloadNotifier.message = "FTS is complete";
   }
 
   String _extractPaliText(String html) {
@@ -641,6 +654,7 @@ class DownloadService {
 
     Database db = await dbService.database;
     await for (final rawLine in lineStream) {
+      if (_cancelled) break;
       final line = rawLine.toLowerCase();
 
       // do these first
@@ -669,7 +683,7 @@ class DownloadService {
       await processEntries(dbUpdate, db, batchAmount);
     }
 
-    await processEntries(dbUpdate, db, 1);
+    if (!_cancelled) await processEntries(dbUpdate, db, 1);
 
     // Simply return the books we found back to the main install loop
     return newBooks;
@@ -727,6 +741,7 @@ class DownloadService {
       var batch = txn.batch();
 
       for (final String word in uniqueWords) {
+        if (_cancelled) break;
         batch.rawInsert('''
             INSERT OR IGNORE INTO 
             words (word, plain, frequency) 
@@ -744,7 +759,7 @@ class DownloadService {
       batch.commit(noResult: true);
     });
 
-    downloadNotifier.message = "Word list complete";
+    if (!_cancelled) downloadNotifier.message = "Word list complete";
   }
 
   Future<void> installLocalSqlZip() async {
@@ -769,6 +784,7 @@ class DownloadService {
     // 2. Unarchive directly without downloading
     final sqlFiles = await unarchiveAndSave(localZipFile);
 
+    if (_cancelled) return;
     downloadNotifier.stepsCompleted = 1;
     // ACCUMULATOR: Keep track of every book added across all files
     final Set<String> allNewBooks = {};
@@ -778,6 +794,7 @@ class DownloadService {
 
     // 3. IMPORT LOOP
     for (final sqlFile in sqlFiles) {
+      if (_cancelled) break;
       downloadNotifier.message = "Importing ${sqlFile.path.split('/').last}...";
       final booksInFile = await processLocalFile(sqlFile);
       allNewBooks.addAll(booksInFile);
@@ -786,6 +803,7 @@ class DownloadService {
     // --- Restore normal database safety rules ---
     await db.execute("PRAGMA foreign_keys = ON;");
 
+    if (_cancelled) return;
     downloadNotifier.stepsCompleted = 2;
     // 4. INDEXING LOOP (Runs only once)
     // Thanks to the JSON mapping, this correctly triggers for ePitaka and other 'books index' types
@@ -793,12 +811,14 @@ class DownloadService {
       downloadNotifier.message = 'Building fts';
 
       await doFts(db, allNewBooks);
+      if (_cancelled) return;
 
       Stopwatch stopwatch = Stopwatch()..start();
       await makeUniversalWordList(allNewBooks);
       debugPrint('Making Word List took ${stopwatch.elapsed}.');
     }
 
+    if (_cancelled) return;
     if (downloadListItem.type.contains("dpd_grammar")) {
       downloadNotifier.message = 'adding dpd grammar flag';
       Prefs.isDpdGrammarOn = true;
@@ -968,6 +988,7 @@ class DownloadService {
 
     // Step 1 Complete (Downloading & Extracting done -> Move to Step 2: Copying Tables)
     downloadNotifier.stepsCompleted = 1;
+    if (_cancelled) return;
     final extPath = extractedDbFile.path;
     downloadNotifier.message = "Attaching & copying tables...";
 
@@ -1003,6 +1024,7 @@ class DownloadService {
       ];
 
       for (String table in targetTables) {
+        if (_cancelled) break;
         if (extTableNames.contains(table)) {
           downloadNotifier.message = "Copying table '$table'...";
           if (table == 'books') {
@@ -1052,6 +1074,7 @@ class DownloadService {
     }
     if (await localZipFile.exists()) await localZipFile.delete();
 
+    if (_cancelled) return;
     // Step 2 Complete (Tables copied -> Move to Step 3: Indexing FTS Pages)
     downloadNotifier.stepsCompleted = 2;
 
@@ -1060,6 +1083,7 @@ class DownloadService {
       await doFts(db, allNewBooks);
     }
 
+    if (_cancelled) return;
     // Step 3 Complete (FTS done -> Move to Step 4: Rebuilding Indexes)
     downloadNotifier.stepsCompleted = 3;
 
@@ -1070,6 +1094,7 @@ class DownloadService {
       debugPrint('Making Word List took ${stopwatch.elapsed}.');
     }
 
+    if (_cancelled) return;
     downloadNotifier.message = "Rebuilding Book Indexes...";
     await dbService.buildBothIndexes();
 

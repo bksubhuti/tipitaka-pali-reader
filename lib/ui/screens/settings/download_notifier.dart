@@ -3,6 +3,22 @@ import 'package:flutter/material.dart';
 class DownloadNotifier extends ChangeNotifier {
   String _message = "Select Item";
   bool connectionChecking = false;
+  bool _disposed = false;
+
+  bool get isDisposed => _disposed;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
+  }
 
   set message(String val) {
     _message = val;

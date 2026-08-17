@@ -9,6 +9,7 @@ import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
+import 'package:tipitaka_pali/routes.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/utils/font_utils.dart';
 
@@ -216,15 +217,15 @@ class _ReaderContainerState extends State<ReaderContainer> {
                                       TextButton(
                                         onPressed: () {
                                           Navigator.of(dialogContext).pop();
-                                          Navigator.of(context)
-                                              .push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  const DownloadView(
-                                                      autoInstallEnglish: true),
-                                            ),
-                                          )
-                                              .then((_) {
+                                          NestedNavigationHelper
+                                              .openDownloadView(
+                                            context,
+                                            autoInstallEnglish: true,
+                                          );
+                                          // Refresh welcome screen when returning
+                                          Future.delayed(
+                                              const Duration(milliseconds: 500),
+                                              () {
                                             if (mounted) {
                                               setState(() {});
                                             }

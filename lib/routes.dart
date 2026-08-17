@@ -126,17 +126,47 @@ class NestedNavigationHelper {
           DownloadView(autoInstallEnglish: autoInstallEnglish),
     );
 
-    if (!Mobile.isPhone(context) && settingNavigationKey.currentState != null) {
+    if (!Mobile.isPhone(context)) {
       final navProvider = context.read<NavigationProvider>();
       if (!navProvider.isNavigationPaneOpened) {
         navProvider.toggleNavigationPane();
       }
       navProvider.moveToSettingPage();
-      goto(
-        context: context,
-        route: route,
-        navkey: settingNavigationKey,
-      );
+
+      // The settings Navigator is lazily built inside a PageView.
+      // If it's already available, push immediately.
+      // Otherwise, wait for the next frame so the Navigator is built.
+      if (settingNavigationKey.currentState != null) {
+        goto(
+          context: context,
+          route: route,
+          navkey: settingNavigationKey,
+        );
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (settingNavigationKey.currentState != null) {
+            goto(
+              context: context,
+              route: route,
+              navkey: settingNavigationKey,
+            );
+          } else {
+            // Fallback: try once more after another frame
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (settingNavigationKey.currentState != null) {
+                goto(
+                  context: context,
+                  route: route,
+                  navkey: settingNavigationKey,
+                );
+              } else {
+                // Final fallback: open full screen
+                Navigator.push(context, route);
+              }
+            });
+          }
+        });
+      }
     } else {
       Navigator.push(context, route);
     }

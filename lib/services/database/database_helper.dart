@@ -54,37 +54,6 @@ class DatabaseHelper {
         await db.execute('PRAGMA foreign_keys = ON;');
       },
     );
-    // TODO: Remove this in future. This is just to patch the old DB to add missing columns without needing a full re-setup for users on older versions.
-    // ==========================================
-    // SILENT SCHEMA PATCH: ADD SORT_ORDER COLUMNS
-    // This runs every time the DB opens and guarantees
-    // the columns exist before the UI ever queries them.
-    // Skip if tables don't exist yet (fresh install, DB not copied yet).
-    // ==========================================
-    final tables = await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('books', 'category')");
-    final tableNames = tables.map((r) => r['name'] as String).toSet();
-
-    if (tableNames.contains('books')) {
-      try {
-        await db.execute(
-            "ALTER TABLE books ADD COLUMN sort_order INTEGER DEFAULT 0;");
-        debugPrint("SUCCESS: Added sort_order to books.");
-      } catch (e) {
-        debugPrint("SILENT PATCH for books (already exists): $e");
-      }
-    }
-
-    if (tableNames.contains('category')) {
-      try {
-        await db.execute(
-            "ALTER TABLE category ADD COLUMN sort_order INTEGER DEFAULT 0;");
-        debugPrint("SUCCESS: Added sort_order to category.");
-      } catch (e) {
-        debugPrint("SILENT PATCH for category (already exists): $e");
-      }
-    }
-    // ==========================================
     return db;
   }
 
