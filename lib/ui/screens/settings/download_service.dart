@@ -16,7 +16,7 @@ import 'package:tipitaka_pali/business_logic/models/page_content.dart';
 
 /// SET THIS TO TRUE FOR LOCAL TESTING VIA <app-support-dir>/test_db.
 /// IN PRODUCTION, KEEP THIS FALSE.
-const bool isTestingDbMode = true;
+const bool isTestingDbMode = false;
 
 class DatabaseUpdate {
   final insertLines = [];

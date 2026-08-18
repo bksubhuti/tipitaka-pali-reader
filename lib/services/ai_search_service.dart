@@ -188,8 +188,8 @@ class AiSearchService {
 
   /// Main entry point: perform a multi-turn AI-guided search.
   Future<AiSearchResult> search(String userQuery, {int maxResults = 30}) async {
-    if (Prefs.activeAiProviderMode == 2 && maxResults > 45) {
-      maxResults = 45;
+    if (Prefs.activeAiProviderMode == 2 && maxResults > 55) {
+      maxResults = 55;
     }
     _httpClient = http.Client();
     _agentLog.clear();

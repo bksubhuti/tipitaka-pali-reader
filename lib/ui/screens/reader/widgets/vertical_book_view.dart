@@ -142,7 +142,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
       initialAlignment = 0.0;
     }
 
-    debugPrint('chunk index: $initialScrollChunkIndex, alignment: $initialAlignment');
+    debugPrint(
+        'chunk index: $initialScrollChunkIndex, alignment: $initialAlignment');
     debugPrint('searchText-searchText: $searchText');
 
     return LayoutBuilder(builder: (context, constraints) {
@@ -185,18 +186,23 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                 onPressed: () {
                                   ContextMenuController.removeAny();
                                   final bookName = PaliScript.getScriptOf(
-                                    script: context.read<ScriptLanguageProvider>().currentScript,
+                                    script: context
+                                        .read<ScriptLanguageProvider>()
+                                        .currentScript,
                                     romanText: readerViewController.book.name,
                                   );
-                                  Clipboard.setData(ClipboardData(text: bookName));
+                                  Clipboard.setData(
+                                      ClipboardData(text: bookName));
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('${AppLocalizations.of(context)!.copied}: $bookName'),
+                                      content: Text(
+                                          '${AppLocalizations.of(context)!.copied}: $bookName'),
                                       duration: const Duration(seconds: 2),
                                     ),
                                   );
                                 },
-                                label: AppLocalizations.of(context)!.copyBookName),
+                                label:
+                                    AppLocalizations.of(context)!.copyBookName),
                             ContextMenuButtonItem(
                                 onPressed: () {
                                   ContextMenuController.removeAny();
@@ -395,12 +401,14 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
     // scrolling down ( natural scrolling )
     //update lower page as current page
+    // Use gotoPage (not onGoto) so we only update the page number
+    // without re-arming the highlight jump, which caused snap-back.
     if (lowerChunkInView.itemLeadingEdge < 0.4 &&
         pageNumberOfLowerPage != currentPage) {
       myLogger.i('recorded current page: $currentPage');
       myLogger.i('lower page-height is over half');
       myLogger.i('page number of it: $pageNumberOfLowerPage');
-      readerViewController.onGoto(pageNumber: pageNumberOfLowerPage);
+      readerViewController.gotoPage(pageNumber: pageNumberOfLowerPage);
       return;
     }
 
@@ -410,7 +418,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
       myLogger.i('recorded current page: $currentPage');
       myLogger.i('upper page-height is over half');
       myLogger.i('page number of it: $pageNumberOfUpperPage');
-      readerViewController.onGoto(pageNumber: pageNumberOfUpperPage);
+      readerViewController.gotoPage(pageNumber: pageNumberOfUpperPage);
       return;
     }
   }
