@@ -78,10 +78,10 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                 if (_geminiModels.contains(Prefs.aiHeavyModel)) {
                   _selectedHeavyModel = Prefs.aiHeavyModel;
                 } else {
-                  if (_geminiModels.contains('gemini-3.7-flash')) {
-                    _selectedHeavyModel = 'gemini-3.7-flash';
-                  } else if (_geminiModels.contains('gemini-3.6-flash')) {
-                    _selectedHeavyModel = 'gemini-3.6-flash';
+                  if (_geminiModels.contains('gemini-3.5-flash')) {
+                    _selectedHeavyModel = 'gemini-3.5-flash';
+                  } else if (_geminiModels.contains('gemini-3.5-flash')) {
+                    _selectedHeavyModel = 'gemini-3.5-flash';
                   } else {
                     _selectedHeavyModel = _geminiModels.firstWhere(
                         (m) => m.contains('pro'),
@@ -625,7 +625,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                         child: Row(
                           children: [
                             const Text(
-                              '3.7 Flash recommended',
+                              '3.5 Flash recommended',
                               style:
                                   TextStyle(fontSize: 12, color: Colors.grey),
                             ),
