@@ -9,9 +9,7 @@ import '../services/database/database_helper.dart';
 import '../services/prefs.dart';
 import '../env/env.dart';
 import '../services/repositories/fts_repo.dart';
-import '../services/repositories/page_content_repo.dart';
 import '../ui/screens/home/search_page/search_page.dart';
-import '../utils/pali_english_stripper.dart';
 
 /// A search result paired with the term and query mode that found it,
 /// so we can properly highlight it in the reader.
@@ -571,8 +569,6 @@ class AiSearchService {
       maxWords = 1000;
     }
 
-    final pageContentRepo = PageContentDatabaseRepository(_dbHelper);
-
     for (int i = 0; i < currentFullText.length && wordCount < maxWords; i++) {
       final r = currentFullText[i].searchResult;
       final cleanDesc = r.description
@@ -580,19 +576,11 @@ class AiSearchService {
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
 
-      final pageContent =
-          await pageContentRepo.getPageByBookAndPage(r.book.id, r.pageNumber);
-
-      final strippedPali = stripEnglishFromPali(
-        mixedSample: cleanDesc,
-        labeledPageHtml: pageContent?.content,
-      );
-
-      final words = strippedPali.split(' ');
+      final words = cleanDesc.split(' ');
       final allowedWords = maxWords - wordCount;
       final truncDesc = words.length > allowedWords
           ? '${words.take(allowedWords).join(' ')}...'
-          : strippedPali;
+          : cleanDesc;
 
       buffer.write(
           '[$i] ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber}: "$truncDesc"\n');
@@ -611,17 +599,9 @@ class AiSearchService {
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
 
-        final pageContent =
-            await pageContentRepo.getPageByBookAndPage(r.book.id, r.pageNumber);
-
-        final strippedPali = stripEnglishFromPali(
-          mixedSample: cleanDesc,
-          labeledPageHtml: pageContent?.content,
-        );
-
-        final shortDesc = strippedPali.length > 80
-            ? '${strippedPali.substring(0, 80)}...'
-            : strippedPali;
+        final shortDesc = cleanDesc.length > 80
+            ? '${cleanDesc.substring(0, 80)}...'
+            : cleanDesc;
 
         cumBuffer.writeln(
             'R${i + 1}: ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber} - "$shortDesc"');
