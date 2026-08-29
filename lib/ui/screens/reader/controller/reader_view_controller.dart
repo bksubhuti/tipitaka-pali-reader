@@ -58,6 +58,15 @@ class ReaderViewController extends ChangeNotifier {
   final ValueNotifier<bool> _highlightEveryMatch = ValueNotifier(true);
   ValueListenable<bool> get highlightEveryMatch => _highlightEveryMatch;
 
+  /// Whether the goto/search word highlight is painted in the text.
+  /// Tapping a word clears the highlight for the whole book, not only for the
+  /// chunk that was tapped.
+  final ValueNotifier<bool> _isHighlightShown = ValueNotifier(true);
+  ValueListenable<bool> get isHighlightShown => _isHighlightShown;
+
+  /// Removes the goto/search word highlight everywhere in this book.
+  void clearHighlights() => _isHighlightShown.value = false;
+
   final ValueNotifier<String?> _ttsCurrentText = ValueNotifier(null);
   ValueListenable<String?> get ttsCurrentText => _ttsCurrentText;
   int _ttsSentenceIndex = 0;
@@ -275,6 +284,9 @@ class ReaderViewController extends ChangeNotifier {
     await _loadBookInfo(book.id);
     isloadingFinished = true;
     _pageToHighlight = initialPage;
+    // The list already opens on the right page by itself; this only allows a
+    // single fine adjustment onto the highlighted word.
+    _armHighlightScroll(textToHighlight != null && textToHighlight!.isNotEmpty);
     myLogger.i('loading finished for: ${book.name}');
 
     if (!_mounted) {
@@ -398,6 +410,11 @@ class ReaderViewController extends ChangeNotifier {
     // Only reset TTS highlight when the page actually changes
     if (_currentPage.value != pageNumber) {
       _ttsCurrentText.value = null;
+    } else {
+      // The page number is unchanged, so no listener will run. Drop any
+      // pending permission here, otherwise the next page change - which would
+      // come from plain scrolling - would inherit it and move the view.
+      _pendingNavigation = false;
     }
     _currentPage.value = pageNumber;
     final openedBookController = context.read<OpenningBooksProvider>();
@@ -417,10 +434,47 @@ class ReaderViewController extends ChangeNotifier {
     return chunks[chunkIndex].pageNumber;
   }
 
-  /// Tracks whether the current highlight jump has already been executed,
-  /// so subsequent scroll events don't re-trigger the jump.
-  bool _highlightJumpConsumed = false;
-  bool get highlightJumpConsumed => _highlightJumpConsumed;
+  /// A page change has two very different origins: an explicit navigation
+  /// (goto page, table of contents, search result, slider, opening a book) and
+  /// ordinary scrolling, which only reports which page has come into view.
+  /// Only the first kind may move the scroll position, otherwise the text
+  /// snaps back under the reader's finger while they are scrolling.
+  bool _pendingNavigation = false;
+
+  /// Takes the pending navigation. Returns true only once per request.
+  bool takePendingNavigation() {
+    if (!_pendingNavigation) return false;
+    _pendingNavigation = false;
+    return true;
+  }
+
+  /// One-shot permission to scroll to the highlighted word.
+  /// A page is rendered as many chunk widgets and each of them is built afresh
+  /// every time it scrolls back into view. Without this ticket every rebuilt
+  /// chunk would pull the list towards its own highlight, so a page with
+  /// several matches kept dragging the view back to the last one.
+  bool _pendingHighlightScroll = false;
+  DateTime? _highlightScrollArmedAt;
+
+  /// How long a highlight scroll stays on offer. Long enough for the page to
+  /// finish laying out, short enough that a chunk first built much later -
+  /// while the reader is scrolling - can no longer move the view.
+  static const Duration _highlightScrollLifetime = Duration(seconds: 2);
+
+  void _armHighlightScroll(bool arm) {
+    _pendingHighlightScroll = arm;
+    _highlightScrollArmedAt = arm ? DateTime.now() : null;
+  }
+
+  /// Takes the pending highlight scroll. Returns true only once per request,
+  /// and only while the request is still fresh.
+  bool takePendingHighlightScroll() {
+    if (!_pendingHighlightScroll) return false;
+    final armedAt = _highlightScrollArmedAt;
+    _armHighlightScroll(false);
+    return armedAt != null &&
+        DateTime.now().difference(armedAt) <= _highlightScrollLifetime;
+  }
 
   Future<void> onGoto(
       {required int pageNumber,
@@ -432,20 +486,17 @@ class ReaderViewController extends ChangeNotifier {
     debugPrint("Caller: $caller, pageNumber: $pageNumber, word: $word");
     _pageToHighlight = pageNumber;
     textToHighlight = word;
-    // Reset consumed flag so the new jump will execute
-    _highlightJumpConsumed = false;
+    // This page change was asked for, so it is allowed to move the view.
+    _pendingNavigation = true;
+    _armHighlightScroll(word != null && word.isNotEmpty);
+    // A new destination restores highlights that a word tap had cleared.
+    _isHighlightShown.value = true;
     // update current page
     gotoPage(pageNumber: pageNumber);
     // persit
     if (saveToRecent) {
       await _saveToRecent();
     }
-  }
-
-  /// Mark the highlight jump as consumed so scroll tracking
-  /// doesn't re-trigger it. The highlight text stays set for rendering.
-  void consumeHighlightJump() {
-    _highlightJumpConsumed = true;
   }
 
   // Future onPageChanged(int index) async {

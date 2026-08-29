@@ -539,9 +539,15 @@ class _ReaderContainerState extends State<ReaderContainer> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: Iterable.generate(books.length)
               .map((i) {
-                final isVisible = tabsVisibility[books[i]['uuid']] ?? false;
+                final uuid = books[i]['uuid'];
+                final isVisible = tabsVisibility[uuid] ?? false;
                 if (isVisible) {
-                  return Expanded(child: readerAt(i, books));
+                  // Key the pane by book so that showing or hiding another
+                  // window re-uses this reader instead of matching it by
+                  // position against a different book, which rebuilt it and
+                  // lost its place in the text.
+                  return Expanded(
+                      key: ValueKey(uuid), child: readerAt(i, books));
                 } else {
                   return null;
                 }

@@ -72,6 +72,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   int? highlightedWordIndex;
   late List<Bookmark> bookmarks;
   int? _pageToHighlight;
+  late final ReaderViewController _readerViewController;
+
+  /// True when [highlightedWord] was set by tapping a link inside this chunk
+  /// rather than coming from a goto/search navigation. A local highlight is
+  /// left alone by the book-wide clear.
+  bool _isLocalHighlight = false;
 
   final GlobalKey _textKey = GlobalKey();
   final GlobalKey<HtmlWidgetState> _htmlKey = GlobalKey<HtmlWidgetState>();
@@ -90,8 +96,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     highlightedWordIndex = null;
     _pageToHighlight = widget.pageToHighlight;
 
-    bookmarks = Provider.of<ReaderViewController>(context, listen: false)
-        .bookmarks
+    _readerViewController =
+        Provider.of<ReaderViewController>(context, listen: false);
+    _readerViewController.isHighlightShown
+        .addListener(_onHighlightVisibilityChanged);
+    bookmarks = _readerViewController.bookmarks
         .where((bm) => bm.pageNumber == widget.pageNumber)
         .toList();
 
@@ -105,11 +114,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   @override
+  void dispose() {
+    _readerViewController.isHighlightShown
+        .removeListener(_onHighlightVisibilityChanged);
+    super.dispose();
+  }
+
+  void _onHighlightVisibilityChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void didUpdateWidget(PaliPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Handle search result scroll - uses Scrollable.ensureVisible for better alignment
-      if (widget.founds != null && widget.currentOccurrence != null) {
+      // Handle search result scroll - uses Scrollable.ensureVisible for better
+      // alignment. Only when the current match actually moved, so that
+      // unrelated rebuilds ( font size, theme, tts ) leave the scroll alone.
+      if (widget.founds != null &&
+          widget.currentOccurrence != null &&
+          widget.currentOccurrence != oldWidget.currentOccurrence) {
         _scrollToCurrentSearchResult();
       }
 
@@ -132,9 +156,17 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (!mounted) return;
 
       final context = _highlightedWordScrollKey.currentContext;
-      if (context != null) {
-        Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
-      }
+      if (context == null) return;
+
+      // A page is drawn as several chunk widgets and each of them is built
+      // afresh every time it scrolls back into view. The controller hands out
+      // one ticket per navigation, so only the first chunk holding a match
+      // scrolls. Without it every rebuilt chunk pulled the list towards its own
+      // highlight, which is what dragged the reader back to the last match on
+      // the page as soon as they tried to scroll.
+      if (!_readerViewController.takePendingHighlightScroll()) return;
+
+      Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
     });
   }
 
@@ -266,10 +298,16 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                     final wordIndex = findOccurrencesBefore(word, target) +
                         occurrencesInTextBefore;
 
+                    // Tapping a word puts the goto/search highlight away for
+                    // the whole book. It used to be cleared only in the chunk
+                    // that was tapped, leaving the rest of the page marked.
+                    _readerViewController.clearHighlights();
+
                     if (word == lookupWord &&
                         highlightedWordIndex == wordIndex) {
                       setState(() {
                         highlightedWord = null;
+                        _isLocalHighlight = false;
                         lookupWord = null;
                         highlightedWordIndex = null;
                         _pageToHighlight = null;
@@ -278,6 +316,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                       setState(() {
                         widget.onClick?.call(word);
                         highlightedWord = null;
+                        _isLocalHighlight = false;
                         lookupWord = word;
                         highlightedWordIndex = wordIndex;
 
@@ -400,6 +439,9 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                       if (word != '#goto') {
                         setState(() {
                           highlightedWord = word;
+                          // Asked for by this tap, so the book-wide clear does
+                          // not apply to it.
+                          _isLocalHighlight = true;
                           widget.onClick!(word);
                         });
                       }
@@ -446,7 +488,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _addUnderline(content, lookupWord!);
     }
 
-    if (highlightedWord != null) {
+    if (highlightedWord != null &&
+        (_isLocalHighlight || _readerViewController.isHighlightShown.value)) {
       content = _addHighlight(content, highlightedWord!);
       content = _addHighlightedWordScrollAnchor(content);
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -60,6 +62,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   String searchText = '';
 
+  StreamSubscription<double>? _scrollOffsetSubscription;
+
   SelectedContent? _selectedContent;
 
   // Saved scroll position for layout-change restoration
@@ -82,28 +86,33 @@ class _VerticalBookViewState extends State<VerticalBookView>
     scrollOffsetController = ScrollOffsetController();
     scrollOffsetListener = ScrollOffsetListener.create();
 
-    scrollOffsetListener.changes.listen((_) {
-      final pos = itemPositionsListener.itemPositions.value.toList();
-      int targetChunkIndex = -1;
+    _scrollOffsetSubscription = scrollOffsetListener.changes.listen((_) {
+      // itemPositions is an unordered set, so sort it before reading entries
+      // by position. Reading pos[1] out of an unsorted set reported a random
+      // visible chunk and made the current page jitter.
+      final positions = itemPositionsListener.itemPositions.value.toList()
+        ..sort((a, b) => a.index.compareTo(b.index));
 
-      if (pos.isEmpty) return;
+      if (positions.isEmpty) return;
 
       // Save current scroll position for layout-change restoration
-      final sorted = List.of(pos)..sort((a, b) => a.index.compareTo(b.index));
       _hasSavedScrollPosition = true;
-      _savedChunkIndex = sorted.first.index;
-      _savedAlignment = sorted.first.itemLeadingEdge;
+      _savedChunkIndex = positions.first.index;
+      _savedAlignment = positions.first.itemLeadingEdge;
 
-      if (pos.length == 1) {
-        targetChunkIndex = pos.first.index;
-      } else if (pos.length >= 3) {
-        targetChunkIndex = pos[1].index;
-      } else if (pos.first.itemTrailingEdge == pos.last.itemLeadingEdge) {
-        targetChunkIndex = pos.first.index;
+      int targetChunkIndex;
+      if (positions.length == 1) {
+        targetChunkIndex = positions.first.index;
+      } else if (positions.length >= 3) {
+        targetChunkIndex = positions[1].index;
+      } else if (positions.first.itemTrailingEdge ==
+          positions.last.itemLeadingEdge) {
+        targetChunkIndex = positions.first.index;
       } else {
-        final chunk = pos.first.itemTrailingEdge > pos.last.itemLeadingEdge
-            ? pos.first
-            : pos.last;
+        final chunk =
+            positions.first.itemTrailingEdge > positions.last.itemLeadingEdge
+                ? positions.first
+                : positions.last;
         targetChunkIndex = chunk.index;
       }
 
@@ -119,6 +128,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   @override
   void dispose() {
+    _scrollOffsetSubscription?.cancel();
     itemPositionsListener.itemPositions.removeListener(_listenItemPosition);
     readerViewController.currentPage.removeListener(_listenPageChange);
     readerViewController.foundState.removeListener(_listenSearchIndexChanged);
@@ -310,8 +320,9 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                       height: constraints.maxHeight,
                                       founds: _getFounds(
                                           pageChunk.pageNumber, foundState),
-                                      currentOccurrence: _getCurrentOccurrence(
-                                          pageChunk.pageNumber, foundState),
+                                      currentOccurrence:
+                                          _getCurrentOccurrence(
+                                              index, foundState),
                                       onClick: widget.onClickedWord,
                                       book: readerViewController.book,
                                       isFirstChunkOfPage:
@@ -424,7 +435,13 @@ class _VerticalBookViewState extends State<VerticalBookView>
   }
 
   void _listenPageChange() {
-    // page change are comming from others ( goto, tocs and slider )
+    // A page change has two origins: an explicit navigation ( goto, toc,
+    // search result, slider, opening a book ) and ordinary scrolling, which
+    // only reports the page that has come into view. Only the first may move
+    // the view; acting on the second made the text snap back while the reader
+    // was scrolling it.
+    if (!readerViewController.takePendingNavigation()) return;
+
     final currenPage = readerViewController.currentPage.value;
     int targetChunkIndex =
         readerViewController.getChunkIndexForPage(currenPage);
@@ -434,9 +451,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
     final textToHighlight = readerViewController.textToHighlight;
     bool foundHighlightChunk = false;
 
-    if (!readerViewController.highlightJumpConsumed &&
-        textToHighlight != null &&
-        textToHighlight.isNotEmpty) {
+    if (textToHighlight != null && textToHighlight.isNotEmpty) {
       for (int i = targetChunkIndex;
           i < readerViewController.chunks.length;
           i++) {
@@ -482,8 +497,6 @@ class _VerticalBookViewState extends State<VerticalBookView>
       if (!chunksInView.contains(targetChunkIndex)) {
         itemScrollController.jumpTo(index: targetChunkIndex);
       }
-      // Mark consumed so scroll tracking doesn't re-trigger the jump
-      readerViewController.consumeHighlightJump();
     } else {
       // Natural scroll page tracking - prevent snapbacks
       bool isPageCurrentlyInView = false;
@@ -541,13 +554,16 @@ class _VerticalBookViewState extends State<VerticalBookView>
     return temp;
   }
 
-  int? _getCurrentOccurrence(int pageNumber, FoundState state) {
+  int? _getCurrentOccurrence(int chunkIndex, FoundState state) {
     if (state is FoundInitial || state is FoundEmpty) return null;
     final current = (state as FoundData).current;
     if (current == null) {
       return null;
     }
-    if (state.founds[current].pageNumber != pageNumber) {
+    // Occurrences are counted per chunk, so only the chunk that really holds
+    // the current match may paint it. Matching on the page number instead
+    // marked one match in every chunk of the page.
+    if (state.founds[current].pageIndex != chunkIndex) {
       return null;
     }
     return state.founds[current].occurrenceInPage;
