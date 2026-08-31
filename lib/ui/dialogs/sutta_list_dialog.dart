@@ -184,6 +184,7 @@ class _SuttaListDialogState extends State<SuttaListDialog> {
       children: [
         Expanded(
           child: TprSearchBar(
+            autofocus: true,
             hint: AppLocalizations.of(context)!.nameOrShorthand,
             controller: textEditingController,
             onTextChanged: viewController.onFilterChanged,
