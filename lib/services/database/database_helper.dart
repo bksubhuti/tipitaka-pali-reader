@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
 
 final reNewLine = RegExp(r'\n');
 final reTokenSpace = RegExp(r'[^a-zāīūṅñṭḍṇḷṃ ]');
@@ -373,29 +374,11 @@ class DatabaseHelper {
     return true;
   }
 
-  String _extractPaliText(String html) {
-    if (html.contains('palitext')) {
-      final palitextRegex = RegExp(r'<span class="palitext"[^>]*>(.*?)</span>',
-          dotAll: true, caseSensitive: false);
-      final matches = palitextRegex.allMatches(html);
-      final paliParts = matches.map((m) => m.group(1) ?? '').join(' ');
-      return _cleanText(paliParts);
-    }
-    return _cleanText(html);
-  }
+  String _extractPaliText(String html) =>
+      FtsTextExtractor.extractPaliText(html);
 
-  String _extractTranslationText(String html) {
-    if (html.contains('translation_text')) {
-      final translationRegex = RegExp(
-          r'<span class="translation_text[^"]*"[^>]*>(.*?)</span>',
-          dotAll: true,
-          caseSensitive: false);
-      final matches = translationRegex.allMatches(html);
-      final transParts = matches.map((m) => m.group(1) ?? '').join(' ');
-      return _cleanText(transParts);
-    }
-    return '';
-  }
+  String _extractTranslationText(String html) =>
+      FtsTextExtractor.extractTranslationText(html);
 
   String _cleanText(String text) {
     final regexHtmlTags = RegExp(r'<[^>]*>');

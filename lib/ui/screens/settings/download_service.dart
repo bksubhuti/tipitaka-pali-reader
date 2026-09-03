@@ -13,6 +13,7 @@ import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:dio/dio.dart';
 import 'package:tipitaka_pali/business_logic/models/page_content.dart';
+import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
 
 /// SET THIS TO TRUE FOR LOCAL TESTING VIA <app-support-dir>/test_db.
 /// IN PRODUCTION, KEEP THIS FALSE.
@@ -359,29 +360,11 @@ class DownloadService {
     if (!_cancelled) downloadNotifier.message = "FTS is complete";
   }
 
-  String _extractPaliText(String html) {
-    if (html.contains('palitext')) {
-      final palitextRegex = RegExp(r'<span class="palitext"[^>]*>(.*?)</span>',
-          dotAll: true, caseSensitive: false);
-      final matches = palitextRegex.allMatches(html);
-      final paliParts = matches.map((m) => m.group(1) ?? '').join(' ');
-      return _cleanText(paliParts);
-    }
-    return _cleanText(html);
-  }
+  String _extractPaliText(String html) =>
+      FtsTextExtractor.extractPaliText(html);
 
-  String _extractTranslationText(String html) {
-    if (html.contains('translation_text')) {
-      final translationRegex = RegExp(
-          r'<span class="translation_text[^"]*"[^>]*>(.*?)</span>',
-          dotAll: true,
-          caseSensitive: false);
-      final matches = translationRegex.allMatches(html);
-      final transParts = matches.map((m) => m.group(1) ?? '').join(' ');
-      return _cleanText(transParts);
-    }
-    return '';
-  }
+  String _extractTranslationText(String html) =>
+      FtsTextExtractor.extractTranslationText(html);
 
   void showDownloadProgress(received, total) {
     if (total != -1) {
