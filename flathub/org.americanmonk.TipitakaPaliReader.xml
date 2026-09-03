@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.americanmonk.TipitakaPaliReader</id>
+  
+  <name>Tipitaka Pali Reader</name>
+  <summary>Study Pāḷi texts with ease</summary>
+  
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <developer_name>org.americanmonk</developer_name>
+
+  <description>
+    <p>
+      Tipitaka Pali Reader (TPR) is designed for reading and studying Pāḷi texts. 
+      It offers integrated dictionary support, multi-language definitions, and 
+      support for various scripts. Ideal for students of early Buddhist texts, it 
+      enables fast lookup of word meanings and root structures.
+
+      May all beings benefit from this dhamma donation!
+    </p>
+  </description>
+
+  <releases>
+    <release version="2.9.2+122" date="2026-08-22">
+      <description>
+        <p>
+          TPR build 122 released.  new setup and epitaka is faster.New AI tweaks. 
+        </p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+
+  <url type="homepage">https://americanmonk.org/tipitaka-pali-reader/</url>
+  <url type="help">https://github.com/bksubhuti/tipitaka-pali-reader/issues</url>
+
+  <launchable type="desktop-id">org.americanmonk.TipitakaPaliReader.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main interface of Tipitaka Pali Reader</caption>
+      <image>https://americanmonk.org/images/TPR-MainScreen-1024x500.webp</image>
+    </screenshot>
+    <screenshot>
+      <caption>Linux-specific features</caption>
+      <image>https://americanmonk.org/images/screenlinux-1024x610.webp</image>
+    </screenshot>
+    <screenshot>
+      <caption>Extension and customization options</caption>
+      <image>https://americanmonk.org/images/extensions-1024x606.webp</image>
+    </screenshot>
+  </screenshots>
+</component>
