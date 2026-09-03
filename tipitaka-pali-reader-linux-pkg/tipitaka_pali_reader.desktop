@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=false
+Name=Tipitaka Pali Reader
+Exec=tipitaka_pali_reader %u
+Icon=logo
+Categories=Utility;
+StartupWMClass="tipitaka_pali_reader"
+MimeType=x-scheme-handler/tpr.pali.tools;
