@@ -107,10 +107,9 @@ jobs:
           chmod +x tipitaka-pali-reader-linux-pkg/tipitaka_pali_reader.AppImage
           chmod +x tipitaka-pali-reader-linux-pkg/install.sh
           chmod +x tipitaka-pali-reader-linux-pkg/uninstall.sh
-          zip -r tipitaka-pali-reader-linux-pkg.zip tipitaka-pali-reader-linux-pkg/
-          cp tipitaka-pali-reader-linux-pkg.zip "tipitaka-pali-reader-linux-pkg_${BUILD_NUM}.zip"
+          zip -r "tipitaka-pali-reader-linux-pkg_${BUILD_NUM}.zip" tipitaka-pali-reader-linux-pkg/
 
-      - name: Package Flathub Zip (tpr_${BUILD_NUM}.zip)
+      - name: Package Flathub Tarball (tpr_${BUILD_NUM}.tar.gz)
         run: |
           # Copy linux release bundle into flathub/bin/
           mkdir -p flathub/bin
@@ -118,65 +117,47 @@ jobs:
           cp -r build/linux/x64/release/bundle/* flathub/bin/
           chmod +x flathub/bin/tipitaka_pali_reader
           
-          # Create tpr_${BUILD_NUM}.zip with root-relative contents
+          # Create tpr_${BUILD_NUM}.tar.gz with root-relative contents
           cd flathub
-          zip -r "../tpr_${BUILD_NUM}.zip" *
+          tar -czvf "../tpr_${BUILD_NUM}.tar.gz" *
           cd ..
           
           # Calculate SHA256 checksum
-          SHA256_TPR_ZIP=$(sha256sum "tpr_${BUILD_NUM}.zip" | awk '{print $1}')
-          echo "$SHA256_TPR_ZIP  tpr_${BUILD_NUM}.zip" > "tpr_${BUILD_NUM}.zip.sha256"
+          SHA256_TPR_TAR=$(sha256sum "tpr_${BUILD_NUM}.tar.gz" | awk '{print $1}')
+          echo "$SHA256_TPR_TAR  tpr_${BUILD_NUM}.tar.gz" > "tpr_${BUILD_NUM}.tar.gz.sha256"
           
-          echo "SHA256_TPR_ZIP=${SHA256_TPR_ZIP}" >> $GITHUB_ENV
+          echo "SHA256_TPR_TAR=${SHA256_TPR_TAR}" >> $GITHUB_ENV
           
           # Summary to Job Log
           echo "### 📦 Flathub Package" >> $GITHUB_STEP_SUMMARY
-          echo "- **Archive:** \`tpr_${BUILD_NUM}.zip\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **SHA256 Checksum:** \`${SHA256_TPR_ZIP}\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Extract AppImage and Compress Legacy Bundles
-        run: |
-          chmod +x tipitaka_pali_reader.AppImage
-          ./tipitaka_pali_reader.AppImage --appimage-extract
-          mv squashfs-root TPR-Bundle
-          chmod +x TPR-Bundle/tipitaka_pali_reader || true
-          zip -r TPR-Bundle-Linux.zip TPR-Bundle/
-          
-          cd build/linux/x64/release/
-          zip -r ../../../../linux-build-bundle.zip bundle/
-          cd ../../../../
+          echo "- **Archive:** \`tpr_${BUILD_NUM}.tar.gz\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA256 Checksum:** \`${SHA256_TPR_TAR}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-release-packages
           path: |
-            tipitaka_pali_reader.AppImage
-            tipitaka-pali-reader-linux-pkg.zip
             tipitaka-pali-reader-linux-pkg_*.zip
-            tpr_*.zip
-            tpr_*.zip.sha256
-            TPR-Bundle-Linux.zip
-            linux-build-bundle.zip
+            tipitaka_pali_reader.AppImage
+            tpr_*.tar.gz
+            tpr_*.tar.gz.sha256
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: Tipiṭaka Pāḷi Reader Linux ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
           draft: false
           prerelease: false
           body: |
             ### Linux Release Assets
-            - **Flathub Package:** `tpr_${{ env.BUILD_NUM }}.zip`
-            - **Flathub SHA256:** `${{ env.SHA256_TPR_ZIP }}`
-            - **AppImage Package:** `tipitaka-pali-reader-linux-pkg.zip`
+            - **Flathub Package:** `tpr_${{ env.BUILD_NUM }}.tar.gz`
+            - **Flathub SHA256:** `${{ env.SHA256_TPR_TAR }}`
+            - **AppImage Package:** `tipitaka-pali-reader-linux-pkg_${{ env.BUILD_NUM }}.zip`
             - **Standalone AppImage:** `tipitaka_pali_reader.AppImage`
           files: |
-            tipitaka_pali_reader.AppImage
-            tipitaka-pali-reader-linux-pkg.zip
             tipitaka-pali-reader-linux-pkg_${{ env.BUILD_NUM }}.zip
-            tpr_${{ env.BUILD_NUM }}.zip
-            tpr_${{ env.BUILD_NUM }}.zip.sha256
-            TPR-Bundle-Linux.zip
-            linux-build-bundle.zip
+            tipitaka_pali_reader.AppImage
+            tpr_${{ env.BUILD_NUM }}.tar.gz
+            tpr_${{ env.BUILD_NUM }}.tar.gz.sha256
