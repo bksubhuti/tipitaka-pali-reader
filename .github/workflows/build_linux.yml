@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release Tag (e.g., v1.0.0)'
-        required: true
-        default: 'v1.0.0'
+        description: 'Release Tag (e.g., v2.9.3+123). Leave empty to use version from pubspec.yaml'
+        required: false
+        default: ''
 
 # REQUIRED: Grant the action permission to create a release in your repo
 permissions:
@@ -19,6 +19,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Determine Version and Build Number
+        run: |
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          BUILD_NUM=$(echo "$PUBSPEC_VERSION" | sed -E 's/.*\+([0-9]+).*/\1/')
+          INPUT_TAG="${{ github.event.inputs.version_tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            TAG_NAME="$INPUT_TAG"
+          else
+            TAG_NAME="v${PUBSPEC_VERSION}"
+          fi
+          echo "PUBSPEC_VERSION=${PUBSPEC_VERSION}" >> $GITHUB_ENV
+          echo "BUILD_NUM=${BUILD_NUM}" >> $GITHUB_ENV
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          echo "Detected Version: ${PUBSPEC_VERSION}"
+          echo "Detected Build Number: ${BUILD_NUM}"
+          echo "Release Tag Name: ${TAG_NAME}"
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -41,6 +58,7 @@ jobs:
         run: |
           mkdir -p assets/database
           curl -L -o assets/database/tipitaka_pali.zip "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1"
+
       - name: Extract zip file
         run: unzip -o assets/database/tipitaka_pali.zip -d assets/database/
 
@@ -75,46 +93,90 @@ jobs:
         run: flutter gen-l10n
 
       - name: Flutter build (Linux)
-        run: flutter build linux --release          
+        run: flutter build linux --release
+
       - name: Make build_appimage2.sh executable
         run: chmod +x build_appimage2.sh
 
       - name: Build AppImage via script
         run: ./build_appimage2.sh
 
-      - name: Extract AppImage
+      - name: Package AppImage in tipitaka-pali-reader-linux-pkg
+        run: |
+          cp tipitaka_pali_reader.AppImage tipitaka-pali-reader-linux-pkg/
+          chmod +x tipitaka-pali-reader-linux-pkg/tipitaka_pali_reader.AppImage
+          chmod +x tipitaka-pali-reader-linux-pkg/install.sh
+          chmod +x tipitaka-pali-reader-linux-pkg/uninstall.sh
+          zip -r tipitaka-pali-reader-linux-pkg.zip tipitaka-pali-reader-linux-pkg/
+          cp tipitaka-pali-reader-linux-pkg.zip "tipitaka-pali-reader-linux-pkg_${BUILD_NUM}.zip"
+
+      - name: Package Flathub Zip (tpr_${BUILD_NUM}.zip)
+        run: |
+          # Copy linux release bundle into flathub/bin/
+          mkdir -p flathub/bin
+          rm -f flathub/bin/empty
+          cp -r build/linux/x64/release/bundle/* flathub/bin/
+          chmod +x flathub/bin/tipitaka_pali_reader
+          
+          # Create tpr_${BUILD_NUM}.zip with root-relative contents
+          cd flathub
+          zip -r "../tpr_${BUILD_NUM}.zip" *
+          cd ..
+          
+          # Calculate SHA256 checksum
+          SHA256_TPR_ZIP=$(sha256sum "tpr_${BUILD_NUM}.zip" | awk '{print $1}')
+          echo "$SHA256_TPR_ZIP  tpr_${BUILD_NUM}.zip" > "tpr_${BUILD_NUM}.zip.sha256"
+          
+          echo "SHA256_TPR_ZIP=${SHA256_TPR_ZIP}" >> $GITHUB_ENV
+          
+          # Summary to Job Log
+          echo "### 📦 Flathub Package" >> $GITHUB_STEP_SUMMARY
+          echo "- **Archive:** \`tpr_${BUILD_NUM}.zip\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **SHA256 Checksum:** \`${SHA256_TPR_ZIP}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Extract AppImage and Compress Legacy Bundles
         run: |
           chmod +x tipitaka_pali_reader.AppImage
           ./tipitaka_pali_reader.AppImage --appimage-extract
           mv squashfs-root TPR-Bundle
           chmod +x TPR-Bundle/tipitaka_pali_reader || true
-
-      - name: Compress Bundles for Release
-        run: |
-          # GitHub Releases require files, not folders. We must zip the directories.
           zip -r TPR-Bundle-Linux.zip TPR-Bundle/
           
-          # Navigate to the linux build bundle and zip it securely
           cd build/linux/x64/release/
           zip -r ../../../../linux-build-bundle.zip bundle/
           cd ../../../../
 
-      # (Optional) You can keep the artifact uploads if you still want them attached to the Action run summary
-      - name: Upload AppImage Artifact
+      - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-appimage
-          path: tipitaka_pali_reader.AppImage
+          name: linux-release-packages
+          path: |
+            tipitaka_pali_reader.AppImage
+            tipitaka-pali-reader-linux-pkg.zip
+            tipitaka-pali-reader-linux-pkg_*.zip
+            tpr_*.zip
+            tpr_*.zip.sha256
+            TPR-Bundle-Linux.zip
+            linux-build-bundle.zip
 
-      # NEW: Creates the GitHub Release and attaches the AppImage and the zipped bundles
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version_tag }}
-          name: Tipiṭaka Pāḷi Reader Linux ${{ github.event.inputs.version_tag }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: Tipiṭaka Pāḷi Reader Linux ${{ env.TAG_NAME }}
           draft: false
           prerelease: false
+          body: |
+            ### Linux Release Assets
+            - **Flathub Package:** `tpr_${{ env.BUILD_NUM }}.zip`
+            - **Flathub SHA256:** `${{ env.SHA256_TPR_ZIP }}`
+            - **AppImage Package:** `tipitaka-pali-reader-linux-pkg.zip`
+            - **Standalone AppImage:** `tipitaka_pali_reader.AppImage`
           files: |
             tipitaka_pali_reader.AppImage
+            tipitaka-pali-reader-linux-pkg.zip
+            tipitaka-pali-reader-linux-pkg_${{ env.BUILD_NUM }}.zip
+            tpr_${{ env.BUILD_NUM }}.zip
+            tpr_${{ env.BUILD_NUM }}.zip.sha256
             TPR-Bundle-Linux.zip
             linux-build-bundle.zip

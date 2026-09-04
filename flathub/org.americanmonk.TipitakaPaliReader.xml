@@ -21,10 +21,10 @@
   </description>
 
   <releases>
-    <release version="2.9.2+122" date="2026-08-22">
+    <release version="2.9.3+123" date="2026-09-04">
       <description>
         <p>
-          TPR build 122 released.  new setup and epitaka is faster.New AI tweaks. 
+          TPR build 123 released. Critical index bug is fixed.  jumping and highlight bug is fixed.
         </p>
       </description>
     </release>
