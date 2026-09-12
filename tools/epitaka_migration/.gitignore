@@ -1,0 +1,14 @@
+# Downloaded sources and build artifacts. Everything here is regenerable by
+# running the pipeline in README.md, and far too large to keep in the repo.
+epitaka.zip
+epitaka*.db
+epitaka.db-wal
+epitaka.db-shm
+original_markers.db
+book_map.db
+sentence_ext.db
+missing_books.db
+tpr_extension.db
+fts_units.db
+__pycache__/
+*.pyc

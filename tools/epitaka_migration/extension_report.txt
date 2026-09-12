@@ -1,0 +1,20 @@
+TPR extension database
+
+sentence_ext rows                           145652
+  with a Myanmar page offset                 55545
+  marked keep-with-next                      24477
+  marked verse line                          89225
+page_mark rows                              158365
+  placed on identical text                  156196
+  placed in a differing stretch               2169
+books covered                                  219
+extra sentences (books ePitaka lacks)        14171
+
+page markers by edition:
+  myanmar        55570
+  vri            49154
+  pts            31865
+  thai           21776
+
+Rows with exact = 0 are the ones to review. Nothing was moved
+to the start of a sentence to make a number look better.

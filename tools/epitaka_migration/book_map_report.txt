@@ -1,0 +1,256 @@
+Book mapping by text match, chosen by continuity rather than count
+TPR books: 179   ePitaka books: 286
+mapped: 176   unmatched: 3
+TPR books spanning more than one ePitaka book: 25
+ePitaka books shared by more than one TPR book: 10
+books with under 85% of samples covered: 24
+
+TPR books spanning several ePitaka books:
+  mula_vi_02               Vin-ii + Vin-ii-b
+  mula_ku_01               Khp + Sn + Khp
+  mula_ku_11               Ap-ii + Ap-iii
+  attha_vi_02              Sp-ii + Sp-ii-b
+  attha_sa_05              Spk-v + Ps-i + Spk-v
+  attha_an_02              Mp-ii + Mp-iii + Mp-iv
+  attha_an_03              Mp-v + Mp-vi + Mp-vii
+  attha_an_04              Mp-viii + Mp-ix + Mp-x + Mp-xi
+  attha_ku_zat_05          Ja-a-vi-b + Ja-a-v
+  attha_bi_03              Dhatuk-a + Pp-a + Kv-a + Yam-a + Paṭṭh-a
+  tika_vi_03               Sp-t-ii + Sp-t-iii + Sp-t-iv + Sp-t-v
+  tika_vi_04               Vjb-prj + Vjb-pac + Vjb-bkn + Vjb-mv + Vjb-cv + Vjb-pr
+  tika_vi_06               Vmv-ii + Vmv-iii + Vmv-iv + Vmv-v
+  tika_an_02               Mp-t-ii + Mp-t-iii + Mp-t-iv
+  tika_an_03               Mp-t-v + Mp-t-vi + Mp-t-vii
+  tika_an_04               Mp-t-viii + Mp-t-ix + Mp-t-x + Mp-t-xi
+  tika_bi_03               Dhatuk-mt + Pp-mt + Kv-mt + Yam-mt + Paṭṭh-mt
+  tika_bi_05               Dhatuk-anuṭ + Pp-anuṭ + Kv-anuṭ + Yam-anuṭ + Paṭṭh-anuṭ
+  annya_vi_01              Dvem-bhk + Dvem-bhni + Kkh
+  annya_vi_03              Vin-vn + Utt-vn
+  annya_vi_04              Khuddas + Khuddas-pt + Khuddas-nt + Mūlasikk + Mūlasikk-t
+  annya_vi_09              Kkh-pt + Kkh-nt
+  annya_vi_11              Vin-vn-t + Utt-vn-t
+  annya_sadda_01           Kacc + Kacc-sadd
+  annya_sadda_03           Mogg + Mogg-byk
+
+ePitaka books shared by several TPR books:
+  Ap-a           attha_ku_10, attha_ku_11
+  Dhp-a          attha_ku_02_01, attha_ku_02_02
+  Paṭis-a        attha_ku_18_01, attha_ku_18_02
+  Pj-ii          attha_ku_05_01, attha_ku_05_02
+  Ps-i           attha_ma_01_01, attha_ma_01_02, attha_sa_05
+  Ps-t-i         tika_ma_01, tika_ma_02
+  Sn             mula_ku_01, mula_ku_05
+  Sp-i           attha_vi_01_01, attha_vi_01_02
+  Vin-alaṅke     annya_vi_07, annya_vi_08
+  Vin-vn-t       annya_vi_10, annya_vi_11
+
+Under 85%% covered, check these:
+  attha_an_02              80.0%  Mp-ii + Mp-iii + Mp-iv
+  attha_an_04              61.2%  Mp-viii + Mp-ix + Mp-x + Mp-xi
+  tika_vi_03               77.2%  Sp-t-ii + Sp-t-iii + Sp-t-iv + Sp-t-v
+  tika_vi_04               80.4%  Vjb-prj + Vjb-pac + Vjb-bkn + Vjb-mv + Vjb-cv + Vjb-pr
+  tika_vi_06               60.4%  Vmv-ii + Vmv-iii + Vmv-iv + Vmv-v
+  tika_di_02               67.0%  Sv-pt-ii
+  tika_di_03               81.8%  Sv-pt-iii
+  tika_ma_03               81.0%  Ps-t-ii
+  tika_sa_02               63.6%  Spk-t-ii
+  tika_sa_04               35.0%  Spk-t-iv
+  tika_sa_05               58.8%  Spk-t-v
+  tika_an_03               82.2%  Mp-t-v + Mp-t-vi + Mp-t-vii
+  tika_an_04               70.6%  Mp-t-viii + Mp-t-ix + Mp-t-x + Mp-t-xi
+  tika_bi_02_01            83.0%  Vibh-mt
+  tika_bi_03               73.4%  Dhatuk-mt + Pp-mt + Kv-mt + Yam-mt + Paṭṭh-mt
+  tika_bi_05               43.0%  Dhatuk-anuṭ + Pp-anuṭ + Kv-anuṭ + Yam-anuṭ + Paṭṭh-anuṭ
+  annya_vi_09              61.6%  Kkh-pt + Kkh-nt
+  annya_vi_10              73.0%  Vin-vn-t
+  annya_vi_11              83.6%  Vin-vn-t + Utt-vn-t
+  annya_vi_12              81.2%  Pācity-y
+  annya_bi_04              84.2%  Vism-mht-ii
+  annya_sadda_01           69.2%  Kacc + Kacc-sadd
+  annya_sadda_12           38.4%  Abh-ṭ
+  annya_sadda_15           71.4%  Subodh-t
+
+No match at all:
+  annya_sadda_09           74849 words
+  annya_sadda_16           778 words
+  annya_sadda_17           4162 words
+
+mula_vi_01               -> Vin-i [149-73904]   covered 99.2%
+mula_vi_02               -> Vin-ii [507-49855]  +  Vin-ii-b [50024-83148]   covered 98.0%
+mula_vi_03               -> Vin-iii [206-102794]   covered 99.8%
+mula_vi_04               -> Vin-iv [196-97608]   covered 99.6%
+mula_vi_05               -> Vin-v [129-64371]   covered 99.8%
+mula_di_01               -> D-i [93-46407]   covered 99.8%
+mula_di_02               -> D-ii [111-55167]   covered 99.4%
+mula_di_03               -> D-iii [188-46906]   covered 99.6%
+mula_ma_01               -> M-i [172-85828]   covered 99.8%
+mula_ma_02               -> M-ii [192-95808]   covered 99.8%
+mula_ma_03               -> M-iii [150-74850]   covered 99.8%
+mula_sa_01               -> S-i [560-39680]   covered 98.0%
+mula_sa_02               -> S-ii [88-43912]   covered 99.8%
+mula_sa_03               -> S-iii [95-47405]   covered 99.8%
+mula_sa_04               -> S-iv [140-69860]   covered 99.8%
+mula_sa_05               -> S-v [149-73308]   covered 98.4%
+mula_an_01               -> A-i [16-7984]   covered 99.8%
+mula_an_02               -> A-ii [20-9980]   covered 99.8%
+mula_an_03               -> A-iii [81-40419]   covered 99.8%
+mula_an_04               -> A-iv [103-51397]   covered 99.8%
+mula_an_05               -> A-v [186-46407]   covered 99.6%
+mula_an_06               -> A-vi [57-28443]   covered 99.8%
+mula_an_07               -> A-vii [46-22954]   covered 99.8%
+mula_an_08               -> A-viii [64-31936]   covered 99.8%
+mula_an_09               -> A-ix [36-17928]   covered 99.6%
+mula_an_10               -> A-x [98-48902]   covered 99.8%
+mula_an_11               -> A-xi [17-8483]   covered 99.8%
+mula_ku_01               -> Khp [8-238]  +  Sn [252-264]  +  Khp [266-998]   covered 98.0%
+mula_ku_02               -> Dhp [13-6487]   covered 99.8%
+mula_ku_03               -> Ud [42-20958]   covered 99.8%
+mula_ku_04               -> It [575-12475]   covered 95.4%
+mula_ku_05               -> Sn [46-20240]   covered 88.0%
+mula_ku_06               -> Vv [30-14970]   covered 99.8%
+mula_ku_07               -> Pv [72-11976]   covered 99.4%
+mula_ku_08               -> Th [37-18463]   covered 99.8%
+mula_ku_09               -> Thī [0-6986]   covered 100.0%
+mula_ku_10               -> Ap-i [109-54391]   covered 99.8%
+mula_ku_11               -> Ap-ii [80-24240]  +  Ap-iii [24320-39520]   covered 98.8%
+mula_ku_12               -> Bv [23-11477]   covered 99.8%
+mula_ku_13               -> Cp [9-4491]   covered 99.8%
+mula_ku_14               -> Ja-i [107-53393]   covered 99.8%
+mula_ku_15               -> Ja-ii [113-56387]   covered 99.8%
+mula_ku_16               -> Nidd-i [486-80838]   covered 99.4%
+mula_ku_17               -> Nidd-ii [112-53536]   covered 95.6%
+mula_ku_18               -> Paṭis [152-75392]   covered 99.2%
+mula_ku_19               -> Mil [304-75848]   covered 99.6%
+mula_ku_20               -> Nett [59-29441]   covered 99.8%
+mula_ku_21               -> Pet [67-33433]   covered 99.8%
+mula_bi_01               -> Dhs [107-53393]   covered 99.8%
+mula_bi_02               -> Vibh [161-80339]   covered 99.8%
+mula_bi_03               -> Dhatuk [33-16467]   covered 99.8%
+mula_bi_04               -> Pp [30-14970]   covered 99.8%
+mula_bi_05               -> Kv [166-82834]   covered 99.8%
+mula_bi_06_01            -> Yam-i [103-51397]   covered 99.8%
+mula_bi_06_02            -> Yam-ii [375-62375]   covered 99.4%
+mula_bi_06_03            -> Yam-iii [144-71856]   covered 99.8%
+mula_bi_07_01            -> Paṭṭh-i [146-72854]   covered 99.8%
+mula_bi_07_02            -> Paṭṭh-ii [154-76076]   covered 98.8%
+mula_bi_07_03            -> Paṭṭh-iii [567-94311]   covered 99.4%
+mula_bi_07_04            -> Paṭṭh-iv [184-91816]   covered 99.8%
+mula_bi_07_05            -> Paṭṭh-v [124-61876]   covered 99.8%
+attha_vi_01_01           -> Sp-i [414-68862]   covered 99.4%
+attha_vi_01_02           -> Sp-i [2500-62375]   covered 96.0%
+attha_vi_02              -> Sp-ii [1440-31520]  +  Sp-ii-b [32880-39840]   covered 93.0%
+attha_vi_03              -> Sp-iii [1760-38400]   covered 91.8%
+attha_vi_04              -> Sp-iv [100-24200]   covered 96.6%
+attha_vi_05              -> Sp-v [598-22954]   covered 97.4%
+attha_di_01              -> Sv-i [258-63726]   covered 98.6%
+attha_di_02              -> Sv-ii [616-76384]   covered 98.6%
+attha_di_03              -> Sv-iii [940-44838]   covered 93.6%
+attha_ma_01_01           -> Ps-i [1078-76692]   covered 98.4%
+attha_ma_01_02           -> Ps-i [0-64740]   covered 99.8%
+attha_ma_02              -> Ps-ii [484-59653]   covered 98.0%
+attha_ma_03              -> Ps-iii [95-47025]   covered 99.0%
+attha_sa_01              -> Spk-i [992-61380]   covered 97.6%
+attha_sa_02              -> Spk-ii [86-42914]   covered 99.8%
+attha_sa_03              -> Spk-iii [490-17465]   covered 97.2%
+attha_sa_04              -> Spk-iv [54-25002]   covered 92.6%
+attha_sa_05              -> Spk-v [126-6237]  +  Ps-i [6678-6804]  +  Spk-v [6993-31374]   covered 97.8%
+attha_an_01              -> Mp-i [326-80196]   covered 98.2%
+attha_an_02              -> Mp-ii [3087-10731]  +  Mp-iii [12054-41748]  +  Mp-iv [50862-71883]   covered 80.0%
+attha_an_03              -> Mp-v [528-13794]  +  Mp-vi [14850-22308]  +  Mp-vii [25014-32934]   covered 87.4%
+attha_an_04              -> Mp-viii [826-10620]  +  Mp-ix [14219-14868]  +  Mp-x [18408-24603]  +  Mp-xi [27907-29087]   covered 61.2%
+attha_ku_01              -> Pj-i [474-39421]   covered 98.8%
+attha_ku_02_01           -> Dhp-a [760-94810]   covered 99.2%
+attha_ku_02_02           -> Dhp-a [708-88146]   covered 99.0%
+attha_ku_03              -> Ud-a [149-73904]   covered 99.2%
+attha_ku_04              -> It-a [762-62992]   covered 98.2%
+attha_ku_05_01           -> Pj-ii [125-60375]   covered 96.6%
+attha_ku_05_02           -> Pj-ii [126-58464]   covered 92.8%
+attha_ku_06              -> Vv-a [107-52858]   covered 98.8%
+attha_ku_07              -> Pv-a [276-45540]   covered 98.6%
+attha_ku_08_01           -> Th-a-i [156-77064]   covered 98.8%
+attha_ku_08_02           -> Th-a-ii [366-91317]   covered 99.6%
+attha_ku_09              -> Thī-a [98-48608]   covered 99.2%
+attha_ku_10              -> Ap-a [396-65736]   covered 99.2%
+attha_ku_11              -> Ap-a [104-51480]   covered 99.0%
+attha_ku_12              -> Bv-a [480-58440]   covered 96.8%
+attha_ku_13              -> Cp-a [369-60762]   covered 98.4%
+attha_ku_16              -> Nidd-a-i [165-78705]   covered 95.4%
+attha_ku_17              -> Nidd-a-ii [583-26341]   covered 97.4%
+attha_ku_18_01           -> Paṭis-a [127-62230]   covered 98.0%
+attha_ku_18_02           -> Paṭis-a [875-60500]   covered 95.6%
+attha_ku_20              -> Nett-a [321-52002]   covered 96.8%
+attha_ku_zat_01          -> Ja-a-i [213-106287]   covered 99.8%
+attha_ku_zat_02          -> Ja-a-ii [161-80339]   covered 99.8%
+attha_ku_zat_03          -> Ja-a-iii [198-98802]   covered 99.8%
+attha_ku_zat_04          -> Ja-a-iv [187-92752]   covered 99.2%
+attha_ku_zat_05          -> Ja-a-vi-b [2255-19885]  +  Ja-a-v [20295-102295]   covered 97.6%
+attha_ku_zat_06          -> Ja-a-vi [127-63119]   covered 99.4%
+attha_ku_zat_07          -> Ja-a-vii [133-65968]   covered 99.2%
+attha_bi_01              -> As [163-81337]   covered 99.8%
+attha_bi_02              -> Vibh-a [184-91816]   covered 99.8%
+attha_bi_03              -> Dhatuk-a [1026-3420]  +  Pp-a [3762-17955]  +  Kv-a [18981-45828]  +  Yam-a [51984-56088]  +  Paṭṭh-a [59337-84987]   covered 86.6%
+tika_vi_01               -> Sp-t-i-a [2301-87615]   covered 96.6%
+tika_vi_02               -> Sp-t-i-b [3500-86800]   covered 95.4%
+tika_vi_03               -> Sp-t-ii [9381-18231]  +  Sp-t-iii [24072-65136]  +  Sp-t-iv [67791-81243]  +  Sp-t-v [82659-86907]   covered 77.2%
+tika_vi_04               -> Vjb-prj [426-55806]  +  Vjb-pac [56871-66882]  +  Vjb-bkn [70290-71355]  +  Vjb-mv [77532-93507]  +  Vjb-cv [94785-95637]  +  Vjb-pr [102879-103944]   covered 80.4%
+tika_vi_05               -> Vmv-i [1104-68448]   covered 97.8%
+tika_vi_06               -> Vmv-ii [400-10500]  +  Vmv-iii [17500-33100]  +  Vmv-iv [34200-37200]  +  Vmv-v [44300-45400]   covered 60.4%
+tika_di_01_01            -> Sv-pt-i [444-73260]   covered 98.6%
+tika_di_01_02            -> Sv-nt-i [193-96114]   covered 99.6%
+tika_di_01_03            -> Sv-nt-ii [342-79686]   covered 93.0%
+tika_di_02               -> Sv-pt-ii [2261-46683]   covered 67.0%
+tika_di_03               -> Sv-pt-iii [6976-51448]   covered 81.8%
+tika_ma_01               -> Ps-t-i [447-74351]   covered 99.4%
+tika_ma_02               -> Ps-t-i [3968-61628]   covered 93.2%
+tika_ma_03               -> Ps-t-ii [2808-34320]   covered 81.0%
+tika_ma_04               -> Ps-t-iii [3010-41624]   covered 90.0%
+tika_sa_01               -> Spk-t-i [118-51330]   covered 87.0%
+tika_sa_02               -> Spk-t-ii [340-21896]   covered 63.6%
+tika_sa_03               -> Spk-t-iii [375-12400]   covered 96.4%
+tika_sa_04               -> Spk-t-iv [5511-11253]   covered 35.0%
+tika_sa_05               -> Spk-t-v [7332-22568]   covered 58.8%
+tika_an_01               -> Mp-t-i [432-53028]   covered 97.6%
+tika_an_02               -> Mp-t-ii [705-12690]  +  Mp-t-iii [13536-38211]  +  Mp-t-iv [40044-62886]   covered 85.0%
+tika_an_03               -> Mp-t-v [630-11550]  +  Mp-t-vi [16450-24570]  +  Mp-t-vii [25200-34720]   covered 82.2%
+tika_an_04               -> Mp-t-viii [3720-11340]  +  Mp-t-ix [11820-18180]  +  Mp-t-x [19080-25860]  +  Mp-t-xi [28020-28200]   covered 70.6%
+tika_ku_20_01            -> Nett-ṭ [53-25334]   covered 95.6%
+tika_ku_20_02            -> Nett-vbh [402-62980]   covered 93.6%
+tika_bi_01               -> As-mt [300-37275]   covered 98.8%
+tika_bi_02_01            -> Vibh-mt [160-33280]   covered 83.0%
+tika_bi_02_02            -> Vibh-anuṭ [304-37924]   covered 99.2%
+tika_bi_03               -> Dhatuk-mt [624-4212]  +  Pp-mt [4446-5928]  +  Kv-mt [11700-14274]  +  Yam-mt [16536-24804]  +  Paṭṭh-mt [26286-38610]   covered 73.4%
+tika_bi_04               -> Dhs-anuṭ [78-38766]   covered 99.4%
+tika_bi_05               -> Dhatuk-anuṭ [5060-5280]  +  Pp-anuṭ [5940-6160]  +  Kv-anuṭ [10120-23870]  +  Yam-anuṭ [26620-31900]  +  Paṭṭh-anuṭ [45870-49500]   covered 43.0%
+annya_vi_01              -> Dvem-bhk [115-4830]  +  Dvem-bhni [5060-11040]  +  Kkh [12650-56810]   covered 96.0%
+annya_vi_02              -> VinSaṅg-a [195-96525]   covered 99.0%
+annya_vi_03              -> Vin-vn [93-35805]  +  Utt-vn [35898-46407]   covered 99.8%
+annya_vi_04              -> Khuddas [143-6006]  +  Khuddas-pt [6721-33033]  +  Khuddas-nt [33176-63349]  +  Mūlasikk [63921-65208]  +  Mūlasikk-t [66066-71357]   covered 97.4%
+annya_vi_07              -> Vin-alaṅke [402-66196]   covered 98.4%
+annya_vi_08              -> Vin-alaṅke [3375-67365]   covered 95.0%
+annya_vi_09              -> Kkh-pt [356-19224]  +  Kkh-nt [23852-59452]   covered 61.6%
+annya_vi_10              -> Vin-vn-t [656-60352]   covered 73.0%
+annya_vi_11              -> Vin-vn-t [2755-48720]  +  Utt-vn-t [56695-71050]   covered 83.6%
+annya_vi_12              -> Pācity-y [22090-117265]   covered 81.2%
+annya_bi_01              -> Vism-i [1016-63373]   covered 98.4%
+annya_bi_02              -> Vism-ii [1080-59160]   covered 97.0%
+annya_bi_03              -> Vism-mht-i [171-84303]   covered 98.6%
+annya_bi_04              -> Vism-mht-ii [6107-88847]   covered 84.2%
+annya_bi_05              -> Abhidh-s [48-5976]   covered 99.0%
+annya_bi_06              -> Abhidh-s-t [0-25069]   covered 94.8%
+annya_bi_07              -> PmtDīp [0-71780]   covered 97.2%
+annya_sadda_01           -> Kacc [0-3445]  +  Kacc-sadd [11554-26341]   covered 69.2%
+annya_sadda_02           -> PadRūp [2472-46556]   covered 85.8%
+annya_sadda_03           -> Mogg [0-3894]  +  Mogg-byk [3953-29441]   covered 100.0%
+annya_sadda_05           -> MoggPañc [0-44233]   covered 99.6%
+annya_sadda_06           -> Payog [0-36427]   covered 100.0%
+annya_sadda_07           -> Sadd-pad [0-59895]   covered 99.2%
+annya_sadda_08           -> Sadd-dh [0-53393]   covered 100.0%
+annya_sadda_09            NO MATCH  (74849 words)
+annya_sadda_10           -> Nirud [1812-75047]   covered 97.2%
+annya_sadda_11           -> Abh [0-15744]   covered 98.6%
+annya_sadda_12           -> Abh-ṭ [556-27105]   covered 38.4%
+annya_sadda_13           -> Vutt [0-1497]   covered 100.0%
+annya_sadda_14           -> Subodh [30-4810]   covered 95.8%
+annya_sadda_15           -> Subodh-t [12936-47824]   covered 71.4%
+annya_sadda_16            NO MATCH  (778 words)
+annya_sadda_17            NO MATCH  (4162 words)

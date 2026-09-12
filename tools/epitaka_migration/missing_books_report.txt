@@ -1,0 +1,7 @@
+Books converted from TPR because ePitaka does not carry them
+capitalisation: following ePitaka
+every page marker here is exact, since the sentences are built around it
+
+annya_sadda_09       pages  488  paragraphs  4253  sentences  13211  words   74838  M    0 V    0 P    0 T    0
+annya_sadda_16       pages   15  paragraphs   154  sentences    154  words     778  M    0 V    0 P    0 T    0
+annya_sadda_17       pages   81  paragraphs   806  sentences    806  words    4162  M    0 V    0 P    0 T    0
