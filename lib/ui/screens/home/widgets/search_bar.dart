@@ -10,12 +10,14 @@ class TprSearchBar extends StatefulWidget {
   final void Function(String) onSubmitted;
   final void Function(String) onTextChanged;
   final String hint;
+  final bool autofocus;
   const TprSearchBar({
     super.key,
     required this.controller,
     required this.onSubmitted,
     required this.onTextChanged,
     this.hint = 'search',
+    this.autofocus = false,
   });
 
   @override
@@ -46,6 +48,7 @@ class _TprSearchBarState extends State<TprSearchBar> {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: TextField(
+        autofocus: widget.autofocus,
         autocorrect: false,
         controller: widget.controller,
         textInputAction: TextInputAction.search,
