@@ -26,25 +26,18 @@ class FtsDatabaseRepository implements FtsRespository {
   ///
   /// Only for the sentence index: the page index has no populated translation
   /// table to combine with.
-  bool get combineLanguages => likeColumn != 'content';
+  bool get combineLanguages => sentenceIndex;
 
-  /// Column the literal check compares against. The page index has only
-  /// `content`; the sentence index also stores a punctuation-free `plain`,
-  /// because ePitaka punctuates between words where a typed phrase has a
-  /// space, and comparing raw text would reject correct results.
-  final String likeColumn;
+  /// Whether these are the paragraph-based sentence indexes rather than the
+  /// original page ones. They differ in what they can be asked for.
+  final bool sentenceIndex;
 
   FtsDatabaseRepository(
     this.databaseHelper, {
     this.paliTable = 'fts_pages',
     this.translationTable = 'fts_translation_pages',
-    this.likeColumn = 'content',
+    this.sentenceIndex = false,
   });
-
-  /// The phrase in the same form as [likeColumn] holds.
-  String _likePhrase(String phrase) => likeColumn == 'content'
-      ? phrase
-      : SentenceFtsBuilder.plainForm(phrase);
 
   @override
   Future<List<SearchResult>> getResults(
@@ -136,7 +129,7 @@ class FtsDatabaseRepository implements FtsRespository {
         LEFT JOIN sutta_page_shortcut
             ON $ftsTable.bookid = sutta_page_shortcut.book_id
             AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE $ftsTable MATCH '"$safePhrase"' AND $ftsTable.$likeColumn LIKE '%${_likePhrase(originalPhrase)}%'
+      WHERE $ftsTable MATCH '"$safePhrase"'${_exactFilter(ftsTable, originalPhrase)}
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -182,7 +175,7 @@ class FtsDatabaseRepository implements FtsRespository {
         LEFT JOIN sutta_page_shortcut
             ON $ftsTable.bookid = sutta_page_shortcut.book_id
             AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE $ftsTable.$likeColumn LIKE '%${_likePhrase(safePhrase)}%'
+      WHERE $ftsTable.content LIKE '%$safePhrase%'
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -363,7 +356,18 @@ class FtsDatabaseRepository implements FtsRespository {
   ///
   /// Only used for the sentence index. The page index keeps its old behaviour.
   String _phrasePattern(String phrase) =>
-      phrasePattern(phrase, tolerant: likeColumn != 'content');
+      phrasePattern(phrase, tolerant: sentenceIndex);
+
+  /// The literal check the page index puts on top of a phrase match.
+  ///
+  /// It is there to reject what the stemmer matches loosely. The sentence
+  /// index does not need it: every returned row is re-checked in Dart against
+  /// the phrase, which is stricter and tolerates the punctuation that sits
+  /// between words in the text. Keeping it in SQL as well meant storing a
+  /// second, stripped copy of the whole canon for no gain.
+  String _exactFilter(String ftsTable, String phrase) => sentenceIndex
+      ? ''
+      : " AND $ftsTable.content LIKE '%$phrase%'";
 
   /// Finds passages holding every word of the query, in either language.
   ///
@@ -441,7 +445,7 @@ class FtsDatabaseRepository implements FtsRespository {
   /// page index has no such column. Must name the table being searched, not
   /// the Pali one, or a translation search asks the wrong table for it.
   String _pageMapColumn(String ftsTable) =>
-      likeColumn == 'content' ? '' : ', $ftsTable.page_map';
+      sentenceIndex ? ', $ftsTable.page_map' : '';
 
   /// The page a match actually sits on.
   ///

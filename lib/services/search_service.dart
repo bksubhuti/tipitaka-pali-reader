@@ -27,7 +27,7 @@ class SearchService {
         ? FtsDatabaseRepository(databaseHelper,
             paliTable: 'fts_unit',
             translationTable: 'fts_translation_unit',
-            likeColumn: 'plain')
+            sentenceIndex: true)
         : FtsDatabaseRepository(databaseHelper);
     try {
       return await respository.getResults(searchWord, queryMode, wordDistance,

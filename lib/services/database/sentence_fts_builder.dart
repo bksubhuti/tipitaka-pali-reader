@@ -38,7 +38,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_unit USING FTS5(
   bookid UNINDEXED,
   page UNINDEXED,
   content,
-  plain UNINDEXED,
   page_map UNINDEXED,
   paranum UNINDEXED,
   sutta_name,
@@ -51,7 +50,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   bookid UNINDEXED,
   page UNINDEXED,
   content,
-  plain UNINDEXED,
   page_map UNINDEXED,
   paranum UNINDEXED,
   sutta_name,
@@ -221,7 +219,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
           'bookid': page.tprBook,
           'page': page.tprPage,
           'content': text,
-          'plain': plainForm(text),
           'page_map': map.toString(),
           'paranum': '${order[i]}-${order[j - 1]}',
           'sutta_name': '',
@@ -241,7 +238,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
             'bookid': page.tprBook,
             'page': page.tprPage,
             'content': translatedText,
-            'plain': plainForm(translatedText),
             'page_map': map.toString(),
             'paranum': '${order[i]}-${order[j - 1]}',
             'sutta_name': '',
@@ -299,18 +295,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   static String _clean(String pali) =>
       pali.replaceAll(_tag, ' ').replaceAll(_space, ' ').trim();
 
-  /// The form used for the literal check that exact search makes on top of the
-  /// phrase match.
+  /// Words of a phrase, punctuation and case removed.
   ///
-  /// That check exists to reject what the stemmer matches loosely, and it
-  /// compares the search box text against the stored text character by
-  /// character. ePitaka punctuates between words where the reader's phrase has
-  /// only a space, so "vadeyya. Culasilam" never matches "vadeyya culasilam"
-  /// and a correct result is thrown away. Comparing a form with the
-  /// punctuation removed keeps the check without that false rejection.
-  ///
-  /// The same function must be applied to the search phrase, which is why it
-  /// is public.
+  /// Used to split a query, not to store anything: an earlier version kept a
+  /// stripped copy of every unit so the database could do a literal check.
+  /// That doubled the index for no gain, because exact search re-checks the
+  /// phrase in Dart anyway, and more strictly.
   static final _notPali = RegExp(r'[^0-9a-zāīūṭḍṇṅñṃḷṛ]+');
 
   static String plainForm(String text) =>
