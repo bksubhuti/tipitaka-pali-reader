@@ -71,9 +71,17 @@ class WindowsTitleBar extends StatelessWidget {
     // inherit from.
     return Material(
       color: background,
-      child: SizedBox(
+      child: Container(
       // The height Windows gives a caption.
       height: 32,
+      // The panel dividers below run to the top of the content. Without a rule
+      // here they end against a plain band and look unfinished, so the bar is
+      // closed off the way the panels are separated from each other.
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor, width: 1),
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
