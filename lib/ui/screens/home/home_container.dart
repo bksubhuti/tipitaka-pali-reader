@@ -7,7 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../services/database/database_helper.dart';
+import '../../../services/prefs.dart';
 import '../../../utils/platform_info.dart';
+import '../language_choice.dart';
 import 'desktop_home_view.dart';
 import 'mobile_navigation_bar.dart';
 import 'navigation_pane.dart';
@@ -15,8 +18,33 @@ import 'openning_books_provider.dart';
 
 // enum Screen { Home, Bookmark, Recent, Search }
 
-class Home extends StatelessWidget {
+class Home extends StatefulWidget {
   const Home({super.key});
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  @override
+  void initState() {
+    super.initState();
+    // Offer a translation once, on the first start that has the sentence data
+    // to use one. First-run setup covers a fresh install; this covers an
+    // existing one, which never runs that.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerTranslation());
+  }
+
+  Future<void> _offerTranslation() async {
+    if (!DatabaseHelper.sentenceDataAvailable) return;
+    if (DatabaseHelper.installedLanguages.isNotEmpty) return;
+    if (Prefs.languageChoiceMade) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LanguageChoiceScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CallbackShortcuts(
