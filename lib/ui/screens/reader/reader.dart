@@ -8,7 +8,10 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:slidable_bar/slidable_bar.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/repositories/page_content_repo.dart';
+import 'package:tipitaka_pali/services/repositories/sentence_page_content_repo.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import 'package:tipitaka_pali/services/rx_prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
@@ -64,8 +67,7 @@ class Reader extends StatelessWidget {
           context: context,
           bookRepository: BookDatabaseRepository(DatabaseHelper()),
           bookmarkRepository: BookmarkDatabaseRepository(DatabaseHelper()),
-          pageContentRepository:
-              PageContentDatabaseRepository(DatabaseHelper()),
+          pageContentRepository: _pageContentRepository(),
           book: book,
           initialPage: initialPage,
           textToHighlight: textToHighlight,
@@ -855,4 +857,14 @@ class _SlidableClickerState extends State<SlidableClicker> {
           ),
         )));
   }
+}
+
+/// Pages come from ePitaka's sentences when that data is attached, and from
+/// the `pages` table otherwise. Everything above this line is unchanged
+/// either way: the reader still receives one HTML string per page.
+PageContentRepository _pageContentRepository() {
+  if (DatabaseHelper.sentenceDataAvailable) {
+    return SentencePageContentRepository(DatabaseHelper());
+  }
+  return PageContentDatabaseRepository(DatabaseHelper());
 }
