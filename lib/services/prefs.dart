@@ -104,6 +104,7 @@ const String windowXPref = "windowX";
 const String windowYPref = "windowY";
 const String paliTextColorPref = "paliTextColor";
 const String translationColorPref = "translationColor";
+const String activeLanguagesPref = "activeLanguages";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
 const String sangahaFixedPref = "sangahaFixed";
@@ -623,6 +624,16 @@ class Prefs {
       instance.getInt(paliTextColorPref) ?? defaultPaliTextColor;
   static set paliTextColor(int value) =>
       instance.setInt(paliTextColorPref, value);
+
+  /// Languages shown beneath the Pali, in the order they should appear.
+  ///
+  /// Empty means "every installed language, in the order they were found",
+  /// which is what a reader gets before ever opening the setting. Order is
+  /// the reader's own, the way the dictionary list is ordered.
+  static List<String> get activeLanguages =>
+      instance.getStringList(activeLanguagesPref) ?? const [];
+  static set activeLanguages(List<String> value) =>
+      instance.setStringList(activeLanguagesPref, value);
 
   static int get translationColor =>
       instance.getInt(translationColorPref) ?? defaultTranslationColor;
