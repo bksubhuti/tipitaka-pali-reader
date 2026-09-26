@@ -65,6 +65,13 @@ class LanguageInstaller {
   static bool isInstalled(String code) =>
       File(join(_dir, 'lang_$code.db')).existsSync();
 
+  /// Where language files live. Overridable so the install can be exercised
+  /// against a scratch directory rather than the real one.
+  @visibleForTesting
+  static String? directoryOverride;
+
+  static String get _target => directoryOverride ?? _dir;
+
   /// Installs [option], reporting progress as a fraction and a message.
   ///
   /// Leaves nothing behind on failure: a half-written language would attach
@@ -73,9 +80,9 @@ class LanguageInstaller {
     LanguageOption option, {
     void Function(double? progress, String message)? onProgress,
   }) async {
-    final archive = File(join(_dir, option.archiveName));
-    final unpacked = File(join(_dir, 'epitaka_${option.code}.db'));
-    final target = File(join(_dir, option.fileName));
+    final archive = File(join(_target, option.archiveName));
+    final unpacked = File(join(_target, 'epitaka_${option.code}.db'));
+    final target = File(join(_target, option.fileName));
 
     try {
       onProgress?.call(null, 'Downloading ${option.name}…');

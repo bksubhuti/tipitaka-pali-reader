@@ -71,6 +71,13 @@ class FtsDatabaseRepository implements FtsRespository {
     final translationResults = await _querySingleTable(
         phrase, queryMode, wordDistance,
         isTranslation: true);
+
+    // Neither language holds the whole phrase. It may still be a query that
+    // mixes them, which no single index can answer because a phrase match
+    // cannot span two tables. Those are worth one more attempt.
+    if (paliResults.isEmpty && translationResults.isEmpty) {
+      return await _mixedLanguageSearch(phrase);
+    }
     if (translationResults.isEmpty) return paliResults;
 
     // Pali first, then any passage the translation found that the Pali did
@@ -357,6 +364,78 @@ class FtsDatabaseRepository implements FtsRespository {
   /// Only used for the sentence index. The page index keeps its old behaviour.
   String _phrasePattern(String phrase) =>
       phrasePattern(phrase, tolerant: likeColumn != 'content');
+
+  /// Finds passages holding every word of the query, in either language.
+  ///
+  /// A reader who types "bhagava Blessed One" is asking for a passage where
+  /// the Pali and the English each supply part of what they remember. No
+  /// phrase match can answer that: the two languages live in separate indexes
+  /// so that translation text cannot corrupt word distance on the Pali side.
+  ///
+  /// What makes it possible is that a translation unit carries the same id as
+  /// the Pali unit it was cut from, so both are the same passage. Each word is
+  /// required to appear in that passage in one language or the other, which is
+  /// what "mixed, but within the same one" means.
+  ///
+  /// Word order is not enforced here, unlike a phrase match. A mixed query
+  /// cannot have a single order, since the words are not all in one sentence.
+  Future<List<SearchResult>> _mixedLanguageSearch(String phrase) async {
+    final words = SentenceFtsBuilder.plainForm(phrase)
+        .split(' ')
+        .where((w) => w.length > 1)
+        .toList();
+    if (words.length < 2) return const [];
+
+    // One clause per word: present in this passage's Pali or its translation.
+    final clauses = <String>[];
+    final args = <Object?>[];
+    for (final word in words) {
+      clauses.add('u.id IN ('
+          'SELECT id FROM $paliTable WHERE $paliTable MATCH ? '
+          'UNION SELECT id FROM $translationTable '
+          'WHERE $translationTable MATCH ?)');
+      final safe = word.replaceAll('"', '');
+      args..add('"$safe"')..add('"$safe"');
+    }
+
+    final rows = await (await databaseHelper.database).rawQuery('''
+      SELECT u.id, u.bookid, books.name, u.page, u.content, u.page_map
+      FROM $paliTable u INNER JOIN books ON u.bookid = books.id
+      WHERE ${clauses.join(' AND ')}
+      ORDER BY books.sort_order ASC
+      LIMIT 500
+    ''', args);
+
+    final results = <SearchResult>[];
+    final seen = <String>{};
+    for (final row in rows) {
+      final content = row['content'] as String;
+      final bookId = row['bookid'] as String;
+      final unitPage = row['page'] as int;
+
+      // Open where the first of the words actually appears, when one of them
+      // is in the Pali; otherwise the passage's own page.
+      var page = unitPage;
+      for (final word in words) {
+        final at = RegExp(RegExp.escape(word), caseSensitive: false)
+            .firstMatch(content);
+        if (at == null) continue;
+        page = pageForMatch(row['page_map'] as String?, unitPage,
+            content.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
+        break;
+      }
+
+      if (!seen.add('$bookId.$page')) continue;
+      results.add(SearchResult(
+        id: row['id'] as int,
+        book: Book(id: bookId, name: row['name'] as String),
+        pageNumber: page,
+        description: _buildHighlight(content, words.first),
+        suttaName: 'n/a',
+      ));
+    }
+    return results;
+  }
 
   /// The sentence index records where each page begins inside a unit; the
   /// page index has no such column. Must name the table being searched, not
