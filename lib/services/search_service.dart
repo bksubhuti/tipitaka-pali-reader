@@ -20,7 +20,14 @@ class SearchService {
       String searchWord, QueryMode queryMode, int wordDistance,
       {bool isTranslationSearch = false, bool joinEnglish = true}) async {
     final DatabaseHelper databaseHelper = DatabaseHelper();
-    final FtsRespository respository = FtsDatabaseRepository(databaseHelper);
+    // Search the paragraph-based index when it is available, otherwise the
+    // old page index. Same query logic either way.
+    final FtsRespository respository = DatabaseHelper.sentenceSearchAvailable
+        ? FtsDatabaseRepository(databaseHelper,
+            paliTable: 'fts_unit',
+            translationTable: 'fts_translation_unit',
+            likeColumn: 'plain')
+        : FtsDatabaseRepository(databaseHelper);
     return await respository.getResults(searchWord, queryMode, wordDistance,
         isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);
   }

@@ -216,6 +216,12 @@ class InitialSetupService {
       // handle error
     }
 
+    // The sentence-based index, when ePitaka's data is installed. Built here
+    // rather than shipped, so it always matches the data actually present.
+    await DatabaseHelper().buildSentenceFtsIfNeeded(
+      onProgress: (msg) => updateMessageCallback(msg),
+    );
+
     final timeAfterIndexing = DateTime.now();
     //_indexStatus =help
 
