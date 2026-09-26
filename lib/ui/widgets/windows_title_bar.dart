@@ -71,7 +71,8 @@ class WindowsTitleBar extends StatelessWidget {
     return Material(
       color: background,
       child: SizedBox(
-      height: 36,
+      // The height Windows gives a caption.
+      height: 32,
       child: Row(
         children: [
           Expanded(
@@ -186,9 +187,9 @@ class _ButtonState extends State<_Button> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: Container(
-          // The width Windows gives a caption button.
+          // The size Windows gives a caption button.
           width: 46,
-          height: 36,
+          height: 32,
           color: background,
           alignment: Alignment.center,
           child: Text(
