@@ -47,7 +47,8 @@ class WindowsTitleBar extends StatelessWidget {
   static TextStyle _titleStyle(Color foreground) => TextStyle(
         fontFamily: 'Segoe UI',
         fontFamilyFallback: const ['Segoe UI Variable', 'Arial'],
-        fontSize: 14,
+        // The size Windows uses for a caption title.
+        fontSize: 12,
         color: foreground,
         // Without this the text is drawn with the yellow double underline
         // Flutter uses to flag text that has no Material ancestor.
