@@ -1,0 +1,197 @@
+import 'package:flutter/material.dart';
+
+import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/services/language_installer.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
+
+/// Choosing which translations are installed and the order they read in.
+///
+/// Order matters and is the reader's own, the way the dictionary list is
+/// ordered: Pali always first, then each chosen language beneath it. Dragging
+/// a language changes where it appears on the page.
+class LanguageSettings extends StatefulWidget {
+  const LanguageSettings({super.key});
+
+  @override
+  State<LanguageSettings> createState() => _LanguageSettingsState();
+}
+
+class _LanguageSettingsState extends State<LanguageSettings> {
+  String? _busy;
+  String _message = '';
+  double? _progress;
+
+  List<String> get _installed => DatabaseHelper.installedLanguages;
+
+  /// Installed languages in the reader's order, with any not yet ordered
+  /// appended so a newly installed one is visible straight away.
+  List<String> get _ordered {
+    final chosen = Prefs.activeLanguages.where(_installed.contains).toList();
+    for (final code in _installed) {
+      if (!chosen.contains(code)) chosen.add(code);
+    }
+    return chosen;
+  }
+
+  static String _nameOf(String code) => LanguageInstaller.available
+      .firstWhere((o) => o.code == code,
+          orElse: () => LanguageOption(code, code.toUpperCase()))
+      .name;
+
+  Future<void> _install(LanguageOption option) async {
+    setState(() {
+      _busy = option.code;
+      _message = '';
+      _progress = null;
+    });
+    try {
+      await LanguageInstaller.install(option, onProgress: (progress, message) {
+        if (mounted) {
+          setState(() {
+            _progress = progress;
+            _message = message;
+          });
+        }
+      });
+      await LanguageInstaller.applyChanges(onProgress: (progress, message) {
+        if (mounted) setState(() => _message = message);
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = 'Could not install: $e');
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  Future<void> _remove(String code) async {
+    setState(() {
+      _busy = code;
+      _message = '';
+    });
+    try {
+      await LanguageInstaller.remove(code);
+      await LanguageInstaller.applyChanges(onProgress: (progress, message) {
+        if (mounted) setState(() => _message = message);
+      });
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ordered = _ordered;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Translations')),
+      body: ListView(
+        children: [
+          if (_busy != null || _message.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_busy != null)
+                    LinearProgressIndicator(value: _progress),
+                  if (_message.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(_message),
+                    ),
+                ],
+              ),
+            ),
+          if (ordered.isNotEmpty) ...[
+            const _Heading('Shown beneath the Pali, in this order'),
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              onReorder: (oldIndex, newIndex) {
+                final list = [...ordered];
+                if (newIndex > oldIndex) newIndex -= 1;
+                list.insert(newIndex, list.removeAt(oldIndex));
+                setState(() => Prefs.activeLanguages = list);
+              },
+              children: [
+                for (final code in ordered)
+                  ListTile(
+                    key: ValueKey(code),
+                    leading: const Icon(Icons.drag_handle),
+                    title: Text(_nameOf(code)),
+                    trailing: _busy == code
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Remove',
+                            onPressed: () => _remove(code),
+                          ),
+                  ),
+              ],
+            ),
+          ],
+          const _Heading('Available to install'),
+          for (final option in LanguageInstaller.available)
+            if (!_installed.contains(option.code))
+              ListTile(
+                title: Text(option.name),
+                trailing: _busy == option.code
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : IconButton(
+                        icon: const Icon(Icons.download_outlined),
+                        tooltip: 'Install',
+                        onPressed:
+                            _busy == null ? () => _install(option) : null,
+                      ),
+              ),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Translations come from the ePitaka project. They are produced '
+              'with machine assistance and each sentence carries a confidence '
+              'rating, so they are a reading aid rather than a published '
+              'translation.',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The entry in the settings list that opens the page above.
+class TranslationSettingsView extends StatelessWidget {
+  const TranslationSettingsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final installed = DatabaseHelper.installedLanguages;
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.translate_outlined),
+        title: Text('Translations',
+            style: Theme.of(context).textTheme.titleLarge),
+        subtitle: Text(installed.isEmpty
+            ? 'None installed'
+            : installed.map(_LanguageSettingsState._nameOf).join(', ')),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const LanguageSettings()),
+        ),
+      ),
+    );
+  }
+}
+
+class _Heading extends StatelessWidget {
+  final String text;
+  const _Heading(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+        child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+      );
+}
