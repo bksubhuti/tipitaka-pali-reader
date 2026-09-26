@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/data/constants.dart';
+import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
 
@@ -28,6 +31,15 @@ class DatabaseHelper {
         final db = await _initDatabase();
         _database = db;
         _dbCompleter!.complete(db);
+        // Build the sentence search index once, in the background. Not
+        // awaited: opening the app must not wait on it, and search stays on
+        // the page index until it finishes.
+        unawaited(buildSentenceFtsIfNeeded(
+          onProgress: (msg) => myLogger.i(msg),
+        ).catchError((Object e) {
+          myLogger.e('sentence search index build failed: $e');
+          return 0;
+        }));
       } catch (e) {
         _dbCompleter!.completeError(e);
         _dbCompleter = null;
@@ -53,9 +65,120 @@ class DatabaseHelper {
       path,
       onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON;');
+        await _attachSentenceData(db, dbPath);
       },
     );
     return db;
+  }
+
+  /// True when ePitaka's sentences and the TPR extension are both attached,
+  /// so the reader can build pages from sentences instead of the `pages`
+  /// table. False leaves the app exactly as it was.
+  static bool sentenceDataAvailable = false;
+
+  /// True when the paragraph-based search index has been built. Independent
+  /// of [sentenceDataAvailable]: the reader can run on sentences while search
+  /// still uses the old page index.
+  static bool sentenceSearchAvailable = false;
+
+  /// Language codes installed and attached, e.g. ['en', 'vi'].
+  ///
+  /// A language is a file named `lang_<code>.db` sitting beside the main
+  /// database, holding nothing but sentence translations keyed the way
+  /// ePitaka keys its sentences. Adding one is a download; removing one is
+  /// deleting the file. Nothing is rebuilt either way.
+  static List<String> installedLanguages = const [];
+
+  /// Attaches `epitaka.db` and `tpr_extension.db` if they are sitting beside
+  /// the main database.
+  ///
+  /// Deliberately quiet about failure: if either file is missing or will not
+  /// open, the app carries on reading pages the way it always has. This is how
+  /// the sentence-based reader is tried out without putting the existing one
+  /// at risk.
+  static Future<void> _attachSentenceData(Database db, String dbPath) async {
+    sentenceDataAvailable = false;
+    sentenceSearchAvailable = false;
+    try {
+      final epitaka = join(dbPath, 'epitaka.db');
+      final extension = join(dbPath, 'tpr_extension.db');
+      if (!File(epitaka).existsSync() || !File(extension).existsSync()) {
+        myLogger.i('sentence data not present; using the pages table');
+        return;
+      }
+      await db.execute("ATTACH DATABASE ? AS epi", [epitaka]);
+      await db.execute("ATTACH DATABASE ? AS ext", [extension]);
+      // Prove both are readable before letting the reader depend on them.
+      await db.rawQuery('SELECT count(*) FROM epi.sentences LIMIT 1');
+      await db.rawQuery('SELECT count(*) FROM ext.page_break LIMIT 1');
+      sentenceDataAvailable = true;
+      myLogger.i('sentence data attached; reader will build pages from it');
+
+      // The search index is built on device, not shipped. If a previous run
+      // built it, search can use it right away; otherwise it stays on the old
+      // page index until the build runs.
+      sentenceSearchAvailable = await SentenceFtsBuilder.isBuilt(db);
+      myLogger.i('sentence search index available: $sentenceSearchAvailable');
+      await _attachLanguages(db, dbPath);
+    } catch (e) {
+      sentenceDataAvailable = false;
+      sentenceSearchAvailable = false;
+      myLogger.e('could not attach sentence data: $e');
+    }
+  }
+
+  /// Attaches every installed language file.
+  ///
+  /// One that will not open is skipped and logged rather than taking the rest
+  /// down with it: a broken translation should cost that translation, not the
+  /// ability to read.
+  static Future<void> _attachLanguages(Database db, String dbPath) async {
+    final codes = <String>[];
+    try {
+      final entries = Directory(dbPath).listSync();
+      final names = entries
+          .whereType<File>()
+          .map((f) => basename(f.path))
+          .where((n) => n.startsWith('lang_') && n.endsWith('.db'))
+          .toList()
+        ..sort();
+      for (final name in names) {
+        final code = name.substring(5, name.length - 3);
+        if (code.isEmpty) continue;
+        try {
+          await db.execute("ATTACH DATABASE ? AS lang_$code",
+              [join(dbPath, name)]);
+          await db.rawQuery('SELECT count(*) FROM lang_$code.sentences LIMIT 1');
+          codes.add(code);
+        } catch (e) {
+          myLogger.e('could not attach language $code: $e');
+        }
+      }
+    } catch (e) {
+      myLogger.e('could not look for language files: $e');
+    }
+    installedLanguages = codes;
+    myLogger.i('languages attached: ${codes.isEmpty ? "none" : codes.join(", ")}');
+  }
+
+  /// Builds the sentence-based search index if it is not there yet.
+  ///
+  /// Separate from attaching, because the build takes a while and wants a
+  /// progress message, while attaching has to finish before the app opens.
+  /// Search keeps using the old page index until this completes.
+  Future<int> buildSentenceFtsIfNeeded({
+    void Function(String message)? onProgress,
+  }) async {
+    if (!sentenceDataAvailable) return 0;
+    final db = await database;
+    if (await SentenceFtsBuilder.isBuilt(db)) {
+      sentenceSearchAvailable = true;
+      return 0;
+    }
+    final count = await SentenceFtsBuilder.build(db, onProgress: onProgress);
+    sentenceSearchAvailable = count > 0;
+    myLogger.i('sentence search index built: $count units');
+    return count;
   }
 
   Future close() async {
