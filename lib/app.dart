@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/widgets/windows_title_bar.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/business_logic/models/sutta.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
@@ -308,6 +309,13 @@ class _AppState extends State<App> with WindowListener {
 
             return MaterialApp(
               navigatorKey: _navigatorKey,
+              builder: (context, child) {
+                if (!WindowsTitleBar.isNeeded || child == null) return child!;
+                return Column(children: [
+                  const WindowsTitleBar(title: 'Tipitaka Pali Reader'),
+                  Expanded(child: child),
+                ]);
+              },
               debugShowCheckedModeBanner: false,
               themeMode: themeChangeNotifier.themeMode,
               theme: themeChangeNotifier.themeData,
