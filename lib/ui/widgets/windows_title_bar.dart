@@ -23,6 +23,21 @@ class WindowsTitleBar extends StatelessWidget {
   /// Only Windows needs this. Other platforms draw their own correctly.
   static bool get isNeeded => Platform.isWindows;
 
+  /// The glyphs Windows itself draws in a caption, from the same icon font.
+  ///
+  /// A dash, a square and a letter X from a general icon set look close but
+  /// never quite right: the proportions and stroke weights differ from the
+  /// ones beside them on every other window. These are the actual codepoints
+  /// Windows uses, so they match.
+  static const _minimiseGlyph = '\uE921'; // ChromeMinimize
+  static const _maximiseGlyph = '\uE922'; // ChromeMaximize
+  static const _restoreGlyph = '\uE923'; // ChromeRestore
+  static const _closeGlyph = '\uE8BB'; // ChromeClose
+
+  /// Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on Windows 10.
+  static const _glyphFont = 'Segoe Fluent Icons';
+  static const _glyphFallback = ['Segoe MDL2 Assets'];
+
   /// The system UI font at the size Windows uses for a caption.
   ///
   /// The app sets a Pali-capable font across its whole theme, which is right
@@ -75,12 +90,12 @@ class WindowsTitleBar extends StatelessWidget {
             ),
           ),
           _Button(
-              icon: Icons.remove,
+              glyph: _minimiseGlyph,
               foreground: foreground,
               onPressed: windowManager.minimize),
           _MaximizeButton(foreground: foreground),
           _Button(
-            icon: Icons.close,
+            glyph: _closeGlyph,
             foreground: foreground,
             hoverColor: const Color(0xFFC42B1C),
             hoverForeground: Colors.white,
@@ -115,9 +130,10 @@ class _MaximizeButtonState extends State<_MaximizeButton> {
   @override
   Widget build(BuildContext context) {
     return _Button(
-      icon: _maximized ? Icons.filter_none : Icons.crop_square,
+      glyph: _maximized
+          ? WindowsTitleBar._restoreGlyph
+          : WindowsTitleBar._maximiseGlyph,
       foreground: widget.foreground,
-      iconSize: _maximized ? 12 : 14,
       onPressed: () async {
         if (await windowManager.isMaximized()) {
           await windowManager.unmaximize();
@@ -134,20 +150,18 @@ class _MaximizeButtonState extends State<_MaximizeButton> {
 }
 
 class _Button extends StatefulWidget {
-  final IconData icon;
+  final String glyph;
   final Color foreground;
   final VoidCallback onPressed;
   final Color? hoverColor;
   final Color? hoverForeground;
-  final double iconSize;
 
   const _Button({
-    required this.icon,
+    required this.glyph,
     required this.foreground,
     required this.onPressed,
     this.hoverColor,
     this.hoverForeground,
-    this.iconSize = 16,
   });
 
   @override
@@ -172,11 +186,21 @@ class _ButtonState extends State<_Button> {
       child: GestureDetector(
         onTap: widget.onPressed,
         child: Container(
+          // The width Windows gives a caption button.
           width: 46,
           height: 36,
           color: background,
           alignment: Alignment.center,
-          child: Icon(widget.icon, size: widget.iconSize, color: foreground),
+          child: Text(
+            widget.glyph,
+            style: TextStyle(
+              fontFamily: WindowsTitleBar._glyphFont,
+              fontFamilyFallback: WindowsTitleBar._glyphFallback,
+              fontSize: 10,
+              color: foreground,
+              decoration: TextDecoration.none,
+            ),
+          ),
         ),
       ),
     );
