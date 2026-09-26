@@ -171,11 +171,17 @@ class DatabaseHelper {
   }) async {
     if (!sentenceDataAvailable) return 0;
     final db = await database;
-    if (await SentenceFtsBuilder.isBuilt(db)) {
+    // Rebuild when the set of installed languages has changed, so adding or
+    // removing one is reflected in search rather than silently ignored.
+    final indexed = await SentenceFtsBuilder.indexedLanguages(db);
+    final wanted = [...installedLanguages]..sort();
+    final built = await SentenceFtsBuilder.isBuilt(db);
+    if (built && indexed.join(',') == wanted.join(',')) {
       sentenceSearchAvailable = true;
       return 0;
     }
-    final count = await SentenceFtsBuilder.build(db, onProgress: onProgress);
+    final count = await SentenceFtsBuilder.build(db,
+        languages: installedLanguages, onProgress: onProgress);
     sentenceSearchAvailable = count > 0;
     myLogger.i('sentence search index built: $count units');
     return count;

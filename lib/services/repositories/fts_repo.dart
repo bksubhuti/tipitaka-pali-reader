@@ -22,6 +22,12 @@ class FtsDatabaseRepository implements FtsRespository {
   final String paliTable;
   final String translationTable;
 
+  /// Whether to search Pali and the translations together.
+  ///
+  /// Only for the sentence index: the page index has no populated translation
+  /// table to combine with.
+  bool get combineLanguages => likeColumn != 'content';
+
   /// Column the literal check compares against. The page index has only
   /// `content`; the sentence index also stores a punctuation-free `plain`,
   /// because ePitaka punctuates between words where a typed phrase has a
@@ -49,16 +55,36 @@ class FtsDatabaseRepository implements FtsRespository {
           isTranslation: true);
     }
 
-    // 1. Search Pali table (fts_pages) with parallel translation LEFT JOIN
     final paliResults = await _querySingleTable(phrase, queryMode, wordDistance,
         isTranslation: false);
-    if (paliResults.isNotEmpty) {
-      return paliResults;
+
+    // Search the translations as well, not only when the Pali finds nothing.
+    // The two are indexed apart so that translation text cannot corrupt word
+    // distance on the Pali side, but a reader asking for a word wants it found
+    // wherever it is, which is what searching both and merging gives back.
+    if (!combineLanguages) {
+      if (paliResults.isNotEmpty) return paliResults;
+      return await _querySingleTable(phrase, queryMode, wordDistance,
+          isTranslation: true);
     }
 
-    // 2. Fallback to translation table (fts_translation_pages) if no Pali matches
-    return await _querySingleTable(phrase, queryMode, wordDistance,
+    final translationResults = await _querySingleTable(
+        phrase, queryMode, wordDistance,
         isTranslation: true);
+    if (translationResults.isEmpty) return paliResults;
+
+    // Pali first, then any passage the translation found that the Pali did
+    // not, so the same passage is not listed twice for matching in both.
+    final seen = <String>{
+      for (final r in paliResults) '${r.book.id}.${r.pageNumber}'
+    };
+    final merged = <SearchResult>[...paliResults];
+    for (final result in translationResults) {
+      if (seen.add('${result.book.id}.${result.pageNumber}')) {
+        merged.add(result);
+      }
+    }
+    return merged;
   }
 
   Future<List<SearchResult>> _querySingleTable(
@@ -98,7 +124,7 @@ class FtsDatabaseRepository implements FtsRespository {
 
     if (queryMode == QueryMode.exact) {
       sql = '''
-      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.content, $ftsTable.sutta_name$_pageMapColumn
+      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.content, $ftsTable.sutta_name${_pageMapColumn(ftsTable)}
       FROM $ftsTable INNER JOIN books ON $ftsTable.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON $ftsTable.bookid = sutta_page_shortcut.book_id
@@ -333,9 +359,10 @@ class FtsDatabaseRepository implements FtsRespository {
       phrasePattern(phrase, tolerant: likeColumn != 'content');
 
   /// The sentence index records where each page begins inside a unit; the
-  /// page index has no such column.
-  String get _pageMapColumn =>
-      likeColumn == 'content' ? '' : ', $paliTable.page_map';
+  /// page index has no such column. Must name the table being searched, not
+  /// the Pali one, or a translation search asks the wrong table for it.
+  String _pageMapColumn(String ftsTable) =>
+      likeColumn == 'content' ? '' : ', $ftsTable.page_map';
 
   /// The page a match actually sits on.
   ///

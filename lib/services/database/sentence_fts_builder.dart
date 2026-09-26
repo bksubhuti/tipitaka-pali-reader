@@ -55,6 +55,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   page_map UNINDEXED,
   paranum UNINDEXED,
   sutta_name,
+  lang UNINDEXED,
   tokenize = 'porter'
 );''';
 
@@ -68,11 +69,27 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
     return (rows.first['n'] as int) > 0;
   }
 
+  /// The languages the translation index was built from, in order.
+  static Future<List<String>> indexedLanguages(Database db) async {
+    try {
+      final rows = await db.rawQuery(
+          'SELECT DISTINCT lang FROM fts_translation_unit ORDER BY lang');
+      return rows.map((r) => r['lang'] as String).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Builds the index. Existing tables are replaced, so a rerun is safe.
+  ///
+  /// [languages] are the installed language codes; each gets translation units
+  /// aligned to the Pali ones, so a hit in either can be shown against the
+  /// same passage.
   ///
   /// [onProgress] is called with a message suitable for showing to the user.
   static Future<int> build(
     Database db, {
+    List<String> languages = const [],
     void Function(String message)? onProgress,
   }) async {
     await db.execute('DROP TABLE IF EXISTS fts_unit;');
@@ -137,6 +154,31 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
       }
       if (order.isEmpty) continue;
 
+      // Translations for this book, per language, grouped the same way. Built
+      // from the same paragraph boundaries as the Pali rather than from the
+      // translation's own lengths, so a unit means the same passage in every
+      // language and a hit in one can be shown against the other.
+      final byLanguage = <String, Map<int, String>>{};
+      for (final code in languages) {
+        final map = <int, String>{};
+        try {
+          final rows = await db.rawQuery(
+            'SELECT para_id, translation FROM lang_$code.sentences '
+            'WHERE book_id = ? ORDER BY para_id, line_id',
+            [book],
+          );
+          for (final row in rows) {
+            final text = _clean(row['translation'] as String? ?? '');
+            if (text.isEmpty) continue;
+            final para = row['para_id'] as int;
+            map[para] = map.containsKey(para) ? '${map[para]} $text' : text;
+          }
+        } catch (_) {
+          // A language that will not answer is left out of the index.
+        }
+        if (map.isNotEmpty) byLanguage[code] = map;
+      }
+
       // A committed batch is not emptied, so it must be replaced after every
       // commit. Reusing it re-applies everything already written and quietly
       // multiplies the index.
@@ -184,6 +226,30 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
           'paranum': '${order[i]}-${order[j - 1]}',
           'sutta_name': '',
         });
+        for (final entry in byLanguage.entries) {
+          final translated = StringBuffer();
+          for (var k = i; k < j; k++) {
+            final text = entry.value[order[k]];
+            if (text == null || text.isEmpty) continue;
+            if (translated.isNotEmpty) translated.write(' ');
+            translated.write(text);
+          }
+          if (translated.isEmpty) continue;
+          final translatedText = translated.toString();
+          batch.insert('fts_translation_unit', {
+            'id': unitId,
+            'bookid': page.tprBook,
+            'page': page.tprPage,
+            'content': translatedText,
+            'plain': plainForm(translatedText),
+            'page_map': map.toString(),
+            'paranum': '${order[i]}-${order[j - 1]}',
+            'sutta_name': '',
+            'lang': entry.key,
+          });
+          pending++;
+        }
+
         indexed++;
         if (++pending >= 300) {
           await batch.commit(noResult: true);
