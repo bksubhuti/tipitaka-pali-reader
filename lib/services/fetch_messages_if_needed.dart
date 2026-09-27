@@ -19,6 +19,16 @@ Future<bool> checkSangahaFixNeeded() async {
 
   try {
     final db = await DatabaseHelper().database;
+
+    // The fix repairs the old page table. Once the reader runs on sentences
+    // that table is gone, and so is anything it could repair. Asked before
+    // the database is open the flag is not set yet, so ask the database.
+    final pages = await db.rawQuery(
+      "SELECT count(*) AS n FROM sqlite_master "
+      "WHERE type='table' AND name='pages'",
+    );
+    if ((pages.first['n'] as int) == 0) return false;
+
     final result = await db.rawQuery(
       "SELECT COUNT(*) as cnt FROM pages WHERE bookid = 'annya_bi_05' AND page = 69",
     );
