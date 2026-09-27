@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/data/constants.dart';
+import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
@@ -36,9 +37,11 @@ class DatabaseHelper {
         // the page index until it finishes.
         unawaited(buildSentenceFtsIfNeeded(
           onProgress: (msg) => myLogger.i(msg),
-        ).catchError((Object e) {
-          myLogger.e('sentence search index build failed: $e');
-          return 0;
+        ).then((_) => retireLegacyDataIfReady(
+              onProgress: (msg) => myLogger.i(msg),
+            )).catchError((Object e) {
+          myLogger.e('sentence setup failed: $e');
+          return false;
         }));
       } catch (e) {
         _dbCompleter!.completeError(e);
@@ -185,6 +188,24 @@ class DatabaseHelper {
     sentenceSearchAvailable = count > 0;
     myLogger.i('sentence search index built: $count units');
     return count;
+  }
+
+  /// Removes the page-shaped data, once the sentence data is carrying the
+  /// reader, the search and the contents.
+  ///
+  /// Held back until the sentence search index exists, so the app is never
+  /// left with neither: if the index build failed, the old one is still there
+  /// to search.
+  Future<bool> retireLegacyDataIfReady({
+    void Function(String message)? onProgress,
+  }) async {
+    if (!sentenceDataAvailable || !sentenceSearchAvailable) return false;
+    final db = await database;
+    if (!await LegacyDataRetirement.isPending(db)) return false;
+    myLogger.i('retiring the page-shaped data');
+    await LegacyDataRetirement.run(db, onProgress: onProgress);
+    myLogger.i('page-shaped data retired');
+    return true;
   }
 
   Future close() async {
