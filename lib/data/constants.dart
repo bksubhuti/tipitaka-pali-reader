@@ -35,7 +35,6 @@ class AssetsFile {
     'epitaka_part.ac',
     'epitaka_part.ad',
     'epitaka_part.ae',
-    'epitaka_part.af',
   ];
 
   /// TPR's own additions: page boundaries, page markers and orphan flags,
