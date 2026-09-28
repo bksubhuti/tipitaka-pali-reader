@@ -283,6 +283,47 @@ void main() {
       });
     });
 
+    test('a translation inherits the paragraphing and orphan control', () {
+      // The paragraph structure and the keep-with-next flag were worked out
+      // against the Pali. A translation is written inside the same paragraph
+      // as the sentence it translates, rather than in a parallel structure,
+      // so reading in one language alone keeps all of it.
+      final html = PageComposer.compose(const [
+        PageSentence(
+            paraId: 6,
+            lineId: 1,
+            pali: 'evaṃ me sutaṃ',
+            translations: ['Thus have I heard.']),
+        PageSentence(
+            paraId: 7,
+            lineId: 1,
+            pali: 'atha kho',
+            glue: GlueState.continues,
+            translations: ['Then indeed.']),
+        PageSentence(
+            paraId: 8,
+            lineId: 1,
+            pali: 'sabbe saṅkhārā',
+            glue: GlueState.verse,
+            translations: ['All formations.']),
+      ]);
+
+      // Each translation sits inside the paragraph its Pali opened.
+      final classes = RegExp(r'<p class="([^"]+)"')
+          .allMatches(html)
+          .map((m) => m.group(1))
+          .toList();
+      expect(classes, ['bodytext', 'noindentbodytext', 'gatha1']);
+
+      for (final className in classes) {
+        final block = RegExp('<p class="$className">(.*?)</p>', dotAll: true)
+            .firstMatch(html)!
+            .group(1)!;
+        expect(block, contains('translation_text'),
+            reason: '$className paragraph lost its translation');
+      }
+    });
+
     test('an empty page composes to nothing', () {
       expect(PageComposer.compose(const []), '');
     });
