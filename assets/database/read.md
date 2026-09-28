@@ -31,3 +31,53 @@ rm tipitaka_pali_part.*
 ```
 split -b 50000k tipitaka_pali.db tipitaka_pali_part.
 ```
+
+# The sentence databases
+
+Three databases ship in this folder, none of them in git. The Pali one is the
+same as it has always been, from the Drive link above. The other two are new
+and are produced from it, so there is nothing to download for them.
+
+| file | parts | size | where it comes from |
+| --- | --- | --- | --- |
+| `tipitaka_pali.db` | 14 | 656 MB | the Drive link above |
+| `epitaka.db` | 5 | 210 MB | built from an ePitaka release |
+| `tpr_extension.db` | 1 | 22 MB | built from the two above |
+
+## epitaka.db
+
+Download `epitaka.zip` from the ePitaka releases, unzip it, then trim it to the
+tables TPR reads. The published file is 578 MB and most of that is dictionaries
+and embeddings the app never touches.
+
+```
+python tools/epitaka_migration/build_shipping_db.py --source epitaka.db --out epitaka_ship.db
+```
+
+## tpr_extension.db
+
+This is TPR's own: the page boundaries, the page markers for all four printed
+editions, and the orphan flags, all keyed the way ePitaka keys its sentences.
+It is produced by running the pipeline in `tools/epitaka_migration/` against
+the original `tipitaka_pali.db` and the untrimmed `epitaka.db`. See the README
+there; it takes about an hour, most of it in the matching step.
+
+Note it must be rebuilt whenever a newer ePitaka release is used, because the
+positions it stores are offsets into ePitaka's sentences.
+
+## Splitting and merging
+
+Put `epitaka.db` and `tpr_extension.db` in this folder and run:
+
+```
+bash split_epitaka.sh
+```
+
+To work on them again, `bash merge_epitaka.sh` puts them back together. If the
+number of parts changes, update `pubspec.yaml` and `AssetsFile` in
+`lib/data/constants.dart` to match.
+
+## Translations
+
+Not shipped. A reader chooses one at first start, or later in settings, and it
+is downloaded and trimmed to the sentences alone on the device.
