@@ -137,6 +137,34 @@ class DatabaseHelper {
     }
   }
 
+  /// Whether any translation is available to show alongside the Pali.
+  ///
+  /// Two sources, because both can be true during the change-over: a language
+  /// installed as its own `lang_<code>.db`, or the old translation index
+  /// inside the main database. The old one is checked second and only if it
+  /// is still there, since retirement drops it and a missing table must read
+  /// as "no legacy translation" rather than as an error.
+  ///
+  /// The reader used to ask this by counting `fts_translation_pages` and
+  /// treating any failure as false, which meant that after retirement the
+  /// bilingual controls quietly disappeared for someone who had a language
+  /// installed.
+  static Future<bool> hasTranslations() async {
+    if (installedLanguages.isNotEmpty) return true;
+    try {
+      final db = await DatabaseHelper().database;
+      final present = await db.rawQuery(
+          "SELECT count(*) AS n FROM sqlite_master "
+          "WHERE type='table' AND name='fts_translation_pages'");
+      if ((present.first['n'] as int) == 0) return false;
+      final rows = await db
+          .rawQuery('SELECT count(*) AS n FROM fts_translation_pages');
+      return ((rows.first['n'] as int?) ?? 0) > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Attaches every installed language file.
   ///
   /// One that will not open is skipped and logged rather than taking the rest
@@ -260,6 +288,19 @@ class DatabaseHelper {
   Future<void> buildWordList(updateMessageCallback) async {
     final frequencyMap = <String, int>{};
     final dbInstance = await database;
+
+    // Counted from the sentences once the page text is retired. This is
+    // reachable from settings, so it has to answer on either kind of install
+    // rather than fail on a missing table.
+    if (!await LegacyDataRetirement.isPending(dbInstance) &&
+        sentenceDataAvailable) {
+      await LegacyDataRetirement.rebuildWordLists(
+        dbInstance,
+        onProgress: (message) => updateMessageCallback(message),
+      );
+      return;
+    }
+
     final mapsOfCount = await dbInstance.rawQuery(
       'SELECT count(*) cnt FROM pages',
     );

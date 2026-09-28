@@ -156,7 +156,20 @@ class HtmlImportService {
   }
 
   // --- Database Helpers (Unchanged) ---
+  /// Imported books live in `pages` and nowhere else, so the table has to be
+  /// there even on an install whose canon has moved to sentences. Retirement
+  /// keeps it whenever a book it does not cover is present; this covers the
+  /// case where it was emptied completely and then dropped.
+  Future<void> _ensurePagesTable(Database db) async {
+    await db.execute('CREATE TABLE IF NOT EXISTS pages ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+        'bookid TEXT, page INTEGER, content TEXT, paranum TEXT)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS page_index ON pages ( bookid );');
+  }
+
   Future<void> _clearOldData(Database db, String bookId) async {
+    await _ensurePagesTable(db);
     await db.transaction((txn) async {
       await txn.delete('pages', where: 'bookid = ?', whereArgs: [bookId]);
       await txn.delete('tocs', where: 'book_id = ?', whereArgs: [bookId]);

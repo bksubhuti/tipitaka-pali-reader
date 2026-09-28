@@ -10,6 +10,7 @@ import 'package:sqflite_common/sqlite_api.dart';
 import '../../../business_logic/models/download_list_item.dart';
 import 'download_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:dio/dio.dart';
 import 'package:tipitaka_pali/business_logic/models/page_content.dart';
@@ -269,6 +270,15 @@ class DownloadService {
   }
 
   Future<void> doFts(Database db, Set<String> newBooks) async {
+    // The page data these read from is retired once the app runs on
+    // sentences. Refusing plainly beats an unhandled "no such table".
+    if (DatabaseHelper.sentenceDataAvailable) {
+      downloadNotifier.message =
+          'This install runs on sentence data; the page-based search index '
+          'is not used any more.';
+      return;
+    }
+
     // Ensure virtual FTS tables exist
     await db.execute('''CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING FTS5(
     id UNINDEXED, 
@@ -427,6 +437,15 @@ class DownloadService {
   }
 
   Future<void> makeEnglishWordList() async {
+    final dbForGuard = await dbService.database;
+    if (DatabaseHelper.sentenceDataAvailable) {
+      // Suggestions now come from the installed translations instead of from
+      // parsing page HTML, which no longer exists.
+      downloadNotifier.message = 'Rebuilding the word list from translations';
+      await LegacyDataRetirement.buildTranslationWordList(dbForGuard,
+          onProgress: (m) => downloadNotifier.message = m);
+      return;
+    }
     // select * from pages where bookid like "annya_pe%"
     // build Stringbuffer from  bs t1 which is english
     // add unique words to list
@@ -516,6 +535,15 @@ class DownloadService {
   }
 
   Future<void> makeEnglishWordList2() async {
+    final dbForGuard = await dbService.database;
+    if (DatabaseHelper.sentenceDataAvailable) {
+      // Suggestions now come from the installed translations instead of from
+      // parsing page HTML, which no longer exists.
+      downloadNotifier.message = 'Rebuilding the word list from translations';
+      await LegacyDataRetirement.buildTranslationWordList(dbForGuard,
+          onProgress: (m) => downloadNotifier.message = m);
+      return;
+    }
     downloadNotifier.message = "Creating unique wordlist";
     final Database db = await dbService.database;
     final uniqueWords = <String>{};
@@ -688,6 +716,15 @@ class DownloadService {
   }
 
   Future<void> makeUniversalWordList(Set<String> newBooks) async {
+    final dbForGuard = await dbService.database;
+    if (DatabaseHelper.sentenceDataAvailable) {
+      // Suggestions now come from the installed translations instead of from
+      // parsing page HTML, which no longer exists.
+      downloadNotifier.message = 'Rebuilding the word list from translations';
+      await LegacyDataRetirement.buildTranslationWordList(dbForGuard,
+          onProgress: (m) => downloadNotifier.message = m);
+      return;
+    }
     if (newBooks.isEmpty) return;
 
     downloadNotifier.message = "Creating wordlist (All Words)";
@@ -984,6 +1021,16 @@ class DownloadService {
         .rawQuery("SELECT name FROM ext.sqlite_master WHERE type='table';");
     final extTableNames = extTables.map((r) => r['name'] as String).toSet();
 
+    // And in main. Retirement removes the page tables, so a table the
+    // extension carries may have nowhere to go. Copying is skipped for those
+    // rather than failing the whole install: the extension's books, names and
+    // categories still arrive, and the reader takes its text from sentences.
+    final mainTables = (await db.rawQuery(
+            "SELECT name FROM main.sqlite_master WHERE type='table';"))
+        .map((r) => r['name'] as String)
+        .toSet();
+    final skipped = <String>[];
+
     Stopwatch copyStopwatch = Stopwatch()..start();
     await db.transaction((txn) async {
       final targetTables = [
@@ -1000,6 +1047,10 @@ class DownloadService {
 
       for (String table in targetTables) {
         if (_cancelled) break;
+        if (extTableNames.contains(table) && !mainTables.contains(table)) {
+          skipped.add(table);
+          continue;
+        }
         if (extTableNames.contains(table)) {
           downloadNotifier.message = "Copying table '$table'...";
           if (table == 'books') {
@@ -1039,6 +1090,12 @@ class DownloadService {
     });
 
     debugPrint('ATTACH DB table copy took ${copyStopwatch.elapsed}.');
+    if (skipped.isNotEmpty) {
+      debugPrint('Skipped retired tables: ${skipped.join(", ")}');
+      downloadNotifier.message =
+          'Installed. The page text was skipped (${skipped.join(", ")}); '
+          'this install reads from sentence data.';
+    }
 
     await db.execute("PRAGMA foreign_keys = ON;");
     await db.execute("DETACH DATABASE ext;");

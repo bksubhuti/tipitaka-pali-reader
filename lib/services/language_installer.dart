@@ -7,6 +7,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
 /// A translation that can be installed.
@@ -190,6 +191,12 @@ class LanguageInstaller {
     await DatabaseHelper().close();
     await DatabaseHelper().database;
     await DatabaseHelper().buildSentenceFtsIfNeeded(
+      onProgress: (message) => onProgress?.call(null, message),
+    );
+    // Search-as-you-type suggests words from the installed translations, so
+    // that list has to follow a language being added or removed.
+    await LegacyDataRetirement.buildTranslationWordList(
+      await DatabaseHelper().database,
       onProgress: (message) => onProgress?.call(null, message),
     );
   }

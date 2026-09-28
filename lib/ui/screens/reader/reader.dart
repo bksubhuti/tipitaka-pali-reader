@@ -11,7 +11,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/repositories/page_content_repo.dart';
-import 'package:tipitaka_pali/services/repositories/sentence_page_content_repo.dart';
+import 'package:tipitaka_pali/services/repositories/composite_page_content_repo.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import 'package:tipitaka_pali/services/rx_prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
@@ -862,9 +862,12 @@ class _SlidableClickerState extends State<SlidableClicker> {
 /// Pages come from ePitaka's sentences when that data is attached, and from
 /// the `pages` table otherwise. Everything above this line is unchanged
 /// either way: the reader still receives one HTML string per page.
+///
+/// With sentences attached the two are used together rather than one instead
+/// of the other, because ePitaka does not carry imported or extension books.
 PageContentRepository _pageContentRepository() {
   if (DatabaseHelper.sentenceDataAvailable) {
-    return SentencePageContentRepository(DatabaseHelper());
+    return CompositePageContentRepository(DatabaseHelper());
   }
   return PageContentDatabaseRepository(DatabaseHelper());
 }

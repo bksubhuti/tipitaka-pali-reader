@@ -514,15 +514,20 @@ class FtsDatabaseRepository implements FtsRespository {
     String safe = compoundPhrase.replaceAll("'", "''");
     final value = '$safe '.replaceAll(' ', '* ').trim();
 
+    // Names the configured index rather than fts_pages: once the page data is
+    // retired that table is gone, and this was the one query left pointing at
+    // it by name.
     final sql = '''
-      SELECT fts_pages.id, fts_pages.bookid, name, fts_pages.page, fts_pages.sutta_name,
-        SNIPPET(fts_pages, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
-      FROM fts_pages 
-      INNER JOIN books ON fts_pages.bookid = books.id
+      SELECT $paliTable.id, $paliTable.bookid, name, $paliTable.page, $paliTable.sutta_name,
+        $paliTable.content AS raw_content,
+        SNIPPET($paliTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+        ${_pageMapColumn(paliTable)}
+      FROM $paliTable 
+      INNER JOIN books ON $paliTable.bookid = books.id
       LEFT JOIN sutta_page_shortcut
-          ON fts_pages.bookid = sutta_page_shortcut.book_id
-          AND fts_pages.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE fts_pages MATCH '$value'
+          ON $paliTable.bookid = sutta_page_shortcut.book_id
+          AND $paliTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
+      WHERE $paliTable MATCH '$value'
       ORDER BY books.sort_order ASC
     ''';
 
@@ -533,9 +538,21 @@ class FtsDatabaseRepository implements FtsRespository {
       final id = element['id'] as int;
       final bookId = element['bookid'] as String;
       final bookName = element['name'] as String;
-      final pageNumber = element['page'] as int;
+      final unitPage = element['page'] as int;
       final content = element['content'] as String;
       final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
+
+      // A unit spans several printed pages, so the page it starts on is not
+      // where the match is. Measured on the raw text: the snippet has been
+      // cut and tagged, so offsets in it mean nothing.
+      final raw = element['raw_content'] as String? ?? '';
+      final at = RegExp(RegExp.escape(compoundPhrase.split(' ').first),
+              caseSensitive: false)
+          .firstMatch(raw);
+      final pageNumber = at == null
+          ? unitPage
+          : pageForMatch(element['page_map'] as String?, unitPage,
+              raw.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
 
       results.add(SearchResult(
         id: id,

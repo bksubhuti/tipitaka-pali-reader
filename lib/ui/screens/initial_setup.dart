@@ -371,17 +371,8 @@ class _InitialSetupState extends State<InitialSetup> {
     _openHomePage(context);
   }
 
-  Future<bool> _isEnglishExtensionInstalled() async {
-    try {
-      final db = await DatabaseHelper().database;
-      final res =
-          await db.rawQuery('SELECT count(*) cnt FROM fts_translation_pages');
-      final count = (res.first['cnt'] as int?) ?? 0;
-      return count > 0;
-    } catch (_) {
-      return false;
-    }
-  }
+  Future<bool> _isEnglishExtensionInstalled() async =>
+      DatabaseHelper.hasTranslations();
 
   void _openHomePage(context) {
     //Navigator.of(context).pop();

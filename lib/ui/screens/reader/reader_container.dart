@@ -36,17 +36,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
   TabbedViewController? _tabController;
   final Map<String, TabData> _tabDataCache = {};
 
-  Future<bool> _hasTranslationExtension() async {
-    try {
-      final db = await DatabaseHelper().database;
-      final res =
-          await db.rawQuery('SELECT count(*) cnt FROM fts_translation_pages');
-      final count = (res.first['cnt'] as int?) ?? 0;
-      return count > 0;
-    } catch (_) {
-      return false;
-    }
-  }
+  Future<bool> _hasTranslationExtension() async =>
+      DatabaseHelper.hasTranslations();
 
   @override
   void initState() {

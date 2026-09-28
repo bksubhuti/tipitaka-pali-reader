@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:tipitaka_pali/services/database/database_helper.dart';
 
 /// Removes the page-shaped data once the sentence data has taken over.
 ///
@@ -18,19 +19,45 @@ class LegacyDataRetirement {
   LegacyDataRetirement._();
 
   /// Tables that exist only to serve the page-shaped reader.
+  ///
+  /// Emptied of the books the sentence data covers rather than dropped
+  /// outright, then dropped only if nothing is left in them. See [run].
   static const _tables = [
     'pages',
     'fts_pages',
     'fts_translation_pages',
   ];
 
-  /// Whether the old data is still present.
+  /// How each table names the book it belongs to.
+  static const _bookColumn = {
+    'pages': 'bookid',
+    'fts_pages': 'bookid',
+    'fts_translation_pages': 'bookid',
+  };
+
+  /// Whether there is still canon page data to remove.
+  ///
+  /// Not simply "does `pages` exist". [run] keeps the books ePitaka does not
+  /// carry, so the table normally survives; asking only whether it is there
+  /// would make this true for ever and run the retirement, VACUUM included,
+  /// on every start. The question is whether any row remains for a book the
+  /// sentence data covers.
   static Future<bool> isPending(Database db) async {
-    final rows = await db.rawQuery(
-        "SELECT count(*) AS n FROM sqlite_master "
-        "WHERE type='table' AND name='pages'");
-    return (rows.first['n'] as int) > 0;
+    if (!await _exists(db, 'pages')) return false;
+    try {
+      final rows = await db.rawQuery(
+          'SELECT EXISTS(SELECT 1 FROM pages WHERE bookid IN '
+          '(SELECT DISTINCT tpr_book FROM ext.page_break)) AS n');
+      return ((rows.first['n'] as int?) ?? 0) > 0;
+    } catch (_) {
+      // No extension attached: nothing can be retired yet.
+      return false;
+    }
   }
+
+  /// Whether any page text at all is left, covered or not. This is what the
+  /// reader's fallback and the HTML importer care about.
+  static Future<bool> hasLegacyPages(Database db) => _exists(db, 'pages');
 
   /// Rebuilds the word list from sentences, then drops the old tables.
   ///
@@ -43,15 +70,55 @@ class LegacyDataRetirement {
   }) async {
     onProgress?.call('Rebuilding the word list…');
     await _buildWordList(db, onProgress: onProgress);
+    await buildTranslationWordList(db, onProgress: onProgress);
 
     onProgress?.call('Removing the old page data…');
+    // Only the books the sentence data actually covers. ePitaka does not
+    // carry everything TPR can open: a book imported from HTML, or installed
+    // from an extension zip, lives nowhere else, and dropping these tables
+    // outright would delete it with no way back short of reinstalling. What
+    // remains is small, and the reader falls back to it for those books.
+    var kept = 0;
     for (final table in _tables) {
-      await db.execute('DROP TABLE IF EXISTS $table');
+      if (!await _exists(db, table)) continue;
+      final column = _bookColumn[table]!;
+      await db.rawDelete('DELETE FROM $table WHERE $column IN '
+          '(SELECT DISTINCT tpr_book FROM ext.page_break)');
+      final rows = await db.rawQuery('SELECT count(*) AS n FROM $table');
+      final remaining = (rows.first['n'] as int?) ?? 0;
+      if (remaining == 0) {
+        await db.execute('DROP TABLE IF EXISTS $table');
+      } else {
+        kept += remaining;
+        onProgress?.call('$table keeps $remaining rows not in the sentences');
+      }
+    }
+    if (kept > 0) {
+      onProgress?.call('Kept $kept page rows for books ePitaka does not carry');
     }
 
     onProgress?.call('Reclaiming space…');
     await db.execute('VACUUM');
     onProgress?.call('Done');
+  }
+
+  static Future<bool> _exists(Database db, String table) async {
+    final rows = await db.rawQuery(
+        "SELECT count(*) AS n FROM sqlite_master "
+        "WHERE type='table' AND name=?",
+        [table]);
+    return ((rows.first['n'] as int?) ?? 0) > 0;
+  }
+
+  /// Rebuilds both word lists, Pali and translation, without retiring
+  /// anything. This is what the "rebuild the word list" action in settings
+  /// does on an install that already runs on sentences.
+  static Future<void> rebuildWordLists(
+    Database db, {
+    void Function(String message)? onProgress,
+  }) async {
+    await _buildWordList(db, onProgress: onProgress);
+    await buildTranslationWordList(db, onProgress: onProgress);
   }
 
   /// The word list, counted from ePitaka's sentences.
@@ -110,6 +177,79 @@ class LegacyDataRetirement {
     await db.execute(
         'CREATE INDEX IF NOT EXISTS word_plain_index ON words (plain)');
   }
+
+  /// Adds the words of every installed translation to the same list.
+  ///
+  /// Search-as-you-type reads one `words` table for both languages, telling
+  /// them apart by frequency: a count of -1 means the word came from a
+  /// translation rather than from the Pali. That convention is the old
+  /// download service's, kept so the suggestion code needs no change.
+  ///
+  /// Previously these were gathered by parsing the `t1` paragraphs out of the
+  /// page HTML. There is no such HTML once the pages are retired, and the
+  /// Pali rebuild above starts from an empty table, so without this the
+  /// English suggestions simply stop appearing.
+  ///
+  /// Only Latin-script translations yield anything, which is what the parsing
+  /// version managed too. For Burmese or Thai the loop finds no words and
+  /// adds none, rather than adding nonsense.
+  static Future<void> buildTranslationWordList(
+    Database db, {
+    List<String>? languages,
+    void Function(String message)? onProgress,
+  }) async {
+    final codes = languages ?? DatabaseHelper.installedLanguages;
+    // Nothing to put back means nothing is taken away. Someone still on the
+    // old path may have an English list built from the page HTML, and
+    // clearing that to replace it with nothing would be a plain loss.
+    if (codes.isEmpty) return;
+    await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+
+    for (final code in codes) {
+      onProgress?.call('Adding the $code word list…');
+      final words = <String>{};
+      try {
+        final rows =
+            await db.rawQuery('SELECT translation FROM lang_$code.sentences');
+        for (final row in rows) {
+          for (final word in _latinWords(row['translation'] as String? ?? '')) {
+            words.add(word);
+          }
+        }
+      } catch (e) {
+        onProgress?.call('Could not read the $code translations: $e');
+        continue;
+      }
+
+      var batch = db.batch();
+      var pending = 0;
+      for (final word in words) {
+        // Pali wins any collision: it has a real frequency, which is what
+        // orders the suggestions, and -1 would demote it.
+        batch.rawInsert(
+            'INSERT OR IGNORE INTO words (word, plain, frequency) '
+            'VALUES (?, ?, -1)',
+            [word, word]);
+        if (++pending >= 2000) {
+          await batch.commit(noResult: true);
+          batch = db.batch();
+          pending = 0;
+        }
+      }
+      if (pending > 0) await batch.commit(noResult: true);
+      onProgress?.call('Added ${words.length} $code words');
+    }
+  }
+
+  static final _notLatin = RegExp(r'[^a-z-]+');
+
+  /// Words of three letters or more, lower cased. Short ones are noise in a
+  /// suggestion list and there are a great many of them.
+  static Iterable<String> _latinWords(String text) => text
+      .replaceAll(_tag, ' ')
+      .toLowerCase()
+      .split(_notLatin)
+      .where((w) => w.length >= 3);
 
   static final _tag = RegExp(r'<[^>]*>');
   static final _notPali = RegExp(r'[^a-zāīūṅñṭḍṇḷṃ]+');
