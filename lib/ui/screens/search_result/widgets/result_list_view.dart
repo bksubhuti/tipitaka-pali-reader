@@ -10,6 +10,15 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/ui/screens/reader/intents.dart';
 
+// Geometry of the floating filter buttons. The list reserves the same height
+// underneath its last result, so the buttons never cover a search result.
+const double _kFilterButtonInset = 16.0;
+const double _kFilterButtonHeight = 48.0;
+const double _kFilterButtonGap = 16.0;
+const double _kFilterButtonsExtent = _kFilterButtonInset * 2 +
+    _kFilterButtonHeight * 2 +
+    _kFilterButtonGap;
+
 class ResultListView extends StatelessWidget implements Escape {
   const ResultListView(
       {super.key,
@@ -49,7 +58,8 @@ class ResultListView extends StatelessWidget implements Escape {
                       )
                     : ListView.builder(
                         itemCount: results.length,
-                        padding: const EdgeInsets.only(bottom: 70),
+                        padding: const EdgeInsets.only(
+                            bottom: _kFilterButtonsExtent),
                         itemBuilder: (context, index) => SearchResultListTile(
                           result: results[index],
                           onTap: () =>
@@ -58,32 +68,29 @@ class ResultListView extends StatelessWidget implements Escape {
                         cacheExtent: 8000,
                       ),
                 Positioned(
-                    bottom: 16,
-                    right: 16,
+                    bottom: _kFilterButtonInset,
+                    right: _kFilterButtonInset,
                     child: Builder(builder: (context) {
-                      return Padding(
-                        padding: const EdgeInsets.all(45.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            FloatingActionButton.extended(
-                              heroTag: "book_filter_btn",
-                              onPressed: () => Scaffold.of(context).showBottomSheet(
-                                  (context) => const PostSearchBookFilterView()),
-                              label: const Text('Book Filter'),
-                              icon: const Icon(Icons.book),
-                            ),
-                            const SizedBox(height: 16),
-                            FloatingActionButton.extended(
-                              heroTag: "category_filter_btn",
-                              onPressed: () => Scaffold.of(context).showBottomSheet(
-                                  (context) => const SearchFilterView()),
-                              label: Text(AppLocalizations.of(context)!.filter),
-                              icon: const Icon(Icons.filter_list),
-                            ),
-                          ],
-                        ),
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          FloatingActionButton.extended(
+                            heroTag: "book_filter_btn",
+                            onPressed: () => Scaffold.of(context).showBottomSheet(
+                                (context) => const PostSearchBookFilterView()),
+                            label: const Text('Book Filter'),
+                            icon: const Icon(Icons.book),
+                          ),
+                          const SizedBox(height: _kFilterButtonGap),
+                          FloatingActionButton.extended(
+                            heroTag: "category_filter_btn",
+                            onPressed: () => Scaffold.of(context).showBottomSheet(
+                                (context) => const SearchFilterView()),
+                            label: Text(AppLocalizations.of(context)!.filter),
+                            icon: const Icon(Icons.filter_list),
+                          ),
+                        ],
                       );
                     }))
               ],
