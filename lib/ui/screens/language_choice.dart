@@ -36,7 +36,6 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
           });
         }
       });
-      Prefs.activeLanguages = [option.code];
       await LanguageInstaller.applyChanges(onProgress: (progress, message) {
         if (mounted) setState(() => _message = message);
       });

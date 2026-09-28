@@ -196,6 +196,22 @@ class DatabaseHelper {
       myLogger.e('could not look for language files: $e');
     }
     installedLanguages = codes;
+
+    // Every installed language is meant to be shown; there is no way to turn
+    // one off short of removing it. So anything installed but missing from
+    // the order gets appended, which repairs an install whose preference was
+    // written as a single language by the first-run screen and then never
+    // added to. Without this, installing a second language had no effect on
+    // the page while the settings list showed it as present.
+    final active = Prefs.activeLanguages;
+    final missing = codes.where((c) => !active.contains(c));
+    if (active.isNotEmpty && missing.isNotEmpty) {
+      Prefs.activeLanguages = [
+        ...active.where(codes.contains),
+        ...missing,
+      ];
+      myLogger.i('showing languages: ${Prefs.activeLanguages.join(", ")}');
+    }
     myLogger.i('languages attached: ${codes.isEmpty ? "none" : codes.join(", ")}');
   }
 

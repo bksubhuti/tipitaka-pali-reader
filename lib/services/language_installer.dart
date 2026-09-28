@@ -99,6 +99,13 @@ class LanguageInstaller {
       await _copySentences(unpacked, target);
       await unpacked.delete();
 
+      // Shown as well as installed. These are two different things in the
+      // preferences, and leaving the second one out is why installing a
+      // language beyond the first had no visible effect: the settings list
+      // showed it, because that list appends whatever is installed, while the
+      // reader asked the preference and never saw it.
+      activate(option.code);
+
       onProgress?.call(null, '${option.name} installed');
     } catch (e) {
       debugPrint('installing ${option.code} failed: $e');
@@ -111,6 +118,14 @@ class LanguageInstaller {
       }
       rethrow;
     }
+  }
+
+  /// Adds [code] to the languages shown beneath the Pali, keeping the order
+  /// the reader has chosen and doing nothing if it is already there.
+  static void activate(String code) {
+    final active = [...Prefs.activeLanguages];
+    if (active.contains(code)) return;
+    Prefs.activeLanguages = [...active, code];
   }
 
   /// Removes an installed language.

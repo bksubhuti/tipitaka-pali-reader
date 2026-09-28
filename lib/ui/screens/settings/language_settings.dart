@@ -33,6 +33,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     return chosen;
   }
 
+
   static String _nameOf(String code) => LanguageInstaller.available
       .firstWhere((o) => o.code == code,
           orElse: () => LanguageOption(code, code.toUpperCase()))
