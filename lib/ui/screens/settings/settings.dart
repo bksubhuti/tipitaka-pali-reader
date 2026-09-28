@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/screens/settings/language_settings.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -40,6 +41,7 @@ class SettingPage extends StatelessWidget {
               const DPDSettingsView(),
               const ThemeSettingView(),
               const LanguageSettingView(),
+              const TranslationSettingsView(),
               const ScriptSettingView(),
               const GeneralSettingsView(),
               const ViewSettingsView(),

@@ -1,0 +1,9 @@
+Search units: whole paragraphs grouped to about 200 words, overlapping by 1
+units: 70938   average words per unit: 242
+
+Page-junction phrases (3 words either side of a printed page break):
+  measured on 3 books: 986 junctions, 282 findable today (28.6%), 861 findable after (87.3%)
+
+mula_di_01           junctions  235   findable today  104 ( 44.3%)   findable after  226 ( 96.2%)
+mula_ma_01           junctions  414   findable today  175 ( 42.3%)   findable after  398 ( 96.1%)
+attha_di_01          junctions  337   findable today    3 (  0.9%)   findable after  237 ( 70.3%)

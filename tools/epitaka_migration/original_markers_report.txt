@@ -1,0 +1,212 @@
+Original TPR page markers and paragraph structure
+source: C:/Users/Vasil/AppData/Roaming/com.paauk/tipitaka_pali_reader/tipitaka_pali.db
+books: 179   words: 9834686   paragraphs: 462866
+page markers: myanmar 55570   vri 49154   pts 31865   thai 21776
+books with anomalies: 20   total anomalies: 27
+
+mula_vi_01               pages   381  words    74627  M   381 V   393 P   266 T   591  paras   2653
+mula_vi_02               pages   470  words    84988  M   470 V   488 P   348 T   684  paras   3893  ANOMALIES 2
+    ! T restart x1 (first: 0.1 after 2.571)
+    ! T back x1 (first: 2.494 after 5.1080)
+mula_vi_03               pages   511  words   103464  M   511 V   485 P   360 T   718  paras   3070
+mula_vi_04               pages   508  words    98273  M   508 V   478 P   308 T   796  paras   3115
+mula_vi_05               pages   390  words    64708  M   390 V   414 P   226 T   549  paras   3819
+mula_di_01               pages   236  words    46616  M   236 V   227 P   253 T   310  paras   1219
+mula_di_02               pages   283  words    55788  M   283 V   263 P   357 T   396  paras   1733
+mula_di_03               pages   260  words    47186  M   260 V   252 P   293 T   343  paras   2049
+mula_ma_01               pages   415  words    86125  M   414 V   423 P   338 T   609  paras   1868
+mula_ma_02               pages   439  words    96091  M   439 V   445 P   399 T   683  paras   1913
+mula_ma_03               pages   352  words    75241  M   352 V   365 P   354 T   547  paras   1702
+mula_sa_01               pages   242  words    40035  M   242 V   278 P   240 T   352  paras   3579
+mula_sa_02               pages   230  words    44429  M   231 V   254 P   286 T   333  paras   1550  ANOMALIES 2
+    ! M repeat x1 (first: 1.266 after 1.266)
+    ! T repeat x1 (first: 2.33 after 2.33)
+mula_sa_03               pages   235  words    47512  M   235 V   273 P   279 T   338  paras   1588
+mula_sa_04               pages   332  words    70406  M   331 V   367 P   402 T   488  paras   2227
+mula_sa_05               pages   415  words    74922  M   415 V   486 P   476 T   582  paras   3070
+mula_an_01               pages    48  words     8174  M    48 V    62 P    46 T    60  paras    414
+mula_an_02               pages    50  words    10037  M    50 V    60 P    54 T    65  paras    339
+mula_an_03               pages   207  words    40517  M   207 V   218 P   199 T   259  paras   1461
+mula_an_04               pages   274  words    51596  M   275 V   296 P   257 T   347  paras   2088  ANOMALIES 3
+    ! M repeat x1 (first: 1.473 after 1.473)
+    ! V repeat x1 (first: 1.124 after 1.124)
+    ! T back x1 (first: 2.265 after 2.266)
+mula_an_05               pages   246  words    46637  M   246 V   263 P   278 T   289  paras   1771
+mula_an_06               pages   147  words    28995  M   148 V   151 P   174 T   193  paras    945  ANOMALIES 1
+    ! M repeat x1 (first: 2.369 after 2.369)
+mula_an_07               pages   119  words    23304  M   120 V   126 P   149 T   149  paras    847  ANOMALIES 1
+    ! M repeat x1 (first: 2.429 after 2.429)
+mula_an_08               pages   162  words    32113  M   162 V   169 P   201 T   210  paras   1120
+mula_an_09               pages    94  words    18419  M    94 V   101 P   116 T   124  paras    563
+mula_an_10               pages   257  words    49487  M   257 V   277 P   310 T   334  paras   1722
+mula_an_11               pages    44  words     8554  M    44 V    47 P    51 T    59  paras    269
+mula_ku_01               pages    11  words     1415  M    11 V    12 P     9 T    14  paras    276
+mula_ku_02               pages    64  words     6540  M    64 V    55 P    60 T    58  paras   1394
+mula_ku_03               pages   117  words    21404  M   117 V   111 P    94 T   155  paras   1012
+mula_ku_04               pages    83  words    12676  M    83 V    86 P   124 T    95  paras   1214
+mula_ku_05               pages   177  words    23364  M   177 V   165 P   223 T   235  paras   4066
+mula_ku_06               pages   125  words    15145  M   125 V    89 P   127 T   157  paras   3281  ANOMALIES 1
+    ! T back x1 (first: 0.4 after 0.5)
+mula_ku_07               pages    92  words    12495  M    92 V    70 P    86 T   103  paras   2655
+mula_ku_08               pages   157  words    18865  M   157 V   141 P   115 T   182  paras   4669
+mula_ku_09               pages    59  words     7296  M    59 V    52 P    52 T    66  paras   1785
+mula_ku_10               pages   445  words    54851  M   445 V   415 P   378 T   597  paras  14638
+mula_ku_11               pages   298  words    40234  M   298 V   286 P   237 T   378  paras  10674
+mula_ku_12               pages    86  words    11881  M    86 V    83 P    69 T   137  paras   3282
+mula_ku_13               pages    36  words     4682  M    36 V    37 P    31 T    45  paras   1199
+mula_ku_14               pages   400  words    53629  M   400 V   293 P     0 T   529  paras  10507
+mula_ku_15               pages   378  words    56789  M   378 V   282 P     0 T   494  paras  11530
+mula_ku_16               pages   410  words    81020  M   410 V   387 P   510 T   630  paras   3162
+mula_ku_17               pages   307  words    56170  M   307 V   276 P     0 T   429  paras   2915
+mula_ku_18               pages   419  words    76113  M   419 V   414 P   442 T   642  paras   2299
+mula_ku_19               pages   408  words    76140  M   408 V   394 P   421 T     0  paras   2717  ANOMALIES 1
+    ! P repeat x1 (first: 0.266 after 0.266)
+mula_ku_20               pages   166  words    29918  M   166 V   164 P   193 T     0  paras   1683
+mula_ku_21               pages   175  words    33932  M   175 V   171 P   258 T     0  paras   1308
+mula_bi_01               pages   298  words    53804  M   298 V   327 P   264 T   381  paras   2541
+mula_bi_02               pages   453  words    80513  M   453 V   510 P   436 T   583  paras   3639
+mula_bi_03               pages   100  words    16842  M   100 V   101 P   113 T   126  paras    703
+mula_bi_04               pages    85  words    15192  M    85 V    85 P    74 T   107  paras    604
+mula_bi_05               pages   454  words    83122  M   454 V   503 P   628 T   655  paras   3644
+mula_bi_06_01            pages   265  words    51610  M   264 V   385 P     0 T   357  paras   4886
+mula_bi_06_02            pages   316  words    62977  M   316 V   411 P     0 T   392  paras   4048
+mula_bi_06_03            pages   330  words    72122  M   328 V   484 P     0 T   519  paras   5739
+mula_bi_07_01            pages   464  words    73084  M   465 V   527 P     0 T   577  paras   4487  ANOMALIES 1
+    ! M repeat x1 (first: 1.220 after 1.220)
+mula_bi_07_02            pages   493  words    77329  M   493 V   575 P     0 T   647  paras   4451
+mula_bi_07_03            pages   605  words    94788  M   605 V   742 P     0 T   705  paras   6281
+mula_bi_07_04            pages   636  words    92400  M   635 V   787 P     0 T   764  paras   8287  ANOMALIES 1
+    ! V back x1 (first: 4.234 after 4.235)
+mula_bi_07_05            pages   442  words    62140  M   431 V   497 P     0 T   609  paras   5847
+attha_vi_01_01           pages   346  words    69364  M   348 V   315 P   392 T     0  paras   1850  ANOMALIES 2
+    ! M repeat x5 (first: 1.194 after 1.194)
+    ! P back x1 (first: 1.237 after 1.272)
+attha_vi_01_02           pages   312  words    62930  M   312 V   283 P   342 T     0  paras   1552
+attha_vi_02              pages   231  words    40184  M   231 V   223 P   215 T     0  paras   1579
+attha_vi_03              pages   205  words    40301  M   205 V   186 P   204 T     0  paras   1057
+attha_vi_04              pages   136  words    25403  M   136 V   136 P   146 T     0  paras    748
+attha_vi_05              pages   129  words    23278  M   129 V   132 P   116 T     0  paras    731
+attha_di_01              pages   338  words    64536  M   338 V   306 P   378 T     0  paras   1738
+attha_di_02              pages   403  words    77469  M   403 V   364 P   409 T     0  paras   1972
+attha_di_03              pages   251  words    47458  M   251 V   231 P   249 T     0  paras   1290
+attha_ma_01_01           pages   398  words    77090  M   398 V   408 P   396 T     0  paras   2062
+attha_ma_01_02           pages   320  words    65244  M   320 V   316 P   329 T     0  paras   1301
+attha_ma_02              pages   309  words    60675  M   309 V   319 P   454 T     0  paras   1541
+attha_ma_03              pages   254  words    47720  M   254 V   267 P   349 T     0  paras   1276
+attha_sa_01              pages   325  words    62351  M   325 V   310 P   356 T     0  paras   1690
+attha_sa_02              pages   227  words    43038  M   227 V   218 P   248 T     0  paras   1113
+attha_sa_03              pages    96  words    17661  M    96 V   101 P   105 T     0  paras    551
+attha_sa_04              pages   152  words    27353  M   153 V   152 P   166 T     0  paras    878  ANOMALIES 1
+    ! M repeat x1 (first: 3.66 after 3.66)
+attha_sa_05              pages   189  words    31900  M   189 V   189 P   194 T     0  paras   1139
+attha_an_01              pages   416  words    82003  M   416 V   404 P   545 T     0  paras   1907
+attha_an_02              pages   397  words    73979  M   395 V   396 P   520 T     0  paras   1973
+attha_an_03              pages   191  words    33449  M   189 V   190 P   262 T     0  paras   1102
+attha_an_04              pages   165  words    29849  M   162 V   162 P   240 T     0  paras    900
+attha_ku_01              pages   216  words    39535  M   216 V   205 P   243 T     0  paras   1371
+attha_ku_02_01           pages   447  words    95350  M   447 V   399 P   724 T     0  paras   2381
+attha_ku_02_02           pages   456  words    88741  M   456 V   420 P   730 T     0  paras   3450
+attha_ku_03              pages   393  words    74542  M   393 V   354 P   436 T     0  paras   1960
+attha_ku_04              pages   355  words    63785  M   356 V   324 P   374 T     0  paras   1986  ANOMALIES 1
+    ! M repeat x1 (first: 0.353 after 0.353)
+attha_ku_05_01           pages   314  words    62948  M   314 V   273 P   299 T     0  paras   1364
+attha_ku_05_02           pages   324  words    63488  M   324 V   300 P   308 T     0  paras   1719
+attha_ku_06              pages   335  words    53848  M   335 V   302 P   355 T     0  paras   4146
+attha_ku_07              pages   270  words    46478  M   270 V   252 P   287 T     0  paras   3345
+attha_ku_08_01           pages   485  words    78490  M   485 V   412 P   358 T     0  paras   5622
+attha_ku_08_02           pages   546  words    91848  M   545 V   459 P   380 T     0  paras   6835
+attha_ku_09              pages   305  words    49286  M   306 V   323 P   301 T     0  paras   4647  ANOMALIES 1
+    ! M repeat x1 (first: 0.7 after 0.7)
+attha_ku_10              pages   352  words    66223  M   352 V   322 P   311 T     0  paras   2342
+attha_ku_11              pages   303  words    52221  M   303 V   294 P   261 T     0  paras   1911
+attha_ku_12              pages   354  words    60080  M   354 V   346 P   300 T     0  paras   4304
+attha_ku_13              pages   328  words    61520  M   328 V   305 P   335 T     0  paras   2300
+attha_ku_16              pages   419  words    82881  M   419 V   386 P   470 T     0  paras   2091
+attha_ku_17              pages   140  words    26528  M   140 V   131 P   152 T     0  paras    826
+attha_ku_18_01           pages   345  words    63811  M   345 V   311 P   390 T     0  paras   1658
+attha_ku_18_02           pages   323  words    62902  M   323 V   299 P   314 T     0  paras   1324
+attha_ku_20              pages   276  words    53838  M   276 V   259 P     0 T     0  paras   1278
+attha_ku_zat_01          pages   538  words   106783  M   538 V   486 P   511 T     0  paras   3434
+attha_ku_zat_02          pages   408  words    80712  M   408 V   374 P   450 T     0  paras   3228
+attha_ku_zat_03          pages   517  words    99370  M   517 V   478 P   543 T     0  paras   5006
+attha_ku_zat_04          pages   504  words    93587  M   504 V   452 P   499 T     0  paras   5462
+attha_ku_zat_05          pages   553  words   102540  M   553 V   503 P   511 T     0  paras   6738
+attha_ku_zat_06          pages   332  words    63564  M   330 V   311 P   278 T     0  paras   3834
+attha_ku_zat_07          pages   387  words    66769  M   386 V   381 P   288 T     0  paras   6583
+attha_bi_01              pages   454  words    81535  M   454 V   444 P   430 T     0  paras   2776
+attha_bi_02              pages   508  words    92048  M   508 V   497 P   524 T     0  paras   2685
+attha_bi_03              pages   499  words    85777  M   498 V   491 P   367 T     0  paras   2913  ANOMALIES 2
+    ! P restart x1 (first: 0.1 after 0.254)
+    ! P back x1 (first: 0.52 after 0.202)
+tika_vi_01               pages   460  words    88864  M   460 V   402 P     0 T     0  paras   1996
+tika_vi_02               pages   448  words    87946  M   448 V   397 P     0 T     0  paras   1980
+tika_vi_03               pages   496  words    88593  M   494 V   455 P     0 T     0  paras   2702
+tika_vi_04               pages   585  words   106590  M   583 V   533 P     0 T     0  paras   3039
+tika_vi_05               pages   362  words    69154  M   362 V   317 P     0 T     0  paras   1445
+tika_vi_06               pages   322  words    50328  M   319 V   299 P     0 T     0  paras   2105
+tika_di_01_01            pages   405  words    74449  M   405 V   360 P   526 T     0  paras   1684  ANOMALIES 2
+    ! M back x1 (first: 1.56 after 2.55)
+    ! P back x1 (first: 1.72 after 2.71)
+tika_di_01_02            pages   500  words    96941  M   500 V   439 P     0 T     0  paras   1944
+tika_di_01_03            pages   437  words    85641  M   437 V   386 P     0 T     0  paras   1697
+tika_di_02               pages   358  words    66945  M   359 V   330 P   451 T     0  paras   1721  ANOMALIES 1
+    ! M repeat x1 (first: 2.351 after 2.351)
+tika_di_03               pages   292  words    54860  M   292 V   263 P   372 T     0  paras   1332
+tika_ma_01               pages   394  words    74833  M   394 V   351 P     0 T     0  paras   1565
+tika_ma_02               pages   324  words    62408  M   324 V   301 P     0 T     0  paras   1328
+tika_ma_03               pages   209  words    39095  M   209 V   210 P     0 T     0  paras   1033
+tika_ma_04               pages   232  words    43072  M   232 V   223 P     0 T     0  paras   1016  ANOMALIES 1
+    ! V restart x1 (first: 2.1 after 2.163)
+tika_sa_01               pages   345  words    59443  M   344 V   302 P     0 T     0  paras   1912
+tika_sa_02               pages   200  words    34212  M   201 V   178 P     0 T     0  paras   1147  ANOMALIES 1
+    ! M repeat x1 (first: 2.10 after 2.10)
+tika_sa_03               pages    79  words    12591  M    79 V    77 P     0 T     0  paras    561
+tika_sa_04               pages   111  words    16838  M   111 V   102 P     0 T     0  paras    780
+tika_sa_05               pages   159  words    26171  M   159 V   151 P     0 T     0  paras    947
+tika_an_01               pages   288  words    54089  M   288 V   270 P     0 T     0  paras   1372
+tika_an_02               pages   396  words    70668  M   396 V   360 P     0 T     0  paras   2176
+tika_an_03               pages   202  words    35261  M   201 V   187 P     0 T     0  paras   1152
+tika_an_04               pages   169  words    30085  M   168 V   156 P     0 T     0  paras    969
+tika_ku_20_01            pages   151  words    26921  M   151 V   143 P     0 T     0  paras    844
+tika_ku_20_02            pages   356  words    67254  M   356 V   328 P     0 T     0  paras   1892
+tika_bi_01               pages   203  words    37985  M   203 V   195 P     0 T     0  paras    858
+tika_bi_02_01            pages   235  words    40375  M   235 V   237 P     0 T     0  paras   1282
+tika_bi_02_02            pages   229  words    38121  M   229 V   228 P     0 T     0  paras   1204
+tika_bi_03               pages   248  words    39356  M   247 V   256 P     0 T     0  paras   1619
+tika_bi_04               pages   220  words    39256  M   220 V   206 P     0 T     0  paras    881
+tika_bi_05               pages   323  words    55442  M   320 V   322 P     0 T     0  paras   1702
+annya_vi_01              pages   357  words    57856  M   357 V   345 P   208 T     0  paras   2906
+annya_vi_02              pages   468  words    97543  M   468 V   436 P     0 T     0  paras   2003
+annya_vi_03              pages   395  words    46767  M   395 V   326 P     0 T     0  paras  13281
+annya_vi_04              pages   498  words    71595  M   495 V   417 P     0 T     0  paras   3920
+annya_vi_07              pages   424  words    67116  M   424 V   315 P     0 T     0  paras   1521
+annya_vi_08              pages   434  words    67675  M   434 V   323 P     0 T     0  paras   1587
+annya_vi_09              pages   489  words    89075  M   487 V   457 P     0 T     0  paras   2815
+annya_vi_10              pages   571  words    82316  M   571 V   434 P     0 T     0  paras   2797
+annya_vi_11              pages   530  words    72724  M   528 V   421 P     0 T     0  paras   3005
+annya_vi_12              pages   654  words   117617  M   653 V   546 P     0 T     0  paras   3421
+annya_bi_01              pages   370  words    63742  M   370 V   364 P     0 T     0  paras   2442
+annya_bi_02              pages   356  words    60130  M   356 V   354 P     0 T     0  paras   2380
+annya_bi_03              pages   461  words    85739  M   461 V   429 P     0 T     0  paras   1923
+annya_bi_04              pages   535  words    98757  M   536 V   503 P     0 T     0  paras   2234  ANOMALIES 1
+    ! M repeat x1 (first: 2.257 after 2.257)
+annya_bi_05              pages    68  words     6233  M    68 V    71 P     0 T     0  paras    873
+annya_bi_06              pages   211  words    26583  M   211 V   170 P     0 T     0  paras    968
+annya_bi_07              pages   456  words    74428  M   456 V     0 P     0 T     0  paras   1566
+annya_sadda_01           pages   315  words    26692  M   315 V     0 P     0 T     0  paras   3487  ANOMALIES 1
+    ! M repeat x1 (first: 0.10 after 0.10)
+annya_sadda_02           pages   421  words    51580  M   421 V     0 P     0 T     0  paras   4055
+annya_sadda_03           pages   292  words    29909  M   292 V     0 P     0 T     0  paras   3262
+annya_sadda_05           pages   286  words    44792  M   286 V     0 P     0 T     0  paras   1606
+annya_sadda_06           pages   304  words    36856  M   304 V     0 P     0 T     0  paras   2494
+annya_sadda_07           pages   418  words    60972  M   418 V     0 P     0 T     0  paras   2986
+annya_sadda_08           pages   391  words    53824  M   391 V     0 P     0 T     0  paras   3400
+annya_sadda_09           pages   488  words    74849  M     0 V     0 P     0 T     0  paras   4255
+annya_sadda_10           pages   563  words    75722  M   563 V     0 P     0 T     0  paras   6144
+annya_sadda_11           pages    99  words    16413  M    99 V     0 P     0 T     0  paras   3963
+annya_sadda_12           pages   621  words    69626  M   621 V     0 P     0 T     0  paras   2724
+annya_sadda_13           pages    10  words     1562  M    10 V     0 P     0 T     0  paras    318
+annya_sadda_14           pages    34  words     5052  M    34 V     0 P     0 T     0  paras   1320
+annya_sadda_15           pages   362  words    49225  M   362 V     0 P     0 T     0  paras   2886
+annya_sadda_16           pages    15  words      778  M     0 V     0 P     0 T     0  paras    154
+annya_sadda_17           pages    81  words     4162  M     0 V     0 P     0 T     0  paras    806

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/services/repositories/sentence_toc_repo.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:tipitaka_pali/business_logic/models/toc.dart';
@@ -34,7 +35,9 @@ class _TocDialogState extends State<TocDialog> {
     super.initState();
     tocDialogViewController = TocDialogViewController(
       bookID: widget.bookID,
-      tocRepository: TocDatabaseRepository(DatabaseHelper()),
+      tocRepository: DatabaseHelper.sentenceDataAvailable
+          ? SentenceTocRepository(DatabaseHelper())
+          : TocDatabaseRepository(DatabaseHelper()),
     );
 
     tocDialogViewController.onLoad();

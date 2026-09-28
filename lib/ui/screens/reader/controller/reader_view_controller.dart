@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/services/repositories/sentence_paragraph_mapping_repo.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
@@ -375,7 +376,9 @@ class ReaderViewController extends ChangeNotifier {
   Future<List<ParagraphMapping>> getParagraphs(int currentPage) async {
     final DatabaseHelper databaseProvider = DatabaseHelper();
     final ParagraphMappingRepository repository =
-        ParagraphMappingDatabaseRepository(databaseProvider);
+        DatabaseHelper.sentenceDataAvailable
+            ? SentenceParagraphMappingRepository(databaseProvider)
+            : ParagraphMappingDatabaseRepository(databaseProvider);
 
     return await repository.getParagraphMappings(book.id, currentPage);
   }
@@ -383,7 +386,9 @@ class ReaderViewController extends ChangeNotifier {
   Future<List<ParagraphMapping>> getBackWardParagraphs(int currentPage) async {
     final DatabaseHelper databaseProvider = DatabaseHelper();
     final ParagraphMappingRepository repository =
-        ParagraphMappingDatabaseRepository(databaseProvider);
+        DatabaseHelper.sentenceDataAvailable
+            ? SentenceParagraphMappingRepository(databaseProvider)
+            : ParagraphMappingDatabaseRepository(databaseProvider);
 
     return await repository.getBackWardParagraphMappings(book.id, currentPage);
   }

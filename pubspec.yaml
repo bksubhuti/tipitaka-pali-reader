@@ -145,6 +145,12 @@ flutter:
     - assets/database/tipitaka_pali_part.al
     - assets/database/tipitaka_pali_part.am
     - assets/database/tipitaka_pali_part.an
+    - assets/database/epitaka_part.aa
+    - assets/database/epitaka_part.ab
+    - assets/database/epitaka_part.ac
+    - assets/database/epitaka_part.ad
+    - assets/database/epitaka_part.ae
+    - assets/database/tpr_extension_part.aa
     - assets/web/
     - assets/icon/icon.png
     - assets/icon/tpr_dictionary.png

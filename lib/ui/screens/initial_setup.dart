@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/screens/language_choice.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:path/path.dart' as path;
@@ -313,6 +314,20 @@ class _InitialSetupState extends State<InitialSetup> {
         });
         return;
       }
+    }
+
+    // With the sentence data present, translations are installed as language
+    // files rather than as prebuilt extensions, so offer that instead.
+    if (DatabaseHelper.sentenceDataAvailable &&
+        DatabaseHelper.installedLanguages.isEmpty &&
+        !Prefs.languageChoiceMade &&
+        context.mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LanguageChoiceScreen()),
+      );
+      if (context.mounted) _openHomePage(context);
+      return;
     }
 
     // Prompt user for English Translation Extension if not installed

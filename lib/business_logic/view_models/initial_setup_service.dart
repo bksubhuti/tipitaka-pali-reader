@@ -158,6 +158,36 @@ class InitialSetupService {
     }
   }
 
+  /// Joins one set of asset parts into a single database file.
+  ///
+  /// A 250 MB asset does not copy reliably on every platform, which is why
+  /// the Pali database has always shipped in 50 MB pieces. The ePitaka data
+  /// ships the same way, so there is one mechanism rather than two.
+  ///
+  /// An existing file is left alone: this runs at first setup, and rewriting
+  /// a database the reader already has would be a good way to lose it.
+  Future<void> _joinParts(
+    List<String> parts,
+    String fileName,
+    String label,
+  ) async {
+    final file = File('${Prefs.databaseDirPath}/$fileName');
+    if (await file.exists()) return;
+
+    var done = 0;
+    for (final part in parts) {
+      final bytes = await rootBundle.load(
+          '${AssetsFile.baseAssetsFolderPath}/${AssetsFile.databaseFolderPath}/$part');
+      await file.writeAsBytes(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        mode: FileMode.append,
+      );
+      done++;
+      _intialSetupNotifier.status =
+          '$label ${((done / parts.length) * 100).round()}%';
+    }
+  }
+
   Future<void> _copyFromAssets(String dbFilePath) async {
     final dbFile = File(dbFilePath);
     final timeBeforeCopy = DateTime.now();
@@ -180,6 +210,12 @@ class InitialSetupService {
           "${AppLocalizations.of(_context)!.finishedCopying} $percent% \\ ~${count * 50} MB";
       await Future.delayed(const Duration(milliseconds: 300));
     }
+    // The sentence data ships alongside the Pali pages.
+    await _joinParts(AssetsFile.partsOfEpitaka, AssetsFile.epitakaFileName,
+        'Copying sentence data');
+    await _joinParts(AssetsFile.partsOfExtension,
+        AssetsFile.extensionFileName, 'Copying page markers');
+
     _intialSetupNotifier.stepsCompleted = 0;
 
     final timeAfterCopied = DateTime.now();
@@ -215,6 +251,12 @@ class InitialSetupService {
     if (ftsResult == false) {
       // handle error
     }
+
+    // The sentence-based index, when ePitaka's data is installed. Built here
+    // rather than shipped, so it always matches the data actually present.
+    await DatabaseHelper().buildSentenceFtsIfNeeded(
+      onProgress: (msg) => updateMessageCallback(msg),
+    );
 
     final timeAfterIndexing = DateTime.now();
     //_indexStatus =help

@@ -1,0 +1,330 @@
+Page markers and paragraph structure carried onto ePitaka sentences
+books: 176
+markers: 158365   placed on identical text: 156196 (98.63%)
+total time: 32 minutes
+
+A marker that did not land on identical text is written with exact=0
+and named above. Those are the ones to look at; nothing is silently
+moved to the start of a sentence.
+
+annya_bi_01              -> Vism-i         aligned  99.0%  markers   734 exact   729 ( 99.3%)  glue   2400     2s
+     inexact: M1.37, M1.70, M1.143, M1.258, M1.284
+annya_bi_02              -> Vism-ii        aligned  99.0%  markers   710 exact   702 ( 98.9%)  glue   2338     3s
+     inexact: M2.40, M2.72, V2.69, V2.213, V2.221, M2.229, M2.284, M2.334
+annya_bi_03              -> Vism-mht-i     aligned  96.1%  markers   890 exact   868 ( 97.5%)  glue   1906    22s
+     inexact: V1.10, M1.50, V1.62, M1.76, V1.94, V1.103, V1.123, M1.151, V1.166, M1.186
+annya_bi_04              -> Vism-mht-ii    aligned  97.0%  markers  1039 exact  1024 ( 98.6%)  glue   2210    20s
+     inexact: M2.9, M2.41, M2.65, M2.76, M2.113, M2.229, V2.256, M2.287, V2.279, V2.297
+annya_bi_05              -> Abhidh-s       aligned  99.9%  markers   139 exact   139 (100.0%)  glue    873     0s
+annya_bi_06              -> Abhidh-s-t     aligned  97.9%  markers   381 exact   379 ( 99.5%)  glue    967     1s
+     inexact: M0.158, V0.230
+annya_bi_07              -> PmtDīp         aligned  99.1%  markers   456 exact   453 ( 99.3%)  glue   1566     4s
+     inexact: M0.262, M0.268, M0.370
+annya_sadda_01           -> Kacc + Kacc-sadd aligned  99.8%  markers   315 exact   315 (100.0%)  glue   3486     2s
+annya_sadda_02           -> PadRūp         aligned  94.0%  markers   421 exact   398 ( 94.5%)  glue   3817     4s
+     inexact: M0.81, M0.82, M0.83, M0.84, M0.85, M0.86, M0.87, M0.88, M0.89, M0.90
+annya_sadda_03           -> Mogg + Mogg-byk aligned  99.7%  markers   292 exact   292 (100.0%)  glue   3256     1s
+annya_sadda_05           -> MoggPañc       aligned  98.9%  markers   286 exact   286 (100.0%)  glue   1583     1s
+annya_sadda_06           -> Payog          aligned  99.8%  markers   304 exact   303 ( 99.7%)  glue   2474     1s
+     inexact: M0.178
+annya_sadda_07           -> Sadd-pad       aligned  97.9%  markers   418 exact   411 ( 98.3%)  glue   2986     9s
+     inexact: M0.116, M0.150, M0.168, M0.172, M0.186, M0.191, M0.243
+annya_sadda_08           -> Sadd-dh        aligned  97.6%  markers   391 exact   387 ( 99.0%)  glue   3400     6s
+     inexact: M0.12, M0.234, M0.262, M0.292
+annya_sadda_10           -> Nirud          aligned  99.3%  markers   563 exact   560 ( 99.5%)  glue   6140     9s
+     inexact: M0.147, M0.248, M0.500
+annya_sadda_11           -> Abh            aligned  99.7%  markers    99 exact    99 (100.0%)  glue   2744     1s
+annya_sadda_12           -> Abh-ṭ          aligned  99.3%  markers   621 exact   621 (100.0%)  glue   2722     5s
+annya_sadda_13           -> Vutt           aligned  99.9%  markers    10 exact    10 (100.0%)  glue    264     0s
+annya_sadda_14           -> Subodh         aligned  99.7%  markers    34 exact    34 (100.0%)  glue    953     0s
+annya_sadda_15           -> Subodh-t       aligned  99.2%  markers   362 exact   360 ( 99.4%)  glue   2517     5s
+     inexact: M0.42, M0.279
+annya_vi_01              -> Dvem-bhk + Dvem-bhni + Kkh aligned  98.2%  markers   910 exact   870 ( 95.6%)  glue   2868     9s
+     inexact: M0.82, M0.84, P0.33, M0.124, P0.42, V0.171, P0.79, P0.82, V0.183, M0.195
+annya_vi_02              -> VinSaṅg-a      aligned  98.9%  markers   904 exact   901 ( 99.7%)  glue   1930    23s
+     inexact: M0.47, V0.48, M0.402
+annya_vi_03              -> Vin-vn + Utt-vn aligned  99.8%  markers   721 exact   719 ( 99.7%)  glue   9125     3s
+     inexact: V0.215, M0.253
+annya_vi_04              -> Khuddas + Khuddas-pt + Khuddas-nt + Mūlasikk + Mūlasikk-t aligned  96.8%  markers   912 exact   896 ( 98.2%)  glue   3312    19s
+     inexact: V0.70, M0.90, M0.137, V0.142, M0.157, M0.174, M0.201, V0.215, M0.280, M0.344
+annya_vi_07              -> Vin-alaṅke     aligned  97.3%  markers   739 exact   724 ( 98.0%)  glue   1488    17s
+     inexact: V1.49, M1.86, M1.105, M1.111, V1.87, M1.113, V1.90, M1.133, M1.159, V1.127
+annya_vi_08              -> Vin-alaṅke     aligned  96.3%  markers   757 exact   746 ( 98.5%)  glue   1520    21s
+     inexact: M2.192, V2.151, M2.278, V2.202, M2.338, M2.376, V2.278, V2.283, V2.284, M2.391
+annya_vi_09              -> Kkh-pt + Kkh-nt aligned  96.7%  markers   944 exact   922 ( 97.7%)  glue   2773    34s
+     inexact: M0.16, M0.41, M0.98, V0.121, M0.136, M0.154, M0.225, V0.209, M0.310, M0.323
+annya_vi_10              -> Vin-vn-t       aligned  95.6%  markers  1005 exact   981 ( 97.6%)  glue   2726    70s
+     inexact: V1.57, V1.87, M1.141, V1.113, M1.177, V1.138, V1.153, M1.229, M1.260, M1.265
+annya_vi_11              -> Vin-vn-t + Utt-vn-t aligned  95.9%  markers   949 exact   927 ( 97.7%)  glue   2922    43s
+     inexact: M2.15, M2.58, M2.94, M2.97, V2.80, M2.110, M2.158, V2.156, V2.176, V2.190
+annya_vi_12              -> Pācity-y       aligned  93.2%  markers  1199 exact  1143 ( 95.3%)  glue   3398   222s
+     inexact: V1.20, V1.22, M0.28, M0.72, M0.82, M0.89, V1.101, V1.102, M0.135, V1.115
+attha_an_01              -> Mp-i           aligned  98.6%  markers  1365 exact  1332 ( 97.6%)  glue   1879     6s
+     inexact: V1.7, M1.6, P1.14, V1.64, V1.69, M1.116, V1.154, M1.173, P1.226, V1.179
+attha_an_02              -> Mp-ii + Mp-iii + Mp-iv aligned  96.7%  markers  1311 exact  1260 ( 96.1%)  glue   1951    19s
+     inexact: P2.103, P2.130, P2.152, P2.153, M2.54, V2.53, V2.58, M2.58, V2.78, V2.92
+attha_an_03              -> Mp-v + Mp-vi + Mp-vii aligned  96.2%  markers   641 exact   615 ( 95.9%)  glue   1085     7s
+     inexact: P3.233, V3.20, P3.259, P3.268, V3.51, V3.53, M3.52, V3.63, M3.63, P3.304
+attha_an_04              -> Mp-viii + Mp-ix + Mp-x + Mp-xi aligned  96.3%  markers   564 exact   547 ( 97.0%)  glue    882     2s
+     inexact: V3.197, P4.97, V3.222, V3.230, M3.241, P4.147, M3.260, M3.280, M3.283, V3.281
+attha_bi_01              -> As             aligned  98.6%  markers  1328 exact  1307 ( 98.4%)  glue   2752     8s
+     inexact: V0.115, V0.125, V0.186, M0.201, V0.201, P0.167, V0.214, P0.238, V0.288, V0.289
+attha_bi_02              -> Vibh-a         aligned  98.2%  markers  1529 exact  1510 ( 98.8%)  glue   2658    13s
+     inexact: P0.33, M0.37, M0.73, V0.94, V0.215, V0.239, P0.324, P0.345, V0.328, P0.365
+attha_bi_03              -> Dhatuk-a + Pp-a + Kv-a + Yam-a + Paṭṭh-a aligned  98.0%  markers  1356 exact  1335 ( 98.5%)  glue   2882    15s
+     inexact: M0.2, V0.57, M0.88, M0.91, V0.111, M0.132, M0.159, V0.179, P0.96, P0.110
+attha_di_01              -> Sv-i           aligned  97.2%  markers  1022 exact   998 ( 97.7%)  glue   1718     7s
+     inexact: V1.9, M1.25, V1.30, P1.79, V1.87, M1.93, P1.105, V1.99, P1.120, M1.147
+attha_di_02              -> Sv-ii          aligned  98.0%  markers  1176 exact  1159 ( 98.6%)  glue   1955    14s
+     inexact: V2.2, M2.11, V2.41, V2.99, M2.128, V2.120, M2.138, V2.124, M2.146, V2.131
+attha_di_03              -> Sv-iii         aligned  97.4%  markers   731 exact   716 ( 97.9%)  glue   1282     5s
+     inexact: P3.821, M3.12, P3.871, M3.67, P3.911, V3.86, P3.916, M3.102, V3.117, P3.950
+attha_ku_01              -> Pj-i           aligned  97.8%  markers   664 exact   659 ( 99.2%)  glue   1351     2s
+     inexact: P0.36, M0.115, V0.118, P0.221, M0.191
+attha_ku_02_01           -> Dhp-a          aligned  98.5%  markers  1570 exact  1544 ( 98.3%)  glue   2229    20s
+     inexact: V1.7, P1.61, V1.67, P1.115, V1.72, M1.89, P1.138, M1.103, V1.94, P1.161
+attha_ku_02_02           -> Dhp-a          aligned  97.9%  markers  1606 exact  1552 ( 96.6%)  glue   3116    19s
+     inexact: P3.40, P3.78, P3.104, V2.70, P3.138, V2.77, V2.85, V2.87, V2.91, P3.161
+attha_ku_03              -> Ud-a           aligned  97.6%  markers  1183 exact  1153 ( 97.5%)  glue   1916     5s
+     inexact: V0.8, M0.13, V0.13, M0.43, P0.49, P0.77, V0.69, M0.82, V0.81, M0.91
+attha_ku_04              -> It-a           aligned  97.6%  markers  1054 exact  1031 ( 97.8%)  glue   1966     5s
+     inexact: M0.21, P1.23, V0.22, M0.24, V0.33, M0.56, M0.63, P1.69, V0.67, P1.104
+attha_ku_05_01           -> Pj-ii          aligned  97.7%  markers   886 exact   871 ( 98.3%)  glue   1344     9s
+     inexact: V1.41, P1.95, M1.100, M1.101, M1.121, M1.123, P1.157, P1.194, M1.195, P1.206
+attha_ku_05_02           -> Pj-ii          aligned  96.6%  markers   932 exact   907 ( 97.3%)  glue   1692    10s
+     inexact: P1.332, M2.120, P2.404, V2.124, V2.140, M2.208, V2.210, M2.231, V2.218, V2.219
+attha_ku_06              -> Vv-a           aligned  96.9%  markers   992 exact   968 ( 97.6%)  glue   3217     2s
+     inexact: P0.13, M0.16, V0.29, P0.40, M0.38, M0.40, P0.98, V0.122, M0.142, V0.133
+attha_ku_07              -> Pv-a           aligned  97.2%  markers   809 exact   797 ( 98.5%)  glue   2619     3s
+     inexact: P0.16, V0.60, P0.73, V0.91, M0.101, V0.100, P0.159, P0.168, V0.168, P0.199
+attha_ku_08_01           -> Th-a-i         aligned  97.9%  markers  1255 exact  1223 ( 97.5%)  glue   5415     7s
+     inexact: M1.66, V1.54, P1.56, P1.84, M1.105, V1.88, M1.106, M1.124, M1.125, P1.124
+attha_ku_08_02           -> Th-a-ii        aligned  97.6%  markers  1384 exact  1355 ( 97.9%)  glue   5798    11s
+     inexact: M2.47, V2.48, P2.145, M2.84, V2.117, P2.201, V2.120, P2.203, M2.154, M2.157
+attha_ku_09              -> Thī-a          aligned  97.9%  markers   930 exact   924 ( 99.4%)  glue   4115     3s
+     inexact: M0.21, P0.44, V0.67, M0.81, M0.125, M0.220
+attha_ku_10              -> Ap-a           aligned  98.5%  markers   985 exact   972 ( 98.7%)  glue   2266    13s
+     inexact: M1.108, V1.116, V1.134, V1.150, V1.188, M1.209, M1.264, V1.256, V1.276, P0.268
+attha_ku_11              -> Ap-a           aligned  98.2%  markers   858 exact   833 ( 97.1%)  glue   1892    13s
+     inexact: M2.19, V2.28, M2.39, V2.43, M2.63, M2.81, V2.76, M2.88, P0.401, V2.100
+attha_ku_12              -> Bv-a           aligned  97.6%  markers  1000 exact   981 ( 98.1%)  glue   3434     6s
+     inexact: P0.27, M0.45, M0.72, V0.79, V0.91, M0.101, V0.103, P0.106, V0.134, P0.162
+attha_ku_13              -> Cp-a           aligned  97.9%  markers   968 exact   951 ( 98.2%)  glue   2151     6s
+     inexact: M0.19, V0.23, M0.33, V0.32, P0.48, P0.69, M0.82, M0.83, M0.113, V0.133
+attha_ku_16              -> Nidd-a-i       aligned  96.2%  markers  1275 exact  1246 ( 97.7%)  glue   2074    26s
+     inexact: P1.59, V0.52, P1.76, P1.96, P1.155, V0.138, V0.142, P1.194, M0.170, P1.201
+attha_ku_17              -> Nidd-a-ii      aligned  95.8%  markers   423 exact   413 ( 97.6%)  glue    815     2s
+     inexact: M0.13, M0.24, P0.31, V0.33, M0.51, P0.94, M0.92, P0.111, V0.99, P0.135
+attha_ku_18_01           -> Paṭis-a        aligned  97.9%  markers  1046 exact  1022 ( 97.7%)  glue   1638    10s
+     inexact: M1.13, P1.20, M1.20, M1.22, M1.45, M1.56, M1.60, P1.91, M1.89, P1.103
+attha_ku_18_02           -> Paṭis-a        aligned  97.2%  markers   936 exact   923 ( 98.6%)  glue   1311    22s
+     inexact: M2.40, M2.72, P2.483, M2.102, P2.520, V2.186, M2.213, P3.626, P3.628, M2.257
+attha_ku_20              -> Nett-a         aligned  96.9%  markers   535 exact   520 ( 97.2%)  glue   1261     5s
+     inexact: M0.56, V0.207, M0.103, V0.233, V0.245, V0.248, M0.149, M0.160, V0.316, M0.232
+attha_ku_zat_01          -> Ja-a-i         aligned  98.4%  markers  1535 exact  1518 ( 98.9%)  glue   3130     8s
+     inexact: V1.95, M1.153, V1.149, M1.177, P1.170, P1.257, M1.301, P1.306, V1.347, M1.390
+attha_ku_zat_02          -> Ja-a-ii        aligned  97.8%  markers  1232 exact  1203 ( 97.6%)  glue   2700     9s
+     inexact: P2.52, M2.50, V2.51, P2.82, V2.70, V2.80, P2.138, M2.129, V2.137, M2.156
+attha_ku_zat_03          -> Ja-a-iii       aligned  97.9%  markers  1538 exact  1493 ( 97.1%)  glue   4140    16s
+     inexact: V3.1, P3.1, M3.1, P3.25, M3.75, P3.82, P3.112, V3.104, V3.106, P3.125
+attha_ku_zat_04          -> Ja-a-iv        aligned  97.9%  markers  1455 exact  1423 ( 97.8%)  glue   4288     8s
+     inexact: V4.1, P4.1, M4.1, P4.6, P4.20, P4.53, M4.52, M4.55, P4.58, V4.131
+attha_ku_zat_05          -> Ja-a-vi-b + Ja-a-v aligned  97.6%  markers  1567 exact  1539 ( 98.2%)  glue   5138    18s
+     inexact: M5.29, V5.48, M5.59, P5.149, P5.150, M5.189, V5.172, M5.191, M5.201, P5.214
+attha_ku_zat_06          -> Ja-a-vi        aligned  97.9%  markers   919 exact   900 ( 97.9%)  glue   3035     9s
+     inexact: M6.19, V6.64, P6.55, V6.70, P6.66, V6.91, M6.98, M6.114, M6.115, P6.101
+attha_ku_zat_07          -> Ja-a-vii       aligned  97.5%  markers  1055 exact  1034 ( 98.0%)  glue   4902     9s
+     inexact: V7.23, V7.56, V7.108, P6.227, V7.130, P6.241, V7.180, P6.311, V7.221, V7.223
+attha_ma_01_01           -> Ps-i           aligned  97.7%  markers  1202 exact  1179 ( 98.1%)  glue   2033    15s
+     inexact: P1.7, V1.69, P1.87, V1.94, M1.112, V1.126, V1.132, V1.134, V1.145, V1.152
+attha_ma_01_02           -> Ps-i           aligned  97.9%  markers   965 exact   946 ( 98.0%)  glue   1289     8s
+     inexact: P2.115, P2.120, M2.37, M2.39, M2.77, P2.176, M2.115, V2.115, M2.131, V2.152
+attha_ma_02              -> Ps-ii          aligned  97.1%  markers  1082 exact  1068 ( 98.7%)  glue   1529     5s
+     inexact: P3.40, P3.43, M3.64, P3.90, M3.105, P3.185, P3.200, V3.181, M3.186, P3.300
+attha_ma_03              -> Ps-iii         aligned  97.6%  markers   870 exact   854 ( 98.2%)  glue   1261     2s
+     inexact: P4.2, V4.13, V4.37, P4.63, P4.90, V4.112, M4.115, P4.163, P4.212, P4.213
+attha_sa_01              -> Spk-i          aligned  96.7%  markers   991 exact   960 ( 96.9%)  glue   1682     5s
+     inexact: M1.6, P1.7, P1.10, P1.25, M1.35, M1.45, V1.48, P1.53, V1.50, M1.52
+attha_sa_02              -> Spk-ii         aligned  97.5%  markers   693 exact   666 ( 96.1%)  glue   1094     3s
+     inexact: V2.6, M2.6, V2.16, M2.18, P2.19, M2.53, V2.51, V2.89, P2.119, M2.114
+attha_sa_03              -> Spk-iii        aligned  97.1%  markers   302 exact   286 ( 94.7%)  glue    543     1s
+     inexact: V2.226, P2.259, V2.231, M2.257, P2.279, P2.281, M2.259, P2.286, M2.270, M2.272
+attha_sa_04              -> Spk-iv         aligned  97.5%  markers   471 exact   445 ( 94.5%)  glue    860     1s
+     inexact: P2.365, V3.12, M3.12, P2.367, M3.16, V3.31, M3.31, P2.386, V3.36, M3.44
+attha_sa_05              -> Spk-v + Ps-i + Spk-v aligned  97.7%  markers   572 exact   558 ( 97.6%)  glue   1120     7s
+     inexact: P3.126, P3.133, M3.181, V3.184, P3.149, P3.150, P3.227, M3.277, M3.279, P3.251
+attha_vi_01_01           -> Sp-i           aligned  98.3%  markers  1055 exact  1047 ( 99.2%)  glue   1830    13s
+     inexact: P1.102, P1.186, V1.143, M1.182, V1.192, M1.216, P2.310, M1.294
+attha_vi_01_02           -> Sp-i           aligned  98.0%  markers   937 exact   929 ( 99.1%)  glue   1528    15s
+     inexact: P2.394, M2.8, P2.489, V2.81, V2.88, V2.228, M2.311, M2.312
+attha_vi_02              -> Sp-ii + Sp-ii-b aligned  98.0%  markers   669 exact   654 ( 97.8%)  glue   1562     4s
+     inexact: P4.739, M0.16, V0.42, M0.58, M0.72, P4.825, P4.828, V0.121, V0.134, V0.180
+attha_vi_03              -> Sp-iii         aligned  97.4%  markers   595 exact   583 ( 98.0%)  glue   1037     4s
+     inexact: M0.246, V0.236, P5.971, V0.250, V0.265, V0.325, M0.345, M0.364, V0.343, V0.348
+attha_vi_04              -> Sp-iv          aligned  97.2%  markers   418 exact   412 ( 98.6%)  glue    741     1s
+     inexact: V0.2, M0.7, P6.1248, P6.1286, V0.132, M0.136
+attha_vi_05              -> Sp-v           aligned  97.5%  markers   377 exact   370 ( 98.1%)  glue    719     1s
+     inexact: V0.148, M0.155, V0.156, M0.178, V0.186, M0.198, V0.219
+mula_an_01               -> A-i            aligned  99.7%  markers   216 exact   215 ( 99.5%)  glue    404     0s
+     inexact: T1.18
+mula_an_02               -> A-ii           aligned  98.5%  markers   229 exact   229 (100.0%)  glue    333     0s
+mula_an_03               -> A-iii          aligned  99.3%  markers   883 exact   881 ( 99.8%)  glue   1445     1s
+     inexact: T1.157, T1.292
+mula_an_04               -> A-iv           aligned  99.2%  markers  1175 exact  1170 ( 99.6%)  glue   2073     3s
+     inexact: P2.31, T2.144, T2.193, T2.269, M1.565
+mula_an_05               -> A-v            aligned  99.4%  markers  1076 exact  1075 ( 99.9%)  glue   1751     2s
+     inexact: M2.109
+mula_an_06               -> A-vi           aligned  99.2%  markers   666 exact   666 (100.0%)  glue    938     1s
+mula_an_07               -> A-vii          aligned  99.2%  markers   544 exact   543 ( 99.8%)  glue    839     0s
+     inexact: M2.436
+mula_an_08               -> A-viii         aligned  99.1%  markers   742 exact   738 ( 99.5%)  glue   1111     1s
+     inexact: P4.181, P4.188, M3.135, T4.329
+mula_an_09               -> A-ix           aligned  98.9%  markers   435 exact   427 ( 98.2%)  glue    553     0s
+     inexact: T4.367, P4.419, V3.228, T4.447, P4.454, V3.258, M3.247, T4.476
+mula_an_10               -> A-x            aligned  99.2%  markers  1178 exact  1173 ( 99.6%)  glue   1697     3s
+     inexact: V3.6, M3.289, M3.348, P5.225, M3.487
+mula_an_11               -> A-xi           aligned  99.2%  markers   201 exact   201 (100.0%)  glue    261     0s
+mula_bi_01               -> Dhs            aligned 100.0%  markers  1270 exact  1268 ( 99.8%)  glue   2534     6s
+     inexact: T0.200, M0.162
+mula_bi_02               -> Vibh           aligned  99.1%  markers  1982 exact  1976 ( 99.7%)  glue   3609    16s
+     inexact: V0.87, T0.151, T0.168, V0.288, V0.310, M0.388
+mula_bi_03               -> Dhatuk         aligned  99.8%  markers   440 exact   439 ( 99.8%)  glue    676     4s
+     inexact: M0.44
+mula_bi_04               -> Pp             aligned  99.6%  markers   351 exact   351 (100.0%)  glue    596     0s
+mula_bi_05               -> Kv             aligned  96.3%  markers  2240 exact  2205 ( 98.4%)  glue   3635    48s
+     inexact: T0.31, V0.26, P0.24, T0.40, M0.34, V0.38, T0.77, V0.77, P0.108, P0.111
+mula_bi_06_01            -> Yam-i          aligned 100.0%  markers  1006 exact  1006 (100.0%)  glue   4808    13s
+mula_bi_06_02            -> Yam-ii         aligned 100.0%  markers  1119 exact  1119 (100.0%)  glue   3945    21s
+mula_bi_06_03            -> Yam-iii        aligned  99.9%  markers  1331 exact  1330 ( 99.9%)  glue   5625    28s
+     inexact: T2.448
+mula_bi_07_01            -> Paṭṭh-i        aligned  99.9%  markers  1569 exact  1568 ( 99.9%)  glue   4357    13s
+     inexact: M1.220
+mula_bi_07_02            -> Paṭṭh-ii       aligned  99.9%  markers  1715 exact  1715 (100.0%)  glue   4322    38s
+mula_bi_07_03            -> Paṭṭh-iii      aligned  99.7%  markers  2052 exact  2052 (100.0%)  glue   6069    42s
+mula_bi_07_04            -> Paṭṭh-iv       aligned  99.7%  markers  2186 exact  2185 (100.0%)  glue   8112    40s
+     inexact: T4.451
+mula_bi_07_05            -> Paṭṭh-v        aligned  98.5%  markers  1537 exact  1537 (100.0%)  glue   5230    52s
+mula_di_01               -> D-i            aligned  98.9%  markers  1026 exact  1023 ( 99.7%)  glue   1199     3s
+     inexact: M1.24, T1.68, T1.83
+mula_di_02               -> D-ii           aligned  99.1%  markers  1299 exact  1291 ( 99.4%)  glue   1720     5s
+     inexact: T2.36, M2.54, M2.108, V2.99, P2.130, T2.209, P2.294, P2.301
+mula_di_03               -> D-iii          aligned  99.3%  markers  1148 exact  1146 ( 99.8%)  glue   2042     2s
+     inexact: P3.113, T3.195
+mula_ku_01               -> Khp + Sn + Khp aligned  99.4%  markers    46 exact    46 (100.0%)  glue    206     0s
+mula_ku_02               -> Dhp            aligned  99.5%  markers   237 exact   237 (100.0%)  glue    969     0s
+mula_ku_03               -> Ud             aligned  98.1%  markers   477 exact   475 ( 99.6%)  glue   1007     0s
+     inexact: M0.124, V0.134
+mula_ku_04               -> It             aligned  98.1%  markers   388 exact   388 (100.0%)  glue   1206     0s
+mula_ku_05               -> Sn             aligned  95.6%  markers   800 exact   800 (100.0%)  glue   2887     0s
+mula_ku_06               -> Vv             aligned  99.2%  markers   498 exact   498 (100.0%)  glue   2245     0s
+mula_ku_07               -> Pv             aligned  98.8%  markers   351 exact   351 (100.0%)  glue   1840     0s
+mula_ku_08               -> Th             aligned  99.2%  markers   595 exact   595 (100.0%)  glue   3378     0s
+mula_ku_09               -> Thī            aligned  99.5%  markers   229 exact   229 (100.0%)  glue   1260     0s
+mula_ku_10               -> Ap-i           aligned 100.0%  markers  1835 exact  1835 (100.0%)  glue  10175     1s
+mula_ku_11               -> Ap-ii + Ap-iii aligned  98.6%  markers  1199 exact  1198 ( 99.9%)  glue   7237     1s
+     inexact: M2.186
+mula_ku_12               -> Bv             aligned  99.8%  markers   375 exact   375 (100.0%)  glue   2210     0s
+mula_ku_13               -> Cp             aligned  98.5%  markers   149 exact   149 (100.0%)  glue    841     0s
+mula_ku_14               -> Ja-i           aligned  99.8%  markers  1222 exact  1221 ( 99.9%)  glue   7530     2s
+     inexact: T1.230
+mula_ku_15               -> Ja-ii          aligned  99.9%  markers  1154 exact  1154 (100.0%)  glue   7849     1s
+mula_ku_16               -> Nidd-i         aligned  98.7%  markers  1937 exact  1928 ( 99.5%)  glue   2939     8s
+     inexact: V0.9, P1.57, M0.46, P2.306, P2.308, P2.395, T0.592, T0.596, M0.387
+mula_ku_17               -> Nidd-ii        aligned  98.0%  markers  1012 exact   989 ( 97.7%)  glue   2568     6s
+     inexact: V0.24, M0.28, M0.38, T0.50, V0.65, M0.77, T0.95, T0.97, M0.85, V0.77
+mula_ku_18               -> Paṭis          aligned  99.6%  markers  1917 exact  1915 ( 99.9%)  glue   2265     8s
+     inexact: P2.42, P2.165
+mula_ku_19               -> Mil            aligned  98.6%  markers  1223 exact  1213 ( 99.2%)  glue   2659    16s
+     inexact: P0.44, P0.83, P0.85, V0.100, P0.150, P0.266, P0.280, P0.296, P0.297, P0.318
+mula_ku_20               -> Nett           aligned  98.9%  markers   523 exact   522 ( 99.8%)  glue   1633     1s
+     inexact: M0.96
+mula_ku_21               -> Pet            aligned  99.8%  markers   604 exact   604 (100.0%)  glue   1301     1s
+mula_ma_01               -> M-i            aligned  99.1%  markers  1784 exact  1778 ( 99.7%)  glue   1835    14s
+     inexact: V1.44, M1.43, V1.237, P1.176, M1.306, T1.527
+mula_ma_02               -> M-ii           aligned  99.0%  markers  1966 exact  1962 ( 99.8%)  glue   1890    13s
+     inexact: M2.15, P1.371, P1.419, T2.670
+mula_ma_03               -> M-iii          aligned  98.7%  markers  1618 exact  1607 ( 99.3%)  glue   1679     4s
+     inexact: V3.10, P2.234, V3.39, M3.60, M3.63, T3.265, T3.430, V3.284, M3.306, M3.319
+mula_sa_01               -> S-i            aligned  98.6%  markers  1112 exact  1111 ( 99.9%)  glue   3527     1s
+     inexact: V1.2
+mula_sa_02               -> S-ii           aligned  98.7%  markers  1104 exact  1099 ( 99.5%)  glue   1533     2s
+     inexact: V1.11, P2.118, V1.110, P2.126, T2.235
+mula_sa_03               -> S-iii          aligned  99.1%  markers  1125 exact  1125 (100.0%)  glue   1578     6s
+mula_sa_04               -> S-iv           aligned  99.2%  markers  1588 exact  1579 ( 99.4%)  glue   2208     8s
+     inexact: M2.267, V2.43, V2.165, T4.242, P4.195, V2.247, V2.253, V2.319, V2.359
+mula_sa_05               -> S-v            aligned  98.1%  markers  1959 exact  1919 ( 98.0%)  glue   2947    11s
+     inexact: T5.141, P5.147, M3.139, M3.151, V3.266, P5.196, P5.219, P5.221, P5.223, V3.306
+mula_vi_01               -> Vin-i          aligned  98.8%  markers  1631 exact  1625 ( 99.6%)  glue   2639     6s
+     inexact: V0.19, V0.252, M0.291, T2.64, T2.79, T2.121
+mula_vi_02               -> Vin-ii + Vin-ii-b aligned  98.7%  markers  1990 exact  1982 ( 99.6%)  glue   3880    25s
+     inexact: T2.296, T2.303, T2.311, M0.104, V0.136, T2.400, V0.310, P4.256
+mula_vi_03               -> Vin-iii        aligned  98.4%  markers  2074 exact  2061 ( 99.4%)  glue   3049    15s
+     inexact: V0.34, T1.58, V0.117, V0.192, V0.242, M0.279, T2.147, M0.366, T2.179, T2.181
+mula_vi_04               -> Vin-iv         aligned  98.4%  markers  2090 exact  2072 ( 99.1%)  glue   3101    15s
+     inexact: P2.17, M0.130, T1.224, V0.136, V0.138, P2.116, T2.33, P2.122, T2.50, V0.275
+mula_vi_05               -> Vin-v          aligned  99.7%  markers  1579 exact  1571 ( 99.5%)  glue   3769     6s
+     inexact: M0.99, V0.236, T0.326, M0.260, M0.291, M0.292, M0.297, P5.176
+tika_an_01               -> Mp-t-i         aligned  96.6%  markers   558 exact   548 ( 98.2%)  glue   1362     7s
+     inexact: V1.133, V1.162, M1.177, M1.184, V1.179, M1.210, V1.221, V1.254, V1.260, V1.261
+tika_an_02               -> Mp-t-ii + Mp-t-iii + Mp-t-iv aligned  96.3%  markers   756 exact   726 ( 96.0%)  glue   2152    11s
+     inexact: V2.8, V2.20, M2.26, V2.57, V2.60, V2.63, V2.66, V2.102, M2.124, V2.115
+tika_an_03               -> Mp-t-v + Mp-t-vi + Mp-t-vii aligned  96.8%  markers   388 exact   379 ( 97.7%)  glue   1142     2s
+     inexact: V3.31, M3.50, M3.54, M3.98, M3.105, V3.99, M3.140, V3.161, M3.173
+tika_an_04               -> Mp-t-viii + Mp-t-ix + Mp-t-x + Mp-t-xi aligned  97.0%  markers   324 exact   320 ( 98.8%)  glue    942     1s
+     inexact: M3.224, M3.263, V3.295, M3.370
+tika_bi_01               -> As-mt          aligned  97.5%  markers   398 exact   391 ( 98.2%)  glue    852     2s
+     inexact: M0.59, V0.120, M0.127, M0.134, V0.150, M0.160, V0.168
+tika_bi_02_01            -> Vibh-mt        aligned  97.2%  markers   472 exact   463 ( 98.1%)  glue   1270     2s
+     inexact: V0.35, M0.60, M0.74, M0.106, V0.113, V0.126, V0.179, M0.199, V0.237
+tika_bi_02_02            -> Vibh-anuṭ      aligned  95.7%  markers   457 exact   444 ( 97.2%)  glue   1194     5s
+     inexact: V0.2, M0.8, V0.20, M0.62, V0.61, M0.73, M0.78, V0.130, M0.138, V0.139
+tika_bi_03               -> Dhatuk-mt + Pp-mt + Kv-mt + Yam-mt + Paṭṭh-mt aligned  97.4%  markers   503 exact   495 ( 98.4%)  glue   1588     5s
+     inexact: V0.29, M0.61, M0.74, V0.81, V0.126, M0.126, M0.213, V0.225
+tika_bi_04               -> Dhs-anuṭ       aligned  97.1%  markers   426 exact   418 ( 98.1%)  glue    869     5s
+     inexact: M0.11, M0.52, M0.76, V0.78, M0.115, M0.118, M0.145, M0.178
+tika_bi_05               -> Dhatuk-anuṭ + Pp-anuṭ + Kv-anuṭ + Yam-anuṭ + Paṭṭh-anuṭ aligned  96.3%  markers   642 exact   619 ( 96.4%)  glue   1676     9s
+     inexact: V0.8, M0.11, M0.15, M0.19, M0.30, V0.30, M0.33, V0.33, M0.38, V0.53
+tika_di_01_01            -> Sv-pt-i        aligned  96.4%  markers  1291 exact  1265 ( 98.0%)  glue   1653    12s
+     inexact: P1.49, M1.59, V1.90, P1.143, M1.121, P1.162, M1.191, P1.281, V1.194, M1.221
+tika_di_01_02            -> Sv-nt-i        aligned  96.9%  markers   939 exact   925 ( 98.5%)  glue   1914    23s
+     inexact: V1.21, V1.71, V1.132, M1.166, M1.198, V1.220, M1.270, M1.272, M1.302, V1.277
+tika_di_01_03            -> Sv-nt-ii       aligned  96.1%  markers   823 exact   795 ( 96.6%)  glue   1685    27s
+     inexact: M2.21, M2.39, M2.66, V2.58, V2.73, V2.76, V2.108, V2.115, M2.140, V2.125
+tika_di_02               -> Sv-pt-ii       aligned  96.1%  markers  1140 exact  1106 ( 97.0%)  glue   1705    15s
+     inexact: V2.19, V2.23, M2.36, P2.60, V2.59, M2.96, P2.129, P2.141, M2.112, M2.137
+tika_di_03               -> Sv-pt-iii      aligned  96.1%  markers   927 exact   904 ( 97.5%)  glue   1326    10s
+     inexact: V3.5, M3.7, P3.13, V3.18, M3.26, P3.38, P3.40, M3.32, M3.66, P3.90
+tika_ku_20_01            -> Nett-ṭ         aligned  95.9%  markers   294 exact   286 ( 97.3%)  glue    831     4s
+     inexact: V0.11, V0.57, M0.76, V0.79, M0.89, V0.105, V0.121, M0.150
+tika_ku_20_02            -> Nett-vbh       aligned  97.5%  markers   684 exact   675 ( 98.7%)  glue   1826    12s
+     inexact: M0.4, M0.100, V0.249, V0.325, V0.343, V0.378, V0.459, M0.347, M0.353
+tika_ma_01               -> Ps-t-i         aligned  96.6%  markers   745 exact   732 ( 98.3%)  glue   1541    25s
+     inexact: M1.10, M1.96, M1.168, M1.186, M1.224, V1.202, M1.241, V1.223, M1.251, M1.253
+tika_ma_02               -> Ps-t-i         aligned  96.0%  markers   625 exact   617 ( 98.7%)  glue   1318    30s
+     inexact: V2.13, V2.37, V2.62, M2.74, M2.106, V2.228, M2.274, M2.319
+tika_ma_03               -> Ps-t-ii        aligned  96.0%  markers   419 exact   411 ( 98.1%)  glue   1024     4s
+     inexact: V2.39, V2.58, V2.115, M2.149, M2.153, M2.191, V2.203, V2.208
+tika_ma_04               -> Ps-t-iii       aligned  95.7%  markers   455 exact   442 ( 97.1%)  glue   1003     6s
+     inexact: V2.163, V2.15, M2.241, V2.44, M2.259, V2.54, V2.100, V2.157, M2.397, V2.181
+tika_sa_01               -> Spk-t-i        aligned  95.4%  markers   646 exact   631 ( 97.7%)  glue   1901    21s
+     inexact: V1.11, M1.15, V1.14, V1.21, V1.26, V1.52, M1.143, M1.168, M1.203, M1.245
+tika_sa_02               -> Spk-t-ii       aligned  95.5%  markers   379 exact   369 ( 97.4%)  glue   1139     4s
+     inexact: V2.18, M2.55, V2.54, M2.81, V2.75, M2.90, M2.91, M2.125, V2.140, V2.168
+tika_sa_03               -> Spk-t-iii      aligned  96.1%  markers   156 exact   151 ( 96.8%)  glue    556     1s
+     inexact: V2.183, V2.194, V2.195, M2.272, V2.244
+tika_sa_04               -> Spk-t-iv       aligned  95.4%  markers   213 exact   209 ( 98.1%)  glue    769     1s
+     inexact: V2.30, V2.59, V2.68, V2.95
+tika_sa_05               -> Spk-t-v        aligned  95.2%  markers   310 exact   301 ( 97.1%)  glue    931     2s
+     inexact: M2.402, M2.453, M2.494, V2.196, M2.497, V2.199, M2.504, V2.226, V2.229
+tika_vi_01               -> Sp-t-i-a       aligned  96.9%  markers   862 exact   845 ( 98.0%)  glue   1968    17s
+     inexact: V1.19, V1.30, V1.38, M1.51, M1.132, M1.172, M1.180, M1.196, M1.201, M1.220
+tika_vi_02               -> Sp-t-i-b       aligned  96.3%  markers   845 exact   828 ( 98.0%)  glue   1960    25s
+     inexact: V2.7, M2.24, M2.54, V2.102, M2.123, V2.118, M2.136, V2.130, M2.148, V2.133
+tika_vi_03               -> Sp-t-ii + Sp-t-iii + Sp-t-iv + Sp-t-v aligned  96.7%  markers   949 exact   919 ( 96.8%)  glue   2673    20s
+     inexact: M3.52, M3.117, V3.108, M3.122, V3.113, V3.117, M3.150, M3.165, M3.198, V3.192
+tika_vi_04               -> Vjb-prj + Vjb-pac + Vjb-bkn + Vjb-mv + Vjb-cv + Vjb-pr aligned  96.9%  markers  1116 exact  1096 ( 98.2%)  glue   3008    42s
+     inexact: M0.11, M0.36, V0.41, M0.133, V0.119, M0.182, V0.171, V0.201, V0.207, M0.284
+tika_vi_05               -> Vmv-i          aligned  95.8%  markers   679 exact   659 ( 97.1%)  glue   1427     8s
+     inexact: M1.16, M1.30, M1.107, V1.93, V1.133, V1.145, M1.183, V1.164, M1.190, V1.170
+tika_vi_06               -> Vmv-ii + Vmv-iii + Vmv-iv + Vmv-v aligned  96.0%  markers   618 exact   595 ( 96.3%)  glue   2086     4s
+     inexact: V2.23, M2.48, V2.55, V2.77, M2.92, M2.123, M2.182, V2.172, M2.197, V2.186

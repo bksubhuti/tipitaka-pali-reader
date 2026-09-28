@@ -5,6 +5,7 @@ import '../../business_logic/models/search_result.dart';
 import '../../data/constants.dart';
 import '../../ui/screens/home/search_page/search_page.dart';
 import '../database/database_helper.dart';
+import '../database/sentence_fts_builder.dart';
 
 abstract class FtsRespository {
   Future<List<SearchResult>> getResults(
@@ -15,7 +16,28 @@ abstract class FtsRespository {
 class FtsDatabaseRepository implements FtsRespository {
   final DatabaseHelper databaseHelper;
 
-  FtsDatabaseRepository(this.databaseHelper);
+  /// Which indexes to search. Named rather than hardcoded so the same query
+  /// building, snippets and highlighting serve both the page-based index and
+  /// the sentence-based one; only the table changes.
+  final String paliTable;
+  final String translationTable;
+
+  /// Whether to search Pali and the translations together.
+  ///
+  /// Only for the sentence index: the page index has no populated translation
+  /// table to combine with.
+  bool get combineLanguages => sentenceIndex;
+
+  /// Whether these are the paragraph-based sentence indexes rather than the
+  /// original page ones. They differ in what they can be asked for.
+  final bool sentenceIndex;
+
+  FtsDatabaseRepository(
+    this.databaseHelper, {
+    this.paliTable = 'fts_pages',
+    this.translationTable = 'fts_translation_pages',
+    this.sentenceIndex = false,
+  });
 
   @override
   Future<List<SearchResult>> getResults(
@@ -26,16 +48,43 @@ class FtsDatabaseRepository implements FtsRespository {
           isTranslation: true);
     }
 
-    // 1. Search Pali table (fts_pages) with parallel translation LEFT JOIN
     final paliResults = await _querySingleTable(phrase, queryMode, wordDistance,
         isTranslation: false);
-    if (paliResults.isNotEmpty) {
-      return paliResults;
+
+    // Search the translations as well, not only when the Pali finds nothing.
+    // The two are indexed apart so that translation text cannot corrupt word
+    // distance on the Pali side, but a reader asking for a word wants it found
+    // wherever it is, which is what searching both and merging gives back.
+    if (!combineLanguages) {
+      if (paliResults.isNotEmpty) return paliResults;
+      return await _querySingleTable(phrase, queryMode, wordDistance,
+          isTranslation: true);
     }
 
-    // 2. Fallback to translation table (fts_translation_pages) if no Pali matches
-    return await _querySingleTable(phrase, queryMode, wordDistance,
+    final translationResults = await _querySingleTable(
+        phrase, queryMode, wordDistance,
         isTranslation: true);
+
+    // Neither language holds the whole phrase. It may still be a query that
+    // mixes them, which no single index can answer because a phrase match
+    // cannot span two tables. Those are worth one more attempt.
+    if (paliResults.isEmpty && translationResults.isEmpty) {
+      return await _mixedLanguageSearch(phrase);
+    }
+    if (translationResults.isEmpty) return paliResults;
+
+    // Pali first, then any passage the translation found that the Pali did
+    // not, so the same passage is not listed twice for matching in both.
+    final seen = <String>{
+      for (final r in paliResults) '${r.book.id}.${r.pageNumber}'
+    };
+    final merged = <SearchResult>[...paliResults];
+    for (final result in translationResults) {
+      if (seen.add('${result.book.id}.${result.pageNumber}')) {
+        merged.add(result);
+      }
+    }
+    return merged;
   }
 
   Future<List<SearchResult>> _querySingleTable(
@@ -43,7 +92,7 @@ class FtsDatabaseRepository implements FtsRespository {
       {required bool isTranslation}) async {
     final results = <SearchResult>[];
 
-    final ftsTable = isTranslation ? 'fts_translation_pages' : 'fts_pages';
+    final ftsTable = isTranslation ? translationTable : paliTable;
 
     // 1. SANITIZE INPUT: Prevents SQL Injection crashes (e.g., taṇhā'ti)
     String safePhrase = phrase.replaceAll("'", "''");
@@ -75,12 +124,12 @@ class FtsDatabaseRepository implements FtsRespository {
 
     if (queryMode == QueryMode.exact) {
       sql = '''
-      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.content, $ftsTable.sutta_name
+      SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.content, $ftsTable.sutta_name${_pageMapColumn(ftsTable)}
       FROM $ftsTable INNER JOIN books ON $ftsTable.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON $ftsTable.bookid = sutta_page_shortcut.book_id
             AND $ftsTable.page BETWEEN sutta_page_shortcut.start_page AND sutta_page_shortcut.end_page
-      WHERE $ftsTable MATCH '"$safePhrase"' AND $ftsTable.content LIKE '%$originalPhrase%'
+      WHERE $ftsTable MATCH '"$safePhrase"'${_exactFilter(ftsTable, originalPhrase)}
       ORDER BY books.sort_order ASC
       ''';
     }
@@ -144,9 +193,17 @@ class FtsDatabaseRepository implements FtsRespository {
       final id = element['id'] as int;
       final bookId = element['bookid'] as String;
       final bookName = element['name'] as String;
-      final pageNumber = element['page'] as int;
+      final unitPage = element['page'] as int;
       var content = element['content'] as String;
       final suttaName = (element['sutta_name'] as String?) ?? 'n/a';
+      final pageMap = element['page_map'] as String?;
+      // where the phrase sits in this unit, in words
+      final at = RegExp(_phrasePattern(phrase), caseSensitive: false)
+          .firstMatch(content);
+      final pageNumber = at == null
+          ? unitPage
+          : pageForMatch(pageMap, unitPage,
+              content.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
 
       // ==========================================
       // EXACT, PREFIX, and DISTANCE all use the DB Snippet
@@ -200,7 +257,7 @@ class FtsDatabaseRepository implements FtsRespository {
     if (!isTranslation && results.isNotEmpty) {
       final ids = results.map((r) => r.id).toSet().join(',');
       final transMaps = await db.rawQuery(
-          'SELECT rowid AS id, content FROM fts_translation_pages WHERE rowid IN ($ids)');
+          'SELECT rowid AS id, content FROM $translationTable WHERE rowid IN ($ids)');
 
       final transMap = <int, String>{};
       for (var row in transMaps) {
@@ -288,9 +345,149 @@ class FtsDatabaseRepository implements FtsRespository {
     return words.join(' ');
   }
 
+  /// Pattern for a phrase, allowing whatever sits between its words.
+  ///
+  /// A reader types "vadeyya culasilam"; the text reads "vadeyya. Culasilam".
+  /// Matching the phrase literally therefore fails, and because exact mode
+  /// drops any row whose text it cannot re-match, a correct result is thrown
+  /// away after the database has already found it. Treating the gap between
+  /// words as "any punctuation and space" fixes that without loosening what
+  /// counts as a match: the words themselves, and their order, are unchanged.
+  ///
+  /// Only used for the sentence index. The page index keeps its old behaviour.
+  String _phrasePattern(String phrase) =>
+      phrasePattern(phrase, tolerant: sentenceIndex);
+
+  /// The literal check the page index puts on top of a phrase match.
+  ///
+  /// It is there to reject what the stemmer matches loosely. The sentence
+  /// index does not need it: every returned row is re-checked in Dart against
+  /// the phrase, which is stricter and tolerates the punctuation that sits
+  /// between words in the text. Keeping it in SQL as well meant storing a
+  /// second, stripped copy of the whole canon for no gain.
+  String _exactFilter(String ftsTable, String phrase) => sentenceIndex
+      ? ''
+      : " AND $ftsTable.content LIKE '%$phrase%'";
+
+  /// Finds passages holding every word of the query, in either language.
+  ///
+  /// A reader who types "bhagava Blessed One" is asking for a passage where
+  /// the Pali and the English each supply part of what they remember. No
+  /// phrase match can answer that: the two languages live in separate indexes
+  /// so that translation text cannot corrupt word distance on the Pali side.
+  ///
+  /// What makes it possible is that a translation unit carries the same id as
+  /// the Pali unit it was cut from, so both are the same passage. Each word is
+  /// required to appear in that passage in one language or the other, which is
+  /// what "mixed, but within the same one" means.
+  ///
+  /// Word order is not enforced here, unlike a phrase match. A mixed query
+  /// cannot have a single order, since the words are not all in one sentence.
+  Future<List<SearchResult>> _mixedLanguageSearch(String phrase) async {
+    final words = SentenceFtsBuilder.plainForm(phrase)
+        .split(' ')
+        .where((w) => w.length > 1)
+        .toList();
+    if (words.length < 2) return const [];
+
+    // One clause per word: present in this passage's Pali or its translation.
+    final clauses = <String>[];
+    final args = <Object?>[];
+    for (final word in words) {
+      clauses.add('u.id IN ('
+          'SELECT id FROM $paliTable WHERE $paliTable MATCH ? '
+          'UNION SELECT id FROM $translationTable '
+          'WHERE $translationTable MATCH ?)');
+      final safe = word.replaceAll('"', '');
+      args..add('"$safe"')..add('"$safe"');
+    }
+
+    final rows = await (await databaseHelper.database).rawQuery('''
+      SELECT u.id, u.bookid, books.name, u.page, u.content, u.page_map
+      FROM $paliTable u INNER JOIN books ON u.bookid = books.id
+      WHERE ${clauses.join(' AND ')}
+      ORDER BY books.sort_order ASC
+      LIMIT 500
+    ''', args);
+
+    final results = <SearchResult>[];
+    final seen = <String>{};
+    for (final row in rows) {
+      final content = row['content'] as String;
+      final bookId = row['bookid'] as String;
+      final unitPage = row['page'] as int;
+
+      // Open where the first of the words actually appears, when one of them
+      // is in the Pali; otherwise the passage's own page.
+      var page = unitPage;
+      for (final word in words) {
+        final at = RegExp(RegExp.escape(word), caseSensitive: false)
+            .firstMatch(content);
+        if (at == null) continue;
+        page = pageForMatch(row['page_map'] as String?, unitPage,
+            content.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
+        break;
+      }
+
+      if (!seen.add('$bookId.$page')) continue;
+      results.add(SearchResult(
+        id: row['id'] as int,
+        book: Book(id: bookId, name: row['name'] as String),
+        pageNumber: page,
+        description: _buildHighlight(content, words.first),
+        suttaName: 'n/a',
+      ));
+    }
+    return results;
+  }
+
+  /// The sentence index records where each page begins inside a unit; the
+  /// page index has no such column. Must name the table being searched, not
+  /// the Pali one, or a translation search asks the wrong table for it.
+  String _pageMapColumn(String ftsTable) =>
+      sentenceIndex ? ', $ftsTable.page_map' : '';
+
+  /// The page a match actually sits on.
+  ///
+  /// A unit is about a page long and overlaps its neighbour, so a match often
+  /// falls past the page the unit began on. Reporting the unit's own page
+  /// sends the reader to the page before the one holding the text, where it
+  /// then cannot find the phrase to highlight.
+  static int pageForMatch(String? pageMap, int unitPage, int wordOffset) {
+    if (pageMap == null || pageMap.isEmpty) return unitPage;
+    var page = unitPage;
+    for (final part in pageMap.split(',')) {
+      final colon = part.indexOf(':');
+      if (colon < 0) continue;
+      final at = int.tryParse(part.substring(0, colon));
+      final value = int.tryParse(part.substring(colon + 1));
+      if (at == null || value == null) continue;
+      if (at <= wordOffset) {
+        page = value;
+      } else {
+        break;
+      }
+    }
+    return page;
+  }
+
+  /// Public so the behaviour can be tested: it was a silent failure once, and
+  /// no automated check caught it.
+  static String phrasePattern(String phrase, {required bool tolerant}) {
+    if (!tolerant) return RegExp.escape(phrase);
+    final words = phrase
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map(RegExp.escape)
+        .toList();
+    if (words.isEmpty) return RegExp.escape(phrase);
+    return words.join(r'[^0-9a-zāīūṭḍṇṅñṃḷṛ]+');
+  }
+
   RegExp _createExactMatch(String phrase) {
     return RegExp(
-      '<$highlightTagName>${RegExp.escape(phrase)}</$highlightTagName>',
+      '<$highlightTagName>${_phrasePattern(phrase)}</$highlightTagName>',
       caseSensitive: false,
     );
   }
@@ -307,7 +504,7 @@ class FtsDatabaseRepository implements FtsRespository {
 
   String _buildHighlight(String content, String phrase) {
     return content.replaceAllMapped(
-        RegExp(RegExp.escape(phrase), caseSensitive: false),
+        RegExp(_phrasePattern(phrase), caseSensitive: false),
         (match) => '<$highlightTagName>${match.group(0)}</$highlightTagName>');
   }
 

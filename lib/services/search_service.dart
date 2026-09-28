@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:tipitaka_pali/ui/screens/home/search_page/search_page.dart';
 
 import '../business_logic/models/search_result.dart';
@@ -20,9 +21,23 @@ class SearchService {
       String searchWord, QueryMode queryMode, int wordDistance,
       {bool isTranslationSearch = false, bool joinEnglish = true}) async {
     final DatabaseHelper databaseHelper = DatabaseHelper();
-    final FtsRespository respository = FtsDatabaseRepository(databaseHelper);
-    return await respository.getResults(searchWord, queryMode, wordDistance,
-        isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);
+    // Search the paragraph-based index when it is available, otherwise the
+    // old page index. Same query logic either way.
+    final FtsRespository respository = DatabaseHelper.sentenceSearchAvailable
+        ? FtsDatabaseRepository(databaseHelper,
+            paliTable: 'fts_unit',
+            translationTable: 'fts_translation_unit',
+            sentenceIndex: true)
+        : FtsDatabaseRepository(databaseHelper);
+    try {
+      return await respository.getResults(searchWord, queryMode, wordDistance,
+          isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);
+    } catch (e) {
+      // A failed search must report nothing found, not hang the screen on a
+      // spinner the reader cannot get out of.
+      debugPrint('search failed: $e');
+      return const [];
+    }
   }
 
   ///

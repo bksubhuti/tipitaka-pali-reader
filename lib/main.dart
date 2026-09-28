@@ -99,7 +99,10 @@ void main(List<String> args) async {
       center: true,
       backgroundColor: Colors.white,
       skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
+      // Windows draws the caption buttons nearly invisibly on recent builds,
+      // so the app supplies its own bar there.
+      titleBarStyle:
+          Platform.isWindows ? TitleBarStyle.hidden : TitleBarStyle.normal,
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {

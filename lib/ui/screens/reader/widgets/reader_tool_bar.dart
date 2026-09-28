@@ -434,7 +434,14 @@ class LowerRow extends StatelessWidget {
 
     return showModalBottomSheet<Map<String, dynamic>>(
         context: context,
-        constraints: const BoxConstraints(maxWidth: 400),
+        // The sentence data links a page to far more paragraphs than the old
+        // page mapping did, so the sheet has to be allowed to scroll rather
+        // than grow past the bottom of the screen.
+        isScrollControlled: true,
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(
               topLeft: Radius.circular(16.0), topRight: Radius.circular(16.0)),
@@ -459,7 +466,8 @@ class LowerRow extends StatelessWidget {
               isResultFromPreviusPage
                   ? Text(buffer.toString())
                   : const SizedBox.shrink(),
-              ListView.separated(
+              Flexible(
+                child: ListView.separated(
                   shrinkWrap: true,
                   itemBuilder: (_, i) {
                     String pageNumberIfFound =
@@ -492,7 +500,9 @@ class LowerRow extends StatelessWidget {
                     );
                   },
                   separatorBuilder: (_, __) => const Divider(),
-                  itemCount: paragraphs.length),
+                  itemCount: paragraphs.length,
+                ),
+              ),
             ],
           );
         });
