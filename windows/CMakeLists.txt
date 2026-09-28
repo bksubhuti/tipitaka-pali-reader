@@ -32,6 +32,13 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# permission_handler_windows pulls in C++/WinRT 2.0.210806.1, whose headers
+# include <experimental/coroutine> when built as C++17. MSVC 14.51 raises that
+# deprecation from a warning to a hard error. Suppress it until the plugin
+# moves to the C++20 <coroutine> header. Placed before the subdirectories below
+# so that it reaches the plugin targets as well as the runner.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
