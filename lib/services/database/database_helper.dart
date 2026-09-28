@@ -8,6 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
+import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
@@ -62,6 +63,12 @@ class DatabaseHelper {
 
     var path = join(dbPath, DatabaseInfo.fileName);
     Prefs.databaseDirPath = dbPath;
+
+    // Put the sentence databases in place before opening, so the attach below
+    // finds them. Setup only runs on a fresh install, so this cannot wait for
+    // it: an existing reader would never receive them.
+    await SentenceDataInstaller.install(dbPath,
+        onProgress: (msg) => myLogger.i(msg));
 
     // myLogger.i('opening Database ...');
     Database db = await openDatabase(
