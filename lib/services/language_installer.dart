@@ -123,9 +123,16 @@ class LanguageInstaller {
   /// Adds [code] to the languages shown beneath the Pali, keeping the order
   /// the reader has chosen and doing nothing if it is already there.
   static void activate(String code) {
-    final active = [...Prefs.activeLanguages];
-    if (active.contains(code)) return;
-    Prefs.activeLanguages = [...active, code];
+    // Best effort. The file is already written by the time this runs, and the
+    // attach reconciles anything missing at the next open, so failing to
+    // record the preference must not fail the install.
+    try {
+      final active = [...Prefs.activeLanguages];
+      if (active.contains(code)) return;
+      Prefs.activeLanguages = [...active, code];
+    } catch (e) {
+      debugPrint('could not record $code as shown: $e');
+    }
   }
 
   /// Removes an installed language.
