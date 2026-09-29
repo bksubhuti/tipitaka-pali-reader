@@ -168,10 +168,11 @@ class SentencePageContentRepository implements PageContentRepository {
       dynamic db, _Bound start, _Bound? end) async {
     final installed = DatabaseHelper.installedLanguages;
     if (installed.isEmpty) return const [];
-    final chosen = Prefs.activeLanguages;
-    final codes = chosen.isEmpty
-        ? installed
-        : chosen.where(installed.contains).toList();
+    // Switched off means switched off. An empty list used to mean "show
+    // everything installed", which was right while there was no way to turn
+    // one off and wrong as soon as there was.
+    final codes =
+        Prefs.activeLanguages.where(installed.contains).toList();
     if (codes.isEmpty) return const [];
 
     final args = <Object?>[start.bookId, start.paraId, start.paraId, start.lineId];

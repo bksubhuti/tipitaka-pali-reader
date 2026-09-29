@@ -105,6 +105,7 @@ const String windowYPref = "windowY";
 const String paliTextColorPref = "paliTextColor";
 const String translationColorPref = "translationColor";
 const String activeLanguagesPref = "activeLanguages";
+const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
@@ -638,10 +639,24 @@ class Prefs {
   static set languageChoiceMade(bool value) =>
       instance.setBool(languageChoiceMadePref, value);
 
+  /// The translations shown beneath the Pali, in display order.
+  ///
+  /// A subset of what is installed: a language can be on disk and switched
+  /// off, so turning it off does not mean downloading it again later.
   static List<String> get activeLanguages =>
       instance.getStringList(activeLanguagesPref) ?? const [];
   static set activeLanguages(List<String> value) =>
       instance.setStringList(activeLanguagesPref, value);
+
+  /// Every language the app has seen installed, whether shown or not.
+  ///
+  /// Without this there is no way to tell a language the reader switched off
+  /// from one that has just appeared and has never been offered. The first
+  /// must stay off; the second should be shown.
+  static List<String> get knownLanguages =>
+      instance.getStringList(knownLanguagesPref) ?? const [];
+  static set knownLanguages(List<String> value) =>
+      instance.setStringList(knownLanguagesPref, value);
 
   static int get translationColor =>
       instance.getInt(translationColorPref) ?? defaultTranslationColor;

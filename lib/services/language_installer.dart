@@ -127,6 +127,8 @@ class LanguageInstaller {
     // attach reconciles anything missing at the next open, so failing to
     // record the preference must not fail the install.
     try {
+      final known = Prefs.knownLanguages;
+      if (!known.contains(code)) Prefs.knownLanguages = [...known, code];
       final active = [...Prefs.activeLanguages];
       if (active.contains(code)) return;
       Prefs.activeLanguages = [...active, code];
@@ -135,12 +137,38 @@ class LanguageInstaller {
     }
   }
 
+  /// Turns a language off without removing the file, or back on again.
+  ///
+  /// Off is not the same as gone: the download is kept, so a reader who wants
+  /// the Pali alone for a while does not pay for it twice.
+  static void setShown(String code, bool shown) {
+    final active = [...Prefs.activeLanguages];
+    if (!shown) {
+      Prefs.activeLanguages = active.where((c) => c != code).toList();
+      return;
+    }
+    if (active.contains(code)) return;
+    // Back into its remembered place rather than onto the end, so switching
+    // one off and on again does not reorder the page.
+    final order = Prefs.knownLanguages;
+    final wanted = [...active, code]
+      ..sort((a, b) => order.indexOf(a).compareTo(order.indexOf(b)));
+    Prefs.activeLanguages = wanted;
+  }
+
+  /// Whether a language is being shown beneath the Pali.
+  static bool isShown(String code) => Prefs.activeLanguages.contains(code);
+
   /// Removes an installed language.
   static Future<void> remove(String code) async {
     final file = File(join(_dir, 'lang_$code.db'));
     if (await file.exists()) await file.delete();
     Prefs.activeLanguages =
         Prefs.activeLanguages.where((c) => c != code).toList();
+    // Forgotten as well as removed, so installing it again offers it afresh
+    // rather than treating it as one that was switched off.
+    Prefs.knownLanguages =
+        Prefs.knownLanguages.where((c) => c != code).toList();
   }
 
   static Future<void> _download(

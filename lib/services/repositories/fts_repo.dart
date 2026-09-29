@@ -7,6 +7,7 @@ import '../../ui/screens/home/search_page/search_page.dart';
 import '../database/database_helper.dart';
 import '../database/sentence_fts_builder.dart';
 import '../database/unit_text.dart';
+import '../prefs.dart';
 
 abstract class FtsRespository {
   Future<List<SearchResult>> getResults(
@@ -622,6 +623,15 @@ class FtsDatabaseRepository implements FtsRespository {
             'u.start_para, u.end_para, u.sutta_name, t.lang'
         : 'u.id, u.bookid, books.name, u.page, u.page_map, u.epi_book, '
             'u.start_para, u.end_para, u.sutta_name, NULL AS lang';
+    // A translation that is switched off is not searched either. The index
+    // holds every installed language, so this is where the reader's choice is
+    // applied.
+    final shown = _shownLanguages;
+    if (isTranslation && shown.isEmpty) return const [];
+    final langFilter = isTranslation
+        ? " AND t.lang IN (${shown.map((c) => "'$c'").join(',')})"
+        : '';
+
     final joins = isTranslation
         ? 'FROM $ftsTable f '
             'JOIN search_translation_unit t ON t.rowid_ = f.rowid '
@@ -638,7 +648,7 @@ class FtsDatabaseRepository implements FtsRespository {
       // phrase running from one sentence into the next is not found this way,
       // where a scan of whole units would have found it. Anywhere is for
       // partial words, and a partial word does not span a sentence.
-      final lang = _anywhereLanguage;
+      final lang = shown.isEmpty ? null : shown.first;
       if (isTranslation && lang == null) return const [];
       final source = isTranslation
           ? '(SELECT book_id, para_id, translation AS text '
@@ -670,7 +680,7 @@ class FtsDatabaseRepository implements FtsRespository {
       sql = '''
       SELECT $columns
       $joins
-      WHERE $ftsTable MATCH '$match'
+      WHERE $ftsTable MATCH '$match'$langFilter
       ORDER BY books.sort_order ASC
       LIMIT $_candidateLimit
       ''';
@@ -871,6 +881,9 @@ class FtsDatabaseRepository implements FtsRespository {
       dynamic db, List<SearchResult> results) async {
     final ids = results.map((r) => r.id).toSet().toList();
     if (ids.isEmpty) return;
+    final shown = _shownLanguages;
+    if (shown.isEmpty) return;
+    final langList = shown.map((c) => "'$c'").join(',');
     final placeholders = List.filled(ids.length, '?').join(',');
     List<Map<String, Object?>> rows;
     try {
@@ -879,7 +892,9 @@ class FtsDatabaseRepository implements FtsRespository {
         '  u.end_para '
         'FROM search_translation_unit t '
         'JOIN search_unit u ON u.id = t.unit_id '
-        'WHERE t.unit_id IN ($placeholders) GROUP BY t.unit_id',
+        'WHERE t.unit_id IN ($placeholders) '
+        '  AND t.lang IN ($langList) '
+        'GROUP BY t.unit_id',
         ids,
       );
     } catch (_) {
@@ -914,10 +929,12 @@ class FtsDatabaseRepository implements FtsRespository {
     }
   }
 
-  /// The language an "anywhere" translation search scans. Anywhere cannot use
-  /// the index, so it has to name one file rather than search all of them.
-  String? get _anywhereLanguage => DatabaseHelper.installedLanguages.isEmpty
-      ? null
-      : DatabaseHelper.installedLanguages.first;
+  /// The translations the reader has switched on, in display order.
+  ///
+  /// The index carries every installed language; this is what narrows it to
+  /// the ones actually wanted.
+  List<String> get _shownLanguages => Prefs.activeLanguages
+      .where(DatabaseHelper.installedLanguages.contains)
+      .toList();
 
 }

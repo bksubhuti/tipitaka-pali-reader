@@ -199,18 +199,20 @@ class DatabaseHelper {
     }
     installedLanguages = codes;
 
-    // Every installed language is meant to be shown; there is no way to turn
-    // one off short of removing it. So anything installed but missing from
-    // the order gets appended, which repairs an install whose preference was
-    // written as a single language by the first-run screen and then never
-    // added to. Without this, installing a second language had no effect on
-    // the page while the settings list showed it as present.
-    final active = Prefs.activeLanguages;
-    final missing = codes.where((c) => !active.contains(c));
-    if (active.isNotEmpty && missing.isNotEmpty) {
+    // A language that has just appeared is shown; one the reader switched off
+    // stays off. Those look the same from the file alone, so the ones already
+    // offered are remembered separately.
+    //
+    // This also repairs the older fault where the first-run screen wrote a
+    // single language and nothing ever added to it, leaving a second install
+    // on disk, attached, and invisible.
+    final known = Prefs.knownLanguages;
+    final fresh = codes.where((c) => !known.contains(c)).toList();
+    if (fresh.isNotEmpty) {
+      Prefs.knownLanguages = [...known, ...fresh];
       Prefs.activeLanguages = [
-        ...active.where(codes.contains),
-        ...missing,
+        ...Prefs.activeLanguages.where(codes.contains),
+        ...fresh,
       ];
       myLogger.i('showing languages: ${Prefs.activeLanguages.join(", ")}');
     }

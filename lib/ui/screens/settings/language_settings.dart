@@ -23,14 +23,22 @@ class _LanguageSettingsState extends State<LanguageSettings> {
 
   List<String> get _installed => DatabaseHelper.installedLanguages;
 
-  /// Installed languages in the reader's order, with any not yet ordered
-  /// appended so a newly installed one is visible straight away.
+  /// Every installed language: the ones being shown first, in the order they
+  /// appear beneath the Pali, then the ones switched off.
+  ///
+  /// Switched off is not the same as not installed, so both belong in this
+  /// list. Only the shown ones have an order worth keeping.
   List<String> get _ordered {
-    final chosen = Prefs.activeLanguages.where(_installed.contains).toList();
-    for (final code in _installed) {
-      if (!chosen.contains(code)) chosen.add(code);
+    // The remembered order covers switched-off languages too, so one does not
+    // jump to the bottom of the list the moment it is turned off.
+    final order = Prefs.knownLanguages.where(_installed.contains).toList();
+    for (final code in Prefs.activeLanguages) {
+      if (_installed.contains(code) && !order.contains(code)) order.add(code);
     }
-    return chosen;
+    for (final code in _installed) {
+      if (!order.contains(code)) order.add(code);
+    }
+    return order;
   }
 
 
@@ -103,7 +111,15 @@ class _LanguageSettingsState extends State<LanguageSettings> {
               ),
             ),
           if (ordered.isNotEmpty) ...[
-            const _Heading('Shown beneath the Pali, in this order'),
+            const _Heading('Installed'),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Switch a translation off to read the Pali alone. '
+                'It stays on the device, so turning it back on costs nothing. '
+                'Drag to change the order they appear in.',
+              ),
+            ),
             ReorderableListView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -111,7 +127,13 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                 final list = [...ordered];
                 if (newIndex > oldIndex) newIndex -= 1;
                 list.insert(newIndex, list.removeAt(oldIndex));
-                setState(() => Prefs.activeLanguages = list);
+                setState(() {
+                  // The full order, including the ones switched off, and the
+                  // reader's own list narrowed to what is shown.
+                  Prefs.knownLanguages = list;
+                  Prefs.activeLanguages =
+                      list.where(LanguageInstaller.isShown).toList();
+                });
               },
               children: [
                 for (final code in ordered)
@@ -119,13 +141,27 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                     key: ValueKey(code),
                     leading: const Icon(Icons.drag_handle),
                     title: Text(_nameOf(code)),
-                    trailing: _busy == code
-                        ? null
-                        : IconButton(
+                    subtitle: Text(LanguageInstaller.isShown(code)
+                        ? 'Shown beneath the Pali'
+                        : 'On the device, not shown'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Switch(
+                          value: LanguageInstaller.isShown(code),
+                          onChanged: _busy == code
+                              ? null
+                              : (on) => setState(
+                                  () => LanguageInstaller.setShown(code, on)),
+                        ),
+                        if (_busy != code)
+                          IconButton(
                             icon: const Icon(Icons.delete_outline),
-                            tooltip: 'Remove',
+                            tooltip: 'Remove from the device',
                             onPressed: () => _remove(code),
                           ),
+                      ],
+                    ),
                   ),
               ],
             ),
