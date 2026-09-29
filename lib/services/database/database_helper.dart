@@ -40,6 +40,8 @@ class DatabaseHelper {
           onProgress: (msg) => myLogger.i(msg),
         ).then((_) => retireLegacyDataIfReady(
               onProgress: (msg) => myLogger.i(msg),
+            )).then((_) => reclaimSpaceIfWorthwhile(
+              onProgress: (msg) => myLogger.i(msg),
             )).catchError((Object e) {
           myLogger.e('sentence setup failed: $e');
           return false;
@@ -247,6 +249,53 @@ class DatabaseHelper {
   /// Held back until the sentence search index exists, so the app is never
   /// left with neither: if the index build failed, the old one is still there
   /// to search.
+  /// Gives back the space a rebuilt index or a retirement left behind.
+  ///
+  /// SQLite does not shrink a file when rows go; the pages are kept on a free
+  /// list and reused. Replacing the search index frees several hundred
+  /// megabytes that way, and without this the reader sees no change in the
+  /// figure their phone reports.
+  ///
+  /// Only when there is enough to be worth it. VACUUM rewrites the whole
+  /// database, which on this one is a gigabyte of copying, so it is not
+  /// something to do on the chance of reclaiming a few pages. Retirement
+  /// vacuums as its last step, so after that this finds nothing to do and
+  /// returns without touching the file.
+  static const _reclaimThresholdMb = 64;
+
+  Future<bool> reclaimSpaceIfWorthwhile({
+    void Function(String message)? onProgress,
+  }) async {
+    try {
+      return await reclaimSpace(await database, onProgress: onProgress);
+    } catch (e) {
+      // Not worth failing a start over. The space stays on the free list and
+      // is reused rather than lost.
+      myLogger.e('could not reclaim space: $e');
+      return false;
+    }
+  }
+
+  /// The same, against a given database. Separate so it can be tested without
+  /// the installed one.
+  static Future<bool> reclaimSpace(
+    Database db, {
+    int thresholdMb = _reclaimThresholdMb,
+    void Function(String message)? onProgress,
+  }) async {
+    final pageSize =
+        Sqflite.firstIntValue(await db.rawQuery('PRAGMA page_size')) ?? 4096;
+    final free =
+        Sqflite.firstIntValue(await db.rawQuery('PRAGMA freelist_count')) ?? 0;
+    final freeMb = free * pageSize / (1024 * 1024);
+    if (freeMb < thresholdMb) return false;
+
+    onProgress?.call('Reclaiming ${freeMb.round()} MB…');
+    await db.execute('VACUUM');
+    onProgress?.call('Reclaimed ${freeMb.round()} MB');
+    return true;
+  }
+
   Future<bool> retireLegacyDataIfReady({
     void Function(String message)? onProgress,
   }) async {
