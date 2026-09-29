@@ -17,18 +17,27 @@ class SearchService {
     return suggestions;
   }
 
-  static Future<List<SearchResult>> getResultsByFTS(
-      String searchWord, QueryMode queryMode, int wordDistance,
-      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
-    final DatabaseHelper databaseHelper = DatabaseHelper();
-    // Search the paragraph-based index when it is available, otherwise the
-    // old page index. Same query logic either way.
-    final FtsRespository respository = DatabaseHelper.sentenceSearchAvailable
+  /// The index to search: the paragraph-based one when it has been built,
+  /// the old page index otherwise.
+  ///
+  /// Every caller must come through here. The AI search built its own with
+  /// the defaults, which named the page tables; once those were retired each
+  /// of its queries threw, was swallowed by its own error handling, and came
+  /// back as no results — for every query, which is what it looked like.
+  static FtsRespository repository() {
+    final databaseHelper = DatabaseHelper();
+    return DatabaseHelper.sentenceSearchAvailable
         ? FtsDatabaseRepository(databaseHelper,
             paliTable: 'fts_unit',
             translationTable: 'fts_translation_unit',
             sentenceIndex: true)
         : FtsDatabaseRepository(databaseHelper);
+  }
+
+  static Future<List<SearchResult>> getResultsByFTS(
+      String searchWord, QueryMode queryMode, int wordDistance,
+      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
+    final FtsRespository respository = repository();
     try {
       return await respository.getResults(searchWord, queryMode, wordDistance,
           isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);

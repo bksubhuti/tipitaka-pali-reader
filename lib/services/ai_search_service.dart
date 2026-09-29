@@ -9,6 +9,7 @@ import '../services/database/database_helper.dart';
 import '../services/prefs.dart';
 import '../env/env.dart';
 import '../services/repositories/fts_repo.dart';
+import '../services/search_service.dart';
 import '../ui/screens/home/search_page/search_page.dart';
 
 /// A search result paired with the term and query mode that found it,
@@ -238,7 +239,9 @@ class AiSearchService {
     final bestResults = <AiMatchedResult>[];
     final generalOverflow = <AiMatchedResult>[];
     final triedQueries = <String>[];
-    final ftsRepo = FtsDatabaseRepository(_dbHelper);
+    // The same index the search screen uses. Built here with the defaults,
+    // this named the retired page tables and found nothing at all.
+    final ftsRepo = SearchService.repository();
 
     _addLog('🤖 **Agent started** analyzing query: "$userQuery"');
 

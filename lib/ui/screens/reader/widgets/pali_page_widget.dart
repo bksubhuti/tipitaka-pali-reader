@@ -855,6 +855,21 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
+  /// Whether [at] falls inside an already inserted highlight span.
+  ///
+  /// Looks back for the nearest span boundary rather than at a fixed window:
+  /// if the last thing opened before this point is a highlight span that has
+  /// not been closed, the match is inside it and must be left alone.
+  static bool _insideSpan(String content, int at, String highlightClass) {
+    final open = content.lastIndexOf('<span', at);
+    if (open < 0) return false;
+    final close = content.lastIndexOf('</span>', at);
+    if (close > open) return false;
+    final tagEnd = content.indexOf('>', open);
+    if (tagEnd < 0 || tagEnd >= at) return false;
+    return content.substring(open, tagEnd).contains(highlightClass);
+  }
+
   String _addHighlight(String content, String textToHighlight,
       {highlightClass = "highlighted", addId = true}) {
     final hwi = highlightedWordIndex;
@@ -905,11 +920,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         );
         content = content.replaceAllMapped(pattern, (match) {
           final matched = match.group(0)!;
-          // Don't re-highlight already highlighted text
-          if (match.start > 0 &&
-              content
-                  .substring(max(0, match.start - 60), match.start)
-                  .contains('class="$highlightClass"')) {
+          // Don't re-highlight text that is already inside a highlight span.
+          //
+          // This used to ask whether the preceding 60 characters held one,
+          // which is a different question: when two of the search words sit
+          // next to each other in the text, the second is well within 60
+          // characters of the first and was silently left unmarked. That is
+          // the "skipping some words" in a phrase search.
+          if (_insideSpan(content, match.start, highlightClass)) {
             return matched;
           }
           if (firstMatch && addId) {

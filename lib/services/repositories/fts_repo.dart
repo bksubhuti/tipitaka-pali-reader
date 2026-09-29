@@ -706,24 +706,23 @@ class FtsDatabaseRepository implements FtsRespository {
       final at = exactPattern.firstMatch(content);
       if (queryMode == QueryMode.exact && at == null) continue;
 
+      // Where the hit actually is. For a phrase that is the phrase; for a
+      // prefix or distance search the words are scattered and the place worth
+      // showing is where they come together.
+      final hitAt = at?.start ??
+          locateHit(content, words, wordDistance > 0 ? wordDistance : 20);
+
       final unitPage = row['page'] as int;
-      final pageNumber = at == null
+      final pageNumber = hitAt < 0
           ? unitPage
           : pageForMatch(row['page_map'] as String?, unitPage,
-              content.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
+              content.substring(0, hitAt).split(RegExp(r'\s+')).length - 1);
 
       final suttaName = (row['sutta_name'] as String?)?.isNotEmpty == true
           ? row['sutta_name'] as String
           : 'n/a';
 
-      final highlighted = _buildHighlight(content, phrase);
-      final matcher = queryMode == QueryMode.prefix
-          ? _createPrefixMatch(phrase)
-          : _createExactMatch(phrase);
-      final shown = matcher.firstMatch(highlighted);
-      final description = shown != null
-          ? _extractDescription(highlighted, shown.start, shown.end)
-          : _getRightHandSideWords(highlighted, 25);
+      final description = _snippetAround(content, hitAt, words);
 
       results.add(SearchResult(
         id: id,
@@ -745,6 +744,125 @@ class FtsDatabaseRepository implements FtsRespository {
       if (seen.add(r.id)) unique.add(r);
     }
     return unique;
+  }
+
+  /// Where in this unit the hit is, as an offset into [content].
+  ///
+  /// A phrase search knows its own answer. A prefix or distance search does
+  /// not: its words are spread through the passage, and the first stray
+  /// occurrence of one of them is not where the reader wants to land. This
+  /// looks for the first place where all of them fall inside [distance]
+  /// words of each other, which is what the distance search was asking for.
+  ///
+  /// Returns -1 when none of the words is present, in which case the caller
+  /// keeps the page the unit starts on.
+  ///
+  /// This replaces what SQLite's snippet() used to do. Without it a distance
+  /// search opened at the top of the passage and showed its first words
+  /// rather than the match, with nothing marked.
+  ///
+  /// Public so it can be tested. Where a result opens is not something a
+  /// summary count would ever show to be wrong.
+  static int locateHit(String content, List<String> words, int distance) {
+    if (words.isEmpty) return -1;
+    final lower = content.toLowerCase();
+    final needles = words.map((w) => w.toLowerCase()).toList();
+
+    // Word starts, so a needle matches the beginning of a word rather than
+    // the middle of a longer one.
+    final starts = <int>[];
+    final tokens = <String>[];
+    final separator = RegExp(r'[^0-9a-zāīūṭḍṇṅñṃḷṛ]');
+    var i = 0;
+    while (i < lower.length) {
+      if (separator.hasMatch(lower[i])) {
+        i++;
+        continue;
+      }
+      final from = i;
+      while (i < lower.length && !separator.hasMatch(lower[i])) {
+        i++;
+      }
+      starts.add(from);
+      tokens.add(lower.substring(from, i));
+    }
+    if (tokens.isEmpty) return -1;
+
+    // Which token positions each needle occurs at, as a prefix.
+    final positions = <List<int>>[];
+    for (final needle in needles) {
+      final found = <int>[];
+      for (var t = 0; t < tokens.length; t++) {
+        if (tokens[t].startsWith(needle)) found.add(t);
+      }
+      if (found.isEmpty) return _firstOfAny(tokens, starts, needles);
+      positions.add(found);
+    }
+
+    // The earliest occurrence of the first word that has all the others
+    // within reach of it. The offset returned is the earliest word of that
+    // cluster rather than the anchor, so the reader lands at the start of the
+    // passage that holds them all and not in the middle of it.
+    for (final at in positions.first) {
+      var earliest = at;
+      var all = true;
+      for (var w = 1; w < positions.length; w++) {
+        var nearest = -1;
+        for (final p in positions[w]) {
+          if ((p - at).abs() <= distance) {
+            if (nearest < 0 || p < nearest) nearest = p;
+          }
+        }
+        if (nearest < 0) {
+          all = false;
+          break;
+        }
+        if (nearest < earliest) earliest = nearest;
+      }
+      if (all) return starts[earliest];
+    }
+    return _firstOfAny(tokens, starts, needles);
+  }
+
+  /// The first place any of the words occurs, for when they never come
+  /// together. Better than the top of the passage.
+  static int _firstOfAny(
+      List<String> tokens, List<int> starts, List<String> needles) {
+    for (var t = 0; t < tokens.length; t++) {
+      for (final needle in needles) {
+        if (tokens[t].startsWith(needle)) return starts[t];
+      }
+    }
+    return -1;
+  }
+
+  /// A window of text around the hit, with every query word marked.
+  ///
+  /// Each word is marked on its own rather than as a phrase. The result list
+  /// showed nothing highlighted for prefix and distance searches because the
+  /// phrase pattern needs the words next to each other, and in those two
+  /// modes they are not.
+  String _snippetAround(String content, int offset, List<String> words) {
+    const around = 20;
+    final from = offset < 0 ? 0 : offset;
+    final left = _geLeftHandSideWords(content.substring(0, from), around);
+    final right = _getRightHandSideWords(content.substring(from), around);
+    final window = left.isEmpty ? right : '$left $right';
+
+    var marked = window;
+    for (final word in words) {
+      if (word.isEmpty) continue;
+      final pattern = RegExp(
+        '(?<![0-9a-zāīūṭḍṇṅñṃḷṛ])${RegExp.escape(word)}'
+        '[0-9a-zāīūṭḍṇṅñṃḷṛ]*',
+        caseSensitive: false,
+      );
+      marked = marked.replaceAllMapped(
+          pattern,
+          (m) => '<$highlightTagName>${m.group(0)}'
+              '</$highlightTagName>');
+    }
+    return marked;
   }
 
   /// Shows the parallel translation beneath a Pali result, when one is
