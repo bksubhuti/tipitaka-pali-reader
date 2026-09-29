@@ -306,7 +306,13 @@ class ReaderViewController extends ChangeNotifier {
   }
 
   Future<List<PageContent>> _loadPages(String bookID) async {
-    return await pageContentRepository.getPages(bookID);
+    // Timed because this is what the reader waits on before a book appears,
+    // and it is the first thing to look at when opening one feels slow.
+    final started = DateTime.now();
+    final pages = await pageContentRepository.getPages(bookID);
+    myLogger.i('loaded ${pages.length} pages of $bookID in '
+        '${DateTime.now().difference(started).inMilliseconds} ms');
+    return pages;
   }
 
   List<PageChunk> _parseChunks(List<PageContent> pagesList) {

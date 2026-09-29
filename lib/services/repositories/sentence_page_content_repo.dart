@@ -95,7 +95,19 @@ class SentencePageContentRepository implements PageContentRepository {
 
     final marks = await _anchorsFor(db, start, end);
     final translations = await _translationsFor(db, start, end);
+    return _assemble(rows, start, end, marks, translations);
+  }
 
+  /// Turns rows into page sentences. Shared by the single-page path, which
+  /// queries for them, and by [getPages], which slices them out of one bulk
+  /// read of the whole book.
+  List<PageSentence> _assemble(
+    List<Map<String, Object?>> rows,
+    _Bound start,
+    _Bound? end,
+    Map<String, List<PageAnchor>> marks,
+    List<Map<String, String>> translations,
+  ) {
     final sentences = <PageSentence>[];
     for (var i = 0; i < rows.length; i++) {
       final row = rows[i];
@@ -240,17 +252,164 @@ class SentencePageContentRepository implements PageContentRepository {
   }
 
   @override
+  /// Every page of a book, which is what the reader asks for when it opens
+  /// one.
+  ///
+  /// Read in bulk. Asking for each page in turn meant five queries and a
+  /// composition per page, so a book of four hundred pages cost two thousand
+  /// queries before a word appeared — the old `pages` table answered the same
+  /// question with one. Everything the book needs is now read in a handful of
+  /// queries and the pages are cut out of it in memory.
+  @override
   Future<List<PageContent>> getPages(String bookID) async {
     final db = await databaseProvider.database;
-    final pages = await db.rawQuery(
-      'SELECT tpr_page FROM ext.page_break WHERE tpr_book = ? '
-      'ORDER BY tpr_page',
+
+    final breaks = await db.rawQuery(
+      'SELECT book_id, para_id, line_id, word_index, tpr_page '
+      'FROM ext.page_break WHERE tpr_book = ? ORDER BY tpr_page',
       [bookID],
     );
+    if (breaks.isEmpty) return const [];
+
+    // A TPR book can span more than one ePitaka book, so read by the books
+    // the boundaries actually name.
+    final epiBooks = <String>{
+      for (final row in breaks) row['book_id'] as String
+    }.toList();
+
+    final sentences = <String, List<Map<String, Object?>>>{};
+    for (final book in epiBooks) {
+      var rows = await db.rawQuery(
+        'SELECT s.para_id, s.line_id, s.pali, s.vripara, e.glue_state '
+        'FROM epi.sentences s '
+        'LEFT JOIN ext.sentence_ext e '
+        '  ON e.book_id = s.book_id AND e.para_id = s.para_id '
+        '  AND e.line_id = s.line_id '
+        'WHERE s.book_id = ? ORDER BY s.para_id, s.line_id',
+        [book],
+      );
+      if (rows.isEmpty) {
+        rows = await db.rawQuery(
+          'SELECT s.para_id, s.line_id, s.pali, s.vripara, e.glue_state '
+          'FROM ext.extra_sentence s '
+          'LEFT JOIN ext.sentence_ext e '
+          '  ON e.book_id = s.book_id AND e.para_id = s.para_id '
+          '  AND e.line_id = s.line_id '
+          'WHERE s.book_id = ? ORDER BY s.para_id, s.line_id',
+          [book],
+        );
+      }
+      sentences[book] = rows;
+    }
+
+    final marks = <String, Map<String, List<PageAnchor>>>{};
+    for (final book in epiBooks) {
+      marks[book] = await _allAnchorsFor(db, book);
+    }
+    final translations = <String, List<Map<String, String>>>{};
+    for (final book in epiBooks) {
+      translations[book] = await _allTranslationsFor(db, book);
+    }
+
     final out = <PageContent>[];
-    for (final row in pages) {
-      final page = await getPageByBookAndPage(bookID, row['tpr_page'] as int);
-      if (page != null) out.add(page);
+    for (var i = 0; i < breaks.length; i++) {
+      final start = _Bound.from(breaks[i]);
+      _Bound? end;
+      for (var j = i + 1; j < breaks.length && j <= i + 8; j++) {
+        final candidate = _Bound.from(breaks[j]);
+        if (candidate.isAfter(start)) {
+          end = candidate;
+          break;
+        }
+      }
+
+      final all = sentences[start.bookId] ?? const [];
+      final slice = <Map<String, Object?>>[];
+      for (final row in all) {
+        final para = row['para_id'] as int;
+        final line = row['line_id'] as int;
+        if (para < start.paraId ||
+            (para == start.paraId && line < start.lineId)) {
+          continue;
+        }
+        if (end != null && end.bookId == start.bookId) {
+          if (para > end.paraId ||
+              (para == end.paraId && line > end.lineId)) {
+            break;
+          }
+        }
+        slice.add(row);
+      }
+      if (slice.isEmpty) continue;
+
+      final built = _assemble(slice, start, end,
+          marks[start.bookId] ?? const {}, translations[start.bookId] ?? const []);
+      if (built.isEmpty) continue;
+
+      out.add(PageContent(
+        bookID: bookID,
+        pageNumber: breaks[i]['tpr_page'] as int,
+        content: PageComposer.compose(
+          built,
+          continuesFromPreviousPage: start.wordIndex > 0,
+        ),
+        paragraphNumber: '',
+      ));
+    }
+    return out;
+  }
+
+  /// Every page-number position in a book, by sentence.
+  Future<Map<String, List<PageAnchor>>> _allAnchorsFor(
+      dynamic db, String book) async {
+    final rows = await db.rawQuery(
+      "SELECT para_id, line_id, edition, vol, page, word_index "
+      "FROM ext.page_mark WHERE book_id = ? AND edition <> 'M' "
+      "ORDER BY para_id, line_id, word_index",
+      [book],
+    );
+    final out = <String, List<PageAnchor>>{};
+    for (final row in rows) {
+      out
+          .putIfAbsent(
+              _key(row['para_id'] as int, row['line_id'] as int),
+              () => <PageAnchor>[])
+          .add(PageAnchor(
+            edition: row['edition'] as String,
+            volume: (row['vol'] as int?) ?? 0,
+            page: (row['page'] as int?) ?? 0,
+            wordIndex: row['word_index'] as int,
+          ));
+    }
+    return out;
+  }
+
+  /// Every translation in a book, one map per shown language.
+  Future<List<Map<String, String>>> _allTranslationsFor(
+      dynamic db, String book) async {
+    final installed = DatabaseHelper.installedLanguages;
+    if (installed.isEmpty) return const [];
+    final codes = Prefs.activeLanguages.where(installed.contains).toList();
+    if (codes.isEmpty) return const [];
+
+    final out = <Map<String, String>>[];
+    for (final code in codes) {
+      try {
+        final rows = await db.rawQuery(
+          'SELECT para_id, line_id, translation FROM lang_$code.sentences '
+          'WHERE book_id = ? ORDER BY para_id, line_id',
+          [book],
+        );
+        final byKey = <String, String>{};
+        for (final row in rows) {
+          final text = (row['translation'] as String?)?.trim() ?? '';
+          if (text.isEmpty) continue;
+          byKey[_key(row['para_id'] as int, row['line_id'] as int)] = text;
+        }
+        out.add(byKey);
+      } catch (_) {
+        out.add(const {});
+      }
     }
     return out;
   }
