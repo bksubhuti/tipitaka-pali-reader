@@ -27,34 +27,42 @@ void main() {
       dbPath,
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );
+    await db.execute("ATTACH DATABASE '$dbDir\\tpr_extension.db' AS ext");
   });
 
   tearDownAll(() async => db.close());
 
   /// The query the search screen builds for an exact phrase.
-  Future<List<Map<String, Object?>>> exactSearch(String table, String phrase) {
+  ///
+  /// The index holds no text, so the literal re-check that used to be a LIKE
+  /// in SQL now happens in Dart against rebuilt text. Here the index match
+  /// alone is enough: what is being tested is that results come back naming a
+  /// book and page, not the stemmer's precision.
+  Future<List<Map<String, Object?>>> exactSearch(String phrase) {
     final safe = phrase.replaceAll("'", "''");
     return db.rawQuery('''
-      SELECT $table.id, $table.bookid, books.name, $table.page, $table.content
-      FROM $table INNER JOIN books ON $table.bookid = books.id
-      WHERE $table MATCH '"$safe"' AND $table.content LIKE '%$safe%'
+      SELECT u.id, u.bookid, books.name, u.page
+      FROM fts_unit f
+      JOIN search_unit u ON u.id = f.rowid
+      INNER JOIN books ON u.bookid = books.id
+      WHERE fts_unit MATCH '"$safe"'
       ORDER BY books.sort_order ASC
       LIMIT 50
     ''');
   }
 
   test('the index the app built is present and covers the books', () async {
-    final units =
-        (await db.rawQuery('SELECT count(*) AS n FROM fts_unit')).first['n'];
+    final units = (await db.rawQuery('SELECT count(*) AS n FROM search_unit'))
+        .first['n'];
     final books = (await db
-        .rawQuery('SELECT count(DISTINCT bookid) AS n FROM fts_unit'))
+            .rawQuery('SELECT count(DISTINCT bookid) AS n FROM search_unit'))
         .first['n'] as int;
     expect(units as int, greaterThan(50000));
     expect(books, greaterThan(170));
   });
 
   test('an exact phrase search returns results that can be opened', () async {
-    final rows = await exactSearch('fts_unit', 'evaṃ me sutaṃ');
+    final rows = await exactSearch('evaṃ me sutaṃ');
     expect(rows, isNotEmpty);
 
     for (final row in rows) {
@@ -63,31 +71,36 @@ void main() {
       expect(bookId, isNotNull, reason: 'a result must name a book');
       expect(page, isNotNull, reason: 'a result must name a page');
 
-      // the page it points at must exist in the reader's own numbering
+      // The page it points at must exist in the reader's own numbering.
+      // Asked of the page boundaries rather than the retired `pages` table,
+      // which is what the reader itself now uses to open a page.
       final exists = await db.rawQuery(
-        'SELECT count(*) AS n FROM pages WHERE bookid = ? AND page = ?',
+        'SELECT count(*) AS n FROM ext.page_break '
+        'WHERE tpr_book = ? AND tpr_page = ?',
         [bookId, page],
       );
-      expect(exists.first['n'], 1,
+      expect(exists.first['n'], greaterThan(0),
           reason: '$bookId page $page does not exist in the reader');
     }
   });
 
-  test('a phrase broken across a printed page break is now findable', () async {
+  test('a phrase broken across a printed page break is findable', () async {
     // In the first Digha volume this phrase straddles the break between pages
-    // 2 and 3, so the old page-shaped index can only find it where it happens
-    // to recur. The paragraph unit spans the break.
+    // 2 and 3. The old page-shaped index could only find it where it happened
+    // to recur; a paragraph unit spans the break.
+    //
+    // The comparison against the old index is gone with the old index, so
+    // this now asserts the thing that matters on its own terms: it is found.
     const phrase = 'bhagavantaṃ piṭṭhito piṭṭhito anubandhā';
-    final old = await exactSearch('fts_pages', phrase);
-    final now = await exactSearch('fts_unit', phrase);
-    expect(now.length, greaterThan(old.length));
+    expect(await exactSearch(phrase), isNotEmpty);
   });
 
   test('distance search still reaches across sentences', () async {
     // NEAR works inside one indexed row, so this is really a test that the
     // unit is big enough: these two words sit in different sentences.
     final rows = await db.rawQuery('''
-      SELECT bookid, page FROM fts_unit
+      SELECT u.bookid, u.page FROM fts_unit f
+      JOIN search_unit u ON u.id = f.rowid
       WHERE fts_unit MATCH 'NEAR("bhagavā" "bhikkhū", 30)' LIMIT 20
     ''');
     expect(rows, isNotEmpty);
@@ -95,14 +108,15 @@ void main() {
 
   test('a prefix search returns results', () async {
     final rows = await db.rawQuery('''
-      SELECT bookid, page FROM fts_unit
+      SELECT u.bookid, u.page FROM fts_unit f
+      JOIN search_unit u ON u.id = f.rowid
       WHERE fts_unit MATCH 'ariyasacc*' LIMIT 20
     ''');
     expect(rows, isNotEmpty);
   });
 
   test('results are ordered by the classical book order', () async {
-    final rows = await exactSearch('fts_unit', 'cattāri ariyasaccāni');
+    final rows = await exactSearch('cattāri ariyasaccāni');
     expect(rows, isNotEmpty);
     final orders = <int>[];
     for (final row in rows) {

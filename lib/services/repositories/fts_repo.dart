@@ -6,6 +6,7 @@ import '../../data/constants.dart';
 import '../../ui/screens/home/search_page/search_page.dart';
 import '../database/database_helper.dart';
 import '../database/sentence_fts_builder.dart';
+import '../database/unit_text.dart';
 
 abstract class FtsRespository {
   Future<List<SearchResult>> getResults(
@@ -90,6 +91,12 @@ class FtsDatabaseRepository implements FtsRespository {
   Future<List<SearchResult>> _querySingleTable(
       String phrase, QueryMode queryMode, int wordDistance,
       {required bool isTranslation}) async {
+    // The sentence indexes hold no text, so they are searched differently.
+    // The page index path below is untouched and still works as it did.
+    if (sentenceIndex) {
+      return _queryContentless(phrase, queryMode, wordDistance,
+          isTranslation: isTranslation);
+    }
     final results = <SearchResult>[];
 
     final ftsTable = isTranslation ? translationTable : paliTable;
@@ -395,16 +402,19 @@ class FtsDatabaseRepository implements FtsRespository {
     final args = <Object?>[];
     for (final word in words) {
       clauses.add('u.id IN ('
-          'SELECT id FROM $paliTable WHERE $paliTable MATCH ? '
-          'UNION SELECT id FROM $translationTable '
-          'WHERE $translationTable MATCH ?)');
+          'SELECT rowid FROM $paliTable WHERE $paliTable MATCH ? '
+          'UNION SELECT t.unit_id FROM $translationTable f '
+          '  JOIN search_translation_unit t ON t.rowid_ = f.rowid '
+          '  WHERE $translationTable MATCH ?)');
       final safe = word.replaceAll('"', '');
       args..add('"$safe"')..add('"$safe"');
     }
 
-    final rows = await (await databaseHelper.database).rawQuery('''
-      SELECT u.id, u.bookid, books.name, u.page, u.content, u.page_map
-      FROM $paliTable u INNER JOIN books ON u.bookid = books.id
+    final db = await databaseHelper.database;
+    final rows = await db.rawQuery('''
+      SELECT u.id, u.bookid, books.name, u.page, u.page_map,
+             u.epi_book, u.start_para, u.end_para
+      FROM search_unit u INNER JOIN books ON u.bookid = books.id
       WHERE ${clauses.join(' AND ')}
       ORDER BY books.sort_order ASC
       LIMIT 500
@@ -413,7 +423,11 @@ class FtsDatabaseRepository implements FtsRespository {
     final results = <SearchResult>[];
     final seen = <String>{};
     for (final row in rows) {
-      final content = row['content'] as String;
+      final content = await UnitText.pali(db,
+          epiBook: row['epi_book'] as String,
+          startPara: row['start_para'] as int,
+          endPara: row['end_para'] as int);
+      if (content.isEmpty) continue;
       final bookId = row['bookid'] as String;
       final unitPage = row['page'] as int;
 
@@ -564,4 +578,228 @@ class FtsDatabaseRepository implements FtsRespository {
     }
     return results;
   }
+  /// Search against the contentless indexes.
+  ///
+  /// The index knows which units match; it no longer holds their text. So the
+  /// shape is: ask the index for the units, read their metadata from
+  /// `search_unit`, and rebuild the text of the few that will be shown. The
+  /// filtering, the highlight and the page a result opens on are then worked
+  /// out here rather than in SQL, which is where exact search already did its
+  /// real checking.
+  ///
+  /// The candidate limit is generous because exact mode discards some of what
+  /// the stemmed tokenizer returns; the visible list is far shorter.
+  static const _candidateLimit = 500;
+
+  Future<List<SearchResult>> _queryContentless(
+      String phrase, QueryMode queryMode, int wordDistance,
+      {required bool isTranslation}) async {
+    final db = await databaseHelper.database;
+    final ftsTable = isTranslation ? translationTable : paliTable;
+    final safePhrase = phrase.replaceAll("'", "''");
+    final words = phrase
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    if (words.isEmpty) return const [];
+
+    // "kāyagatāsati sutta" is one word in the text and two in the query. The
+    // page index path does this too; it has to be repeated here because the
+    // dispatch happens before it.
+    final compound = <SearchResult>[];
+    if (!isTranslation && words.length == 2) {
+      const joined = ['sutta', 'suttam', 'suttā', 'vatthu', 'vatthuṃ'];
+      if (joined.contains(words[1].toLowerCase())) {
+        compound.addAll(await _queryContentless(
+            words[0] + words[1], QueryMode.prefix, wordDistance,
+            isTranslation: false));
+      }
+    }
+
+    final columns = isTranslation
+        ? 'u.id, u.bookid, books.name, u.page, u.page_map, u.epi_book, '
+            'u.start_para, u.end_para, u.sutta_name, t.lang'
+        : 'u.id, u.bookid, books.name, u.page, u.page_map, u.epi_book, '
+            'u.start_para, u.end_para, u.sutta_name, NULL AS lang';
+    final joins = isTranslation
+        ? 'FROM $ftsTable f '
+            'JOIN search_translation_unit t ON t.rowid_ = f.rowid '
+            'JOIN search_unit u ON u.id = t.unit_id '
+            'JOIN books ON u.bookid = books.id'
+        : 'FROM $ftsTable f '
+            'JOIN search_unit u ON u.id = f.rowid '
+            'JOIN books ON u.bookid = books.id';
+
+    late String sql;
+    if (queryMode == QueryMode.anywhere) {
+      // Anywhere matches inside words, which no tokenizer will do, so it goes
+      // to the sentences themselves. One difference from the old behaviour: a
+      // phrase running from one sentence into the next is not found this way,
+      // where a scan of whole units would have found it. Anywhere is for
+      // partial words, and a partial word does not span a sentence.
+      final lang = _anywhereLanguage;
+      if (isTranslation && lang == null) return const [];
+      final source = isTranslation
+          ? '(SELECT book_id, para_id, translation AS text '
+              'FROM lang_$lang.sentences)'
+          : '(SELECT book_id, para_id, pali AS text FROM epi.sentences)';
+      sql = '''
+      SELECT DISTINCT u.id, u.bookid, books.name, u.page, u.page_map,
+             u.epi_book, u.start_para, u.end_para, u.sutta_name,
+             ${isTranslation ? "'$lang'" : 'NULL'} AS lang
+      FROM $source s
+      JOIN search_unit u ON u.epi_book = s.book_id
+        AND s.para_id BETWEEN u.start_para AND u.end_para
+      JOIN books ON u.bookid = books.id
+      WHERE s.text LIKE '%$safePhrase%'
+      ORDER BY books.sort_order ASC
+      LIMIT $_candidateLimit
+      ''';
+    } else {
+      late String match;
+      if (queryMode == QueryMode.exact) {
+        match = '"$safePhrase"';
+      } else if (queryMode == QueryMode.prefix) {
+        match = words.map((w) => '"${w.replaceAll('"', '')}"*').join(' ');
+      } else {
+        final formatted =
+            words.map((w) => '"${w.replaceAll('"', '')}"*').join(' ');
+        match = 'NEAR($formatted, $wordDistance)';
+      }
+      sql = '''
+      SELECT $columns
+      $joins
+      WHERE $ftsTable MATCH '$match'
+      ORDER BY books.sort_order ASC
+      LIMIT $_candidateLimit
+      ''';
+    }
+
+    final rows = await db.rawQuery(sql);
+    if (rows.isEmpty) return const [];
+
+    final exactPattern = RegExp(_phrasePattern(phrase), caseSensitive: false);
+    final results = <SearchResult>[];
+
+    for (final row in rows) {
+      final id = row['id'] as int;
+      final lang = row['lang'] as String?;
+      final epiBook = row['epi_book'] as String;
+      final startPara = row['start_para'] as int;
+      final endPara = row['end_para'] as int;
+
+      final content = isTranslation && lang != null
+          ? await UnitText.translation(db,
+              lang: lang,
+              epiBook: epiBook,
+              startPara: startPara,
+              endPara: endPara)
+          : await UnitText.pali(db,
+              epiBook: epiBook, startPara: startPara, endPara: endPara);
+      if (content.isEmpty) continue;
+
+      // The tokenizer is stemmed, so an exact search has to be re-checked
+      // against the words themselves. That used to be a LIKE in SQL; it is
+      // the same test, on the same string, in the one place that can still
+      // see it.
+      final at = exactPattern.firstMatch(content);
+      if (queryMode == QueryMode.exact && at == null) continue;
+
+      final unitPage = row['page'] as int;
+      final pageNumber = at == null
+          ? unitPage
+          : pageForMatch(row['page_map'] as String?, unitPage,
+              content.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
+
+      final suttaName = (row['sutta_name'] as String?)?.isNotEmpty == true
+          ? row['sutta_name'] as String
+          : 'n/a';
+
+      final highlighted = _buildHighlight(content, phrase);
+      final matcher = queryMode == QueryMode.prefix
+          ? _createPrefixMatch(phrase)
+          : _createExactMatch(phrase);
+      final shown = matcher.firstMatch(highlighted);
+      final description = shown != null
+          ? _extractDescription(highlighted, shown.start, shown.end)
+          : _getRightHandSideWords(highlighted, 25);
+
+      results.add(SearchResult(
+        id: id,
+        book: Book(id: row['bookid'] as String, name: row['name'] as String),
+        pageNumber: pageNumber,
+        description: description,
+        suttaName: suttaName,
+        isTranslation: isTranslation,
+      ));
+    }
+
+    if (!isTranslation && results.isNotEmpty) {
+      await _attachTranslations(db, results);
+    }
+
+    final unique = <SearchResult>[];
+    final seen = <int>{};
+    for (final r in [...compound, ...results]) {
+      if (seen.add(r.id)) unique.add(r);
+    }
+    return unique;
+  }
+
+  /// Shows the parallel translation beneath a Pali result, when one is
+  /// installed. Rebuilt like everything else rather than read from the index.
+  Future<void> _attachTranslations(
+      dynamic db, List<SearchResult> results) async {
+    final ids = results.map((r) => r.id).toSet().toList();
+    if (ids.isEmpty) return;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    List<Map<String, Object?>> rows;
+    try {
+      rows = await db.rawQuery(
+        'SELECT t.unit_id, min(t.lang) AS lang, u.epi_book, u.start_para, '
+        '  u.end_para '
+        'FROM search_translation_unit t '
+        'JOIN search_unit u ON u.id = t.unit_id '
+        'WHERE t.unit_id IN ($placeholders) GROUP BY t.unit_id',
+        ids,
+      );
+    } catch (_) {
+      return;
+    }
+
+    final byUnit = <int, String>{};
+    for (final row in rows) {
+      var text = await UnitText.translation(db,
+          lang: row['lang'] as String,
+          epiBook: row['epi_book'] as String,
+          startPara: row['start_para'] as int,
+          endPara: row['end_para'] as int);
+      if (text.isEmpty) continue;
+      if (text.length > 250) text = '${text.substring(0, 250)}...';
+      byUnit[row['unit_id'] as int] = text;
+    }
+
+    for (var i = 0; i < results.length; i++) {
+      final r = results[i];
+      final text = byUnit[r.id];
+      if (text == null) continue;
+      results[i] = SearchResult(
+        id: r.id,
+        book: r.book,
+        pageNumber: r.pageNumber,
+        description: r.description,
+        suttaName: r.suttaName,
+        isTranslation: r.isTranslation,
+        translation: text,
+      );
+    }
+  }
+
+  /// The language an "anywhere" translation search scans. Anywhere cannot use
+  /// the index, so it has to name one file rather than search all of them.
+  String? get _anywhereLanguage => DatabaseHelper.installedLanguages.isEmpty
+      ? null
+      : DatabaseHelper.installedLanguages.first;
+
 }

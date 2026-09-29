@@ -32,29 +32,60 @@ class SentenceFtsBuilder {
   /// Paragraphs of overlap between consecutive units.
   static const overlapParagraphs = 1;
 
+  /// The indexes hold no text of their own.
+  ///
+  /// FTS5 keeps a copy of everything it indexes unless told not to, and that
+  /// copy was the single largest thing in the database: 713 MB across the two
+  /// indexes, against 136 MB for the same indexes without it. The canon is
+  /// already on disk in `epi.sentences`, and each translation in its own
+  /// file, so storing it a second time bought nothing but the convenience of
+  /// SQL-side snippets.
+  ///
+  /// `content=''` makes them contentless: the terms are indexed, the text is
+  /// not kept. A unit's text is rebuilt from the sentences when it is needed,
+  /// which is only ever for the handful of rows on screen.
   static const _createPali = '''
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_unit USING FTS5(
-  id UNINDEXED,
-  bookid UNINDEXED,
-  page UNINDEXED,
   content,
-  page_map UNINDEXED,
-  paranum UNINDEXED,
   sutta_name,
-  tokenize = 'porter'
+  tokenize = 'porter',
+  content = ''
 );''';
 
   static const _createTranslation = '''
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
-  id UNINDEXED,
-  bookid UNINDEXED,
-  page UNINDEXED,
   content,
-  page_map UNINDEXED,
-  paranum UNINDEXED,
   sutta_name,
-  lang UNINDEXED,
-  tokenize = 'porter'
+  tokenize = 'porter',
+  content = ''
+);''';
+
+  /// What a contentless index cannot answer: where a unit is, and which
+  /// sentences it was made of. Small, because it is integers and short ids
+  /// rather than text.
+  ///
+  /// `epi_book` is stored rather than derived from `bookid`, because 23 of
+  /// the 179 TPR books span more than one ePitaka book and the wrong one
+  /// rebuilds to nothing.
+  static const _createUnit = '''
+CREATE TABLE IF NOT EXISTS search_unit (
+  id INTEGER PRIMARY KEY,
+  bookid TEXT NOT NULL,
+  page INTEGER NOT NULL,
+  page_map TEXT,
+  paranum TEXT,
+  sutta_name TEXT,
+  epi_book TEXT NOT NULL,
+  start_para INTEGER NOT NULL,
+  end_para INTEGER NOT NULL
+);''';
+
+  /// One row per unit per language, keyed by the translation index's rowid.
+  static const _createTranslationUnit = '''
+CREATE TABLE IF NOT EXISTS search_translation_unit (
+  rowid_ INTEGER PRIMARY KEY,
+  unit_id INTEGER NOT NULL,
+  lang TEXT NOT NULL
 );''';
 
   /// True when the index already exists and holds rows.
@@ -63,7 +94,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
         "SELECT count(*) AS n FROM sqlite_master "
         "WHERE type='table' AND name='fts_unit'");
     if ((tables.first['n'] as int) == 0) return false;
-    final rows = await db.rawQuery('SELECT count(*) AS n FROM fts_unit');
+    final side = await db.rawQuery(
+        "SELECT count(*) AS n FROM sqlite_master "
+        "WHERE type='table' AND name='search_unit'");
+    // An index from before the text was dropped has no side table, and
+    // cannot be searched by the current queries. Treat it as not built so it
+    // is replaced.
+    if ((side.first['n'] as int) == 0) return false;
+    final rows = await db.rawQuery('SELECT count(*) AS n FROM search_unit');
     return (rows.first['n'] as int) > 0;
   }
 
@@ -71,7 +109,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   static Future<List<String>> indexedLanguages(Database db) async {
     try {
       final rows = await db.rawQuery(
-          'SELECT DISTINCT lang FROM fts_translation_unit ORDER BY lang');
+          'SELECT DISTINCT lang FROM search_translation_unit ORDER BY lang');
       return rows.map((r) => r['lang'] as String).toList();
     } catch (_) {
       return const [];
@@ -92,8 +130,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   }) async {
     await db.execute('DROP TABLE IF EXISTS fts_unit;');
     await db.execute('DROP TABLE IF EXISTS fts_translation_unit;');
+    await db.execute('DROP TABLE IF EXISTS search_unit;');
+    await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
     await db.execute(_createPali);
     await db.execute(_createTranslation);
+    await db.execute(_createUnit);
+    await db.execute(_createTranslationUnit);
 
     // Where each page begins, so a result can open in the reader. The reader
     // is addressed by book and page, and that numbering is unchanged by the
@@ -117,6 +159,9 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
         'SELECT DISTINCT book_id FROM epi.sentences ORDER BY book_id');
 
     var unitId = 0;
+    // The translation index has its own row numbering: one unit yields a row
+    // per language, so its rowids cannot be the unit's.
+    var translationId = 0;
     var indexed = 0;
     var done = 0;
     for (final bookRow in books) {
@@ -214,14 +259,22 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
         }
 
         final text = content.toString();
+        ++unitId;
         batch.insert('fts_unit', {
-          'id': ++unitId,
+          'rowid': unitId,
+          'content': text,
+          'sutta_name': '',
+        });
+        batch.insert('search_unit', {
+          'id': unitId,
           'bookid': page.tprBook,
           'page': page.tprPage,
-          'content': text,
           'page_map': map.toString(),
           'paranum': '${order[i]}-${order[j - 1]}',
           'sutta_name': '',
+          'epi_book': book,
+          'start_para': order[i],
+          'end_para': order[j - 1],
         });
         for (final entry in byLanguage.entries) {
           final translated = StringBuffer();
@@ -233,14 +286,15 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
           }
           if (translated.isEmpty) continue;
           final translatedText = translated.toString();
+          final translationRowId = ++translationId;
           batch.insert('fts_translation_unit', {
-            'id': unitId,
-            'bookid': page.tprBook,
-            'page': page.tprPage,
+            'rowid': translationRowId,
             'content': translatedText,
-            'page_map': map.toString(),
-            'paranum': '${order[i]}-${order[j - 1]}',
             'sutta_name': '',
+          });
+          batch.insert('search_translation_unit', {
+            'rowid_': translationRowId,
+            'unit_id': unitId,
             'lang': entry.key,
           });
           pending++;
