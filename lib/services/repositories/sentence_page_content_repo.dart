@@ -312,6 +312,7 @@ class SentencePageContentRepository implements PageContentRepository {
     }
 
     final out = <PageContent>[];
+    final cursor = <String, int>{};
     for (var i = 0; i < breaks.length; i++) {
       final start = _Bound.from(breaks[i]);
       _Bound? end;
@@ -323,15 +324,39 @@ class SentencePageContentRepository implements PageContentRepository {
         }
       }
 
+      // Both the boundaries and the sentences are in reading order, so the
+      // place this page starts is at or after where the last one did. Walking
+      // on from there makes reading a book linear; starting from the first
+      // sentence each time made it the number of pages times the number of
+      // sentences, which on the longest book is tens of millions of steps and
+      // most of what opening it cost.
       final all = sentences[start.bookId] ?? const [];
-      final slice = <Map<String, Object?>>[];
-      for (final row in all) {
+      var at = cursor[start.bookId] ?? 0;
+      if (at > 0) {
+        final row = all[at - 1];
         final para = row['para_id'] as int;
         final line = row['line_id'] as int;
-        if (para < start.paraId ||
-            (para == start.paraId && line < start.lineId)) {
-          continue;
+        if (para > start.paraId ||
+            (para == start.paraId && line >= start.lineId)) {
+          at = 0; // a boundary that steps back; start again
         }
+      }
+      while (at < all.length) {
+        final para = all[at]['para_id'] as int;
+        final line = all[at]['line_id'] as int;
+        if (para > start.paraId ||
+            (para == start.paraId && line >= start.lineId)) {
+          break;
+        }
+        at++;
+      }
+      cursor[start.bookId] = at;
+
+      final slice = <Map<String, Object?>>[];
+      for (var k = at; k < all.length; k++) {
+        final row = all[k];
+        final para = row['para_id'] as int;
+        final line = row['line_id'] as int;
         if (end != null && end.bookId == start.bookId) {
           if (para > end.paraId ||
               (para == end.paraId && line > end.lineId)) {
@@ -346,13 +371,16 @@ class SentencePageContentRepository implements PageContentRepository {
           marks[start.bookId] ?? const {}, translations[start.bookId] ?? const []);
       if (built.isEmpty) continue;
 
+      // Not composed here. The list shows one page at a time, so each builds
+      // itself when it is first looked at; only the block count is needed up
+      // front, and that can be counted without building anything.
+      final continues = start.wordIndex > 0;
       out.add(PageContent(
         bookID: bookID,
         pageNumber: breaks[i]['tpr_page'] as int,
-        content: PageComposer.compose(
-          built,
-          continuesFromPreviousPage: start.wordIndex > 0,
-        ),
+        build: () => PageComposer.compose(built,
+            continuesFromPreviousPage: continues),
+        blockCount: PageComposer.blockCount(built),
         paragraphNumber: '',
       ));
     }

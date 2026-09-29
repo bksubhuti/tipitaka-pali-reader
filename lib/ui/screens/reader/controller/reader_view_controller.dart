@@ -320,9 +320,38 @@ class ReaderViewController extends ChangeNotifier {
     final List<PageChunk> tempChunks = [];
 
     for (final page in pagesList) {
-      final soup = BeautifulSoup(page.content);
       bool isFirst = true;
 
+      // A page that already knows how many blocks it holds does not have to
+      // be built to be counted, and is not built until one of its blocks is
+      // drawn. Parsing every page of a book took longer than composing them.
+      final known = page.blockCount;
+      if (known != null) {
+        if (known == 0) {
+          tempChunks.add(PageChunk(
+            pageNumber: page.pageNumber!,
+            chunkIndex: chunkIndex++,
+            page: page,
+            isFirstChunkOfPage: true,
+          ));
+          continue;
+        }
+        for (var i = 0; i < known; i++) {
+          tempChunks.add(PageChunk(
+            pageNumber: page.pageNumber!,
+            chunkIndex: chunkIndex++,
+            page: page,
+            indexInPage: i,
+            isFirstChunkOfPage: isFirst,
+          ));
+          isFirst = false;
+        }
+        continue;
+      }
+
+      // The page-shaped path: the HTML is already in hand, so it is parsed as
+      // it always was.
+      final soup = BeautifulSoup(page.content);
       final elements = soup.body?.children ?? [];
       if (elements.isEmpty) {
         tempChunks.add(PageChunk(

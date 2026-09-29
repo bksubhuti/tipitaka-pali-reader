@@ -172,6 +172,46 @@ class PageComposer {
   static String markVariantReadings(String html) => html.replaceAllMapped(
       _variantReading, (m) => '<span class="note">${m.group(0)}</span>');
 
+  /// How many `<p>` blocks [compose] would write for these sentences.
+  ///
+  /// Counted rather than composed, so the reader can size its list without
+  /// building every page of the book first. It mirrors the one condition
+  /// [compose] uses to open a paragraph, so the two cannot drift apart
+  /// without this line changing too.
+  static int blockCount(List<PageSentence> sentences) {
+    var blocks = 0;
+    int? openParaId;
+    for (final sentence in sentences) {
+      if (sentence.paraId != openParaId) {
+        blocks++;
+        openParaId = sentence.paraId;
+      }
+    }
+    return blocks;
+  }
+
+  /// The paragraph blocks of a composed page, in order.
+  ///
+  /// The reader's list scrolls by block rather than by page, so it needs the
+  /// page cut back into the pieces this class wrote. Running an HTML parser
+  /// over the output to recover them costs more than composing it did, and it
+  /// is unnecessary: every block is a `<p ...>` opened and closed by
+  /// [compose], with no nested paragraph, so they can be read straight off
+  /// the string.
+  static List<String> blocksOf(String html) {
+    final blocks = <String>[];
+    var at = 0;
+    while (true) {
+      final open = html.indexOf('<p ', at);
+      if (open < 0) break;
+      final close = html.indexOf('</p>', open);
+      if (close < 0) break;
+      blocks.add(html.substring(open, close + 4));
+      at = close + 4;
+    }
+    return blocks;
+  }
+
   /// One sentence, with its translations beneath it when there are any.
   ///
   /// A sentence with no translation is written plainly, exactly as a Pali-only
