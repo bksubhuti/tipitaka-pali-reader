@@ -2,7 +2,11 @@ const String highlightTagName = 'highlight';
 
 class DatabaseInfo {
   DatabaseInfo._();
-  static const int version = 58;
+  /// Moved to 59 when the canon's page text came out of the shipped
+  /// database: the text is read from ePitaka's sentences now, and carrying it
+  /// twice cost 204 MB. A change to the shipped file has to move this, or an
+  /// existing install never copies the new one.
+  static const int version = 59;
   static const String fileName = 'tipitaka_pali.db';
 }
 
@@ -21,10 +25,6 @@ class AssetsFile {
     'tipitaka_pali_part.ah',
     'tipitaka_pali_part.ai',
     'tipitaka_pali_part.aj',
-    'tipitaka_pali_part.ak',
-    'tipitaka_pali_part.al',
-    'tipitaka_pali_part.am',
-    'tipitaka_pali_part.an',
   ];
 
   /// ePitaka's sentences, headings and book links, trimmed to what TPR reads

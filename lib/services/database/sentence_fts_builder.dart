@@ -88,6 +88,19 @@ CREATE TABLE IF NOT EXISTS search_translation_unit (
   lang TEXT NOT NULL
 );''';
 
+  /// Records that a build ran to the end.
+  ///
+  /// Rows alone do not mean a finished index. A build interrupted part way —
+  /// the app closed, the device asleep — leaves a table with plenty of rows
+  /// in it and no sign that half the canon is missing. Search would then
+  /// answer confidently about a fraction of the texts, which is worse than
+  /// saying it is not ready.
+  static const _createMeta = '''
+CREATE TABLE IF NOT EXISTS search_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);''';
+
   /// True when the index already exists and holds rows.
   static Future<bool> isBuilt(Database db) async {
     final tables = await db.rawQuery(
@@ -96,13 +109,21 @@ CREATE TABLE IF NOT EXISTS search_translation_unit (
     if ((tables.first['n'] as int) == 0) return false;
     final side = await db.rawQuery(
         "SELECT count(*) AS n FROM sqlite_master "
-        "WHERE type='table' AND name='search_unit'");
-    // An index from before the text was dropped has no side table, and
+        "WHERE type='table' AND name IN ('search_unit', 'search_meta')");
+    // An index from before the text was dropped has no side tables, and
     // cannot be searched by the current queries. Treat it as not built so it
     // is replaced.
-    if ((side.first['n'] as int) == 0) return false;
+    if ((side.first['n'] as int) < 2) return false;
+
+    // Finished, not merely started.
+    final done = await db.rawQuery(
+        "SELECT value FROM search_meta WHERE key = 'units'");
+    if (done.isEmpty) return false;
+    final expected = int.tryParse(done.first['value'] as String? ?? '') ?? 0;
+    if (expected <= 0) return false;
+
     final rows = await db.rawQuery('SELECT count(*) AS n FROM search_unit');
-    return (rows.first['n'] as int) > 0;
+    return (rows.first['n'] as int) >= expected;
   }
 
   /// The languages the translation index was built from, in order.
@@ -132,10 +153,12 @@ CREATE TABLE IF NOT EXISTS search_translation_unit (
     await db.execute('DROP TABLE IF EXISTS fts_translation_unit;');
     await db.execute('DROP TABLE IF EXISTS search_unit;');
     await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
+    await db.execute('DROP TABLE IF EXISTS search_meta;');
     await db.execute(_createPali);
     await db.execute(_createTranslation);
     await db.execute(_createUnit);
     await db.execute(_createTranslationUnit);
+    await db.execute(_createMeta);
 
     // Where each page begins, so a result can open in the reader. The reader
     // is addressed by book and page, and that numbering is unchanged by the
@@ -319,6 +342,11 @@ CREATE TABLE IF NOT EXISTS search_translation_unit (
       }
     }
 
+    // Written last, so it is only there if everything before it finished.
+    await db.rawInsert(
+        "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('units', ?)",
+        ['$unitId']);
+
     onProgress?.call('Search index built');
     return indexed;
   }
@@ -335,6 +363,7 @@ CREATE TABLE IF NOT EXISTS search_translation_unit (
       'fts_translation_unit',
       'search_unit',
       'search_translation_unit',
+      'search_meta',
     ]) {
       try {
         await db.execute('DROP TABLE IF EXISTS $table');

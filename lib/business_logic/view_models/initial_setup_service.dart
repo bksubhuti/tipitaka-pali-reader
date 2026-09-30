@@ -38,6 +38,12 @@ class InitialSetupService {
     _intialSetupNotifier.setupIsFinished = false;
     debugPrint('--> Setup Starting. Update Mode: $isUpdateMode');
 
+    // Setup opens and closes the database several times. The work that
+    // normally starts when it opens reopens it whenever it needs it, so
+    // leaving it running here meant it was still going when setup closed the
+    // handle under it. It is run at the end instead, in order.
+    DatabaseHelper.suspendBackgroundSetup = true;
+
     if (!isUpdateMode) {
       if (!PlatformInfo.isDesktop) {
         Prefs.hideScrollbar = true;
@@ -134,6 +140,17 @@ class InitialSetupService {
     }
 
     // 7. FINISH
+    //
+    // Now the database is settled: retire the page data the sentences have
+    // taken over, and give back the space. The index itself was built during
+    // the copy, so this usually has only the tidying left to do.
+    try {
+      await DatabaseHelper.runBackgroundSetupNow();
+    } catch (e) {
+      // Nothing here should stop the app opening; the next start retries.
+      debugPrint('--> background setup after install failed: $e');
+    }
+
     _intialSetupNotifier.setupIsFinished = true;
   }
 
@@ -184,8 +201,11 @@ class InitialSetupService {
     // The sentence data ships alongside the Pali pages. Written next to the
     // file just copied, not to Prefs.databaseDirPath, which still points at
     // the old location until step 5.
+    //
+    // Only put in place if it is not there. Replacing it is done before the
+    // database is opened, not here: by now the reader has a connection with
+    // these files attached to it, and they cannot be deleted under it.
     await SentenceDataInstaller.install(dirname(dbFilePath),
-        replace: true,
         onProgress: (msg) => _intialSetupNotifier.status = msg);
 
     _intialSetupNotifier.stepsCompleted = 0;

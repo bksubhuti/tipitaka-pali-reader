@@ -63,6 +63,25 @@ void main() {
     expect(units, greaterThan(0));
   });
 
+  test('a half-built index is not mistaken for a finished one', () async {
+    await SentenceFtsBuilder.build(db);
+    expect(await SentenceFtsBuilder.isBuilt(db), isTrue);
+
+    // What an interrupted build leaves: rows, and no record that it finished.
+    await db.execute("DELETE FROM search_meta WHERE key = 'units'");
+    expect(await SentenceFtsBuilder.isBuilt(db), isFalse,
+        reason: 'rows alone would let search answer for a fraction of the '
+            'canon and report nothing wrong');
+
+    // And what one stopped part way through leaves: the record says how many
+    // there should be, and there are fewer.
+    await SentenceFtsBuilder.build(db);
+    await db.rawDelete(
+        'DELETE FROM search_unit WHERE id = (SELECT max(id) FROM search_unit)');
+    expect(await SentenceFtsBuilder.isBuilt(db), isFalse,
+        reason: 'one unit short is still short');
+  });
+
   test('a rebuild replaces the index rather than adding to it', () async {
     await SentenceFtsBuilder.build(db);
     final first = firstIntValue(

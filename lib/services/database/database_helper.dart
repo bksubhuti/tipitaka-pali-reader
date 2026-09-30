@@ -36,16 +36,11 @@ class DatabaseHelper {
         // Build the sentence search index once, in the background. Not
         // awaited: opening the app must not wait on it, and search stays on
         // the page index until it finishes.
-        unawaited(buildSentenceFtsIfNeeded(
-          onProgress: (msg) => myLogger.i(msg),
-        ).then((_) => retireLegacyDataIfReady(
-              onProgress: (msg) => myLogger.i(msg),
-            )).then((_) => reclaimSpaceIfWorthwhile(
-              onProgress: (msg) => myLogger.i(msg),
-            )).catchError((Object e) {
-          myLogger.e('sentence setup failed: $e');
-          return false;
-        }));
+        // Not while setup is running. Setup opens and closes the database
+        // several times, and this chain reopens it whenever it needs it, so
+        // starting it here left work running against a handle setup had
+        // closed. Setup does these steps itself, in order, when it is done.
+        if (!suspendBackgroundSetup) _startBackgroundSetup();
       } catch (e) {
         _dbCompleter!.completeError(e);
         _dbCompleter = null;
@@ -53,6 +48,33 @@ class DatabaseHelper {
       }
     }
     return _dbCompleter!.future;
+  }
+
+  /// True while the initial setup is copying and building.
+  static bool suspendBackgroundSetup = false;
+
+  /// Builds the index, retires the old page data and gives back the space, in
+  /// that order, without holding up the screen.
+  static void _startBackgroundSetup() {
+    final helper = DatabaseHelper();
+    _setupChain = helper.buildSentenceFtsIfNeeded(
+          onProgress: (msg) => myLogger.i(msg),
+    ).then((_) => helper.retireLegacyDataIfReady(
+          onProgress: (msg) => myLogger.i(msg),
+        )).then((_) => helper.reclaimSpaceIfWorthwhile(
+          onProgress: (msg) => myLogger.i(msg),
+        )).catchError((Object e) {
+      myLogger.e('sentence setup failed: $e');
+      return false;
+    });
+    unawaited(_setupChain!);
+  }
+
+  /// Runs the steps setup skipped, once it has finished with the database.
+  static Future<void> runBackgroundSetupNow() async {
+    suspendBackgroundSetup = false;
+    _startBackgroundSetup();
+    await _setupChain;
   }
 
   // Open Assets Database
@@ -236,6 +258,19 @@ class DatabaseHelper {
   /// column, so a race doubled its rows in silence instead of failing.
   static Future<int>? _ftsBuild;
 
+  /// The whole after-open chain: build the index, retire the old data,
+  /// reclaim the space. Held so it can be waited on before closing.
+  static Future<bool>? _setupChain;
+
+  /// Whether a table is present in the main database.
+  static Future<bool> hasTable(Database db, String name) async {
+    final rows = await db.rawQuery(
+        "SELECT count(*) AS n FROM sqlite_master "
+        "WHERE type='table' AND name = ?",
+        [name]);
+    return ((rows.first['n'] as int?) ?? 0) > 0;
+  }
+
   Future<int> buildSentenceFtsIfNeeded({
     void Function(String message)? onProgress,
   }) {
@@ -345,17 +380,18 @@ class DatabaseHelper {
   }
 
   Future close() async {
-    // Wait for an index build rather than closing the database under it.
-    // Installing a language closes and reopens, and a build started at app
-    // start may still be running.
-    final building = _ftsBuild;
-    if (building != null) {
+    // Wait for the work started when the database was opened rather than
+    // closing it underneath. Both setup and installing a language close and
+    // reopen, and either can land in the middle of an index build.
+    for (final pending in [_ftsBuild, _setupChain]) {
+      if (pending == null) continue;
       try {
-        await building;
+        await pending;
       } catch (_) {
         // Its own caller reports it; here it only has to have finished.
       }
     }
+    _setupChain = null;
     await _database?.close();
     _database = null;
     _dbCompleter = null;
@@ -515,9 +551,11 @@ class DatabaseHelper {
       updateMessageCallback('Building content indexes...');
     }
     // building Index
-    await dbInstance.execute(
-      'CREATE INDEX IF NOT EXISTS page_index ON pages ( bookid );',
-    );
+    if (await hasTable(dbInstance, 'pages')) {
+      await dbInstance.execute(
+        'CREATE INDEX IF NOT EXISTS page_index ON pages ( bookid );',
+      );
+    }
     await dbInstance.execute(
       'CREATE INDEX IF NOT EXISTS paragraph_index ON paragraphs ( book_id );',
     );
@@ -592,6 +630,14 @@ class DatabaseHelper {
 
   Future<bool> buildFts(updateMessageCallback) async {
     final dbInstance = await database;
+
+    // The page index is built from the page text. A database shipped without
+    // it has nothing to index here, and the sentence index built afterwards
+    // is what search uses.
+    if (!await hasTable(dbInstance, 'pages')) {
+      updateMessageCallback('Search index will be built from the sentences');
+      return true;
+    }
     await dbInstance.execute(
       '''CREATE VIRTUAL TABLE IF NOT EXISTS fts_pages USING FTS5(
     id UNINDEXED, 

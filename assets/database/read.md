@@ -40,9 +40,30 @@ and are produced from it, so there is nothing to download for them.
 
 | file | parts | size | where it comes from |
 | --- | --- | --- | --- |
-| `tipitaka_pali.db` | 14 | 656 MB | the Drive link above |
+| `tipitaka_pali.db` | 10 | 451 MB | the Drive link above, with the page text removed |
 | `epitaka.db` | 5 | 210 MB | built from an ePitaka release |
 | `tpr_extension.db` | 1 | 22 MB | built from the two above |
+
+## tipitaka_pali.db
+
+The file on Drive is 656 MB and carries the canon as page HTML. The reader
+builds its pages from ePitaka's sentences now, so that text is no longer read
+and was costing 204 MB of the download. The `pages` table is emptied and the
+file vacuumed:
+
+```
+sqlite3 tipitaka_pali.db "DELETE FROM pages; VACUUM;"
+```
+
+The table itself is kept. Books imported from HTML, and books installed from
+an extension zip, are not in ePitaka and live there and nowhere else.
+
+Everything else is unchanged: the dictionaries, the word list, the contents,
+the paragraph mapping and the sutta shortcuts all still ship.
+
+Changing what is shipped means raising `DatabaseInfo.version` in
+`lib/data/constants.dart`, or an install that already has the old file will
+never copy the new one.
 
 ## epitaka.db
 
