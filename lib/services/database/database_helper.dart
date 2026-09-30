@@ -224,7 +224,31 @@ class DatabaseHelper {
   /// Separate from attaching, because the build takes a while and wants a
   /// progress message, while attaching has to finish before the app opens.
   /// Search keeps using the old page index until this completes.
+  /// The build in flight, if any.
+  ///
+  /// Two of them at once write the same rows twice. Installing a language
+  /// does exactly that: it closes the database and opens it again, which
+  /// starts the background build, and then asks for a build itself. The
+  /// second one dropped the tables the first was still filling, and the
+  /// insert that followed failed on a duplicate id.
+  ///
+  /// It was there before and did not show: the old index had no unique
+  /// column, so a race doubled its rows in silence instead of failing.
+  static Future<int>? _ftsBuild;
+
   Future<int> buildSentenceFtsIfNeeded({
+    void Function(String message)? onProgress,
+  }) {
+    final running = _ftsBuild;
+    if (running != null) return running;
+    final started = _buildSentenceFts(onProgress: onProgress);
+    _ftsBuild = started;
+    return started.whenComplete(() {
+      if (identical(_ftsBuild, started)) _ftsBuild = null;
+    });
+  }
+
+  Future<int> _buildSentenceFts({
     void Function(String message)? onProgress,
   }) async {
     if (!sentenceDataAvailable) return 0;
@@ -311,6 +335,17 @@ class DatabaseHelper {
   }
 
   Future close() async {
+    // Wait for an index build rather than closing the database under it.
+    // Installing a language closes and reopens, and a build started at app
+    // start may still be running.
+    final building = _ftsBuild;
+    if (building != null) {
+      try {
+        await building;
+      } catch (_) {
+        // Its own caller reports it; here it only has to have finished.
+      }
+    }
     await _database?.close();
     _database = null;
     _dbCompleter = null;
