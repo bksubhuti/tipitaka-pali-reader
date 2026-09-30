@@ -262,11 +262,21 @@ class DatabaseHelper {
       sentenceSearchAvailable = true;
       return 0;
     }
-    final count = await SentenceFtsBuilder.build(db,
-        languages: installedLanguages, onProgress: onProgress);
-    sentenceSearchAvailable = count > 0;
-    myLogger.i('sentence search index built: $count units');
-    return count;
+    try {
+      final count = await SentenceFtsBuilder.build(db,
+          languages: installedLanguages, onProgress: onProgress);
+      sentenceSearchAvailable = count > 0;
+      myLogger.i('sentence search index built: $count units');
+      return count;
+    } catch (e) {
+      // A part-written index reads as a whole one and would quietly search a
+      // fraction of the canon. Take it away and leave the next start to
+      // build it again.
+      sentenceSearchAvailable = false;
+      myLogger.e('search index build failed, discarding it: $e');
+      await SentenceFtsBuilder.discard(db);
+      rethrow;
+    }
   }
 
   /// Removes the page-shaped data, once the sentence data is carrying the

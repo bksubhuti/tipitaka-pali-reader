@@ -323,6 +323,27 @@ CREATE TABLE IF NOT EXISTS search_translation_unit (
     return indexed;
   }
 
+  /// Removes a half-written index.
+  ///
+  /// A build that fails part way leaves rows behind, and rows are what the
+  /// app reads as "there is an index here". Search would then run against a
+  /// fraction of the canon and say it had found everything. Better to have
+  /// none and build it again.
+  static Future<void> discard(Database db) async {
+    for (final table in const [
+      'fts_unit',
+      'fts_translation_unit',
+      'search_unit',
+      'search_translation_unit',
+    ]) {
+      try {
+        await db.execute('DROP TABLE IF EXISTS $table');
+      } catch (_) {
+        // Nothing useful to do; the next build drops them again anyway.
+      }
+    }
+  }
+
   /// The page a paragraph falls on: the last page beginning at or before it.
   static _PageStart _pageFor(List<_PageStart> starts, int paraId) {
     var low = 0;
