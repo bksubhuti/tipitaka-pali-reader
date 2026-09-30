@@ -142,6 +142,7 @@ class DatabaseHelper {
       }
       await db.execute("ATTACH DATABASE ? AS epi", [epitaka]);
       await db.execute("ATTACH DATABASE ? AS ext", [extension]);
+      await _ensureSentenceIndexes(db);
       // Prove both are readable before letting the reader depend on them.
       await db.rawQuery('SELECT count(*) FROM epi.sentences LIMIT 1');
       await db.rawQuery('SELECT count(*) FROM ext.page_break LIMIT 1');
@@ -186,6 +187,52 @@ class DatabaseHelper {
       return ((rows.first['n'] as int?) ?? 0) > 0;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// The indexes the sentence data is read through, built here rather than
+  /// shipped.
+  ///
+  /// They cost 45 MB in the file and 12 MB in the download, and SQLite can
+  /// make them in a few seconds from data already on the device. What they
+  /// cannot be is absent: every page the reader opens looks sentences up by
+  /// book and paragraph, and without `idx_sentence` that is a scan of more
+  /// than a million rows each time.
+  ///
+  /// Built once. Afterwards this is four cheap lookups against sqlite_master.
+  static const _sentenceIndexes = {
+    'idx_sentence': 'CREATE INDEX IF NOT EXISTS epi.idx_sentence '
+        'ON sentences(book_id, para_id, line_id)',
+    'idx_heading': 'CREATE INDEX IF NOT EXISTS epi.idx_heading '
+        'ON headings(book_id, para_id)',
+    'idx_link_src': 'CREATE INDEX IF NOT EXISTS epi.idx_link_src '
+        'ON book_links(src_book, src_para)',
+    'idx_link_dst': 'CREATE INDEX IF NOT EXISTS epi.idx_link_dst '
+        'ON book_links(dst_book, dst_para)',
+  };
+
+  static Future<void> _ensureSentenceIndexes(Database db) async {
+    try {
+      final have = (await db.rawQuery(
+              "SELECT name FROM epi.sqlite_master WHERE type='index'"))
+          .map((r) => r['name'] as String)
+          .toSet();
+      final missing = _sentenceIndexes.entries
+          .where((e) => !have.contains(e.key))
+          .toList();
+      if (missing.isEmpty) return;
+
+      myLogger.i('building ${missing.length} sentence indexes');
+      final started = DateTime.now();
+      for (final entry in missing) {
+        await db.execute(entry.value);
+      }
+      myLogger.i('sentence indexes built in '
+          '${DateTime.now().difference(started).inMilliseconds} ms');
+    } catch (e) {
+      // Reading still works without them, only slowly, and a database opened
+      // read-only cannot be given them at all.
+      myLogger.e('could not build the sentence indexes: $e');
     }
   }
 
