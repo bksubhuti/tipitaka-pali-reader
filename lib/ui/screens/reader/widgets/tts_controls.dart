@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -116,6 +118,25 @@ class TtsControls extends StatelessWidget {
     final speedBefore = Prefs.ttsSpeed;
     var selection = {...before};
     var speed = speedBefore;
+    // The speed the reading is actually going at, which moves when a live
+    // change is applied, so closing the panel does not restart it again.
+    var speedApplied = speedBefore;
+    Timer? settle;
+
+    /// Restarts the reading from the sentence being read, so a change is
+    /// heard at once rather than when the panel closes.
+    Future<void> restartHere() async {
+      if (!context.mounted) return;
+      final tts = context.read<TtsService>();
+      final reader = context.read<ReaderViewController>();
+      final position = tts.position.value;
+      if (!tts.isPlaying ||
+          tts.bookUuid != reader.bookUuid ||
+          position == null) {
+        return;
+      }
+      await _play(context, page: position.page, sentence: position.sentence);
+    }
 
     await showModalBottomSheet<void>(
       context: context,
@@ -179,6 +200,14 @@ class TtsControls extends StatelessWidget {
                         onChanged: (value) => setState(() {
                           speed = value;
                           Prefs.ttsSpeed = value;
+                          // Applied once the slider rests for a moment, not
+                          // at every step of a drag, each of which would
+                          // restart the sentence.
+                          settle?.cancel();
+                          settle = Timer(const Duration(milliseconds: 500), () {
+                            speedApplied = value;
+                            restartHere();
+                          });
                         }),
                       ),
                     ),
@@ -192,19 +221,14 @@ class TtsControls extends StatelessWidget {
     );
 
     // A change made while reading takes effect from the sentence being read,
-    // rather than waiting for the next start.
+    // rather than waiting for the next start. A speed already applied live
+    // is not applied a second time.
+    settle?.cancel();
     if (!context.mounted) return;
-    final tts = context.read<TtsService>();
-    final reader = context.read<ReaderViewController>();
-    final position = tts.position.value;
-    final changed =
-        speed != speedBefore || selection.length != before.length ||
-            !selection.containsAll(before);
-    if (changed &&
-        tts.isPlaying &&
-        tts.bookUuid == reader.bookUuid &&
-        position != null) {
-      await _play(context, page: position.page, sentence: position.sentence);
-    }
+    final changed = speed != speedApplied ||
+        selection.length != before.length ||
+        !selection.containsAll(before);
+    if (changed) await restartHere();
   }
+
 }
