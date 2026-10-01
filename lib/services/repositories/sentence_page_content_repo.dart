@@ -61,6 +61,7 @@ class SentencePageContentRepository implements PageContentRepository {
 
     final sentences = await _sentencesBetween(db, start, end);
     if (sentences.isEmpty) return null;
+    final languages = _shownLanguages();
 
     return PageContent(
       bookID: bookID,
@@ -70,8 +71,11 @@ class SentencePageContentRepository implements PageContentRepository {
         // A page opening part-way through a sentence continues the paragraph
         // it interrupts, rather than indenting as if it were a new one.
         continuesFromPreviousPage: start.wordIndex > 0,
+        languages: languages,
       ),
       paragraphNumber: '',
+      sentences: sentences,
+      languages: languages,
     );
   }
 
@@ -311,6 +315,7 @@ class SentencePageContentRepository implements PageContentRepository {
       translations[book] = await _allTranslationsFor(db, book);
     }
 
+    final languages = _shownLanguages();
     final out = <PageContent>[];
     final cursor = <String, int>{};
     for (var i = 0; i < breaks.length; i++) {
@@ -379,9 +384,11 @@ class SentencePageContentRepository implements PageContentRepository {
         bookID: bookID,
         pageNumber: breaks[i]['tpr_page'] as int,
         build: () => PageComposer.compose(built,
-            continuesFromPreviousPage: continues),
+            continuesFromPreviousPage: continues, languages: languages),
         blockCount: PageComposer.blockCount(built),
         paragraphNumber: '',
+        sentences: built,
+        languages: languages,
       ));
     }
     return out;
@@ -441,6 +448,12 @@ class SentencePageContentRepository implements PageContentRepository {
     }
     return out;
   }
+
+  /// The languages translations are read in, in the order they are read.
+  /// The same expression as in [_translationsFor], so the two line up.
+  static List<String> _shownLanguages() => Prefs.activeLanguages
+      .where(DatabaseHelper.installedLanguages.contains)
+      .toList();
 
   @override
   Future<PageContent> getPage(int id) {

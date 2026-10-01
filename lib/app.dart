@@ -21,6 +21,7 @@ import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/services/provider/user_notifier.dart';
 import 'package:tipitaka_pali/services/repositories/sutta_repository.dart';
 import 'package:tipitaka_pali/ui/dialogs/show_tpr_message_dlg.dart';
@@ -288,6 +289,7 @@ class _AppState extends State<App> with WindowListener {
                 create: (_) => InitialSetupNotifier()),
             ChangeNotifierProvider<ThemeChangeNotifier>(
                 create: (_) => ThemeChangeNotifier()),
+            ChangeNotifierProvider<TtsService>(create: (_) => TtsService()),
             ChangeNotifierProvider<ShownLanguagesProvider>(
                 create: (context) => ShownLanguagesProvider(
                     context.read<ThemeChangeNotifier>())),

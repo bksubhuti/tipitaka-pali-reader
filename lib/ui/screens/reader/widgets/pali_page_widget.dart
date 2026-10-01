@@ -6,6 +6,9 @@ import 'package:html/dom.dart' as dom;
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/utils/html_text_map.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
+import 'package:tipitaka_pali/utils/page_composer.dart';
+import 'package:tipitaka_pali/utils/tts_highlight.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
@@ -177,7 +180,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
       final context = _ttsScrollKey.currentContext;
       if (context != null) {
-        Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
+        // As little as it takes to keep the sentence in view, so following
+        // the reading does not jerk the page at every sentence.
+        Scrollable.ensureVisible(context,
+            alignment: 0.8,
+            duration: const Duration(milliseconds: 250),
+            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
       }
     });
   }
@@ -238,16 +246,23 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final readerViewController =
         Provider.of<ReaderViewController>(context, listen: false);
 
-    return ValueListenableBuilder<String?>(
-      valueListenable: readerViewController.ttsCurrentText,
-      builder: (context, ttsCurrentText, child) {
-        if (ttsCurrentText != null) {
+    return ValueListenableBuilder<TtsPosition?>(
+      valueListenable: context.read<TtsService>().position,
+      builder: (context, position, child) {
+        // Only the block holding the sentence being read marks it.
+        final spoken = position != null &&
+                position.bookUuid == readerViewController.bookUuid &&
+                position.page == widget.pageNumber &&
+                widget.htmlContent.contains('<a name="${position.sentence}"></a>')
+            ? position
+            : null;
+        if (spoken != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scrollToTtsNode();
           });
         }
         String html = _formatContent(
-            widget.htmlContent, widget.script, context, ttsCurrentText);
+            widget.htmlContent, widget.script, context, spoken);
 
         return Padding(
           padding: const EdgeInsets.all(8.0),
@@ -298,6 +313,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                         word.allMatches(textBefore).length;
                     final wordIndex = findOccurrencesBefore(word, target) +
                         occurrencesInTextBefore;
+
+                    // Reading aloud starts from the sentence tapped.
+                    readerViewController.noteTappedSentence(
+                        widget.pageNumber,
+                        TtsHighlight.sentenceAt(
+                            widget.htmlContent, word, wordIndex));
 
                     // Tapping a word puts the goto/search highlight away for
                     // the whole book. It used to be cleared only in the chunk
@@ -480,8 +501,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
-  String _formatContent(
-      String content, Script script, BuildContext context, String? ttsText) {
+  String _formatContent(String content, Script script, BuildContext context,
+      TtsPosition? spoken) {
     content = _removeHiddenTags(content);
     content = _addLineBreak(content);
 
@@ -499,9 +520,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _addHighlightToSearchIndex(content);
     }
 
-    if (ttsText != null) {
-      content = _addTtsHighlight(content, ttsText);
+    if (spoken != null) {
+      content = TtsHighlight.highlight(
+          content, spoken.sentence, spoken.language);
     }
+    // The sentence markers have done their work; drawn, each would be an
+    // empty widget in the middle of the text.
+    content = content.replaceAll(PageComposer.sentenceMarkers, '');
 
     if (!Prefs.isShowAlternatePali) {
       content = _removeAlternatePali(content);
@@ -582,35 +607,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
     highlightedNode.parent?.insertBefore(anchor, highlightedNode);
     return soup.toString();
-  }
-
-  String _addTtsHighlight(String content, String ttsText) {
-    // Quick check: does this chunk even contain the spoken text?
-    if (!content.contains(ttsText)) return content;
-
-    // Find position of ttsText in the raw HTML
-    final int textPos = content.indexOf(ttsText);
-
-    // Search backwards from that position for the nearest
-    // <span ...translation_text...> opening tag
-    final String before = content.substring(0, textPos);
-    final spanRegex = RegExp(r'<span\s+[^>]*translation_text[^>]*>');
-    Match? lastSpanMatch;
-    for (final m in spanRegex.allMatches(before)) {
-      lastSpanMatch = m;
-    }
-    if (lastSpanMatch == null) return content;
-
-    // Surgically inject 'tts_highlighted' into the class attribute
-    final String spanTag = lastSpanMatch.group(0)!;
-    final String newSpanTag = spanTag.replaceFirst(
-        'translation_text', 'translation_text tts_highlighted');
-
-    // Insert a scroll anchor right before the span, and swap in the new tag
-    return content.substring(0, lastSpanMatch.start) +
-        '<a class="scroll_to_tts"></a>' +
-        newSpanTag +
-        content.substring(lastSpanMatch.end);
   }
 
   int _highlightSearchTermInNode({

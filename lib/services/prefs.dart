@@ -105,6 +105,8 @@ const String windowYPref = "windowY";
 const String paliTextColorPref = "paliTextColor";
 const String translationColorPref = "translationColor";
 const String activeLanguagesPref = "activeLanguages";
+const String ttsLanguagesPref = "ttsLanguages";
+const String ttsSpeedPref = "ttsSpeed";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
 const String textDisplayModePref = "textDisplayMode";
@@ -647,6 +649,17 @@ class Prefs {
       instance.getStringList(activeLanguagesPref) ?? const [];
   static set activeLanguages(List<String> value) =>
       instance.setStringList(activeLanguagesPref, value);
+
+  /// The languages read aloud: 'pali' and translation codes. Empty until
+  /// the reader first chooses, which means everything shown.
+  static List<String> get ttsLanguages =>
+      instance.getStringList(ttsLanguagesPref) ?? const [];
+  static set ttsLanguages(List<String> value) =>
+      instance.setStringList(ttsLanguagesPref, value);
+
+  /// Reading speed, 1 for the voice's normal pace.
+  static double get ttsSpeed => instance.getDouble(ttsSpeedPref) ?? 1.0;
+  static set ttsSpeed(double value) => instance.setDouble(ttsSpeedPref, value);
 
   /// Every language the app has seen installed, whether shown or not.
   ///

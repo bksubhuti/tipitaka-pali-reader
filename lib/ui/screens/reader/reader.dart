@@ -17,6 +17,7 @@ import 'package:tipitaka_pali/services/rx_prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/interactive_html_text.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/search_widget.dart';
+import 'package:tipitaka_pali/ui/screens/reader/widgets/tts_controls.dart';
 import 'package:http/http.dart' as http;
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
@@ -221,6 +222,14 @@ class ReaderView extends StatelessWidget implements Searchable {
                         ),
                       ),
                     ],
+                  ),
+
+                  // Read aloud, in the lower right, clear of the control bar's
+                  // pull tab.
+                  const Positioned(
+                    right: 12,
+                    bottom: 120,
+                    child: TtsControls(),
                   ),
 
                   // Translation Overlay

@@ -8,6 +8,8 @@ import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
+import 'package:tipitaka_pali/utils/tts_highlight.dart';
 
 import '../../../../business_logic/models/book.dart';
 import '../../../../business_logic/models/bookmark.dart';
@@ -37,6 +39,9 @@ class ReaderViewController extends ChangeNotifier {
   @override
   void dispose() {
     _shownLanguages?.removeListener(_onShownLanguagesChanged);
+    // Closing the book stops it being read.
+    final tts = _tts;
+    if (tts != null && tts.bookUuid == bookUuid) tts.stop();
     super.dispose();
     _mounted = false;
   }
@@ -45,6 +50,7 @@ class ReaderViewController extends ChangeNotifier {
   /// open book composes its pages again, rather than keeping the ones it
   /// opened with until the app restarts.
   ShownLanguagesProvider? _shownLanguages;
+  TtsService? _tts;
   int _composedForVersion = 0;
 
   /// Moves each time the pages are reloaded, for the view to rebuild on.
@@ -103,9 +109,80 @@ class ReaderViewController extends ChangeNotifier {
   /// Removes the goto/search word highlight everywhere in this book.
   void clearHighlights() => _isHighlightShown.value = false;
 
-  final ValueNotifier<String?> _ttsCurrentText = ValueNotifier(null);
-  ValueListenable<String?> get ttsCurrentText => _ttsCurrentText;
-  int _ttsSentenceIndex = 0;
+  /// The sentence the reader last tapped, where reading aloud starts if it
+  /// is still on screen.
+  ({int page, String sentence})? _tappedSentence;
+
+  /// The blocks of the list currently on screen, first and last, as the view
+  /// reports them.
+  int firstVisibleChunk = 0;
+  int lastVisibleChunk = 0;
+
+  void noteTappedSentence(int page, String? sentence) {
+    if (sentence == null) return;
+    _tappedSentence = (page: page, sentence: sentence);
+  }
+
+  /// The block of the list holding [sentence] on [page], or -1.
+  int chunkIndexOfSentence(int page, String sentence) {
+    final marker = '<a name="$sentence"></a>';
+    final first = getChunkIndexForPage(page);
+    if (first < 0) return -1;
+    for (var i = first; i < chunks.length && chunks[i].pageNumber == page; i++) {
+      if (chunks[i].htmlContent.contains(marker)) return i;
+    }
+    return -1;
+  }
+
+  /// Reads the book aloud from where the reader is.
+  ///
+  /// Starts at the sentence last tapped if it is on screen, otherwise at the
+  /// first sentence of the topmost block showing, and carries on through the
+  /// following pages, turning them as it goes. [page] and [sentence] start it
+  /// somewhere else instead, as a restart after a change of languages does.
+  ///
+  /// Returns a message for the reader, or null.
+  Future<String?> readAloud(
+    TtsService tts, {
+    required Set<String> languages,
+    required double speed,
+    int? page,
+    String? sentence,
+  }) async {
+    if (page == null) {
+      final tapped = _tappedSentence;
+      final tappedChunk = tapped == null
+          ? -1
+          : chunkIndexOfSentence(tapped.page, tapped.sentence);
+      if (tapped != null &&
+          tappedChunk >= firstVisibleChunk &&
+          tappedChunk <= lastVisibleChunk) {
+        page = tapped.page;
+        sentence = tapped.sentence;
+      } else if (firstVisibleChunk < chunks.length) {
+        final chunk = chunks[firstVisibleChunk];
+        page = chunk.pageNumber;
+        sentence = TtsHighlight.firstSentence(chunk.htmlContent);
+      } else {
+        page = _currentPage.value;
+      }
+    }
+    final index = pages.indexWhere((p) => p.pageNumber == page);
+    if (index < 0 || pages[index].sentences == null) {
+      return 'This page cannot be read aloud.';
+    }
+    return tts.start(
+      bookUuid: bookUuid,
+      pages: pages,
+      startIndex: index,
+      fromSentence: sentence,
+      chosen: languages,
+      speed: speed,
+      onPage: (pageNumber) {
+        if (_mounted) gotoPage(pageNumber: pageNumber);
+      },
+    );
+  }
 
   bool isloadingFinished = false;
 
@@ -146,6 +223,7 @@ class ReaderViewController extends ChangeNotifier {
       _shownLanguages = context.read<ShownLanguagesProvider>();
       _composedForVersion = _shownLanguages!.version;
       _shownLanguages!.addListener(_onShownLanguagesChanged);
+      _tts = context.read<TtsService>();
     } catch (_) {
       // Not provided, as in a test of the controller alone.
     }
@@ -490,10 +568,7 @@ class ReaderViewController extends ChangeNotifier {
   }
 
   void gotoPage({required int pageNumber}) {
-    // Only reset TTS highlight when the page actually changes
-    if (_currentPage.value != pageNumber) {
-      _ttsCurrentText.value = null;
-    } else {
+    if (_currentPage.value == pageNumber) {
       // The page number is unchanged, so no listener will run. Drop any
       // pending permission here, otherwise the next page change - which would
       // come from plain scrolling - would inherit it and move the view.
