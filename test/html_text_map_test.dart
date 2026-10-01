@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/utils/html_text_map.dart';
 
 /// Highlighting changes the text of a page, never its tags.
@@ -41,5 +42,14 @@ void main() {
     final once = mark(page, 'Benares');
     final twice = mark(once, 'Benares');
     expect(twice, once);
+  });
+
+  test('a bookmark with nothing worth highlighting highlights nothing', () {
+    // Searching for "" would match between every character of the page.
+    expect(BookmarkPageViewModel.highlightTextOf(''), isNull);
+    expect(BookmarkPageViewModel.highlightTextOf(null), isNull);
+    expect(BookmarkPageViewModel.highlightTextOf('7. ti ca me 59'), isNull);
+    expect(BookmarkPageViewModel.highlightTextOf('59. ekaṃ samayaṃ bhagavā'),
+        'ekaṃ samayaṃ bhagavā');
   });
 }

@@ -525,6 +525,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   String _addUnderline(String content, String lookupWord) {
+    if (lookupWord.isEmpty) return content;
     final hwi = highlightedWordIndex;
     final underlinedHighlight =
         '<span class = "underlined_highlight">$lookupWord</span>';
@@ -858,6 +859,9 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
   String _addHighlight(String content, String textToHighlight,
       {highlightClass = "highlighted", addId = true}) {
+    // Nothing to find. Searching for "" matches between every character and
+    // would put a span between each letter of the page.
+    if (textToHighlight.trim().isEmpty) return content;
     final hwi = highlightedWordIndex;
     if (!Prefs.multiHighlight && hwi != null) {
       final highlighted =
