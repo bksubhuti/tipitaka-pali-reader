@@ -5,6 +5,7 @@ import 'package:html/dom.dart' as dom;
 
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/html_text_map.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
@@ -855,21 +856,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
-  /// Whether [at] falls inside an already inserted highlight span.
-  ///
-  /// Looks back for the nearest span boundary rather than at a fixed window:
-  /// if the last thing opened before this point is a highlight span that has
-  /// not been closed, the match is inside it and must be left alone.
-  static bool _insideSpan(String content, int at, String highlightClass) {
-    final open = content.lastIndexOf('<span', at);
-    if (open < 0) return false;
-    final close = content.lastIndexOf('</span>', at);
-    if (close > open) return false;
-    final tagEnd = content.indexOf('>', open);
-    if (tagEnd < 0 || tagEnd >= at) return false;
-    return content.substring(open, tagEnd).contains(highlightClass);
-  }
-
   String _addHighlight(String content, String textToHighlight,
       {highlightClass = "highlighted", addId = true}) {
     final hwi = highlightedWordIndex;
@@ -918,23 +904,19 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               r'[^\s",<“”‘’\-\–\—]*',
           caseSensitive: false,
         );
-        content = content.replaceAllMapped(pattern, (match) {
-          final matched = match.group(0)!;
-          // Don't re-highlight text that is already inside a highlight span.
-          //
-          // This used to ask whether the preceding 60 characters held one,
-          // which is a different question: when two of the search words sit
-          // next to each other in the text, the second is well within 60
-          // characters of the first and was silently left unmarked. That is
-          // the "skipping some words" in a phrase search.
-          if (_insideSpan(content, match.start, highlightClass)) {
-            return matched;
-          }
-          if (firstMatch && addId) {
-            firstMatch = false;
-            return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
-          }
-          return '<span class="$highlightClass">$matched</span>';
+        // Only the text, never the tags. A match already inside a highlight
+        // span is left alone; the old check looked back a fixed 60 characters,
+        // which dropped the second of two adjacent search words.
+        content = mapHtmlText(content, highlightClass, (text, insideHighlight) {
+          if (insideHighlight) return text;
+          return text.replaceAllMapped(pattern, (match) {
+            final matched = match.group(0)!;
+            if (firstMatch && addId) {
+              firstMatch = false;
+              return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
+            }
+            return '<span class="$highlightClass">$matched</span>';
+          });
         });
       }
       return content;
@@ -948,15 +930,17 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       final pattern =
           RegExp(RegExp.escape(scriptTextToHighlight), caseSensitive: false);
       bool firstMatch = true;
-      content = content.replaceAllMapped(pattern, (match) {
-        final matched = match.group(0)!;
-        if (firstMatch && addId) {
-          firstMatch = false;
-          return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
-        }
-        return '<span class="$highlightClass">$matched</span>';
+      return mapHtmlText(content, highlightClass, (text, insideHighlight) {
+        if (insideHighlight) return text;
+        return text.replaceAllMapped(pattern, (match) {
+          final matched = match.group(0)!;
+          if (firstMatch && addId) {
+            firstMatch = false;
+            return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
+          }
+          return '<span class="$highlightClass">$matched</span>';
+        });
       });
-      return content;
     }
 
     // ==============================
@@ -965,27 +949,37 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     textToHighlight = scriptTextToHighlight;
 
     if (!textToHighlight.contains(' ')) {
-      final pattern =
-          RegExp('(?<=[\\s", ])${RegExp.escape(textToHighlight)}(?=[\\s", ])');
-      if (content.contains(pattern)) {
-        final replace =
-            '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
-        content = content.replaceAll(pattern, replace);
-        return content;
-      }
+      final pattern = RegExp(
+          '(?<=[\\s", ]|^)${RegExp.escape(textToHighlight)}(?=[\\s", ]|\$)');
+      var found = false;
+      final replaced = mapHtmlText(content, highlightClass, (text, _) {
+        return text.replaceAllMapped(pattern, (match) {
+          found = true;
+          return '<span id="$kGotoID" class = "$highlightClass">'
+              '${match.group(0)}</span>';
+        });
+      });
+      if (found) return replaced;
     }
 
-    final words = textToHighlight.trim().split(' ');
+    // Word by word, as the bookmark text is: each word is marked wherever it
+    // occurs in the text, and a word not found as it is is tried without a
+    // closing quotative (ti, nti).
+    final words = textToHighlight
+        .trim()
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .toList();
     for (final word in words) {
-      if (content.contains(word)) {
-        final String replace = '<span class = "$highlightClass">$word</span>';
-        content = content.replaceAll(word, replace);
-      } else {
-        String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
-        final replace = '<span class = "$highlightClass">$trimmedWord</span>';
-
-        content = content.replaceAll(trimmedWord, replace);
-      }
+      final target = content.replaceAll(anyHtmlTag, ' ').contains(word)
+          ? word
+          : word.replaceAll(RegExp(r'(nti|ti)$'), '');
+      if (target.isEmpty) continue;
+      content = mapHtmlText(content, highlightClass, (text, insideHighlight) {
+        if (insideHighlight) return text;
+        return text.replaceAll(
+            target, '<span class = "$highlightClass">$target</span>');
+      });
     }
 
     if (addId) {
