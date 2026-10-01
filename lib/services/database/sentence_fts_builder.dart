@@ -268,6 +268,20 @@ CREATE TABLE IF NOT EXISTS search_meta (
     return indexed;
   }
 
+  /// Takes one language out of search, at once.
+  ///
+  /// A contentless index cannot delete rows, but it does not need to: a
+  /// translation hit is only returned through its row in
+  /// `search_translation_unit`, so removing those is enough. The terms left
+  /// in the index cost a little space until the next full build, and nothing
+  /// else.
+  static Future<void> removeLanguage(Database db, String code) async {
+    await db.rawDelete(
+        'DELETE FROM search_translation_unit WHERE lang = ?', [code]);
+    final now = await indexedLanguages(db);
+    await _recordLanguages(db, now.where((c) => c != code).toList());
+  }
+
   /// Rebuilds only the translation half of the index, for [languages].
   ///
   /// What removing a language needs: a contentless index cannot delete one

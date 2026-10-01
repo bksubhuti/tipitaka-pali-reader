@@ -53,7 +53,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
       .name;
 
   Future<void> _install(LanguageOption option) async {
-    final steps = LanguageStepState(LanguageStep.values);
+    final steps = LanguageStepState(LanguageStep.install);
     setState(() {
       _busy = option.code;
       _steps = steps;

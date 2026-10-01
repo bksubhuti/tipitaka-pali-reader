@@ -124,4 +124,20 @@ void main() {
     expect(await SentenceFtsBuilder.indexedLanguages(db), ['en']);
     expect(await SentenceFtsBuilder.isBuilt(db), isTrue);
   });
+
+  test('removing one takes it out of search at once', () async {
+    await SentenceFtsBuilder.build(db, languages: ['en', 'ru']);
+    final en = await hits('en', '"heard di01 5"');
+
+    await SentenceFtsBuilder.removeLanguage(db, 'ru');
+
+    expect(await hits('ru', '"слышал ma01 17"'), isEmpty);
+    expect(await hits('en', '"heard di01 5"'), en);
+    expect(await SentenceFtsBuilder.indexedLanguages(db), ['en']);
+
+    // And it can come back without colliding with the rows left behind.
+    await SentenceFtsBuilder.addLanguage(db, 'ru');
+    expect(await hits('ru', '"слышал ma01 17"'), isNotEmpty);
+    expect(await SentenceFtsBuilder.indexedLanguages(db), ['en', 'ru']);
+  });
 }

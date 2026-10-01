@@ -367,15 +367,14 @@ class DatabaseHelper {
         sentenceSearchAvailable = true;
         final removed = indexed.where((c) => !wanted.contains(c)).toList();
         final added = wanted.where((c) => !indexed.contains(c)).toList();
-        if (removed.isNotEmpty) {
-          // Only the translation half; the Pali is untouched by a language.
-          await SentenceFtsBuilder.rebuildTranslations(db, wanted,
+        // Only the language that changed; the Pali and the other languages
+        // are untouched by it.
+        for (final code in removed) {
+          await SentenceFtsBuilder.removeLanguage(db, code);
+        }
+        for (final code in added) {
+          await SentenceFtsBuilder.addLanguage(db, code,
               onProgress: onProgress);
-        } else {
-          for (final code in added) {
-            await SentenceFtsBuilder.addLanguage(db, code,
-                onProgress: onProgress);
-          }
         }
         if (removed.isNotEmpty || added.isNotEmpty) {
           myLogger.i('translation index now covers: ${wanted.join(", ")}');

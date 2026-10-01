@@ -179,14 +179,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (!mounted) return;
 
       final context = _ttsScrollKey.currentContext;
-      if (context != null) {
-        // As little as it takes to keep the sentence in view, so following
-        // the reading does not jerk the page at every sentence.
-        Scrollable.ensureVisible(context,
-            alignment: 0.8,
-            duration: const Duration(milliseconds: 250),
-            alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
-      }
+      if (context == null) return;
+      final target = context.findRenderObject();
+      final scrollable = Scrollable.maybeOf(context);
+      if (target == null || scrollable == null) return;
+      final viewport = RenderAbstractViewport.maybeOf(target);
+      if (viewport == null) return;
+
+      // Where the sentence begins, as a fraction of the screen from the top.
+      // Left alone while it is comfortably in view, so the page does not
+      // move at every sentence; brought up to a fifth of the way down once
+      // it nears the bottom or has gone off either edge. The marker has no
+      // height, so revealing it only at the bottom edge — which is what
+      // "keep visible" does — left the words being spoken just out of view.
+      final position = scrollable.position;
+      final top = viewport.getOffsetToReveal(target, 0.0).offset;
+      final fraction =
+          (top - position.pixels) / position.viewportDimension;
+      if (fraction >= 0.02 && fraction <= 0.6) return;
+      Scrollable.ensureVisible(context,
+          alignment: 0.2, duration: const Duration(milliseconds: 300));
     });
   }
 

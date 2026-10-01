@@ -24,7 +24,7 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
   bool _done = false;
 
   Future<void> _install(LanguageOption option) async {
-    final steps = LanguageStepState(LanguageStep.values);
+    final steps = LanguageStepState(LanguageStep.install);
     setState(() {
       _installing = option.code;
       _steps = steps;

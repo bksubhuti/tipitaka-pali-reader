@@ -29,6 +29,10 @@ class TtsControls extends StatelessWidget {
     return kept.isEmpty ? {TtsPlan.pali} : kept;
   }
 
+  static String _voiceName(String language) => language == TtsPlan.pali
+      ? 'Pāḷi (it needs a Kannada voice)'
+      : nameOf(language);
+
   static String nameOf(String language) =>
       language == TtsPlan.pali ? 'Pāḷi' : LanguageInstaller.nameOf(language);
 
@@ -71,10 +75,18 @@ class TtsControls extends StatelessWidget {
     final reader = context.read<ReaderViewController>();
     final tts = context.read<TtsService>();
     final messenger = ScaffoldMessenger.maybeOf(context);
-    final languages =
-        chosen(options(context.read<ShownLanguagesProvider>()));
+    final voiced = await tts
+        .speakable(options(context.read<ShownLanguagesProvider>()));
+    if (voiced.isEmpty) {
+      messenger?.showSnackBar(const SnackBar(
+          content: Text('There is no voice on this device for these '
+              'languages. Voices can be added in the system speech '
+              'settings.'),
+          duration: Duration(seconds: 6)));
+      return;
+    }
     final note = await reader.readAloud(tts,
-        languages: languages,
+        languages: chosen(voiced.toList()),
         speed: Prefs.ttsSpeed,
         page: page,
         sentence: sentence);
@@ -86,7 +98,13 @@ class TtsControls extends StatelessWidget {
 
   Future<void> _showOptions(BuildContext context) async {
     final shown = context.read<ShownLanguagesProvider>();
-    final all = options(shown);
+    final offered = options(shown);
+    // Only languages this device can speak are offered; the rest are named
+    // underneath, so a missing one is explained rather than silently absent.
+    final voiced = await context.read<TtsService>().speakable(offered);
+    if (!context.mounted) return;
+    final all = offered.where(voiced.contains).toList();
+    final unvoiced = offered.where((l) => !voiced.contains(l)).toList();
     final before = chosen(all);
     final speedBefore = Prefs.ttsSpeed;
     var selection = {...before};
@@ -133,6 +151,19 @@ class TtsControls extends StatelessWidget {
                       ),
                   ],
                 ),
+                if (all.isEmpty)
+                  const Text('No voice on this device can read these '
+                      'languages.'),
+                if (unvoiced.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'No voice on this device for '
+                      '${unvoiced.map(_voiceName).join(', ')}. '
+                      'Voices can be added in the system speech settings.',
+                      style: Theme.of(sheetContext).textTheme.bodySmall,
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 Row(
                   children: [

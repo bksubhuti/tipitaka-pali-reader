@@ -121,6 +121,17 @@ class TtsService extends ChangeNotifier {
   /// been superseded and ends without touching anything.
   int _session = 0;
 
+  /// Those of [languages] that have a voice on this device.
+  Future<Set<String>> speakable(Iterable<String> languages) async {
+    final out = <String>{};
+    for (final language in languages) {
+      if (await _engine.isAvailable(TtsPlan.voiceFor(language))) {
+        out.add(language);
+      }
+    }
+    return out;
+  }
+
   /// Starts reading [pages] from [startIndex], at [fromSentence] if given.
   ///
   /// [chosen] is the languages to speak, [TtsPlan.pali] among them if the

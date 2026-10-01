@@ -33,14 +33,19 @@ enum LanguageStep {
   unpack('Unpack'),
   prepare('Prepare'),
   attach('Open'),
-  indexing('Index for search'),
-  wordList('Search suggestions');
+  close('Close'),
+  delete('Delete from the device'),
+  indexing('Update the search index'),
+  wordList('Update search suggestions');
 
   final String label;
   const LanguageStep(this.label);
 
+  /// The stages installing a language goes through.
+  static const install = [download, unpack, prepare, attach, indexing, wordList];
+
   /// The stages removing a language goes through.
-  static const removal = [attach, indexing, wordList];
+  static const removal = [close, delete, indexing, wordList];
 }
 
 /// Reports a stage, a fraction where one is known, and a message.
@@ -154,7 +159,7 @@ class LanguageInstaller {
     // language beyond the first had no visible effect.
     activate(option.code);
 
-    await _reindex(onStep);
+    await _reindex(onStep, changed: option.code);
     onStep?.call(LanguageStep.wordList, 1, '${option.name} installed');
   }
 
@@ -163,7 +168,8 @@ class LanguageInstaller {
   /// Only the language that changed is indexed; the Pali index is left as it
   /// is. If a build started at launch is still running, this waits for it,
   /// and the message says so rather than sitting still.
-  static Future<void> _reindex(LanguageProgress? onStep) async {
+  static Future<void> _reindex(LanguageProgress? onStep,
+      {required String changed, bool removed = false}) async {
     void status() {
       final message = DatabaseHelper.indexStatus.value;
       if (message != null) onStep?.call(LanguageStep.indexing, null, message);
@@ -178,11 +184,17 @@ class LanguageInstaller {
     }
 
     onStep?.call(LanguageStep.wordList, null, 'Updating search suggestions…');
-    await LegacyDataRetirement.buildTranslationWordList(
-      await DatabaseHelper().database,
-      onProgress: (message) =>
-          onStep?.call(LanguageStep.wordList, null, message),
-    );
+    if (LegacyDataRetirement.wordListLanguages.contains(changed)) {
+      await LegacyDataRetirement.buildTranslationWordList(
+        await DatabaseHelper().database,
+        // Installing adds that language's words. Removing has to rebuild
+        // from the rest, since a word does not record where it came from.
+        languages: removed ? null : [changed],
+        replace: removed,
+        onProgress: (message) =>
+            onStep?.call(LanguageStep.wordList, null, message),
+      );
+    }
   }
 
   /// Adds [code] to the languages shown beneath the Pali, keeping the order
@@ -226,11 +238,12 @@ class LanguageInstaller {
 
   /// Removes an installed language, and takes it out of search.
   static Future<void> remove(String code, {LanguageProgress? onStep}) async {
-    onStep?.call(LanguageStep.attach, null, 'Closing $code…');
+    onStep?.call(LanguageStep.close, null, 'Closing ${nameOf(code)}…');
     // Detached first: an attached file cannot be deleted on Windows, and on
     // the others deleting it underneath an open connection leaves queries
     // answering from a file that is no longer there.
     await DatabaseHelper().detachLanguage(code);
+    onStep?.call(LanguageStep.delete, null, 'Deleting ${nameOf(code)}…');
     final file = File(join(_dir, 'lang_$code.db'));
     if (await file.exists()) await file.delete();
     Prefs.activeLanguages =
@@ -239,7 +252,7 @@ class LanguageInstaller {
     // rather than treating it as one that was switched off.
     Prefs.knownLanguages =
         Prefs.knownLanguages.where((c) => c != code).toList();
-    await _reindex(onStep);
+    await _reindex(onStep, changed: code, removed: true);
     onStep?.call(LanguageStep.wordList, 1, 'Removed');
   }
 

@@ -193,17 +193,29 @@ class LegacyDataRetirement {
   /// Only Latin-script translations yield anything, which is what the parsing
   /// version managed too. For Burmese or Thai the loop finds no words and
   /// adds none, rather than adding nonsense.
+  /// Languages whose words the suggestion list can hold. It takes words in
+  /// plain Latin letters only, so reading a Sinhala or Myanmar translation —
+  /// hundreds of megabytes — finds next to nothing and only makes adding or
+  /// removing one look hung.
+  static const wordListLanguages = {'en', 'pt', 'de'};
+
+  /// [replace] clears the translation words first and rebuilds them from
+  /// [languages]; otherwise [languages] are added to what is there, which is
+  /// all installing one needs.
   static Future<void> buildTranslationWordList(
     Database db, {
     List<String>? languages,
+    bool replace = true,
     void Function(String message)? onProgress,
   }) async {
-    final codes = languages ?? DatabaseHelper.installedLanguages;
+    final codes = (languages ?? DatabaseHelper.installedLanguages)
+        .where(wordListLanguages.contains)
+        .toList();
     // Nothing to put back means nothing is taken away. Someone still on the
     // old path may have an English list built from the page HTML, and
     // clearing that to replace it with nothing would be a plain loss.
     if (codes.isEmpty) return;
-    await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+    if (replace) await db.rawDelete('DELETE FROM words WHERE frequency = -1');
 
     for (final code in codes) {
       onProgress?.call('Adding the $code word list…');
