@@ -4,6 +4,7 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
@@ -20,6 +21,7 @@ class ViewSettingsView extends StatefulWidget {
 
 class _ViewSettingsViewState extends State<ViewSettingsView> {
   late bool _hideScrollbar;
+  late bool _hideTtsControls;
   late final StreamingSharedPreferences rxPrefs;
 
   @override
@@ -28,6 +30,9 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     rxPrefs = Provider.of<StreamingSharedPreferences>(context, listen: false);
     _hideScrollbar = rxPrefs
         .getBool(hideScrollbarPref, defaultValue: defaultHideScrollbar)
+        .getValue();
+    _hideTtsControls = rxPrefs
+        .getBool(hideTtsControlsPref, defaultValue: defaultHideTtsControls)
         .getValue();
   }
 
@@ -48,6 +53,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
       _getTranslationColorSetting(),
       const Divider(),
       _getHideScrollbarSwitch(),
+      _getHideTtsControlsSwitch(),
       if (!widget.isMobilePopup) ...[
         const Divider(),
         _getMultiTabsModeSwitch(),
@@ -291,6 +297,25 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             await rxPrefs.setBool(hideScrollbarPref, _hideScrollbar);
           },
           value: _hideScrollbar,
+        ),
+      ),
+    );
+  }
+
+  /// Hides the read aloud buttons, on phones over the text and on desktop in
+  /// the control bar. Reading under way stops, since its stop button goes.
+  Widget _getHideTtsControlsSwitch() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: const Text('Hide TTS controls'),
+        trailing: Switch(
+          onChanged: (value) async {
+            setState(() => _hideTtsControls = value);
+            if (value) context.read<TtsService>().stop();
+            await rxPrefs.setBool(hideTtsControlsPref, _hideTtsControls);
+          },
+          value: _hideTtsControls,
         ),
       ),
     );

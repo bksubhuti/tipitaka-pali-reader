@@ -143,7 +143,16 @@ class LowerRow extends StatelessWidget {
               tooltip: AppLocalizations.of(context)!.table_of_contents),
           // Read aloud lives in the bar on desktop; phones and tablets float
           // it over the text instead.
-          if (PlatformInfo.isDesktop) const TtsControls(inBar: true),
+          if (PlatformInfo.isDesktop)
+            PreferenceBuilder<bool>(
+              preference: context
+                  .read<StreamingSharedPreferences>()
+                  .getBool(hideTtsControlsPref,
+                      defaultValue: defaultHideTtsControls),
+              builder: (context, hide) => hide
+                  ? const SizedBox.shrink()
+                  : const TtsControls(inBar: true),
+            ),
           if (!PlatformInfo.isDesktop && !Mobile.isTablet(context))
             IconButton(
                 onPressed: () => _openSettingPage(context),
