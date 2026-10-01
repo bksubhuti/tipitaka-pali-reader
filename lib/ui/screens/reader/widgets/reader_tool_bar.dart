@@ -9,6 +9,7 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_controller.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/mat_button.dart';
+import 'package:tipitaka_pali/ui/screens/reader/widgets/tts_controls.dart';
 import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
@@ -140,6 +141,9 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _openTocDialog(context),
               icon: const Icon(Icons.list),
               tooltip: AppLocalizations.of(context)!.table_of_contents),
+          // Read aloud lives in the bar on desktop; phones and tablets float
+          // it over the text instead.
+          if (PlatformInfo.isDesktop) const TtsControls(inBar: true),
           if (!PlatformInfo.isDesktop && !Mobile.isTablet(context))
             IconButton(
                 onPressed: () => _openSettingPage(context),

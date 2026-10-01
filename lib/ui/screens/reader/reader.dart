@@ -225,12 +225,13 @@ class ReaderView extends StatelessWidget implements Searchable {
                   ),
 
                   // Read aloud, in the lower right, clear of the control bar's
-                  // pull tab.
-                  const Positioned(
-                    right: 12,
-                    bottom: 120,
-                    child: TtsControls(),
-                  ),
+                  // pull tab. On desktop it is in the control bar instead.
+                  if (!PlatformInfo.isDesktop)
+                    const Positioned(
+                      right: 12,
+                      bottom: 120,
+                      child: TtsControls(),
+                    ),
 
                   // Translation Overlay
                   _buildTranslationOverlay(context),

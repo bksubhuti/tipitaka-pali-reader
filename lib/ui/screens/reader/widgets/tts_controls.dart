@@ -14,7 +14,11 @@ import 'package:tipitaka_pali/ui/screens/reader/controller/reader_view_controlle
 /// always offered, even when it is hidden on screen. At least one stays
 /// chosen.
 class TtsControls extends StatelessWidget {
-  const TtsControls({super.key});
+  /// Plain buttons for the desktop control bar, rather than the floating
+  /// pill shown over the text on phones and tablets.
+  final bool inBar;
+
+  const TtsControls({super.key, this.inBar = false});
 
   /// What can be read: the Pali, then the translations in the order shown.
   static List<String> options(ShownLanguagesProvider shown) =>
@@ -48,25 +52,28 @@ class TtsControls extends StatelessWidget {
     final playingHere = tts.isPlaying && tts.bookUuid == reader.bookUuid;
     final theme = Theme.of(context);
 
+    final buttons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(playingHere ? Icons.stop : Icons.play_arrow),
+          tooltip: playingHere ? 'Stop reading' : 'Read aloud',
+          onPressed: playingHere ? tts.stop : () => _play(context),
+        ),
+        IconButton(
+          icon: const Icon(Icons.record_voice_over_outlined),
+          tooltip: 'Read aloud: languages and speed',
+          onPressed: () => _showOptions(context),
+        ),
+      ],
+    );
+    if (inBar) return buttons;
+
     return Material(
       elevation: 3,
       shape: const StadiumBorder(),
       color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.92),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(playingHere ? Icons.stop : Icons.play_arrow),
-            tooltip: playingHere ? 'Stop reading' : 'Read aloud',
-            onPressed: playingHere ? tts.stop : () => _play(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.record_voice_over_outlined),
-            tooltip: 'Read aloud: languages and speed',
-            onPressed: () => _showOptions(context),
-          ),
-        ],
-      ),
+      child: buttons,
     );
   }
 
