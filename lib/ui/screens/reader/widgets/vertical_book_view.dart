@@ -374,10 +374,15 @@ class _VerticalBookViewState extends State<VerticalBookView>
                         .getBool(hideScrollbarPref, defaultValue: false),
                     builder: (context, hideScrollbar) {
                       if (!hideScrollbar) {
+                        // The control bar's pull tab sits over the bottom
+                        // right corner, so the scrollbar stops short of it.
                         return SizedBox(
                           width: 32,
                           height: constraints.maxHeight,
-                          child: const VerticalBookSlider(),
+                          child: const Padding(
+                            padding: EdgeInsets.only(bottom: 32),
+                            child: VerticalBookSlider(),
+                          ),
                         );
                       } else {
                         return const SizedBox

@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -552,6 +553,17 @@ class ReaderViewController extends ChangeNotifier {
   Future<void> _loadBookInfo(String bookID) async {
     book.firstPage = await bookRepository.getFirstPage(bookID);
     book.lastPage = await bookRepository.getLastPage(bookID);
+    // The range comes from the pages actually loaded where it can. The books
+    // table was written for the old pages and is a page short or long for a
+    // few books in the sentence data (attha_vi_01_01 ends on 346, not 345;
+    // tika_sa_05 has a page 32 before its first, 393). Scrolling onto such a
+    // page put the scrollbar outside its own range, and moving it then
+    // failed.
+    if (pages.isNotEmpty) {
+      final numbers = pages.map((page) => page.pageNumber!);
+      book.firstPage = numbers.reduce(min);
+      book.lastPage = numbers.reduce(max);
+    }
     _currentPage = ValueNotifier(initialPage ?? book.firstPage);
     _pageToHighlight = initialPage;
   }
@@ -634,7 +646,13 @@ class ReaderViewController extends ChangeNotifier {
 
   int getChunkIndexForPage(int pageNumber) {
     int index = chunks.indexWhere((chunk) => chunk.pageNumber == pageNumber);
-    return index != -1 ? index : 0;
+    if (index != -1) return index;
+    // Some books skip page numbers. Going to a missing one, as the scrollbar
+    // does while it is dragged, lands on the next page there is rather than
+    // back at the start of the book.
+    index = chunks.indexWhere((chunk) => chunk.pageNumber > pageNumber);
+    if (index != -1) return index;
+    return chunks.isEmpty ? 0 : chunks.length - 1;
   }
 
   int getPageNumberForChunk(int chunkIndex) {

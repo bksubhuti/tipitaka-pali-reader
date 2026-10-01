@@ -11,8 +11,8 @@ class VerticalBookSlider extends StatefulWidget {
 
 class _BookSliderState extends State<VerticalBookSlider> {
   late final ReaderViewController readerViewController;
-  late final double min;
-  late final double max;
+  late final int min;
+  late final int max;
   late final int divisions;
   late int currentPage;
 
@@ -22,11 +22,12 @@ class _BookSliderState extends State<VerticalBookSlider> {
     readerViewController =
         Provider.of<ReaderViewController>(context, listen: false);
 
-    min = readerViewController.book.firstPage.toDouble();
-    max = readerViewController.book.lastPage.toDouble();
-    divisions = (readerViewController.book.lastPage -
-            readerViewController.book.firstPage) +
-        1;
+    min = readerViewController.book.firstPage;
+    // A one-page book would give the slider no range at all.
+    max = readerViewController.book.lastPage > min
+        ? readerViewController.book.lastPage
+        : min + 1;
+    divisions = max - min;
     currentPage = readerViewController.currentPage.value;
     readerViewController.currentPage.addListener(_listenPageChange);
   }
@@ -54,9 +55,11 @@ class _BookSliderState extends State<VerticalBookSlider> {
           overlayShape: const RoundSliderOverlayShape(overlayRadius: 8.0),
         ),
         child: Slider(
-          value: currentPage.toDouble(),
-          min: min,
-          max: max,
+          // Kept inside the range: a page outside it, such as an old bookmark
+          // on a page the book no longer has, made the slider fail to draw.
+          value: currentPage.clamp(min, max).toDouble(),
+          min: min.toDouble(),
+          max: max.toDouble(),
           label: currentPage.toString(),
           divisions: divisions,
           onChanged: (value) async {

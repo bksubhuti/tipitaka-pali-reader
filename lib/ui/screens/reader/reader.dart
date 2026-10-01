@@ -86,6 +86,9 @@ class ReaderView extends StatelessWidget implements Searchable {
   ReaderView({super.key, required this.bookViewMode});
   final _sc = SlidableBarController(initialStatus: Prefs.controlBarShow);
 
+  /// Height of the control bar at the bottom, without its pull tab.
+  static const double _controlBarSize = 100;
+
   @override
   void onSearchRequested(BuildContext context) {
     debugPrint('on search requested');
@@ -125,7 +128,7 @@ class ReaderView extends StatelessWidget implements Searchable {
               slidableController: _sc,
               side: Side.bottom,
               barContent: const ReaderToolbar(),
-              size: 100,
+              size: _controlBarSize,
               clicker: SlidableClicker(controller: _sc),
               frontColor: Colors.white,
               backgroundColor: Colors.blue.withOpacity(0.3),
@@ -133,8 +136,17 @@ class ReaderView extends StatelessWidget implements Searchable {
               clickerPosition: 0.98,
               child: Stack(
                 children: [
-                  // Main content
-                  Column(
+                  // Main content, kept clear of the control bar while it is
+                  // open. The bar is drawn over the reader, so without this the
+                  // last lines and the end of the scrollbar went behind it.
+                  StreamBuilder<bool>(
+                    stream: _sc.statusStream,
+                    initialData: _sc.currentStatus,
+                    builder: (context, barOpen) => AnimatedPadding(
+                      duration: const Duration(milliseconds: 300),
+                      padding: EdgeInsets.only(
+                          bottom: barOpen.data! ? _controlBarSize : 0),
+                      child: Column(
                     children: [
                       if (context.watch<ReaderViewController>().showSearch)
                         SearchWidget(
@@ -145,16 +157,26 @@ class ReaderView extends StatelessWidget implements Searchable {
                         ),
                       Expanded(
                         child: LayoutBuilder(
-                          builder: (context, constraints) =>
-                              SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 24),
+                          builder: (context, constraints) {
+                            // While the keyboard is up, the reader keeps a
+                            // usable height and scrolls rather than being
+                            // squeezed. Otherwise it fills exactly the room it
+                            // has: a fixed 80% of the screen ran past that room
+                            // on short windows and pushed the scrollbar under
+                            // the control bar.
+                            final keyboardUp =
+                                MediaQuery.of(context).viewInsets.bottom > 0;
+                            return SingleChildScrollView(
+                            padding: EdgeInsets.only(
+                                bottom: keyboardUp ? 24 : 0),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
                                   minHeight: constraints.maxHeight),
                               child: IntrinsicHeight(
                                 child: SizedBox(
-                                  height:
-                                      MediaQuery.of(context).size.height * 0.8,
+                                  height: keyboardUp
+                                      ? MediaQuery.of(context).size.height * 0.8
+                                      : constraints.maxHeight,
                                   child: bookViewMode == BookViewMode.horizontal
                                       ? VerticalBookView(
                                           onSearchedSelectedText: (text) =>
@@ -209,10 +231,13 @@ class ReaderView extends StatelessWidget implements Searchable {
                                 ),
                               ),
                             ),
-                          ),
+                          );
+                          },
                         ),
                       ),
                     ],
+                  ),
+                    ),
                   ),
 
                   // Read aloud, in the lower right, clear of the control bar's
