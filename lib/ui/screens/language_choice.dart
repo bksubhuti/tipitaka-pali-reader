@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/ui/widgets/language_steps.dart';
 
 /// Offered once, when the app first has the sentence data to use it.
@@ -33,7 +35,10 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
         if (mounted) setState(() => steps.update(step, fraction, message));
       });
       steps.finish();
-      if (mounted) setState(() => _done = true);
+      if (mounted) {
+        context.read<ShownLanguagesProvider>().installedChanged();
+        setState(() => _done = true);
+      }
     } catch (e) {
       steps.fail('Could not install ${option.name}. $e');
     } finally {

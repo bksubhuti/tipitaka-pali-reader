@@ -85,6 +85,12 @@ class LanguageInstaller {
 
   static String get _dir => Prefs.databaseDirPath;
 
+  /// What to call a language code in the interface.
+  static String nameOf(String code) => available
+      .firstWhere((o) => o.code == code,
+          orElse: () => LanguageOption(code, code.toUpperCase()))
+      .name;
+
   /// Whether a language is already installed.
   static bool isInstalled(String code) =>
       File(join(_dir, 'lang_$code.db')).existsSync();

@@ -111,6 +111,10 @@ class ReaderView extends StatelessWidget implements Searchable {
   Widget _getReader(BuildContext context) {
     final isLoaded = context.select<ReaderViewController, bool>(
         (controller) => controller.isloadingFinished);
+    // Rebuild when the pages are composed again, after a translation is
+    // switched on or off, so the list draws the new pages in place.
+    context.select<ReaderViewController, int>(
+        (controller) => controller.pagesVersion);
 
     if (!isLoaded) {
       return const Material(

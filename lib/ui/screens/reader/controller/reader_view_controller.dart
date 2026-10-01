@@ -6,6 +6,7 @@ import 'package:tipitaka_pali/services/repositories/sentence_paragraph_mapping_r
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
 
 import '../../../../business_logic/models/book.dart';
@@ -35,8 +36,42 @@ class ReaderViewController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _shownLanguages?.removeListener(_onShownLanguagesChanged);
     super.dispose();
     _mounted = false;
+  }
+
+  /// Which translations are composed into the pages. When that changes the
+  /// open book composes its pages again, rather than keeping the ones it
+  /// opened with until the app restarts.
+  ShownLanguagesProvider? _shownLanguages;
+  int _composedForVersion = 0;
+
+  /// Moves each time the pages are reloaded, for the view to rebuild on.
+  int get pagesVersion => _pagesVersion;
+  int _pagesVersion = 0;
+
+  void _onShownLanguagesChanged() {
+    final version = _shownLanguages?.version ?? 0;
+    if (version == _composedForVersion) return; // display mode only
+    _composedForVersion = version;
+    reloadPages();
+  }
+
+  /// Composes the book again with the current languages, keeping the place.
+  ///
+  /// A translation is added inside the paragraph it belongs to, so the number
+  /// of blocks the list scrolls through does not change and the reader stays
+  /// where it was.
+  Future<void> reloadPages() async {
+    if (!isloadingFinished) return;
+    final reloaded = List<PageContent>.unmodifiable(await _loadPages(book.id));
+    if (!_mounted) return;
+    pages = reloaded;
+    chunks = _parseChunks(pages);
+    numberOfPage = pages.length;
+    _pagesVersion++;
+    notifyListeners();
   }
 
   final BuildContext context;
@@ -106,7 +141,15 @@ class ReaderViewController extends ChangeNotifier {
     this.textToHighlight,
     this.queryMode,
     required this.bookUuid,
-  }) {}
+  }) {
+    try {
+      _shownLanguages = context.read<ShownLanguagesProvider>();
+      _composedForVersion = _shownLanguages!.version;
+      _shownLanguages!.addListener(_onShownLanguagesChanged);
+    } catch (_) {
+      // Not provided, as in a test of the controller alone.
+    }
+  }
 
   void onSearchTermChanged(String text) {
     if (text.isEmpty || text.length < 2) {

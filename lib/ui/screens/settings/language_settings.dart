@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/ui/widgets/language_steps.dart';
 
 /// Choosing which translations are installed and the order they read in.
@@ -63,6 +65,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
         if (mounted) setState(() => steps.update(step, fraction, message));
       });
       steps.finish();
+      if (mounted) context.read<ShownLanguagesProvider>().installedChanged();
     } catch (e) {
       steps.fail(e);
     } finally {
@@ -82,6 +85,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
         if (mounted) setState(() => steps.update(step, fraction, message));
       });
       steps.finish();
+      if (mounted) context.read<ShownLanguagesProvider>().installedChanged();
     } catch (e) {
       steps.fail(e);
     } finally {
@@ -136,6 +140,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                   Prefs.activeLanguages =
                       list.where(LanguageInstaller.isShown).toList();
                 });
+                context.read<ShownLanguagesProvider>().reordered();
               },
               children: [
                 for (final code in ordered)
@@ -143,18 +148,23 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                     key: ValueKey(code),
                     leading: const Icon(Icons.drag_handle),
                     title: Text(_nameOf(code)),
-                    subtitle: Text(LanguageInstaller.isShown(code)
+                    subtitle: Text(context
+                            .watch<ShownLanguagesProvider>()
+                            .isShown(code)
                         ? 'Shown beneath the Pali'
                         : 'On the device, not shown'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Switch(
-                          value: LanguageInstaller.isShown(code),
+                          value: context
+                              .watch<ShownLanguagesProvider>()
+                              .isShown(code),
                           onChanged: _busy == code
                               ? null
-                              : (on) => setState(
-                                  () => LanguageInstaller.setShown(code, on)),
+                              : (on) => setState(() => context
+                                  .read<ShownLanguagesProvider>()
+                                  .setLanguageShown(code, on)),
                         ),
                         if (_busy != code)
                           IconButton(
