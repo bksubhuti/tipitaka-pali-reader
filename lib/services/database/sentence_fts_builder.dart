@@ -29,6 +29,19 @@ class SentenceFtsBuilder {
   /// Roughly a printed page, which is the reach distance search expects.
   static const targetWords = 200;
 
+  /// Rows written per batch commit.
+  ///
+  /// Small on purpose. TPR's own indexing has been through this before: on
+  /// Android, large batches during a heavy build lost text from the index,
+  /// and the hand-written download service settled on 50 (later 200) with a
+  /// frame let through after each commit. This follows it.
+  static const writesPerCommit = 50;
+
+  /// Bumped when the way the index is built changes enough that an existing
+  /// one must be rebuilt. An index without it was built with large batches
+  /// and may be missing text while reporting itself complete.
+  static const format = '2';
+
   /// Paragraphs of overlap between consecutive units.
   static const overlapParagraphs = 1;
 
@@ -123,7 +136,12 @@ CREATE TABLE IF NOT EXISTS search_meta (
     if (expected <= 0) return false;
 
     final rows = await db.rawQuery('SELECT count(*) AS n FROM search_unit');
-    return (rows.first['n'] as int) >= expected;
+    if ((rows.first['n'] as int) < expected) return false;
+
+    // Built the current way, not merely finished.
+    final built = await db.rawQuery(
+        "SELECT value FROM search_meta WHERE key = 'format'");
+    return built.isNotEmpty && built.first['value'] == format;
   }
 
   /// The languages the translation index was built from, in order.
@@ -247,7 +265,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
             'lang': code,
           });
           indexed++;
-          if (++pending >= 300) {
+          if (++pending >= writesPerCommit) {
             await batch.commit(noResult: true);
             await Future.delayed(Duration.zero);
             batch = db.batch();
@@ -504,7 +522,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
         }
 
         indexed++;
-        if (++pending >= 300) {
+        if (++pending >= writesPerCommit) {
           await batch.commit(noResult: true);
           // Let a frame through between batches, as the old download
           // service did, so the screen keeps moving during a long build.
@@ -529,6 +547,9 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.rawInsert(
         "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('units', ?)",
         ['$unitId']);
+    await db.rawInsert(
+        "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('format', ?)",
+        [format]);
     await _recordLanguages(db, languages);
 
     onProgress?.call('Search index built');
