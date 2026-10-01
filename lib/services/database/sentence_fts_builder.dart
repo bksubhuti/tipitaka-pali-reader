@@ -249,6 +249,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
           indexed++;
           if (++pending >= 300) {
             await batch.commit(noResult: true);
+            await Future.delayed(Duration.zero);
             batch = db.batch();
             pending = 0;
           }
@@ -256,7 +257,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
         if (pending > 0) await batch.commit(noResult: true);
       }
 
-      if (onProgress != null && done % 10 == 0) {
+      if (onProgress != null && done % 2 == 0) {
         onProgress('Indexing $code for search: '
             '${(done / byBook.length * 100).round()}%');
       }
@@ -505,6 +506,9 @@ CREATE TABLE IF NOT EXISTS search_meta (
         indexed++;
         if (++pending >= 300) {
           await batch.commit(noResult: true);
+          // Let a frame through between batches, as the old download
+          // service did, so the screen keeps moving during a long build.
+          await Future.delayed(Duration.zero);
           batch = db.batch();
           pending = 0;
         }
@@ -515,7 +519,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
       }
       if (pending > 0) await batch.commit(noResult: true);
 
-      if (onProgress != null && done % 10 == 0) {
+      if (onProgress != null && done % 2 == 0) {
         onProgress('Building search index: '
             '${(done / books.length * 100).round()}%');
       }

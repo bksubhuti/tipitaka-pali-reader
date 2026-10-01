@@ -164,8 +164,9 @@ class LegacyDataRetirement {
         'plain': _plain(entry.key),
         'frequency': entry.value,
       });
-      if (++pending >= 2000) {
+      if (++pending >= 500) {
         await batch.commit(noResult: true);
+        await Future.delayed(Duration.zero);
         batch = db.batch();
         pending = 0;
       }
@@ -242,8 +243,11 @@ class LegacyDataRetirement {
             'INSERT OR IGNORE INTO words (word, plain, frequency) '
             'VALUES (?, ?, -1)',
             [word, word]);
-        if (++pending >= 2000) {
+        if (++pending >= 500) {
           await batch.commit(noResult: true);
+          // Let a frame through between batches, as the old download
+          // service did, so the screen keeps moving during a long build.
+          await Future.delayed(Duration.zero);
           batch = db.batch();
           pending = 0;
         }
