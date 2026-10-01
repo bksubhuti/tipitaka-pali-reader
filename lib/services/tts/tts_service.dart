@@ -18,11 +18,39 @@ abstract class TtsEngine {
   /// Completes when the text has been spoken, or when [stop] cuts it short.
   Future<void> speak(String text);
   Future<void> stop();
+
+  /// Whether the engine can be handed the next utterance while the current
+  /// one is still speaking, each in its own language.
+  bool get queuesAhead => false;
+
+  /// Queues [text] in [language] behind whatever is speaking. Completes once
+  /// it is queued, with `done`, which completes when it has been spoken.
+  Future<({Future<void> done})> queue(String language, String text) async {
+    await setLanguage(language);
+    return (done: speak(text));
+  }
 }
 
-class FlutterTtsEngine implements TtsEngine {
+class FlutterTtsEngine extends TtsEngine {
   final FlutterTts _tts = FlutterTts();
   bool _ready = false;
+
+  /// On Android each change of language makes the engine load the other
+  /// voice, and a voice that is not on the device is fetched over the
+  /// network — Kannada usually is. Sent one at a time, every switch between
+  /// the Pali and a translation waited a second or two for that. Queued
+  /// ahead, the next utterance is prepared while the current one plays.
+  /// Android fixes an utterance's language when it is queued, so changing
+  /// the language for the next one does not touch the one playing.
+  @override
+  bool get queuesAhead => !kIsWeb && Platform.isAndroid;
+
+  /// Utterances queued ahead, oldest first, completed as each one ends.
+  final List<Completer<void>> _queued = [];
+
+  /// After a stop, end events for what was cut off can still arrive. They
+  /// are ignored until something new starts.
+  bool _awaitingStart = false;
 
   /// The utterance being spoken, completed when the engine says it is done.
   Completer<void>? _current;
@@ -42,16 +70,41 @@ class FlutterTtsEngine implements TtsEngine {
     if (_ready) return;
     _ready = true;
     await _tts.awaitSpeakCompletion(false);
+    if (queuesAhead) await _tts.setQueueMode(1); // add, do not flush
     _tts.setStartHandler(() {
+      _awaitingStart = false;
       if (_current != null) _started = true;
     });
     _tts.setCompletionHandler(_ended);
     _tts.setCancelHandler(_ended);
-    _tts.setErrorHandler((_) => _finish());
+    _tts.setErrorHandler((_) => _ended(error: true));
   }
 
-  void _ended() {
-    if (_started || _sinceSpeak.elapsedMilliseconds > 400) _finish();
+  void _ended({bool error = false}) {
+    if (queuesAhead) {
+      if (_awaitingStart && !error) return;
+      if (_queued.isNotEmpty) {
+        final done = _queued.removeAt(0);
+        if (!done.isCompleted) done.complete();
+      }
+      return;
+    }
+    if (error || _started || _sinceSpeak.elapsedMilliseconds > 400) _finish();
+  }
+
+  @override
+  Future<({Future<void> done})> queue(String language, String text) async {
+    if (!queuesAhead) return super.queue(language, text);
+    await _init();
+    await setLanguage(language);
+    final done = Completer<void>();
+    _queued.add(done);
+    final sent = await _tts.speak(text);
+    if (sent != 1 && sent != true) {
+      _queued.remove(done);
+      if (!done.isCompleted) done.complete();
+    }
+    return (done: done.future);
   }
 
   void _finish() {
@@ -110,8 +163,13 @@ class FlutterTtsEngine implements TtsEngine {
 
   @override
   Future<void> stop() async {
+    if (queuesAhead) _awaitingStart = true;
     await _tts.stop();
     _finish();
+    for (final done in _queued) {
+      if (!done.isCompleted) done.complete();
+    }
+    _queued.clear();
   }
 }
 
@@ -216,6 +274,21 @@ class TtsService extends ChangeNotifier {
     return note;
   }
 
+  /// Everything to say from the starting point to the end of the book, in
+  /// order, page by page as it is reached.
+  Iterable<TtsUtterance> _utterances(List<PageContent> pages, int startIndex,
+      String? from, Set<String> speakable) sync* {
+    for (var i = startIndex; i < pages.length; i++) {
+      final page = pages[i];
+      final sentences = page.sentences;
+      // A page from the old page table has no sentences to read.
+      if (sentences == null) return;
+      yield* TtsPlan.forPage(
+          page.pageNumber ?? 0, sentences, page.languages, speakable,
+          from: i == startIndex ? from : null);
+    }
+  }
+
   Future<void> _read(
     int session,
     String bookUuid,
@@ -225,34 +298,59 @@ class TtsService extends ChangeNotifier {
     Set<String> speakable,
     void Function(int pageNumber)? onPage,
   ) async {
-    String? language;
     try {
-      for (var i = startIndex; i < pages.length; i++) {
-        final page = pages[i];
-        final sentences = page.sentences;
-        // A page from the old page table has no sentences to read.
-        if (sentences == null) break;
-        final pageNumber = page.pageNumber ?? 0;
-        if (i != startIndex) onPage?.call(pageNumber);
+      final upcoming =
+          _utterances(pages, startIndex, from, speakable).iterator;
+      if (!upcoming.moveNext()) {
+        if (session == _session) _finished();
+        return;
+      }
+      var current = upcoming.current;
+      var page = pages[startIndex].pageNumber ?? 0;
+      String? language;
+      Future<void>? currentDone;
+      if (_engine.queuesAhead) {
+        currentDone = (await _engine.queue(
+                TtsPlan.voiceFor(current.language), current.text))
+            .done;
+      }
 
-        final plan = TtsPlan.forPage(
-            pageNumber, sentences, page.languages, speakable,
-            from: i == startIndex ? from : null);
-        for (final utterance in plan) {
-          if (session != _session) return;
-          position.value = TtsPosition(
-            bookUuid: bookUuid,
-            page: utterance.page,
-            sentence: utterance.sentence,
-            language: utterance.language,
-          );
-          if (utterance.language != language) {
-            await _engine.setLanguage(TtsPlan.voiceFor(utterance.language));
-            language = utterance.language;
+      while (true) {
+        if (session != _session) return;
+        if (current.page != page) {
+          page = current.page;
+          onPage?.call(page);
+        }
+        position.value = TtsPosition(
+          bookUuid: bookUuid,
+          page: current.page,
+          sentence: current.sentence,
+          language: current.language,
+        );
+        final next = upcoming.moveNext() ? upcoming.current : null;
+
+        if (_engine.queuesAhead) {
+          // The next one goes in now, so it is ready when this one ends.
+          Future<void>? nextDone;
+          if (next != null) {
+            nextDone = (await _engine.queue(
+                    TtsPlan.voiceFor(next.language), next.text))
+                .done;
           }
           if (session != _session) return;
-          await _engine.speak(utterance.text);
+          await currentDone;
+          currentDone = nextDone;
+        } else {
+          if (current.language != language) {
+            await _engine.setLanguage(TtsPlan.voiceFor(current.language));
+            language = current.language;
+          }
+          if (session != _session) return;
+          await _engine.speak(current.text);
         }
+
+        if (next == null) break;
+        current = next;
       }
     } catch (e) {
       debugPrint('reading aloud stopped: $e');
