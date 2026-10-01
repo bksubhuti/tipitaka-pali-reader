@@ -219,14 +219,25 @@ class LegacyDataRetirement {
     if (replace) await db.rawDelete('DELETE FROM words WHERE frequency = -1');
 
     for (final code in codes) {
-      onProgress?.call('Adding the $code word list…');
+      // Read a book at a time. One query for the whole translation pulled
+      // some 200 MB across in a single answer and split it in one go: ten
+      // seconds of a frozen screen on a phone, with no number to show it
+      // was working.
       final words = <String>{};
       try {
-        final rows =
-            await db.rawQuery('SELECT translation FROM lang_$code.sentences');
-        for (final row in rows) {
-          for (final word in _latinWords(row['translation'] as String? ?? '')) {
-            words.add(word);
+        final books = await db.rawQuery(
+            'SELECT DISTINCT book_id FROM lang_$code.sentences');
+        for (var i = 0; i < books.length; i++) {
+          final rows = await db.rawQuery(
+              'SELECT translation FROM lang_$code.sentences WHERE book_id = ?',
+              [books[i]['book_id']]);
+          for (final row in rows) {
+            words.addAll(_latinWords(row['translation'] as String? ?? ''));
+          }
+          if (i % 5 == 0) {
+            onProgress?.call('Reading the $code translation: '
+                '${((i + 1) / books.length * 100).round()}%');
+            await Future.delayed(Duration.zero);
           }
         }
       } catch (e) {
@@ -236,6 +247,7 @@ class LegacyDataRetirement {
 
       var batch = db.batch();
       var pending = 0;
+      var written = 0;
       for (final word in words) {
         // Pali wins any collision: it has a real frequency, which is what
         // orders the suggestions, and -1 would demote it.
@@ -243,13 +255,15 @@ class LegacyDataRetirement {
             'INSERT OR IGNORE INTO words (word, plain, frequency) '
             'VALUES (?, ?, -1)',
             [word, word]);
+        written++;
         if (++pending >= 100) {
           await batch.commit(noResult: true);
-          // Let a frame through between batches, as the old download
-          // service did, so the screen keeps moving during a long build.
           await Future.delayed(Duration.zero);
           batch = db.batch();
           pending = 0;
+          if (written % 2000 == 0) {
+            onProgress?.call('Adding $code words: $written of ${words.length}');
+          }
         }
       }
       if (pending > 0) await batch.commit(noResult: true);
