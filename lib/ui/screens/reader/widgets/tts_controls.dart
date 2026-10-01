@@ -121,6 +121,7 @@ class TtsControls extends StatelessWidget {
     // The speed the reading is actually going at, which moves when a live
     // change is applied, so closing the panel does not restart it again.
     var speedApplied = speedBefore;
+    var selectionApplied = {...before};
     Timer? settle;
 
     /// Restarts the reading from the sentence being read, so a change is
@@ -171,6 +172,15 @@ class TtsControls extends StatelessWidget {
                                   : selection.remove(language);
                               Prefs.ttsLanguages =
                                   all.where(selection.contains).toList();
+                              // Heard straight away, once the switches have
+                              // been left alone for a moment.
+                              settle?.cancel();
+                              settle = Timer(
+                                  const Duration(milliseconds: 500), () {
+                                selectionApplied = {...selection};
+                                speedApplied = speed;
+                                restartHere();
+                              });
                             }),
                   ),
                 if (all.isEmpty)
@@ -206,6 +216,7 @@ class TtsControls extends StatelessWidget {
                           settle?.cancel();
                           settle = Timer(const Duration(milliseconds: 500), () {
                             speedApplied = value;
+                            selectionApplied = {...selection};
                             restartHere();
                           });
                         }),
@@ -221,13 +232,13 @@ class TtsControls extends StatelessWidget {
     );
 
     // A change made while reading takes effect from the sentence being read,
-    // rather than waiting for the next start. A speed already applied live
+    // rather than waiting for the next start. A change already applied live
     // is not applied a second time.
     settle?.cancel();
     if (!context.mounted) return;
     final changed = speed != speedApplied ||
-        selection.length != before.length ||
-        !selection.containsAll(before);
+        selection.length != selectionApplied.length ||
+        !selection.containsAll(selectionApplied);
     if (changed) await restartHere();
   }
 
