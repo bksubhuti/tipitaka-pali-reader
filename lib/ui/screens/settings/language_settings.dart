@@ -46,7 +46,6 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     return order;
   }
 
-
   static String _nameOf(String code) => LanguageInstaller.available
       .firstWhere((o) => o.code == code,
           orElse: () => LanguageOption(code, code.toUpperCase()))
@@ -129,6 +128,9 @@ class _LanguageSettingsState extends State<LanguageSettings> {
             ReorderableListView(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              // Our own handle, on the left. The default one added a second
+              // handle on the right on desktop.
+              buildDefaultDragHandles: false,
               onReorder: (oldIndex, newIndex) {
                 final list = [...ordered];
                 if (newIndex > oldIndex) newIndex -= 1;
@@ -143,36 +145,41 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                 context.read<ShownLanguagesProvider>().reordered();
               },
               children: [
-                for (final code in ordered)
-                  ListTile(
+                for (final (index, code) in ordered.indexed)
+                  _RowCard(
                     key: ValueKey(code),
-                    leading: const Icon(Icons.drag_handle),
-                    title: Text(_nameOf(code)),
-                    subtitle: Text(context
-                            .watch<ShownLanguagesProvider>()
-                            .isShown(code)
-                        ? 'Shown beneath the Pali'
-                        : 'On the device, not shown'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Switch(
-                          value: context
-                              .watch<ShownLanguagesProvider>()
-                              .isShown(code),
-                          onChanged: _busy == code
-                              ? null
-                              : (on) => setState(() => context
-                                  .read<ShownLanguagesProvider>()
-                                  .setLanguageShown(code, on)),
-                        ),
-                        if (_busy != code)
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: 'Remove from the device',
-                            onPressed: () => _remove(code),
+                    index: index,
+                    child: ListTile(
+                      leading: ReorderableDragStartListener(
+                        index: index,
+                        child: const Icon(Icons.drag_handle),
+                      ),
+                      title: Text(_nameOf(code)),
+                      subtitle: Text(
+                          context.watch<ShownLanguagesProvider>().isShown(code)
+                              ? 'Shown beneath the Pali'
+                              : 'On the device, not shown'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch(
+                            value: context
+                                .watch<ShownLanguagesProvider>()
+                                .isShown(code),
+                            onChanged: _busy == code
+                                ? null
+                                : (on) => setState(() => context
+                                    .read<ShownLanguagesProvider>()
+                                    .setLanguageShown(code, on)),
                           ),
-                      ],
+                          if (_busy != code)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Remove from the device',
+                              onPressed: () => _remove(code),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
               ],
@@ -181,19 +188,21 @@ class _LanguageSettingsState extends State<LanguageSettings> {
           const _Heading('Available to install'),
           for (final option in LanguageInstaller.available)
             if (!_installed.contains(option.code))
-              ListTile(
-                title: Text(option.name),
-                trailing: _busy == option.code
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : IconButton(
-                        icon: const Icon(Icons.download_outlined),
-                        tooltip: 'Install',
-                        onPressed:
-                            _busy == null ? () => _install(option) : null,
-                      ),
+              _RowCard(
+                child: ListTile(
+                  title: Text(option.name),
+                  trailing: _busy == option.code
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : IconButton(
+                          icon: const Icon(Icons.download_outlined),
+                          tooltip: 'Install',
+                          onPressed:
+                              _busy == null ? () => _install(option) : null,
+                        ),
+                ),
               ),
           const Padding(
             padding: EdgeInsets.all(16),
@@ -220,8 +229,8 @@ class TranslationSettingsView extends StatelessWidget {
     return Card(
       child: ListTile(
         leading: const Icon(Icons.translate_outlined),
-        title: Text('Translations',
-            style: Theme.of(context).textTheme.titleLarge),
+        title:
+            Text('Translations', style: Theme.of(context).textTheme.titleLarge),
         subtitle: Text(installed.isEmpty
             ? 'None installed'
             : installed.map(_LanguageSettingsState._nameOf).join(', ')),
@@ -243,4 +252,24 @@ class _Heading extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
         child: Text(text, style: Theme.of(context).textTheme.titleSmall),
       );
+}
+
+/// One language as a card, so each row stands apart from the page.
+///
+/// With an [index], the row sits in the reorderable list, and a long press
+/// anywhere on it picks it up, as the list did before it had its own handle.
+class _RowCard extends StatelessWidget {
+  final int? index;
+  final Widget child;
+  const _RowCard({super.key, this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: child,
+    );
+    if (index == null) return card;
+    return ReorderableDelayedDragStartListener(index: index!, child: card);
+  }
 }

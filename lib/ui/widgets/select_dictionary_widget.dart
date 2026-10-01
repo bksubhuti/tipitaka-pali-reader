@@ -20,12 +20,22 @@ class SelectDictionaryWidget extends StatelessWidget {
         return ReorderableListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          // Our own handle, on the right. The default one added a second
+          // handle beside it on desktop.
+          buildDefaultDragHandles: false,
+          padding: const EdgeInsets.only(bottom: 8),
           itemCount: dictionaries.length,
           itemBuilder: (context, index) {
-            return Column(
+            // Each dictionary as its own card, so the rows stand apart. They
+            // sit inside the settings card, so an outline marks them where a
+            // second fill of the same colour would not show. A long press
+            // anywhere picks one up, as before.
+            return ReorderableDelayedDragStartListener(
               key: Key('${dictionaries[index].bookID}'),
-              children: [
-                ListTile(
+              index: index,
+              child: Card.outlined(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: ListTile(
                   leading: Checkbox(
                     value: dictionaries[index].userChoice,
                     onChanged: (value) => vm.onCheckedChange(
@@ -33,10 +43,12 @@ class SelectDictionaryWidget extends StatelessWidget {
                   ),
                   title: Text(dictionaries[index].name),
                   // subtitle: Text('${vm.userDicts[index].userOrder}'),
-                  trailing: const Icon(Icons.drag_handle),
+                  trailing: ReorderableDragStartListener(
+                    index: index,
+                    child: const Icon(Icons.drag_handle),
+                  ),
                 ),
-                if (index < dictionaries.length - 1) const Divider(height: 1.0)
-              ],
+              ),
             );
           },
           onReorder: (oldIndex, newIndex) => vm.changeOrder(oldIndex, newIndex),
