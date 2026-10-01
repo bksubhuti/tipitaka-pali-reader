@@ -24,12 +24,41 @@ class FlutterTtsEngine implements TtsEngine {
   final FlutterTts _tts = FlutterTts();
   bool _ready = false;
 
+  /// The utterance being spoken, completed when the engine says it is done.
+  Completer<void>? _current;
+  bool _started = false;
+  final Stopwatch _sinceSpeak = Stopwatch();
+
+  /// Completion is tracked here rather than with the plugin's
+  /// awaitSpeakCompletion. When reading restarts mid-sentence, macOS can
+  /// report the stopped utterance as finished after the next one has been
+  /// sent, and the plugin hands that to whichever speak is waiting: the new
+  /// sentence "finished" at once, the reading ran a step ahead of the voice,
+  /// and the highlight sat on the next language while the previous one was
+  /// still being spoken. So an end is believed only once the new utterance
+  /// has started, or after long enough that it cannot be a stale one from
+  /// an engine that does not report starts.
   Future<void> _init() async {
     if (_ready) return;
     _ready = true;
-    // Speak returns when the utterance has finished, so sentences follow
-    // one another without a completion handler to keep in step.
-    await _tts.awaitSpeakCompletion(true);
+    await _tts.awaitSpeakCompletion(false);
+    _tts.setStartHandler(() {
+      if (_current != null) _started = true;
+    });
+    _tts.setCompletionHandler(_ended);
+    _tts.setCancelHandler(_ended);
+    _tts.setErrorHandler((_) => _finish());
+  }
+
+  void _ended() {
+    if (_started || _sinceSpeak.elapsedMilliseconds > 400) _finish();
+  }
+
+  void _finish() {
+    final current = _current;
+    _current = null;
+    _started = false;
+    if (current != null && !current.isCompleted) current.complete();
   }
 
   @override
@@ -67,11 +96,23 @@ class FlutterTtsEngine implements TtsEngine {
   @override
   Future<void> speak(String text) async {
     await _init();
-    await _tts.speak(text);
+    _finish();
+    final current = Completer<void>();
+    _current = current;
+    _started = false;
+    _sinceSpeak
+      ..reset()
+      ..start();
+    final sent = await _tts.speak(text);
+    if (sent != 1 && sent != true) _finish();
+    return current.future;
   }
 
   @override
-  Future<void> stop() async => _tts.stop();
+  Future<void> stop() async {
+    await _tts.stop();
+    _finish();
+  }
 }
 
 /// Where the reading has got to, for the reader to highlight and follow.
