@@ -39,7 +39,7 @@ void main() {
     final messages = <String>[];
 
     await LanguageInstaller.install(option,
-        onProgress: (progress, message) => messages.add(message));
+        onStep: (step, fraction, message) => messages.add(message));
 
     final installed = File(join(scratch.path, 'lang_ru.db'));
     expect(installed.existsSync(), isTrue, reason: 'the language file');

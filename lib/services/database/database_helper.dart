@@ -318,12 +318,34 @@ class DatabaseHelper {
     return ((rows.first['n'] as int?) ?? 0) > 0;
   }
 
+  /// Index work runs one job at a time, in the order asked for.
+  ///
+  /// Handing a second caller the build already in flight was not enough: that
+  /// build had been started with the languages installed at the time, so a
+  /// language installed while it ran was never indexed. Queued, the second
+  /// call runs after the first and finds the language missing.
+  ///
+  /// Attaching and detaching a language go through the same queue, because a
+  /// language file cannot be detached while a build is reading it.
+  static Future<void> _indexQueue = Future.value();
+
+  static Future<T> _serial<T>(Future<T> Function() task) {
+    final next = _indexQueue.then((_) => task());
+    _indexQueue = next.then((_) {}, onError: (_) {});
+    return next;
+  }
+
+  /// What the index work is doing right now, for a screen that wants to show
+  /// it. Null when nothing is running.
+  static final ValueNotifier<String?> indexStatus = ValueNotifier(null);
+
   Future<int> buildSentenceFtsIfNeeded({
     void Function(String message)? onProgress,
   }) {
-    final running = _ftsBuild;
-    if (running != null) return running;
-    final started = _buildSentenceFts(onProgress: onProgress);
+    final started = _serial(() => _buildSentenceFts(onProgress: (message) {
+          indexStatus.value = message;
+          onProgress?.call(message);
+        }).whenComplete(() => indexStatus.value = null));
     _ftsBuild = started;
     return started.whenComplete(() {
       if (identical(_ftsBuild, started)) _ftsBuild = null;
@@ -335,22 +357,43 @@ class DatabaseHelper {
   }) async {
     if (!sentenceDataAvailable) return 0;
     final db = await database;
-    // Rebuild when the set of installed languages has changed, so adding or
-    // removing one is reflected in search rather than silently ignored.
+    // Follow the set of installed languages, so adding or removing one is
+    // reflected in search rather than silently ignored.
     final indexed = await SentenceFtsBuilder.indexedLanguages(db);
     final wanted = [...installedLanguages]..sort();
     final built = await SentenceFtsBuilder.isBuilt(db);
-    if (built && indexed.join(',') == wanted.join(',')) {
-      sentenceSearchAvailable = true;
-      return 0;
-    }
     try {
+      if (built) {
+        sentenceSearchAvailable = true;
+        final removed = indexed.where((c) => !wanted.contains(c)).toList();
+        final added = wanted.where((c) => !indexed.contains(c)).toList();
+        if (removed.isNotEmpty) {
+          // Only the translation half; the Pali is untouched by a language.
+          await SentenceFtsBuilder.rebuildTranslations(db, wanted,
+              onProgress: onProgress);
+        } else {
+          for (final code in added) {
+            await SentenceFtsBuilder.addLanguage(db, code,
+                onProgress: onProgress);
+          }
+        }
+        if (removed.isNotEmpty || added.isNotEmpty) {
+          myLogger.i('translation index now covers: ${wanted.join(", ")}');
+        }
+        return 0;
+      }
       final count = await SentenceFtsBuilder.build(db,
           languages: installedLanguages, onProgress: onProgress);
       sentenceSearchAvailable = count > 0;
       myLogger.i('sentence search index built: $count units');
       return count;
     } catch (e) {
+      if (built) {
+        // The Pali index is whole; only a language is missing from it, and
+        // the next start tries that language again.
+        myLogger.e('indexing a translation failed: $e');
+        rethrow;
+      }
       // A part-written index reads as a whole one and would quietly search a
       // fraction of the canon. Take it away and leave the next start to
       // build it again.
@@ -360,6 +403,33 @@ class DatabaseHelper {
       rethrow;
     }
   }
+
+  /// Attaches a newly installed language to the open database.
+  ///
+  /// Installing used to close the database and open it again to pick the
+  /// file up. Everything else holding the old handle — the book list, an
+  /// open reader — then failed against a closed database, which is the blank
+  /// book list and the hang after an install. Attaching to the connection
+  /// that is already open needs none of that.
+  Future<void> attachLanguage(String code) => _serial(() async {
+        if (installedLanguages.contains(code)) return;
+        final db = await database;
+        final path = join(Prefs.databaseDirPath, 'lang_$code.db');
+        await db.execute('ATTACH DATABASE ? AS lang_$code', [path]);
+        await db.rawQuery('SELECT count(*) FROM lang_$code.sentences LIMIT 1');
+        installedLanguages = [...installedLanguages, code]..sort();
+        myLogger.i('language attached: $code');
+      });
+
+  /// Detaches a language so its file can be deleted.
+  Future<void> detachLanguage(String code) => _serial(() async {
+        if (!installedLanguages.contains(code)) return;
+        final db = await database;
+        installedLanguages =
+            installedLanguages.where((c) => c != code).toList();
+        await db.execute('DETACH DATABASE lang_$code');
+        myLogger.i('language detached: $code');
+      });
 
   /// Removes the page-shaped data, once the sentence data is carrying the
   /// reader, the search and the contents.
@@ -430,7 +500,7 @@ class DatabaseHelper {
     // Wait for the work started when the database was opened rather than
     // closing it underneath. Both setup and installing a language close and
     // reopen, and either can land in the middle of an index build.
-    for (final pending in [_ftsBuild, _setupChain]) {
+    for (final pending in [_ftsBuild, _setupChain, _indexQueue]) {
       if (pending == null) continue;
       try {
         await pending;

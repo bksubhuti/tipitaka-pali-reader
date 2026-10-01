@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -23,6 +25,27 @@ class LanguageOption {
   String get fileName => 'lang_$code.db';
   String get archiveName => 'epitaka_$code.zip';
 }
+
+/// The stages of installing or removing a language, in order, so a screen
+/// can show where it has got to rather than one message that never changes.
+enum LanguageStep {
+  download('Download'),
+  unpack('Unpack'),
+  prepare('Prepare'),
+  attach('Open'),
+  indexing('Index for search'),
+  wordList('Search suggestions');
+
+  final String label;
+  const LanguageStep(this.label);
+
+  /// The stages removing a language goes through.
+  static const removal = [attach, indexing, wordList];
+}
+
+/// Reports a stage, a fraction where one is known, and a message.
+typedef LanguageProgress = void Function(
+    LanguageStep step, double? fraction, String message);
 
 /// Downloads a translation from the ePitaka releases and installs it.
 ///
@@ -73,40 +96,33 @@ class LanguageInstaller {
 
   static String get _target => directoryOverride ?? _dir;
 
-  /// Installs [option], reporting progress as a fraction and a message.
+  /// Installs [option] and makes it ready to read and search, reporting each
+  /// stage as it goes.
   ///
   /// Leaves nothing behind on failure: a half-written language would attach
   /// and then answer no queries, which is worse than not having it.
   static Future<void> install(
     LanguageOption option, {
-    void Function(double? progress, String message)? onProgress,
+    LanguageProgress? onStep,
   }) async {
     final archive = File(join(_target, option.archiveName));
     final unpacked = File(join(_target, 'epitaka_${option.code}.db'));
     final target = File(join(_target, option.fileName));
 
     try {
-      onProgress?.call(null, 'Downloading ${option.name}…');
+      onStep?.call(LanguageStep.download, null, 'Downloading ${option.name}…');
       await _download('$releaseUrl/${option.archiveName}', archive,
-          onProgress: onProgress);
+          onProgress: (fraction, message) =>
+              onStep?.call(LanguageStep.download, fraction, message));
 
-      onProgress?.call(null, 'Unpacking ${option.name}…');
+      onStep?.call(LanguageStep.unpack, null, 'Unpacking ${option.name}…');
       await _unpack(archive, unpacked);
       await archive.delete();
 
-      onProgress?.call(null, 'Preparing ${option.name}…');
+      onStep?.call(LanguageStep.prepare, null, 'Preparing ${option.name}…');
       if (await target.exists()) await target.delete();
       await _copySentences(unpacked, target);
       await unpacked.delete();
-
-      // Shown as well as installed. These are two different things in the
-      // preferences, and leaving the second one out is why installing a
-      // language beyond the first had no visible effect: the settings list
-      // showed it, because that list appends whatever is installed, while the
-      // reader asked the preference and never saw it.
-      activate(option.code);
-
-      onProgress?.call(null, '${option.name} installed');
     } catch (e) {
       debugPrint('installing ${option.code} failed: $e');
       for (final leftover in [archive, unpacked, target]) {
@@ -118,6 +134,49 @@ class LanguageInstaller {
       }
       rethrow;
     }
+
+    if (directoryOverride != null) {
+      // A test of the file work alone, against a scratch directory.
+      onStep?.call(LanguageStep.prepare, 1, '${option.name} installed');
+      return;
+    }
+
+    onStep?.call(LanguageStep.attach, null, 'Opening ${option.name}…');
+    await DatabaseHelper().attachLanguage(option.code);
+    // Shown as well as installed. These are two different things in the
+    // preferences, and leaving the second one out is why installing a
+    // language beyond the first had no visible effect.
+    activate(option.code);
+
+    await _reindex(onStep);
+    onStep?.call(LanguageStep.wordList, 1, '${option.name} installed');
+  }
+
+  /// Brings search and the suggestions up to date with the installed set.
+  ///
+  /// Only the language that changed is indexed; the Pali index is left as it
+  /// is. If a build started at launch is still running, this waits for it,
+  /// and the message says so rather than sitting still.
+  static Future<void> _reindex(LanguageProgress? onStep) async {
+    void status() {
+      final message = DatabaseHelper.indexStatus.value;
+      if (message != null) onStep?.call(LanguageStep.indexing, null, message);
+    }
+
+    onStep?.call(LanguageStep.indexing, null, 'Indexing for search…');
+    DatabaseHelper.indexStatus.addListener(status);
+    try {
+      await DatabaseHelper().buildSentenceFtsIfNeeded();
+    } finally {
+      DatabaseHelper.indexStatus.removeListener(status);
+    }
+
+    onStep?.call(LanguageStep.wordList, null, 'Updating search suggestions…');
+    await LegacyDataRetirement.buildTranslationWordList(
+      await DatabaseHelper().database,
+      onProgress: (message) =>
+          onStep?.call(LanguageStep.wordList, null, message),
+    );
   }
 
   /// Adds [code] to the languages shown beneath the Pali, keeping the order
@@ -159,8 +218,13 @@ class LanguageInstaller {
   /// Whether a language is being shown beneath the Pali.
   static bool isShown(String code) => Prefs.activeLanguages.contains(code);
 
-  /// Removes an installed language.
-  static Future<void> remove(String code) async {
+  /// Removes an installed language, and takes it out of search.
+  static Future<void> remove(String code, {LanguageProgress? onStep}) async {
+    onStep?.call(LanguageStep.attach, null, 'Closing $code…');
+    // Detached first: an attached file cannot be deleted on Windows, and on
+    // the others deleting it underneath an open connection leaves queries
+    // answering from a file that is no longer there.
+    await DatabaseHelper().detachLanguage(code);
     final file = File(join(_dir, 'lang_$code.db'));
     if (await file.exists()) await file.delete();
     Prefs.activeLanguages =
@@ -169,15 +233,21 @@ class LanguageInstaller {
     // rather than treating it as one that was switched off.
     Prefs.knownLanguages =
         Prefs.knownLanguages.where((c) => c != code).toList();
+    await _reindex(onStep);
+    onStep?.call(LanguageStep.wordList, 1, 'Removed');
   }
 
+  /// Streams the download to disk. Held in memory, the larger languages are
+  /// well over a hundred megabytes, which a low-end phone may not have to
+  /// spare.
   static Future<void> _download(
     String url,
     File target, {
     void Function(double? progress, String message)? onProgress,
   }) async {
-    final response = await Dio().get<List<int>>(
+    final response = await Dio().download(
       url,
+      target.path,
       onReceiveProgress: (received, total) {
         if (total > 0) {
           onProgress?.call(received / total,
@@ -185,26 +255,47 @@ class LanguageInstaller {
         }
       },
       options: Options(
-        responseType: ResponseType.bytes,
         followRedirects: true,
         validateStatus: (status) => status != null && status < 500,
       ),
     );
-    if (response.statusCode != 200 || response.data == null) {
+    if (response.statusCode != 200) {
       throw Exception('download failed with status ${response.statusCode}');
     }
-    await target.writeAsBytes(response.data!);
   }
 
+  /// Unpacks the database out of the archive, in a background isolate and a
+  /// piece at a time.
+  ///
+  /// Decoded whole on the main isolate, the English archive became 600 MB in
+  /// memory and the screen stopped answering until it was done, which on a
+  /// phone looks the same as a crash.
   static Future<void> _unpack(File archive, File target) async {
-    final entries = ZipDecoder().decodeBytes(await archive.readAsBytes());
-    for (final entry in entries) {
-      if (!entry.isFile || entry.name.contains('__MACOSX')) continue;
-      if (!entry.name.endsWith('.db')) continue;
-      await target.writeAsBytes(entry.content as List<int>);
-      return;
+    final source = archive.path;
+    final destination = target.path;
+    final found = await Isolate.run(() {
+      final input = InputFileStream(source);
+      try {
+        final entries = ZipDecoder().decodeBuffer(input);
+        for (final entry in entries) {
+          if (!entry.isFile || entry.name.contains('__MACOSX')) continue;
+          if (!entry.name.endsWith('.db')) continue;
+          final output = OutputFileStream(destination);
+          try {
+            entry.writeContent(output);
+          } finally {
+            output.closeSync();
+          }
+          return true;
+        }
+        return false;
+      } finally {
+        input.closeSync();
+      }
+    });
+    if (!found) {
+      throw Exception('no database inside ${basename(archive.path)}');
     }
-    throw Exception('no database inside ${basename(archive.path)}');
   }
 
   /// Copies just the translated sentences into a database of their own.
@@ -230,24 +321,5 @@ class LanguageInstaller {
     } finally {
       await db.close();
     }
-  }
-
-  /// Reopens the databases so a newly installed language is picked up, and
-  /// rebuilds the search index so it can be searched as well as read.
-  static Future<void> applyChanges({
-    void Function(double? progress, String message)? onProgress,
-  }) async {
-    onProgress?.call(null, 'Reloading…');
-    await DatabaseHelper().close();
-    await DatabaseHelper().database;
-    await DatabaseHelper().buildSentenceFtsIfNeeded(
-      onProgress: (message) => onProgress?.call(null, message),
-    );
-    // Search-as-you-type suggests words from the installed translations, so
-    // that list has to follow a language being added or removed.
-    await LegacyDataRetirement.buildTranslationWordList(
-      await DatabaseHelper().database,
-      onProgress: (message) => onProgress?.call(null, message),
-    );
   }
 }

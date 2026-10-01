@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/ui/widgets/language_steps.dart';
 
 /// Offered once, when the app first has the sentence data to use it.
 ///
@@ -17,33 +18,24 @@ class LanguageChoiceScreen extends StatefulWidget {
 
 class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
   String? _installing;
-  String _message = '';
-  double? _progress;
+  LanguageStepState? _steps;
   bool _done = false;
 
   Future<void> _install(LanguageOption option) async {
+    final steps = LanguageStepState(LanguageStep.values);
     setState(() {
       _installing = option.code;
-      _message = '';
-      _progress = null;
+      _steps = steps;
     });
     try {
-      await LanguageInstaller.install(option, onProgress: (progress, message) {
-        if (mounted) {
-          setState(() {
-            _progress = progress;
-            _message = message;
-          });
-        }
+      await LanguageInstaller.install(option,
+          onStep: (step, fraction, message) {
+        if (mounted) setState(() => steps.update(step, fraction, message));
       });
-      await LanguageInstaller.applyChanges(onProgress: (progress, message) {
-        if (mounted) setState(() => _message = message);
-      });
+      steps.finish();
       if (mounted) setState(() => _done = true);
     } catch (e) {
-      if (mounted) {
-        setState(() => _message = 'Could not install ${option.name}. $e');
-      }
+      steps.fail('Could not install ${option.name}. $e');
     } finally {
       if (mounted) setState(() => _installing = null);
     }
@@ -87,19 +79,10 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
                   ],
                 ),
               ),
-              if (busy || _message.isNotEmpty)
+              if (_steps != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      if (busy) LinearProgressIndicator(value: _progress),
-                      if (_message.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(_message),
-                        ),
-                    ],
-                  ),
+                  child: LanguageSteps(state: _steps!),
                 ),
               Expanded(
                 child: _done

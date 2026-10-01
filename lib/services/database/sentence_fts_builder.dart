@@ -127,14 +127,179 @@ CREATE TABLE IF NOT EXISTS search_meta (
   }
 
   /// The languages the translation index was built from, in order.
+  ///
+  /// Read from `search_meta`, which is written only once a language has been
+  /// indexed to the end, so one cut off part way reads as not indexed and is
+  /// done again. An index from before that record existed falls back to the
+  /// languages its rows name.
   static Future<List<String>> indexedLanguages(Database db) async {
     try {
+      final meta = await db.rawQuery(
+          "SELECT value FROM search_meta WHERE key = 'languages'");
+      if (meta.isNotEmpty) {
+        final value = meta.first['value'] as String? ?? '';
+        return value.isEmpty ? const [] : (value.split(',')..sort());
+      }
       final rows = await db.rawQuery(
           'SELECT DISTINCT lang FROM search_translation_unit ORDER BY lang');
       return rows.map((r) => r['lang'] as String).toList();
     } catch (_) {
       return const [];
     }
+  }
+
+  static Future<void> _recordLanguages(
+      Database db, List<String> languages) async {
+    final sorted = [...languages]..sort();
+    await db.rawInsert(
+        "INSERT OR REPLACE INTO search_meta (key, value) "
+        "VALUES ('languages', ?)",
+        [sorted.join(',')]);
+  }
+
+  /// Indexes one language against the units already built.
+  ///
+  /// Installing a language used to rebuild the whole index, Pali included,
+  /// which is minutes of work for something that does not change the Pali at
+  /// all. A unit records which paragraphs of which ePitaka book it covers, so
+  /// a translation can be laid over the same units on its own.
+  ///
+  /// The text is joined the way [UnitText.translation] rebuilds it for the
+  /// result list, paragraph range by paragraph range, so the highlight and
+  /// the page a result opens on find the same string that was indexed.
+  ///
+  /// Safe to repeat. Rows a previous, interrupted run left for this language
+  /// are taken off first; the contentless index keeps their terms, but
+  /// nothing joins to them any more, so they are never returned.
+  static Future<int> addLanguage(
+    Database db,
+    String code, {
+    void Function(String message)? onProgress,
+  }) async {
+    final units = await db.rawQuery(
+        'SELECT id, epi_book, start_para, end_para FROM search_unit '
+        'ORDER BY epi_book, id');
+    final byBook = <String, List<Map<String, Object?>>>{};
+    for (final unit in units) {
+      byBook.putIfAbsent(unit['epi_book'] as String, () => []).add(unit);
+    }
+
+    await db.rawDelete(
+        'DELETE FROM search_translation_unit WHERE lang = ?', [code]);
+    // Row numbers carry on from the highest ever used, including rows left
+    // behind in the index by an earlier run, which a contentless table will
+    // not let go of.
+    final lastIndexed = Sqflite.firstIntValue(await db
+            .rawQuery('SELECT max(rowid) FROM fts_translation_unit')) ??
+        0;
+    final lastMapped = Sqflite.firstIntValue(await db
+            .rawQuery('SELECT max(rowid_) FROM search_translation_unit')) ??
+        0;
+    var rowId = lastIndexed > lastMapped ? lastIndexed : lastMapped;
+
+    var indexed = 0;
+    var done = 0;
+    for (final entry in byBook.entries) {
+      done++;
+      final rows = await db.rawQuery(
+        'SELECT para_id, translation FROM lang_$code.sentences '
+        'WHERE book_id = ? ORDER BY para_id, line_id',
+        [entry.key],
+      );
+      if (rows.isNotEmpty) {
+        // Paragraph texts in order, so each unit takes a contiguous run.
+        final paras = <int>[];
+        final texts = <String>[];
+        for (final row in rows) {
+          final text = _clean(row['translation'] as String? ?? '');
+          if (text.isEmpty) continue;
+          final para = row['para_id'] as int;
+          if (paras.isNotEmpty && paras.last == para) {
+            texts[texts.length - 1] = '${texts.last} $text';
+          } else {
+            paras.add(para);
+            texts.add(text);
+          }
+        }
+
+        var batch = db.batch();
+        var pending = 0;
+        for (final unit in entry.value) {
+          final start = unit['start_para'] as int;
+          final end = unit['end_para'] as int;
+          final buffer = StringBuffer();
+          for (var k = _firstAtOrAfter(paras, start);
+              k < paras.length && paras[k] <= end;
+              k++) {
+            if (buffer.isNotEmpty) buffer.write(' ');
+            buffer.write(texts[k]);
+          }
+          if (buffer.isEmpty) continue;
+          rowId++;
+          batch.insert('fts_translation_unit', {
+            'rowid': rowId,
+            'content': buffer.toString(),
+            'sutta_name': '',
+          });
+          batch.insert('search_translation_unit', {
+            'rowid_': rowId,
+            'unit_id': unit['id'],
+            'lang': code,
+          });
+          indexed++;
+          if (++pending >= 300) {
+            await batch.commit(noResult: true);
+            batch = db.batch();
+            pending = 0;
+          }
+        }
+        if (pending > 0) await batch.commit(noResult: true);
+      }
+
+      if (onProgress != null && done % 10 == 0) {
+        onProgress('Indexing $code for search: '
+            '${(done / byBook.length * 100).round()}%');
+      }
+    }
+
+    final now = await indexedLanguages(db);
+    await _recordLanguages(db, {...now, code}.toList());
+    onProgress?.call('Indexed $code for search');
+    return indexed;
+  }
+
+  /// Rebuilds only the translation half of the index, for [languages].
+  ///
+  /// What removing a language needs: a contentless index cannot delete one
+  /// language's rows, but the translation half can be replaced without
+  /// touching the Pali, which is most of the work of a full build.
+  static Future<void> rebuildTranslations(
+    Database db,
+    List<String> languages, {
+    void Function(String message)? onProgress,
+  }) async {
+    await db.execute('DROP TABLE IF EXISTS fts_translation_unit;');
+    await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
+    await db.execute(_createTranslation);
+    await db.execute(_createTranslationUnit);
+    await _recordLanguages(db, const []);
+    for (final code in languages) {
+      await addLanguage(db, code, onProgress: onProgress);
+    }
+  }
+
+  static int _firstAtOrAfter(List<int> sorted, int value) {
+    var low = 0;
+    var high = sorted.length;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (sorted[mid] < value) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
   }
 
   /// Builds the index. Existing tables are replaced, so a rerun is safe.
@@ -346,6 +511,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.rawInsert(
         "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('units', ?)",
         ['$unitId']);
+    await _recordLanguages(db, languages);
 
     onProgress?.call('Search index built');
     return indexed;

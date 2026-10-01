@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/ui/widgets/language_steps.dart';
 
 /// Choosing which translations are installed and the order they read in.
 ///
@@ -18,8 +19,10 @@ class LanguageSettings extends StatefulWidget {
 
 class _LanguageSettingsState extends State<LanguageSettings> {
   String? _busy;
-  String _message = '';
-  double? _progress;
+
+  /// The install or removal under way, or the last one, until another starts.
+  LanguageStepState? _steps;
+  String? _stepsTitle;
 
   List<String> get _installed => DatabaseHelper.installedLanguages;
 
@@ -48,40 +51,39 @@ class _LanguageSettingsState extends State<LanguageSettings> {
       .name;
 
   Future<void> _install(LanguageOption option) async {
+    final steps = LanguageStepState(LanguageStep.values);
     setState(() {
       _busy = option.code;
-      _message = '';
-      _progress = null;
+      _steps = steps;
+      _stepsTitle = 'Installing ${option.name}';
     });
     try {
-      await LanguageInstaller.install(option, onProgress: (progress, message) {
-        if (mounted) {
-          setState(() {
-            _progress = progress;
-            _message = message;
-          });
-        }
+      await LanguageInstaller.install(option,
+          onStep: (step, fraction, message) {
+        if (mounted) setState(() => steps.update(step, fraction, message));
       });
-      await LanguageInstaller.applyChanges(onProgress: (progress, message) {
-        if (mounted) setState(() => _message = message);
-      });
+      steps.finish();
     } catch (e) {
-      if (mounted) setState(() => _message = 'Could not install: $e');
+      steps.fail(e);
     } finally {
       if (mounted) setState(() => _busy = null);
     }
   }
 
   Future<void> _remove(String code) async {
+    final steps = LanguageStepState(LanguageStep.removal);
     setState(() {
       _busy = code;
-      _message = '';
+      _steps = steps;
+      _stepsTitle = 'Removing ${_nameOf(code)}';
     });
     try {
-      await LanguageInstaller.remove(code);
-      await LanguageInstaller.applyChanges(onProgress: (progress, message) {
-        if (mounted) setState(() => _message = message);
+      await LanguageInstaller.remove(code, onStep: (step, fraction, message) {
+        if (mounted) setState(() => steps.update(step, fraction, message));
       });
+      steps.finish();
+    } catch (e) {
+      steps.fail(e);
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -94,20 +96,20 @@ class _LanguageSettingsState extends State<LanguageSettings> {
       appBar: AppBar(title: const Text('Translations')),
       body: ListView(
         children: [
-          if (_busy != null || _message.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_busy != null)
-                    LinearProgressIndicator(value: _progress),
-                  if (_message.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(_message),
-                    ),
-                ],
+          if (_steps != null)
+            Card(
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_stepsTitle ?? '',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    LanguageSteps(state: _steps!),
+                  ],
+                ),
               ),
             ),
           if (ordered.isNotEmpty) ...[
