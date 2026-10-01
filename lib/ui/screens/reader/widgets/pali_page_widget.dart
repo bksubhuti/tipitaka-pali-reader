@@ -764,6 +764,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       'unindented': baseStyle,
       'noindentbodytext': baseStyle,
 
+      // Headings from the sentence data, sized by level: 1 is the book,
+      // 2 a vagga or sutta, then sections. 0 is a title line at the head of
+      // a book ("Namo tassa…", the nikāya's name).
+      'heading0':
+          'font-size: 1.3em; text-align:center; font-weight: bold; $baseStyle',
+      'heading1':
+          'font-size: 1.8em; text-align:center; font-weight: bold; $baseStyle',
+      'heading2':
+          'font-size: 1.55em; text-align:center; font-weight: bold; $baseStyle',
+      'heading3':
+          'font-size: 1.4em; text-align:center; font-weight: bold; $baseStyle',
+      'heading4':
+          'font-size: 1.25em; text-align:center; font-weight: bold; $baseStyle',
+      'heading5':
+          'font-size: 1.15em; text-align:center; font-weight: bold; $baseStyle',
+      'heading6':
+          'font-size: 1.1em; text-align:center; font-weight: bold; $baseStyle',
+      'heading7':
+          'font-size: 1.05em; text-align:center; font-weight: bold; $baseStyle',
+
       // Headers
       'book':
           'font-size: 1.9em; text-align:center; font-weight: bold; $baseStyle',

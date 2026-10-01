@@ -49,6 +49,28 @@ void main() {
     });
   });
 
+  group('headings', () {
+    test('a heading is written with its level, ordinary text is not', () {
+      final html = _compose(const [
+        PageSentence(
+            paraId: 4, lineId: 1, pali: '1. Brahmajālasuttaṃ', headingLevel: 2),
+        PageSentence(
+            paraId: 5, lineId: 1, pali: 'Paribbājakakathā', headingLevel: 4),
+        PageSentence(paraId: 6, lineId: 1, pali: 'evaṃ me sutaṃ'),
+      ]);
+      expect(
+          html,
+          '<p class="heading2">1. Brahmajālasuttaṃ</p>'
+          '<p class="heading4">Paribbājakakathā</p>'
+          '<p class="bodytext">evaṃ me sutaṃ</p>');
+    });
+
+    test('a title line, and levels beyond seven, stay in range', () {
+      expect(PageComposer.headingClass(0), 'heading0');
+      expect(PageComposer.headingClass(9), 'heading7');
+    });
+  });
+
   group('PageComposer', () {
     test('opens a paragraph and closes it', () {
       final html = _compose(const [

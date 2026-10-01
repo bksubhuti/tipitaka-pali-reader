@@ -79,6 +79,11 @@ class PageSentence {
 
   final GlueState glue;
 
+  /// The heading level when this sentence is a heading: 1 to 7 from
+  /// ePitaka's headings, 1 the largest, or 0 for a title line at the head of
+  /// a book. Null for ordinary text.
+  final int? headingLevel;
+
   /// Page beginnings that fall inside this sentence, in word order.
   final List<PageAnchor> anchors;
 
@@ -93,6 +98,7 @@ class PageSentence {
     required this.pali,
     this.paraNum,
     this.glue = GlueState.paragraph,
+    this.headingLevel,
     this.anchors = const [],
     this.translations = const [],
   });
@@ -135,9 +141,12 @@ class PageComposer {
         if (first && continuesFromPreviousPage && glue == GlueState.paragraph) {
           glue = GlueState.continues;
         }
+        final heading = sentence.headingLevel;
         buffer
           ..write('<p class="')
-          ..write(_classFor[glue] ?? 'bodytext')
+          ..write(heading != null
+              ? headingClass(heading)
+              : _classFor[glue] ?? 'bodytext')
           ..write('">');
         if (sentence.paraNum != null && sentence.paraNum!.isNotEmpty) {
           // Anchor only, no visible number. ePitaka's own text already opens
@@ -182,6 +191,10 @@ class PageComposer {
   /// would take away content the reader never asked to lose.
   static final _variantReading =
       RegExp(r'\[[^\[\]]*\([^()]*\)\s*\]');
+
+  /// The class a heading of [level] is written with, `heading1` to
+  /// `heading7`, or `heading0` for a title line. The reader sizes them.
+  static String headingClass(int level) => 'heading${level.clamp(0, 7)}';
 
   /// The name of the anchor marking where a sentence begins.
   static String sentenceMarker(int paraId, int lineId) => 's${paraId}_$lineId';

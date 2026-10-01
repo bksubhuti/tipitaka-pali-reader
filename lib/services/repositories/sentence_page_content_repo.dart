@@ -99,7 +99,8 @@ class SentencePageContentRepository implements PageContentRepository {
 
     final marks = await _anchorsFor(db, start, end);
     final translations = await _translationsFor(db, start, end);
-    return _assemble(rows, start, end, marks, translations);
+    final headings = await _headingsFor(db, start.bookId);
+    return _assemble(rows, start, end, marks, translations, headings);
   }
 
   /// Turns rows into page sentences. Shared by the single-page path, which
@@ -110,8 +111,9 @@ class SentencePageContentRepository implements PageContentRepository {
     _Bound start,
     _Bound? end,
     Map<String, List<PageAnchor>> marks,
-    List<Map<String, String>> translations,
-  ) {
+    List<Map<String, String>> translations, [
+    _Headings headings = const _Headings({}, null),
+  ]) {
     final sentences = <PageSentence>[];
     for (var i = 0; i < rows.length; i++) {
       final row = rows[i];
@@ -142,6 +144,7 @@ class SentencePageContentRepository implements PageContentRepository {
         pali: pali,
         paraNum: lineId == 1 ? row['vripara'] as String? : null,
         glue: _glue(row['glue_state'] as String?),
+        headingLevel: headings.levelOf(paraId, pali),
         translations: translations.isEmpty
             ? const []
             : [
@@ -307,8 +310,10 @@ class SentencePageContentRepository implements PageContentRepository {
     }
 
     final marks = <String, Map<String, List<PageAnchor>>>{};
+    final headings = <String, _Headings>{};
     for (final book in epiBooks) {
       marks[book] = await _allAnchorsFor(db, book);
+      headings[book] = await _headingsFor(db, book);
     }
     final translations = <String, List<Map<String, String>>>{};
     for (final book in epiBooks) {
@@ -372,8 +377,13 @@ class SentencePageContentRepository implements PageContentRepository {
       }
       if (slice.isEmpty) continue;
 
-      final built = _assemble(slice, start, end,
-          marks[start.bookId] ?? const {}, translations[start.bookId] ?? const []);
+      final built = _assemble(
+          slice,
+          start,
+          end,
+          marks[start.bookId] ?? const {},
+          translations[start.bookId] ?? const [],
+          headings[start.bookId] ?? const _Headings({}, null));
       if (built.isEmpty) continue;
 
       // Not composed here. The list shows one page at a time, so each builds
@@ -449,6 +459,30 @@ class SentencePageContentRepository implements PageContentRepository {
     return out;
   }
 
+  /// The heading level of each heading paragraph in an ePitaka book.
+  ///
+  /// Levels 1 to 7 are headings, 1 the largest: the book, then vagga or
+  /// sutta, then sections. Level 10 rows mark paragraph numbers, not
+  /// headings, and are left out.
+  Future<_Headings> _headingsFor(dynamic db, String book) async {
+    try {
+      final rows = await db.rawQuery(
+        'SELECT para_id, level FROM epi.headings '
+        'WHERE book_id = ? AND level < 10',
+        [book],
+      );
+      final levels = <int, int>{
+        for (final row in rows) row['para_id'] as int: row['level'] as int
+      };
+      final first = levels.isEmpty
+          ? null
+          : levels.keys.reduce((a, b) => a < b ? a : b);
+      return _Headings(levels, first);
+    } catch (_) {
+      return const _Headings({}, null);
+    }
+  }
+
   /// The languages translations are read in, in the order they are read.
   /// The same expression as in [_translationsFor], so the two line up.
   static List<String> _shownLanguages() => Prefs.activeLanguages
@@ -494,6 +528,34 @@ class SentencePageContentRepository implements PageContentRepository {
     final words = text.split(' ');
     if (count >= words.length) return text;
     return words.sublist(0, count).join(' ');
+  }
+}
+
+/// Heading levels of one book, and where its first heading is.
+class _Headings {
+  final Map<int, int> levels;
+  final int? firstHeadingPara;
+
+  const _Headings(this.levels, this.firstHeadingPara);
+
+  /// The level of the heading at [paraId], 0 for a title line, or null for
+  /// ordinary text.
+  ///
+  /// A book opens with title lines ePitaka records no heading for — "Namo
+  /// tassa…", the nikāya's name — which the old pages centred and set large.
+  /// Those are the short paragraphs among the first few, before the book's
+  /// first heading.
+  int? levelOf(int paraId, String text) {
+    final level = levels[paraId];
+    if (level != null) return level;
+    final first = firstHeadingPara;
+    if (first != null &&
+        paraId < first &&
+        paraId <= 4 &&
+        text.split(' ').length <= 8) {
+      return 0;
+    }
+    return null;
   }
 }
 
