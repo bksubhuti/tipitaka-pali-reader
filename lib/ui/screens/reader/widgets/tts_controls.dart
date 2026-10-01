@@ -128,29 +128,23 @@ class TtsControls extends StatelessWidget {
                     'in this order, before the next. Pāḷi is read by a '
                     'Kannada voice.'),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    for (final language in all)
-                      FilterChip(
-                        label: Text(nameOf(language)),
-                        selected: selection.contains(language),
-                        // At least one stays chosen.
-                        onSelected: selection.contains(language) &&
-                                selection.length == 1
-                            ? null
-                            : (on) => setState(() {
-                                  on
-                                      ? selection.add(language)
-                                      : selection.remove(language);
-                                  Prefs.ttsLanguages = all
-                                      .where(selection.contains)
-                                      .toList();
-                                }),
-                      ),
-                  ],
-                ),
+                for (final language in all)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(nameOf(language)),
+                    value: selection.contains(language),
+                    // At least one stays on.
+                    onChanged: selection.contains(language) &&
+                            selection.length == 1
+                        ? null
+                        : (on) => setState(() {
+                              on
+                                  ? selection.add(language)
+                                  : selection.remove(language);
+                              Prefs.ttsLanguages =
+                                  all.where(selection.contains).toList();
+                            }),
+                  ),
                 if (all.isEmpty)
                   const Text('No voice on this device can read these '
                       'languages.'),
