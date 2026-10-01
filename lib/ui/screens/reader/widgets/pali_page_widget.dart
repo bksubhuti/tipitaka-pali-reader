@@ -276,7 +276,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         String html = _formatContent(
             widget.htmlContent, widget.script, context, spoken);
 
-        return Padding(
+        return _withinReadingWidth(fontSize, Padding(
           padding: const EdgeInsets.all(8.0),
           child: Container(
             color: Colors.transparent,
@@ -486,8 +486,23 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               ),
             ),
           ),
-        );
+        ));
       },
+    );
+  }
+
+  /// Keeps lines to a comfortable length on wide screens.
+  ///
+  /// Text that ran the full width of a desktop window made lines too long to
+  /// follow back to the next one. The limit is in step with the font size, so
+  /// a larger font keeps about the same number of words to a line.
+  Widget _withinReadingWidth(int fontSize, Widget child) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: fontSize * 40.0),
+        child: child,
+      ),
     );
   }
 
