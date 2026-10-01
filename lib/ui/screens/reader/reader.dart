@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert';
 
 import 'package:flex_color_scheme/flex_color_scheme.dart';
@@ -96,17 +95,9 @@ class ReaderView extends StatelessWidget implements Searchable {
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-        shortcuts: <LogicalKeySet, Intent>{
-          LogicalKeySet(
-              Platform.isMacOS
-                  ? LogicalKeyboardKey.meta
-                  : LogicalKeyboardKey.control,
-              LogicalKeyboardKey.keyF): const SearchIntent(),
-        },
-        child: Actions(actions: <Type, Action<Intent>>{
-          SearchIntent: SearchAction(this, context),
-        }, child: _getReader(context)));
+    // Ctrl+F is handled app-wide by the reader controller, so it reaches the
+    // selected tab wherever the focus is.
+    return _getReader(context);
   }
 
   Widget _getReader(BuildContext context) {

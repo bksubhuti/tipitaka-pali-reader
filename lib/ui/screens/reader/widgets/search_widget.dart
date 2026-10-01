@@ -37,6 +37,7 @@ class _SearchWidgetState extends State<SearchWidget> {
 
     readerViewController.searchResultCount.addListener(_onSearchCountChanged);
     readerViewController.currentSearchResult.addListener(_onSearchCountChanged);
+    readerViewController.searchFocusRequests.addListener(_takeFocus);
 
     _controller.addListener(() {
       String text = _controller.value.text;
@@ -83,8 +84,18 @@ class _SearchWidgetState extends State<SearchWidget> {
 
   @override
   void dispose() {
+    readerViewController.searchFocusRequests.removeListener(_takeFocus);
     super.dispose();
     _controller.dispose();
+  }
+
+  /// Ctrl+F while the box is already open, from another pane: bring the
+  /// cursor back here with what was typed selected, ready to replace.
+  void _takeFocus() {
+    if (!mounted) return;
+    _focusNode.requestFocus();
+    _controller.selection =
+        TextSelection(baseOffset: 0, extentOffset: _controller.text.length);
   }
 
   void _onSearchCountChanged() {

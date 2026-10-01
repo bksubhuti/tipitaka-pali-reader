@@ -1,7 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/services/repositories/sentence_paragraph_mapping_repo.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/app.dart';
@@ -9,6 +12,7 @@ import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_mode
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/utils/tts_highlight.dart';
 
 import '../../../../business_logic/models/book.dart';
@@ -38,6 +42,7 @@ class ReaderViewController extends ChangeNotifier {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _shownLanguages?.removeListener(_onShownLanguagesChanged);
     // Closing the book stops it being read.
     final tts = _tts;
@@ -227,6 +232,53 @@ class ReaderViewController extends ChangeNotifier {
     } catch (_) {
       // Not provided, as in a test of the controller alone.
     }
+    if (PlatformInfo.isDesktop) HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  /// Ctrl+F (Cmd+F on macOS) from anywhere in the app searches the book in
+  /// the selected tab.
+  ///
+  /// It used to be a shortcut on the reader itself, so it only worked once
+  /// the reader had been clicked into: with the focus in the dictionary or
+  /// the search pane, nothing happened. Nothing else in the app uses it, so
+  /// it is taken globally. Every open reader listens; only the selected one
+  /// answers.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.keyF) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    final modifier =
+        Platform.isMacOS ? keyboard.isMetaPressed : keyboard.isControlPressed;
+    if (!modifier || keyboard.isShiftPressed || keyboard.isAltPressed) {
+      return false;
+    }
+    if (!_mounted || !isloadingFinished) return false;
+    try {
+      final tabs = context.read<OpenningBooksProvider>();
+      final index = tabs.selectedBookIndex;
+      if (index < 0 ||
+          index >= tabs.books.length ||
+          tabs.books[index]['uuid'] != bookUuid) {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    openSearch();
+    return true;
+  }
+
+  /// Asks the search box to take the keyboard, when it opens and when it is
+  /// already open but the focus is elsewhere.
+  ValueListenable<int> get searchFocusRequests => _searchFocusRequests;
+  final ValueNotifier<int> _searchFocusRequests = ValueNotifier(0);
+
+  /// Opens find-in-book, keeping what was typed if it is already open, and
+  /// puts the cursor in it.
+  void openSearch() {
+    showSearchWidget(true, searchText: _showSearch ? null : '');
+    _searchFocusRequests.value++;
   }
 
   void onSearchTermChanged(String text) {
