@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:tipitaka_pali/business_logic/models/download_list_item.dart';
@@ -608,7 +609,23 @@ class _DownloadViewState extends State<DownloadView> {
     }
   }
 
+  /// The old ePitaka "full" extensions: a whole copy of the canon with one
+  /// translation baked into its pages. With the sentence data, translations
+  /// are language files chosen in Settings › Translations, and installing one
+  /// of these as well would put the same language in by a second route.
+  static bool _isRetiredTranslation(DownloadListItem item) =>
+      item.category == 'Full Translations' ||
+      item.category == 'Full ePitaka Integration' ||
+      item.filename.startsWith('epitaka_full') ||
+      item.filename.contains('epitaka_viet_full');
+
   Future<List<DownloadListItem>> _fetchDownloadItems() async {
+    final items = await _fetchAllDownloadItems();
+    if (!DatabaseHelper.sentenceDataAvailable) return items;
+    return items.where((item) => !_isRetiredTranslation(item)).toList();
+  }
+
+  Future<List<DownloadListItem>> _fetchAllDownloadItems() async {
     final cacheFile = File('${Prefs.databaseDirPath}/download_list_cache.json');
     List<DownloadListItem> masterList = [];
 

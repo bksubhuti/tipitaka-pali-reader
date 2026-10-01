@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/screens/settings/language_settings.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -20,7 +21,6 @@ import '../../../utils/platform_info.dart';
 import '../../dialogs/about_tpr_dialog.dart';
 import '../../dialogs/sutta_list_dialog.dart';
 import '../../widgets/colored_text.dart';
-import '../settings/download_view.dart';
 import 'openning_books_provider.dart';
 
 class BookListPage extends StatelessWidget {
@@ -172,10 +172,8 @@ class BookListPage extends StatelessWidget {
             onTap: () => _openDictionaryPage(context),
           ),
           ListTile(
-            title: ColoredText(
-                AppLocalizations.of(context)!.installEnglishTranslations,
-                style: const TextStyle()),
-            onTap: () => _openInstallEnglishTranslationPage(context),
+            title: const ColoredText('Translations', style: TextStyle()),
+            onTap: () => _openTranslationsPage(context),
           ),
           ListTile(
             title: ColoredText(AppLocalizations.of(context)!.settings,
@@ -320,12 +318,12 @@ class BookListPage extends StatelessWidget {
     Navigator.pushNamed(context, dictionaryRoute);
   }
 
-  _openInstallEnglishTranslationPage(BuildContext context) {
+  /// Translations install as language files now, not as the old English
+  /// extension, so the drawer goes to where they are chosen.
+  _openTranslationsPage(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const DownloadView(autoInstallEnglish: true),
-      ),
+      MaterialPageRoute(builder: (context) => const LanguageSettings()),
     );
   }
 

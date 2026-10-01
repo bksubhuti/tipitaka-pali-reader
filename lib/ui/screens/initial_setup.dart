@@ -371,8 +371,11 @@ class _InitialSetupState extends State<InitialSetup> {
     _openHomePage(context);
   }
 
+  // With the sentence data, translations are language files chosen in
+  // Settings › Translations; the old English extension is not offered.
   Future<bool> _isEnglishExtensionInstalled() async =>
-      DatabaseHelper.hasTranslations();
+      DatabaseHelper.sentenceDataAvailable ||
+      await DatabaseHelper.hasTranslations();
 
   void _openHomePage(context) {
     //Navigator.of(context).pop();
