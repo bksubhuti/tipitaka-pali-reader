@@ -309,9 +309,15 @@ class DatabaseHelper {
     // This also repairs the older fault where the first-run screen wrote a
     // single language and nothing ever added to it, leaving a second install
     // on disk, attached, and invisible.
+    //
+    // Not before the reader has made the translation choice, though. A reset
+    // clears the preferences but keeps the language files, so every one of
+    // them reads as just appeared; switching them all on showed languages
+    // the reader had not asked for. The choice screen offers them instead,
+    // and shows the ones chosen.
     final known = Prefs.knownLanguages;
     final fresh = codes.where((c) => !known.contains(c)).toList();
-    if (fresh.isNotEmpty) {
+    if (fresh.isNotEmpty && Prefs.languageChoiceMade) {
       Prefs.knownLanguages = [...known, ...fresh];
       Prefs.activeLanguages = [
         ...Prefs.activeLanguages.where(codes.contains),
