@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Builds the search index from ePitaka's sentences, on the device.
@@ -219,26 +220,12 @@ CREATE TABLE IF NOT EXISTS search_meta (
     var done = 0;
     for (final entry in byBook.entries) {
       done++;
-      final rows = await db.rawQuery(
-        'SELECT para_id, translation FROM lang_$code.sentences '
-        'WHERE book_id = ? ORDER BY para_id, line_id',
-        [entry.key],
-      );
-      if (rows.isNotEmpty) {
+      final read = await readParagraphs(
+          db, 'lang_$code.sentences', 'translation', entry.key);
+      if (read.isNotEmpty) {
         // Paragraph texts in order, so each unit takes a contiguous run.
-        final paras = <int>[];
-        final texts = <String>[];
-        for (final row in rows) {
-          final text = _clean(row['translation'] as String? ?? '');
-          if (text.isEmpty) continue;
-          final para = row['para_id'] as int;
-          if (paras.isNotEmpty && paras.last == para) {
-            texts[texts.length - 1] = '${texts.last} $text';
-          } else {
-            paras.add(para);
-            texts.add(text);
-          }
-        }
+        final paras = [for (final (para, _) in read) para];
+        final texts = [for (final (_, text) in read) text];
 
         var batch = db.batch();
         var pending = 0;
@@ -321,6 +308,35 @@ CREATE TABLE IF NOT EXISTS search_meta (
     }
   }
 
+  /// One book's paragraphs from [table], each as its sentences' [column]
+  /// joined in line order and cleaned, in paragraph order. Paragraphs that
+  /// come out empty are left out.
+  ///
+  /// Read a sentence at a time and joined here. Having SQLite join them
+  /// (`group_concat ... ORDER BY`) was tried and measured slower, and it
+  /// needs SQLite 3.44, which is more than every device can be counted on
+  /// for.
+  static Future<List<(int, String)>> readParagraphs(
+      Database db, String table, String column, String book) async {
+    final rows = await db.rawQuery(
+      'SELECT para_id, $column AS text FROM $table WHERE book_id = ? '
+      'ORDER BY para_id, line_id',
+      [book],
+    );
+    final result = <(int, String)>[];
+    for (final row in rows) {
+      final text = clean(row['text'] as String? ?? '');
+      if (text.isEmpty) continue;
+      final para = row['para_id'] as int;
+      if (result.isNotEmpty && result.last.$1 == para) {
+        result[result.length - 1] = (para, '${result.last.$2} $text');
+      } else {
+        result.add((para, text));
+      }
+    }
+    return result;
+  }
+
   static int _firstAtOrAfter(List<int> sorted, int value) {
     var low = 0;
     var high = sorted.length;
@@ -395,26 +411,12 @@ CREATE TABLE IF NOT EXISTS search_meta (
         continue;
       }
 
-      final sentences = await db.rawQuery(
-        'SELECT para_id, pali FROM epi.sentences WHERE book_id = ? '
-        'ORDER BY para_id, line_id',
-        [book],
-      );
-      if (sentences.isEmpty) continue;
-
-      // group sentences into paragraphs, keeping paragraph order
-      final paragraphs = <int, StringBuffer>{};
+      final paragraphs = <int, String>{};
       final order = <int>[];
-      for (final row in sentences) {
-        final para = row['para_id'] as int;
-        final text = _clean(row['pali'] as String? ?? '');
-        if (text.isEmpty) continue;
-        final buffer = paragraphs.putIfAbsent(para, () {
-          order.add(para);
-          return StringBuffer();
-        });
-        if (buffer.isNotEmpty) buffer.write(' ');
-        buffer.write(text);
+      for (final (para, text)
+          in await readParagraphs(db, 'epi.sentences', 'pali', book)) {
+        paragraphs[para] = text;
+        order.add(para);
       }
       if (order.isEmpty) continue;
 
@@ -426,16 +428,9 @@ CREATE TABLE IF NOT EXISTS search_meta (
       for (final code in languages) {
         final map = <int, String>{};
         try {
-          final rows = await db.rawQuery(
-            'SELECT para_id, translation FROM lang_$code.sentences '
-            'WHERE book_id = ? ORDER BY para_id, line_id',
-            [book],
-          );
-          for (final row in rows) {
-            final text = _clean(row['translation'] as String? ?? '');
-            if (text.isEmpty) continue;
-            final para = row['para_id'] as int;
-            map[para] = map.containsKey(para) ? '${map[para]} $text' : text;
+          for (final (para, text) in await readParagraphs(
+              db, 'lang_$code.sentences', 'translation', book)) {
+            map[para] = text;
           }
         } catch (_) {
           // A language that will not answer is left out of the index.
@@ -454,7 +449,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
         var j = i;
         final content = StringBuffer();
         while (j < order.length && (j == i || words < targetWords)) {
-          final text = paragraphs[order[j]]!.toString();
+          final text = paragraphs[order[j]]!;
           if (content.isNotEmpty) content.write(' ');
           content.write(text);
           words += _countWords(text);
@@ -476,7 +471,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
             map.write(',$offset:${paraPage.tprPage}');
             lastPage = paraPage.tprPage;
           }
-          offset += _countWords(paragraphs[order[k]]!.toString());
+          offset += _countWords(paragraphs[order[k]]!);
         }
 
         final text = content.toString();
@@ -601,8 +596,80 @@ CREATE TABLE IF NOT EXISTS search_meta (
   static final _tag = RegExp(r'<[^>]*>');
   static final _space = RegExp(r'\s+');
 
-  static String _clean(String pali) =>
+  @visibleForTesting
+  static String clean(String pali) {
+    final untagged = pali.contains('<') ? _replaceTags(pali) : pali;
+    return _isClean(untagged)
+        ? untagged
+        : untagged.replaceAll(_space, ' ').trim();
+  }
+
+  /// Tags to spaces, runs of white space to one space, trimmed: what [clean]
+  /// does, written as the two patterns it used to be.
+  ///
+  /// The patterns cost most of a build: 11 of 13 seconds of reading the
+  /// canon went on them, against under 2 for the queries. So [clean] takes
+  /// tags out with a plain loop and leaves the text alone when its spacing
+  /// is already single, which it nearly always is. A test runs both on every
+  /// sentence of the real data and finds no difference.
+  @visibleForTesting
+  static String cleanByPattern(String pali) =>
       pali.replaceAll(_tag, ' ').replaceAll(_space, ' ').trim();
+
+  /// Each tag to a space, exactly as `<[^>]*>` replaces them: from a `<` to
+  /// the first `>` after it. A `<` with no `>` after it is left as it is.
+  static String _replaceTags(String text) {
+    final buffer = StringBuffer();
+    var i = 0;
+    while (i < text.length) {
+      final open = text.indexOf('<', i);
+      if (open < 0) break;
+      final close = text.indexOf('>', open + 1);
+      if (close < 0) break;
+      buffer
+        ..write(text.substring(i, open))
+        ..write(' ');
+      i = close + 1;
+    }
+    buffer.write(text.substring(i));
+    return buffer.toString();
+  }
+
+  /// True when [cleanByPattern] would return [text] unchanged: no tag, no
+  /// white space at either end, and none but single plain spaces inside.
+  static bool _isClean(String text) {
+    if (text.isEmpty) return true;
+    var previousSpace = true; // so a space at the start counts as a run
+    for (var i = 0; i < text.length; i++) {
+      final unit = text.codeUnitAt(i);
+      if (unit == 0x3C) return false; // '<'
+      if (unit == 0x20) {
+        if (previousSpace) return false;
+        previousSpace = true;
+      } else if (_isOtherSpace(unit)) {
+        return false;
+      } else {
+        previousSpace = false;
+      }
+    }
+    return !previousSpace; // a space at the end
+  }
+
+  /// White space other than the plain space, as `\s` in a Dart pattern
+  /// matches it, and 0x85, which `\s` does not match but `trim` removes.
+  /// Counting that one too only sends such text the long way round.
+  static bool _isOtherSpace(int unit) =>
+      (unit >= 0x09 && unit <= 0x0D) ||
+      unit == 0x85 ||
+      unit == 0xA0 ||
+      unit == 0x1680 ||
+      (unit >= 0x2000 && unit <= 0x200A) ||
+      unit == 0x2028 ||
+      unit == 0x2029 ||
+      unit == 0x202F ||
+      unit == 0x205F ||
+      unit == 0x3000 ||
+      unit == 0xFEFF;
 
   /// Words of a phrase, punctuation and case removed.
   ///
