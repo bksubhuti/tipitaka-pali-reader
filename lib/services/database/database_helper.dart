@@ -431,6 +431,14 @@ class DatabaseHelper {
     try {
       if (built) {
         sentenceSearchAvailable = true;
+        if (!await SentenceFtsBuilder.translationIndexCurrent(db)) {
+          // Built before marks were kept inside words. Only the translation
+          // half is redone; the Pali index is left as it is.
+          myLogger.i('rebuilding the translation index');
+          await SentenceFtsBuilder.rebuildTranslations(db, wanted,
+              onProgress: onProgress);
+          return 0;
+        }
         final removed = indexed.where((c) => !wanted.contains(c)).toList();
         final added = wanted.where((c) => !indexed.contains(c)).toList();
         // Only the language that changed; the Pali and the other languages

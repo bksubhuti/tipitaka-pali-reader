@@ -66,13 +66,60 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_unit USING FTS5(
   content = ''
 );''';
 
+  /// The translation index keeps vowel signs and other marks inside words.
+  ///
+  /// By default the tokenizer counts a mark as a gap between words, which
+  /// is harmless for Pali in Roman letters but takes Myanmar, Thai, Khmer,
+  /// Lao, Sinhala and Hindi apart: စကားစမြည် was stored as the letters
+  /// စ က စ မ ည with its vowels gone. A search still matched that run of
+  /// letters, loosely, but no word in those languages could be suggested,
+  /// since none was stored whole. English is tokenized as before.
   static const _createTranslation = '''
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
+  content,
+  sutta_name,
+  tokenize = "porter unicode61 categories 'L* N* Co M*'",
+  content = ''
+);''';
+
+  /// The same with the default tokenizer, for an SQLite too old to take the
+  /// option. The app bundles one that does; this is only a fallback.
+  static const _createTranslationPlain = '''
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   content,
   sutta_name,
   tokenize = 'porter',
   content = ''
 );''';
+
+  /// Bumped when the translation index must be rebuilt on its own, without
+  /// touching the Pali one. '2' keeps marks inside words.
+  static const translationFormat = '2';
+
+  static Future<void> _createTranslationIndex(Database db) async {
+    try {
+      await db.execute(_createTranslation);
+    } catch (e) {
+      debugPrint('translation index without marks in words: $e');
+      await db.execute(_createTranslationPlain);
+    }
+  }
+
+  /// Whether the translation index was built the current way.
+  static Future<bool> translationIndexCurrent(Database db) async {
+    try {
+      final rows = await db.rawQuery(
+          "SELECT value FROM search_meta WHERE key = 'translation_format'");
+      return rows.isNotEmpty && rows.first['value'] == translationFormat;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _recordTranslationFormat(Database db) => db.rawInsert(
+      "INSERT OR REPLACE INTO search_meta (key, value) "
+      "VALUES ('translation_format', ?)",
+      [translationFormat]);
 
   /// What a contentless index cannot answer: where a unit is, and which
   /// sentences it was made of. Small, because it is integers and short ids
@@ -300,9 +347,13 @@ CREATE TABLE IF NOT EXISTS search_meta (
   }) async {
     await db.execute('DROP TABLE IF EXISTS fts_translation_unit;');
     await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
-    await db.execute(_createTranslation);
+    await _createTranslationIndex(db);
     await db.execute(_createTranslationUnit);
+    // Recorded empty, then each language as it finishes. Cut off part way,
+    // the next start finds the rest missing and adds them; the format is
+    // already the new one, so it does not start over.
     await _recordLanguages(db, const []);
+    await _recordTranslationFormat(db);
     for (final code in languages) {
       await addLanguage(db, code, onProgress: onProgress);
     }
@@ -369,7 +420,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
     await db.execute('DROP TABLE IF EXISTS search_meta;');
     await db.execute(_createPali);
-    await db.execute(_createTranslation);
+    await _createTranslationIndex(db);
     await db.execute(_createUnit);
     await db.execute(_createTranslationUnit);
     await db.execute(_createMeta);
@@ -545,6 +596,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.rawInsert(
         "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('format', ?)",
         [format]);
+    await _recordTranslationFormat(db);
     await _recordLanguages(db, languages);
 
     onProgress?.call('Search index built');
