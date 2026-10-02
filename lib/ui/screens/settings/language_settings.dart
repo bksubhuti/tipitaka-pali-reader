@@ -110,22 +110,14 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                   ? (constraints.maxWidth - _maxWidth) / 2
                   : 0),
           children: [
-            if (_steps != null)
-              Card(
-                margin: const EdgeInsets.all(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_stepsTitle ?? '',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      LanguageSteps(state: _steps!),
-                    ],
-                  ),
-                ),
+            if (_steps != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 16, 16, 0),
+                child: Text(_stepsTitle ?? '',
+                    style: Theme.of(context).textTheme.titleMedium),
               ),
+              LanguageSteps(state: _steps!),
+            ],
             if (ordered.isNotEmpty) ...[
               const _Heading('Installed'),
               const Padding(

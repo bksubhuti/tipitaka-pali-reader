@@ -186,7 +186,7 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
                   ),
                   if (_steps != null)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: LanguageSteps(state: _steps!),
                     ),
                   Expanded(
