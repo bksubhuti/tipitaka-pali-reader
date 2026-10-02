@@ -9,7 +9,6 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:tipitaka_pali/services/database/database_helper.dart';
-import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
 /// A translation that can be installed.
@@ -96,9 +95,15 @@ class LanguageInstaller {
           orElse: () => LanguageOption(code, code.toUpperCase()))
       .name;
 
-  /// Whether a language is already installed.
+  /// Whether a language is installed: on the device, whole, and attached.
+  /// A file alone is not enough; one left part written is removed at start.
   static bool isInstalled(String code) =>
-      File(join(_dir, 'lang_$code.db')).existsSync();
+      DatabaseHelper.installedLanguages.contains(code);
+
+  /// Ending for anything an install has not finished writing. The real name
+  /// is given only as the last step, so a file under it is always whole, and
+  /// anything left with this ending is removed at the next start.
+  static const unfinished = '.incomplete';
 
   /// Where language files live. Overridable so the install can be exercised
   /// against a scratch directory rather than the real one.
@@ -116,13 +121,20 @@ class LanguageInstaller {
     LanguageOption option, {
     LanguageProgress? onStep,
   }) async {
-    final archive = File(join(_target, option.archiveName));
-    final unpacked = File(join(_target, 'epitaka_${option.code}.db'));
+    // Everything is written under a name that says it is unfinished, and
+    // given the real one only once whole. A download or copy cut off part
+    // way, by the app closing or the phone dying, then cannot be mistaken
+    // for an installed language, and is cleared at the next start.
+    final archive = File(join(_target, '${option.archiveName}$unfinished'));
+    final unpacked =
+        File(join(_target, 'epitaka_${option.code}.db$unfinished'));
+    final prepared = File(join(_target, '${option.fileName}$unfinished'));
     final target = File(join(_target, option.fileName));
 
     try {
       onStep?.call(LanguageStep.download, null, 'Downloading ${option.name}…');
-      await _download('$releaseUrl/${option.archiveName}', archive,
+      final source = await _download(
+          '$releaseUrl/${option.archiveName}', archive,
           onProgress: (fraction, message) =>
               onStep?.call(LanguageStep.download, fraction, message));
 
@@ -131,12 +143,12 @@ class LanguageInstaller {
       await archive.delete();
 
       onStep?.call(LanguageStep.prepare, null, 'Preparing ${option.name}…');
-      if (await target.exists()) await target.delete();
-      await _copySentences(unpacked, target);
+      if (await prepared.exists()) await prepared.delete();
+      await _copySentences(unpacked, prepared, source);
       await unpacked.delete();
     } catch (e) {
       debugPrint('installing ${option.code} failed: $e');
-      for (final leftover in [archive, unpacked, target]) {
+      for (final leftover in [archive, unpacked, prepared]) {
         if (await leftover.exists()) {
           try {
             await leftover.delete();
@@ -148,18 +160,28 @@ class LanguageInstaller {
 
     if (directoryOverride != null) {
       // A test of the file work alone, against a scratch directory.
+      if (await target.exists()) await target.delete();
+      await prepared.rename(target.path);
       onStep?.call(LanguageStep.prepare, 1, '${option.name} installed');
       return;
     }
 
     onStep?.call(LanguageStep.attach, null, 'Opening ${option.name}…');
+    // Downloading again over a copy in use: the old one is let go only now
+    // that the new one is whole, so a failed download leaves it working.
+    final replacing = isInstalled(option.code);
+    if (replacing) await DatabaseHelper().detachLanguage(option.code);
+    if (await target.exists()) await target.delete();
+    await prepared.rename(target.path);
     await DatabaseHelper().attachLanguage(option.code);
+    // Indexed again from the new file rather than kept from the old.
+    if (replacing) await DatabaseHelper().forgetLanguageIndex(option.code);
     // Shown as well as installed. These are two different things in the
     // preferences, and leaving the second one out is why installing a
     // language beyond the first had no visible effect.
     activate(option.code);
 
-    await _reindex(onStep, changed: option.code);
+    await _reindex(onStep);
     onStep?.call(LanguageStep.wordList, 1, '${option.name} installed');
   }
 
@@ -168,8 +190,7 @@ class LanguageInstaller {
   /// Only the language that changed is indexed; the Pali index is left as it
   /// is. If a build started at launch is still running, this waits for it,
   /// and the message says so rather than sitting still.
-  static Future<void> _reindex(LanguageProgress? onStep,
-      {required String changed, bool removed = false}) async {
+  static Future<void> _reindex(LanguageProgress? onStep) async {
     void status() {
       final message = DatabaseHelper.indexStatus.value;
       if (message != null) onStep?.call(LanguageStep.indexing, null, message);
@@ -184,16 +205,62 @@ class LanguageInstaller {
     }
 
     onStep?.call(LanguageStep.wordList, null, 'Updating search suggestions…');
-    if (LegacyDataRetirement.wordListLanguages.contains(changed)) {
-      await LegacyDataRetirement.buildTranslationWordList(
-        await DatabaseHelper().database,
-        // Installing adds that language's words. Removing has to rebuild
-        // from the rest, since a word does not record where it came from.
-        languages: removed ? null : [changed],
-        replace: removed,
+    // Adds an installed language's words, or puts the list back without a
+    // removed one's; it works out which from what is installed.
+    await DatabaseHelper().updateTranslationWordLists(
         onProgress: (message) =>
-            onStep?.call(LanguageStep.wordList, null, message),
-      );
+            onStep?.call(LanguageStep.wordList, null, message));
+  }
+
+  /// Uses a copy already on the device instead of downloading it again:
+  /// shows it, and makes sure search and the suggestions cover it.
+  static Future<void> useLocal(String code, {LanguageProgress? onStep}) async {
+    activate(code);
+    await _reindex(onStep);
+    onStep?.call(LanguageStep.wordList, 1, '${nameOf(code)} ready');
+  }
+
+  /// What the release server says about a language's download, or null when
+  /// it cannot be reached.
+  static Future<LanguageSource?> onlineCopy(LanguageOption option) async {
+    try {
+      final response = await Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+      )).head('$releaseUrl/${option.archiveName}',
+          options: Options(followRedirects: true));
+      return LanguageSource.fromHeaders(response.headers);
+    } catch (e) {
+      debugPrint('could not check ${option.code} online: $e');
+      return null;
+    }
+  }
+
+  /// What was recorded about the download a language on the device came
+  /// from, or null for a copy installed before that was recorded.
+  static Future<LanguageSource?> deviceCopy(String code) async {
+    try {
+      final db = await DatabaseHelper().database;
+      final rows = await db.rawQuery(
+          "SELECT key, value FROM lang_$code.meta "
+          "WHERE key IN ('source_modified', 'source_size')");
+      final values = {
+        for (final row in rows) row['key'] as String: row['value'] as String?
+      };
+      if (values['source_modified'] == null) return null;
+      return LanguageSource(
+          values['source_modified'], int.tryParse(values['source_size'] ?? ''));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// When the copy on the device was installed, from its file.
+  static DateTime? installedOn(String code) {
+    try {
+      return File(join(_dir, 'lang_$code.db')).lastModifiedSync();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -252,14 +319,14 @@ class LanguageInstaller {
     // rather than treating it as one that was switched off.
     Prefs.knownLanguages =
         Prefs.knownLanguages.where((c) => c != code).toList();
-    await _reindex(onStep, changed: code, removed: true);
+    await _reindex(onStep);
     onStep?.call(LanguageStep.wordList, 1, 'Removed');
   }
 
   /// Streams the download to disk. Held in memory, the larger languages are
   /// well over a hundred megabytes, which a low-end phone may not have to
   /// spare.
-  static Future<void> _download(
+  static Future<LanguageSource> _download(
     String url,
     File target, {
     void Function(double? progress, String message)? onProgress,
@@ -281,6 +348,14 @@ class LanguageInstaller {
     if (response.statusCode != 200) {
       throw Exception('download failed with status ${response.statusCode}');
     }
+    final source = LanguageSource.fromHeaders(response.headers);
+    // A connection that drops can end a download early without an error.
+    // What arrived must be all the server said it would send.
+    final received = await target.length();
+    if (source.size != null && received != source.size) {
+      throw Exception('download incomplete: $received of ${source.size} bytes');
+    }
+    return source;
   }
 
   /// Unpacks the database out of the archive, in a background isolate and a
@@ -318,7 +393,8 @@ class LanguageInstaller {
   }
 
   /// Copies just the translated sentences into a database of their own.
-  static Future<void> _copySentences(File source, File target) async {
+  static Future<void> _copySentences(
+      File source, File target, LanguageSource download) async {
     final db = await openDatabase(target.path);
     try {
       await db.execute('''
@@ -337,8 +413,57 @@ class LanguageInstaller {
         WHERE translation IS NOT NULL AND translation <> ''
       ''');
       await db.execute('DETACH DATABASE src');
+      // Which download this came from, to compare with the one online, and
+      // a mark written last that the copy finished.
+      await db.execute(
+          'CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)');
+      await db.transaction((txn) async {
+        for (final entry in {
+          'source_modified': download.modified,
+          'source_size': download.size?.toString(),
+          'installed': DateTime.now().toUtc().toIso8601String(),
+        }.entries) {
+          await txn.rawInsert(
+              'INSERT INTO meta (key, value) VALUES (?, ?)',
+              [entry.key, entry.value]);
+        }
+        await txn.rawInsert(
+            "INSERT INTO meta (key, value) VALUES ('complete', '1')");
+      });
     } finally {
       await db.close();
     }
   }
+}
+
+/// A language download as the server describes it: when it was last
+/// changed, and its size.
+class LanguageSource {
+  /// The server's `Last-Modified`, kept as the text it sent so two can be
+  /// compared exactly.
+  final String? modified;
+  final int? size;
+
+  const LanguageSource(this.modified, this.size);
+
+  factory LanguageSource.fromHeaders(Headers headers) => LanguageSource(
+        headers.value('last-modified'),
+        int.tryParse(headers.value('content-length') ?? ''),
+      );
+
+  /// When it was last changed, or null if the server did not say.
+  DateTime? get date {
+    if (modified == null) return null;
+    try {
+      return HttpDate.parse(modified!);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The same download: same date and, where both are known, same size.
+  bool sameAs(LanguageSource other) =>
+      modified != null &&
+      modified == other.modified &&
+      (size == null || other.size == null || size == other.size);
 }

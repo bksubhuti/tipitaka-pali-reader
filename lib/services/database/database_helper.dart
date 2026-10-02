@@ -10,6 +10,7 @@ import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
+import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
 
@@ -60,6 +61,8 @@ class DatabaseHelper {
     _setupChain = helper.buildSentenceFtsIfNeeded(
           onProgress: (msg) => myLogger.i(msg),
     ).then((_) => helper.retireLegacyDataIfReady(
+          onProgress: (msg) => myLogger.i(msg),
+        )).then((_) => helper.updateTranslationWordLists(
           onProgress: (msg) => myLogger.i(msg),
         )).then((_) => helper.reclaimSpaceIfWorthwhile(
           onProgress: (msg) => myLogger.i(msg),
@@ -244,6 +247,18 @@ class DatabaseHelper {
   static Future<void> _attachLanguages(Database db, String dbPath) async {
     final codes = <String>[];
     try {
+      // A download or copy cut off part way, by the app being closed or the
+      // phone dying. Only ever unfinished: an install renames its file to
+      // the real name as its last step.
+      for (final leftover in Directory(dbPath)
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith(LanguageInstaller.unfinished))) {
+        try {
+          leftover.deleteSync();
+          myLogger.i('removed unfinished ${basename(leftover.path)}');
+        } catch (_) {}
+      }
       final entries = Directory(dbPath).listSync();
       final names = entries
           .whereType<File>()
@@ -257,10 +272,29 @@ class DatabaseHelper {
         try {
           await db.execute("ATTACH DATABASE ? AS lang_$code",
               [join(dbPath, name)]);
-          await db.rawQuery('SELECT count(*) FROM lang_$code.sentences LIMIT 1');
-          codes.add(code);
         } catch (e) {
           myLogger.e('could not attach language $code: $e');
+          continue;
+        }
+        final complete = await languageComplete(db, code);
+        if (complete == true) {
+          codes.add(code);
+          continue;
+        }
+        try {
+          await db.execute('DETACH DATABASE lang_$code');
+        } catch (_) {}
+        if (complete == false) {
+          // There, but with nothing in it, or an install that never
+          // finished. Reading it would show no translation and search none,
+          // as if installed. Removed, it is offered for download again.
+          try {
+            File(join(dbPath, name)).deleteSync();
+            myLogger.e('language $code was incomplete and has been removed');
+          } catch (e) {
+            myLogger.e('language $code is incomplete and could not be '
+                'removed: $e');
+          }
         }
       }
     } catch (e) {
@@ -286,6 +320,32 @@ class DatabaseHelper {
       myLogger.i('showing languages: ${Prefs.activeLanguages.join(", ")}');
     }
     myLogger.i('languages attached: ${codes.isEmpty ? "none" : codes.join(", ")}');
+  }
+
+  /// Whether an attached language file holds a whole translation.
+  ///
+  /// True when its sentences table has rows and, for a file installed with
+  /// the record of it, the install got to its end. False when either is
+  /// missing. Null when the file could not be asked at all, which says
+  /// nothing about it, so nothing is done to it.
+  static Future<bool?> languageComplete(Database db, String code) async {
+    try {
+      final rows = await db.rawQuery(
+          'SELECT EXISTS(SELECT 1 FROM lang_$code.sentences) AS n');
+      if ((rows.first['n'] as int? ?? 0) == 0) return false;
+      final meta = await db.rawQuery(
+          "SELECT count(*) AS n FROM lang_$code.sqlite_master "
+          "WHERE type = 'table' AND name = 'meta'");
+      // Files from before the record was kept have none; rows are all
+      // they can show.
+      if ((meta.first['n'] as int? ?? 0) == 0) return true;
+      final done = await db.rawQuery(
+          "SELECT value FROM lang_$code.meta WHERE key = 'complete'");
+      return done.isNotEmpty;
+    } catch (e) {
+      myLogger.e('could not check language $code: $e');
+      return null;
+    }
   }
 
   /// Builds the sentence-based search index if it is not there yet.
@@ -403,6 +463,30 @@ class DatabaseHelper {
     }
   }
 
+  /// Puts the installed languages' words into the search suggestions, and
+  /// takes out the words of any that have gone. Queued with the index work,
+  /// so it never runs alongside an install doing the same.
+  Future<void> updateTranslationWordLists({
+    void Function(String message)? onProgress,
+  }) =>
+      _serial(() async {
+        if (!sentenceDataAvailable) return;
+        await LegacyDataRetirement.ensureTranslationWordLists(await database,
+            onProgress: (message) {
+          indexStatus.value = message;
+          onProgress?.call(message);
+        });
+        indexStatus.value = null;
+      });
+
+  /// Takes a language out of search so it is indexed again from its file,
+  /// for when the file has been replaced by a fresh download.
+  Future<void> forgetLanguageIndex(String code) => _serial(() async {
+        final db = await database;
+        if (!await SentenceFtsBuilder.isBuilt(db)) return;
+        await SentenceFtsBuilder.removeLanguage(db, code);
+      });
+
   /// Attaches a newly installed language to the open database.
   ///
   /// Installing used to close the database and open it again to pick the
@@ -415,7 +499,10 @@ class DatabaseHelper {
         final db = await database;
         final path = join(Prefs.databaseDirPath, 'lang_$code.db');
         await db.execute('ATTACH DATABASE ? AS lang_$code', [path]);
-        await db.rawQuery('SELECT count(*) FROM lang_$code.sentences LIMIT 1');
+        if (await languageComplete(db, code) != true) {
+          await db.execute('DETACH DATABASE lang_$code');
+          throw Exception('the $code translation is incomplete');
+        }
         installedLanguages = [...installedLanguages, code]..sort();
         myLogger.i('language attached: $code');
       });

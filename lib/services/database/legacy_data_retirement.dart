@@ -216,7 +216,11 @@ class LegacyDataRetirement {
     // old path may have an English list built from the page HTML, and
     // clearing that to replace it with nothing would be a plain loss.
     if (codes.isEmpty) return;
-    if (replace) await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+    await _createWordLanguages(db);
+    if (replace) {
+      await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+      await db.rawDelete('DELETE FROM $_wordLanguages');
+    }
 
     for (final code in codes) {
       // Read a book at a time. One query for the whole translation pulled
@@ -267,8 +271,57 @@ class LegacyDataRetirement {
         }
       }
       if (pending > 0) await batch.commit(noResult: true);
+      // Recorded only once every word is written, so a build cut off part
+      // way reads as not done and is done again at the next start.
+      await db.rawInsert(
+          'INSERT OR IGNORE INTO $_wordLanguages (code) VALUES (?)', [code]);
       onProgress?.call('Added ${words.length} $code words');
     }
+  }
+
+  /// Which languages' words are in the suggestion list, each written once
+  /// all its words were. The words themselves cannot say where they came
+  /// from.
+  static const _wordLanguages = 'translation_word_languages';
+
+  static Future<void> _createWordLanguages(Database db) => db.execute(
+      'CREATE TABLE IF NOT EXISTS $_wordLanguages (code TEXT PRIMARY KEY)');
+
+  /// Brings the translation words into line with the installed languages.
+  ///
+  /// A reset leaves the language files in place but starts a fresh database,
+  /// whose suggestion list has none of their words; a build cut off part way
+  /// leaves some of them. Either way the language reads as installed while
+  /// its words are missing, so this checks what was actually completed rather
+  /// than whether a file is there, and adds what is not.
+  static Future<void> ensureTranslationWordLists(
+    Database db, {
+    void Function(String message)? onProgress,
+  }) async {
+    await _createWordLanguages(db);
+    final done = (await db.rawQuery('SELECT code FROM $_wordLanguages'))
+        .map((r) => r['code'] as String)
+        .toSet();
+    final wanted = DatabaseHelper.installedLanguages
+        .where(wordListLanguages.contains)
+        .toSet();
+    final gone = done.difference(wanted);
+    final missing = wanted.difference(done);
+    if (gone.isNotEmpty) {
+      // A language that has gone takes its words with it. The list cannot
+      // tell whose a word is, so the rest are put back from their files.
+      if (wanted.isEmpty) {
+        await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+        await db.rawDelete('DELETE FROM $_wordLanguages');
+      } else {
+        await buildTranslationWordList(db,
+            languages: wanted.toList(), onProgress: onProgress);
+      }
+      return;
+    }
+    if (missing.isEmpty) return;
+    await buildTranslationWordList(db,
+        languages: missing.toList(), replace: false, onProgress: onProgress);
   }
 
   static final _notLatin = RegExp(r'[^a-z-]+');
