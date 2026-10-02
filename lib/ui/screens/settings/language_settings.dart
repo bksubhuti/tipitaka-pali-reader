@@ -94,130 +94,172 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     }
   }
 
+  Future<bool> _confirmLeave() async {
+    final removing = _stepsTitle?.startsWith('Removing') ?? false;
+    final leave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: Colors.orange, size: 48),
+        title: Text(removing ? 'Removal in progress' : 'Install in progress'),
+        content: Text(
+          '${_stepsTitle ?? 'A translation'} is still under way.\n\n'
+          'If you leave, it carries on without showing its progress. '
+          'Quitting the app stops it; nothing is damaged, and it can be '
+          '${removing ? 'removed' : 'installed'} again afterwards.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Stay'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Leave anyway'),
+          ),
+        ],
+      ),
+    );
+    return leave ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final ordered = _ordered;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Translations')),
-      // On a wide window the list keeps to a readable width, centred. Full
-      // width put each language's name far across the window from its
-      // switch and buttons. The padding, not a narrower list, does it, so
-      // the whole window still scrolls it.
-      body: LayoutBuilder(
-        builder: (context, constraints) => ListView(
-          padding: EdgeInsets.symmetric(
-              horizontal: constraints.maxWidth > _maxWidth
-                  ? (constraints.maxWidth - _maxWidth) / 2
-                  : 0),
-          children: [
-            if (_steps != null) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 16, 16, 0),
-                child: Text(_stepsTitle ?? '',
-                    style: Theme.of(context).textTheme.titleMedium),
-              ),
-              LanguageSteps(state: _steps!),
-            ],
-            if (ordered.isNotEmpty) ...[
-              const _Heading('Installed'),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  'Switch a translation off to read the Pali alone. '
-                  'It stays on the device, so turning it back on costs nothing. '
-                  'Drag to change the order they appear in.',
+    // Leaving mid-install is safe, since nothing is given its real name
+    // until it is whole, but the steps go out of sight and a second install
+    // could be started over the first. So it asks, as the extension
+    // download does.
+    return PopScope(
+      canPop: _busy == null,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _confirmLeave() && mounted) Navigator.of(this.context).pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Translations')),
+        // On a wide window the list keeps to a readable width, centred. Full
+        // width put each language's name far across the window from its
+        // switch and buttons. The padding, not a narrower list, does it, so
+        // the whole window still scrolls it.
+        body: LayoutBuilder(
+          builder: (context, constraints) => ListView(
+            padding: EdgeInsets.symmetric(
+                horizontal: constraints.maxWidth > _maxWidth
+                    ? (constraints.maxWidth - _maxWidth) / 2
+                    : 0),
+            children: [
+              if (_steps != null) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 16, 16, 0),
+                  child: Text(_stepsTitle ?? '',
+                      style: Theme.of(context).textTheme.titleMedium),
                 ),
-              ),
-              ReorderableListView(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                // Our own handle, on the left. The default one added a second
-                // handle on the right on desktop.
-                buildDefaultDragHandles: false,
-                onReorder: (oldIndex, newIndex) {
-                  final list = [...ordered];
-                  if (newIndex > oldIndex) newIndex -= 1;
-                  list.insert(newIndex, list.removeAt(oldIndex));
-                  setState(() {
-                    // The full order, including the ones switched off, and the
-                    // reader's own list narrowed to what is shown.
-                    Prefs.knownLanguages = list;
-                    Prefs.activeLanguages =
-                        list.where(LanguageInstaller.isShown).toList();
-                  });
-                  context.read<ShownLanguagesProvider>().reordered();
-                },
-                children: [
-                  for (final (index, code) in ordered.indexed)
-                    _RowCard(
-                      key: ValueKey(code),
-                      index: index,
-                      child: ListTile(
-                        leading: ReorderableDragStartListener(
-                          index: index,
-                          child: const Icon(Icons.drag_handle),
-                        ),
-                        title: Text(_nameOf(code)),
-                        subtitle: Text(context
-                                .watch<ShownLanguagesProvider>()
-                                .isShown(code)
-                            ? 'Shown beneath the Pali'
-                            : 'On the device, not shown'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Switch(
-                              value: context
-                                  .watch<ShownLanguagesProvider>()
-                                  .isShown(code),
-                              onChanged: _busy == code
-                                  ? null
-                                  : (on) => setState(() => context
-                                      .read<ShownLanguagesProvider>()
-                                      .setLanguageShown(code, on)),
-                            ),
-                            if (_busy != code)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                tooltip: 'Remove from the device',
-                                onPressed: () => _remove(code),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-            const _Heading('Available to install'),
-            for (final option in LanguageInstaller.available)
-              if (!_installed.contains(option.code))
-                _RowCard(
-                  child: ListTile(
-                    title: Text(option.name),
-                    trailing: _busy == option.code
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : IconButton(
-                            icon: const Icon(Icons.download_outlined),
-                            tooltip: 'Install',
-                            onPressed:
-                                _busy == null ? () => _install(option) : null,
-                          ),
+                LanguageSteps(state: _steps!),
+              ],
+              if (ordered.isNotEmpty) ...[
+                const _Heading('Installed'),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'Switch a translation off to read the Pali alone. '
+                    'It stays on the device, so turning it back on costs nothing. '
+                    'Drag to change the order they appear in.',
                   ),
                 ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Translations come from the ePitaka project. They are produced '
-                'with machine assistance and each sentence carries a confidence '
-                'rating, so they are a reading aid rather than a published '
-                'translation.',
+                ReorderableListView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  // Our own handle, on the left. The default one added a second
+                  // handle on the right on desktop.
+                  buildDefaultDragHandles: false,
+                  onReorder: (oldIndex, newIndex) {
+                    final list = [...ordered];
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    list.insert(newIndex, list.removeAt(oldIndex));
+                    setState(() {
+                      // The full order, including the ones switched off, and the
+                      // reader's own list narrowed to what is shown.
+                      Prefs.knownLanguages = list;
+                      Prefs.activeLanguages =
+                          list.where(LanguageInstaller.isShown).toList();
+                    });
+                    context.read<ShownLanguagesProvider>().reordered();
+                  },
+                  children: [
+                    for (final (index, code) in ordered.indexed)
+                      _RowCard(
+                        key: ValueKey(code),
+                        index: index,
+                        child: ListTile(
+                          leading: ReorderableDragStartListener(
+                            index: index,
+                            child: const Icon(Icons.drag_handle),
+                          ),
+                          title: Text(_nameOf(code)),
+                          subtitle: Text(context
+                                  .watch<ShownLanguagesProvider>()
+                                  .isShown(code)
+                              ? 'Shown beneath the Pali'
+                              : 'On the device, not shown'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Switch(
+                                value: context
+                                    .watch<ShownLanguagesProvider>()
+                                    .isShown(code),
+                                onChanged: _busy == code
+                                    ? null
+                                    : (on) => setState(() => context
+                                        .read<ShownLanguagesProvider>()
+                                        .setLanguageShown(code, on)),
+                              ),
+                              if (_busy != code)
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: 'Remove from the device',
+                                  onPressed: () => _remove(code),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+              const _Heading('Available to install'),
+              for (final option in LanguageInstaller.available)
+                if (!_installed.contains(option.code))
+                  _RowCard(
+                    child: ListTile(
+                      title: Text(option.name),
+                      trailing: _busy == option.code
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : IconButton(
+                              icon: const Icon(Icons.download_outlined),
+                              tooltip: 'Install',
+                              onPressed:
+                                  _busy == null ? () => _install(option) : null,
+                            ),
+                    ),
+                  ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Translations come from the ePitaka project. They are produced '
+                  'with machine assistance and each sentence carries a confidence '
+                  'rating, so they are a reading aid rather than a published '
+                  'translation.',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
