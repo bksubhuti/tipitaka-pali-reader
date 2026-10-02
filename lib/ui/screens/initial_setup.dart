@@ -318,8 +318,9 @@ class _InitialSetupState extends State<InitialSetup> {
 
     // With the sentence data present, translations are installed as language
     // files rather than as prebuilt extensions, so offer that instead.
+    // Asked whether languages are on the device or not: after a reset they
+    // are, and the reader is still asked, and told which ones are there.
     if (DatabaseHelper.sentenceDataAvailable &&
-        DatabaseHelper.installedLanguages.isEmpty &&
         !Prefs.languageChoiceMade &&
         context.mounted) {
       await Navigator.push(

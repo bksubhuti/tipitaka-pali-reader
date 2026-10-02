@@ -37,7 +37,8 @@ class _HomeState extends State<Home> {
 
   Future<void> _offerTranslation() async {
     if (!DatabaseHelper.sentenceDataAvailable) return;
-    if (DatabaseHelper.installedLanguages.isNotEmpty) return;
+    // Not skipped when a language is already on the device: a reset keeps
+    // the files, and the reader is still asked, and shown which are there.
     if (Prefs.languageChoiceMade) return;
     if (!mounted) return;
     await Navigator.of(context).push(
