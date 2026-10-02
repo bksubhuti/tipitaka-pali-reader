@@ -45,9 +45,19 @@ class ReaderViewController extends ChangeNotifier {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKey);
     _shownLanguages?.removeListener(_onShownLanguagesChanged);
-    // Closing the book stops it being read.
+    // Closing the book stops it being read, but not from in here. This runs
+    // while the tab's widgets are being taken down and the tree is locked;
+    // stopping tells the play buttons and the highlight to redraw, which is
+    // not allowed then, and closing a tab mid-reading crashed. It stops
+    // straight after, in the same frame, unless something else has started
+    // reading in the meantime.
     final tts = _tts;
-    if (tts != null && tts.bookUuid == bookUuid) tts.stop();
+    final closing = bookUuid;
+    if (tts != null && tts.bookUuid == closing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (tts.bookUuid == closing) tts.stop();
+      });
+    }
     super.dispose();
     _mounted = false;
   }
