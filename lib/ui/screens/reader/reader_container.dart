@@ -38,9 +38,16 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
   // With the sentence data, translations are language files chosen in
   // Settings › Translations; the old English extension is not offered.
-  Future<bool> _hasTranslationExtension() async =>
-      DatabaseHelper.sentenceDataAvailable ||
-      await DatabaseHelper.hasTranslations();
+  /// Whether to leave out the old "Install English Translations" button.
+  ///
+  /// The database is opened first. Asked before it was, the sentence data
+  /// read as absent, since it is attached as the database opens, and the
+  /// button stayed on the home screen of a reader with English installed.
+  Future<bool> _hasTranslationExtension() async {
+    await DatabaseHelper().database;
+    return DatabaseHelper.sentenceDataAvailable ||
+        await DatabaseHelper.hasTranslations();
+  }
 
   @override
   void initState() {
