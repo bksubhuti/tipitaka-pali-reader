@@ -20,6 +20,13 @@
 ///   * `<span class="palitext">` and `<span class="translation_text">` mark
 ///     the halves of a bilingual page, which the reader already styles and
 ///     can hide independently. Only written when a translation is present.
+///     Each translation carries its language, `lang="en"`;
+///   * `<a name="s12_3"></a>` marks where sentence 3 of paragraph 12 begins.
+///     Reading aloud follows these to highlight the sentence being spoken
+///     and to start at the one the reader tapped. Being an empty anchor, it
+///     passes through script conversion and the find-in-book pattern, which
+///     already steps over anchors between words; the reader removes it
+///     before display.
 ///
 /// Nothing here touches Flutter or the database, so it can be tested on its
 /// own, which matters: a page that composes wrongly is hard to spot by eye and
@@ -72,6 +79,11 @@ class PageSentence {
 
   final GlueState glue;
 
+  /// The heading level when this sentence is a heading: 1 to 7 from
+  /// ePitaka's headings, 1 the largest, or 0 for a title line at the head of
+  /// a book. Null for ordinary text.
+  final int? headingLevel;
+
   /// Page beginnings that fall inside this sentence, in word order.
   final List<PageAnchor> anchors;
 
@@ -86,6 +98,7 @@ class PageSentence {
     required this.pali,
     this.paraNum,
     this.glue = GlueState.paragraph,
+    this.headingLevel,
     this.anchors = const [],
     this.translations = const [],
   });
@@ -104,9 +117,13 @@ class PageComposer {
   ///
   /// [continuesFromPreviousPage] opens the first paragraph as a continuation,
   /// which is what a page beginning mid-sentence needs.
+  ///
+  /// [languages] names the language of each translation, in the same order
+  /// as [PageSentence.translations].
   static String compose(
     List<PageSentence> sentences, {
     bool continuesFromPreviousPage = false,
+    List<String> languages = const [],
   }) {
     if (sentences.isEmpty) return '';
 
@@ -124,9 +141,12 @@ class PageComposer {
         if (first && continuesFromPreviousPage && glue == GlueState.paragraph) {
           glue = GlueState.continues;
         }
+        final heading = sentence.headingLevel;
         buffer
           ..write('<p class="')
-          ..write(_classFor[glue] ?? 'bodytext')
+          ..write(heading != null
+              ? headingClass(heading)
+              : _classFor[glue] ?? 'bodytext')
           ..write('">');
         if (sentence.paraNum != null && sentence.paraNum!.isNotEmpty) {
           // Anchor only, no visible number. ePitaka's own text already opens
@@ -146,7 +166,10 @@ class PageComposer {
         buffer.write(' ');
       }
 
-      buffer.write(_sentenceHtml(sentence));
+      buffer
+        ..write('<a name="${sentenceMarker(sentence.paraId, sentence.lineId)}">'
+            '</a>')
+        ..write(_sentenceHtml(sentence, languages));
       previousHadTranslation =
           sentence.translations.any((t) => t.isNotEmpty);
       first = false;
@@ -168,6 +191,16 @@ class PageComposer {
   /// would take away content the reader never asked to lose.
   static final _variantReading =
       RegExp(r'\[[^\[\]]*\([^()]*\)\s*\]');
+
+  /// The class a heading of [level] is written with, `heading1` to
+  /// `heading7`, or `heading0` for a title line. The reader sizes them.
+  static String headingClass(int level) => 'heading${level.clamp(0, 7)}';
+
+  /// The name of the anchor marking where a sentence begins.
+  static String sentenceMarker(int paraId, int lineId) => 's${paraId}_$lineId';
+
+  /// Matches every sentence marker, for removing them before display.
+  static final sentenceMarkers = RegExp(r'<a name="s\d+_\d+"></a>');
 
   static String markVariantReadings(String html) => html.replaceAllMapped(
       _variantReading, (m) => '<span class="note">${m.group(0)}</span>');
@@ -222,7 +255,7 @@ class PageComposer {
   ///
   /// Order is the caller's: Pali first, then each translation in the order the
   /// reader has chosen in settings.
-  static String _sentenceHtml(PageSentence sentence) {
+  static String _sentenceHtml(PageSentence sentence, List<String> languages) {
     final pali = _withAnchors(sentence);
     if (sentence.translations.isEmpty) return pali;
 
@@ -230,10 +263,13 @@ class PageComposer {
       ..write('<span class="palitext">')
       ..write(pali)
       ..write('</span>');
-    for (final translation in sentence.translations) {
+    for (var i = 0; i < sentence.translations.length; i++) {
+      final translation = sentence.translations[i];
       if (translation.isEmpty) continue;
+      buffer.write('<br><span class="translation_text"');
+      if (i < languages.length) buffer.write(' lang="${languages[i]}"');
       buffer
-        ..write('<br><span class="translation_text">')
+        ..write('>')
         ..write(translation)
         ..write('</span>');
     }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Builds the search index from ePitaka's sentences, on the device.
@@ -29,6 +30,19 @@ class SentenceFtsBuilder {
   /// Roughly a printed page, which is the reach distance search expects.
   static const targetWords = 200;
 
+  /// Rows written per batch commit.
+  ///
+  /// Small on purpose. TPR's own indexing has been through this before: on
+  /// Android, large batches during a heavy build lost text from the index,
+  /// and the hand-written download service settled on 50 (later 200) with a
+  /// frame let through after each commit. This follows it.
+  static const writesPerCommit = 50;
+
+  /// Bumped when the way the index is built changes enough that an existing
+  /// one must be rebuilt. An index without it was built with large batches
+  /// and may be missing text while reporting itself complete.
+  static const format = '2';
+
   /// Paragraphs of overlap between consecutive units.
   static const overlapParagraphs = 1;
 
@@ -52,13 +66,60 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_unit USING FTS5(
   content = ''
 );''';
 
+  /// The translation index keeps vowel signs and other marks inside words.
+  ///
+  /// By default the tokenizer counts a mark as a gap between words, which
+  /// is harmless for Pali in Roman letters but takes Myanmar, Thai, Khmer,
+  /// Lao, Sinhala and Hindi apart: စကားစမြည် was stored as the letters
+  /// စ က စ မ ည with its vowels gone. A search still matched that run of
+  /// letters, loosely, but no word in those languages could be suggested,
+  /// since none was stored whole. English is tokenized as before.
   static const _createTranslation = '''
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
+  content,
+  sutta_name,
+  tokenize = "porter unicode61 categories 'L* N* Co M*'",
+  content = ''
+);''';
+
+  /// The same with the default tokenizer, for an SQLite too old to take the
+  /// option. The app bundles one that does; this is only a fallback.
+  static const _createTranslationPlain = '''
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_translation_unit USING FTS5(
   content,
   sutta_name,
   tokenize = 'porter',
   content = ''
 );''';
+
+  /// Bumped when the translation index must be rebuilt on its own, without
+  /// touching the Pali one. '2' keeps marks inside words.
+  static const translationFormat = '2';
+
+  static Future<void> _createTranslationIndex(Database db) async {
+    try {
+      await db.execute(_createTranslation);
+    } catch (e) {
+      debugPrint('translation index without marks in words: $e');
+      await db.execute(_createTranslationPlain);
+    }
+  }
+
+  /// Whether the translation index was built the current way.
+  static Future<bool> translationIndexCurrent(Database db) async {
+    try {
+      final rows = await db.rawQuery(
+          "SELECT value FROM search_meta WHERE key = 'translation_format'");
+      return rows.isNotEmpty && rows.first['value'] == translationFormat;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _recordTranslationFormat(Database db) => db.rawInsert(
+      "INSERT OR REPLACE INTO search_meta (key, value) "
+      "VALUES ('translation_format', ?)",
+      [translationFormat]);
 
   /// What a contentless index cannot answer: where a unit is, and which
   /// sentences it was made of. Small, because it is integers and short ids
@@ -123,18 +184,222 @@ CREATE TABLE IF NOT EXISTS search_meta (
     if (expected <= 0) return false;
 
     final rows = await db.rawQuery('SELECT count(*) AS n FROM search_unit');
-    return (rows.first['n'] as int) >= expected;
+    if ((rows.first['n'] as int) < expected) return false;
+
+    // Built the current way, not merely finished.
+    final built = await db.rawQuery(
+        "SELECT value FROM search_meta WHERE key = 'format'");
+    return built.isNotEmpty && built.first['value'] == format;
   }
 
   /// The languages the translation index was built from, in order.
+  ///
+  /// Read from `search_meta`, which is written only once a language has been
+  /// indexed to the end, so one cut off part way reads as not indexed and is
+  /// done again. An index from before that record existed falls back to the
+  /// languages its rows name.
   static Future<List<String>> indexedLanguages(Database db) async {
     try {
+      final meta = await db.rawQuery(
+          "SELECT value FROM search_meta WHERE key = 'languages'");
+      if (meta.isNotEmpty) {
+        final value = meta.first['value'] as String? ?? '';
+        return value.isEmpty ? const [] : (value.split(',')..sort());
+      }
       final rows = await db.rawQuery(
           'SELECT DISTINCT lang FROM search_translation_unit ORDER BY lang');
       return rows.map((r) => r['lang'] as String).toList();
     } catch (_) {
       return const [];
     }
+  }
+
+  static Future<void> _recordLanguages(
+      Database db, List<String> languages) async {
+    final sorted = [...languages]..sort();
+    await db.rawInsert(
+        "INSERT OR REPLACE INTO search_meta (key, value) "
+        "VALUES ('languages', ?)",
+        [sorted.join(',')]);
+  }
+
+  /// Indexes one language against the units already built.
+  ///
+  /// Installing a language used to rebuild the whole index, Pali included,
+  /// which is minutes of work for something that does not change the Pali at
+  /// all. A unit records which paragraphs of which ePitaka book it covers, so
+  /// a translation can be laid over the same units on its own.
+  ///
+  /// The text is joined the way [UnitText.translation] rebuilds it for the
+  /// result list, paragraph range by paragraph range, so the highlight and
+  /// the page a result opens on find the same string that was indexed.
+  ///
+  /// Safe to repeat. Rows a previous, interrupted run left for this language
+  /// are taken off first; the contentless index keeps their terms, but
+  /// nothing joins to them any more, so they are never returned.
+  static Future<int> addLanguage(
+    Database db,
+    String code, {
+    void Function(String message)? onProgress,
+  }) async {
+    final units = await db.rawQuery(
+        'SELECT id, epi_book, start_para, end_para FROM search_unit '
+        'ORDER BY epi_book, id');
+    final byBook = <String, List<Map<String, Object?>>>{};
+    for (final unit in units) {
+      byBook.putIfAbsent(unit['epi_book'] as String, () => []).add(unit);
+    }
+
+    await db.rawDelete(
+        'DELETE FROM search_translation_unit WHERE lang = ?', [code]);
+    // Row numbers carry on from the highest ever used, including rows left
+    // behind in the index by an earlier run, which a contentless table will
+    // not let go of.
+    final lastIndexed = Sqflite.firstIntValue(await db
+            .rawQuery('SELECT max(rowid) FROM fts_translation_unit')) ??
+        0;
+    final lastMapped = Sqflite.firstIntValue(await db
+            .rawQuery('SELECT max(rowid_) FROM search_translation_unit')) ??
+        0;
+    var rowId = lastIndexed > lastMapped ? lastIndexed : lastMapped;
+
+    var indexed = 0;
+    var done = 0;
+    for (final entry in byBook.entries) {
+      done++;
+      final read = await readParagraphs(
+          db, 'lang_$code.sentences', 'translation', entry.key);
+      if (read.isNotEmpty) {
+        // Paragraph texts in order, so each unit takes a contiguous run.
+        final paras = [for (final (para, _) in read) para];
+        final texts = [for (final (_, text) in read) text];
+
+        var batch = db.batch();
+        var pending = 0;
+        for (final unit in entry.value) {
+          final start = unit['start_para'] as int;
+          final end = unit['end_para'] as int;
+          final buffer = StringBuffer();
+          for (var k = _firstAtOrAfter(paras, start);
+              k < paras.length && paras[k] <= end;
+              k++) {
+            if (buffer.isNotEmpty) buffer.write(' ');
+            buffer.write(texts[k]);
+          }
+          if (buffer.isEmpty) continue;
+          rowId++;
+          batch.insert('fts_translation_unit', {
+            'rowid': rowId,
+            'content': buffer.toString(),
+            'sutta_name': '',
+          });
+          batch.insert('search_translation_unit', {
+            'rowid_': rowId,
+            'unit_id': unit['id'],
+            'lang': code,
+          });
+          indexed++;
+          if (++pending >= writesPerCommit) {
+            await batch.commit(noResult: true);
+            await Future.delayed(Duration.zero);
+            batch = db.batch();
+            pending = 0;
+          }
+        }
+        if (pending > 0) await batch.commit(noResult: true);
+      }
+
+      if (onProgress != null && done % 2 == 0) {
+        onProgress('Indexing $code for search: '
+            '${(done / byBook.length * 100).round()}%');
+      }
+    }
+
+    final now = await indexedLanguages(db);
+    await _recordLanguages(db, {...now, code}.toList());
+    onProgress?.call('Indexed $code for search');
+    return indexed;
+  }
+
+  /// Takes one language out of search, at once.
+  ///
+  /// A contentless index cannot delete rows, but it does not need to: a
+  /// translation hit is only returned through its row in
+  /// `search_translation_unit`, so removing those is enough. The terms left
+  /// in the index cost a little space until the next full build, and nothing
+  /// else.
+  static Future<void> removeLanguage(Database db, String code) async {
+    await db.rawDelete(
+        'DELETE FROM search_translation_unit WHERE lang = ?', [code]);
+    final now = await indexedLanguages(db);
+    await _recordLanguages(db, now.where((c) => c != code).toList());
+  }
+
+  /// Rebuilds only the translation half of the index, for [languages].
+  ///
+  /// What removing a language needs: a contentless index cannot delete one
+  /// language's rows, but the translation half can be replaced without
+  /// touching the Pali, which is most of the work of a full build.
+  static Future<void> rebuildTranslations(
+    Database db,
+    List<String> languages, {
+    void Function(String message)? onProgress,
+  }) async {
+    await db.execute('DROP TABLE IF EXISTS fts_translation_unit;');
+    await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
+    await _createTranslationIndex(db);
+    await db.execute(_createTranslationUnit);
+    // Recorded empty, then each language as it finishes. Cut off part way,
+    // the next start finds the rest missing and adds them; the format is
+    // already the new one, so it does not start over.
+    await _recordLanguages(db, const []);
+    await _recordTranslationFormat(db);
+    for (final code in languages) {
+      await addLanguage(db, code, onProgress: onProgress);
+    }
+  }
+
+  /// One book's paragraphs from [table], each as its sentences' [column]
+  /// joined in line order and cleaned, in paragraph order. Paragraphs that
+  /// come out empty are left out.
+  ///
+  /// Read a sentence at a time and joined here. Having SQLite join them
+  /// (`group_concat ... ORDER BY`) was tried and measured slower, and it
+  /// needs SQLite 3.44, which is more than every device can be counted on
+  /// for.
+  static Future<List<(int, String)>> readParagraphs(
+      Database db, String table, String column, String book) async {
+    final rows = await db.rawQuery(
+      'SELECT para_id, $column AS text FROM $table WHERE book_id = ? '
+      'ORDER BY para_id, line_id',
+      [book],
+    );
+    final result = <(int, String)>[];
+    for (final row in rows) {
+      final text = clean(row['text'] as String? ?? '');
+      if (text.isEmpty) continue;
+      final para = row['para_id'] as int;
+      if (result.isNotEmpty && result.last.$1 == para) {
+        result[result.length - 1] = (para, '${result.last.$2} $text');
+      } else {
+        result.add((para, text));
+      }
+    }
+    return result;
+  }
+
+  static int _firstAtOrAfter(List<int> sorted, int value) {
+    var low = 0;
+    var high = sorted.length;
+    while (low < high) {
+      final mid = (low + high) >> 1;
+      if (sorted[mid] < value) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low;
   }
 
   /// Builds the index. Existing tables are replaced, so a rerun is safe.
@@ -155,7 +420,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.execute('DROP TABLE IF EXISTS search_translation_unit;');
     await db.execute('DROP TABLE IF EXISTS search_meta;');
     await db.execute(_createPali);
-    await db.execute(_createTranslation);
+    await _createTranslationIndex(db);
     await db.execute(_createUnit);
     await db.execute(_createTranslationUnit);
     await db.execute(_createMeta);
@@ -197,26 +462,12 @@ CREATE TABLE IF NOT EXISTS search_meta (
         continue;
       }
 
-      final sentences = await db.rawQuery(
-        'SELECT para_id, pali FROM epi.sentences WHERE book_id = ? '
-        'ORDER BY para_id, line_id',
-        [book],
-      );
-      if (sentences.isEmpty) continue;
-
-      // group sentences into paragraphs, keeping paragraph order
-      final paragraphs = <int, StringBuffer>{};
+      final paragraphs = <int, String>{};
       final order = <int>[];
-      for (final row in sentences) {
-        final para = row['para_id'] as int;
-        final text = _clean(row['pali'] as String? ?? '');
-        if (text.isEmpty) continue;
-        final buffer = paragraphs.putIfAbsent(para, () {
-          order.add(para);
-          return StringBuffer();
-        });
-        if (buffer.isNotEmpty) buffer.write(' ');
-        buffer.write(text);
+      for (final (para, text)
+          in await readParagraphs(db, 'epi.sentences', 'pali', book)) {
+        paragraphs[para] = text;
+        order.add(para);
       }
       if (order.isEmpty) continue;
 
@@ -228,16 +479,9 @@ CREATE TABLE IF NOT EXISTS search_meta (
       for (final code in languages) {
         final map = <int, String>{};
         try {
-          final rows = await db.rawQuery(
-            'SELECT para_id, translation FROM lang_$code.sentences '
-            'WHERE book_id = ? ORDER BY para_id, line_id',
-            [book],
-          );
-          for (final row in rows) {
-            final text = _clean(row['translation'] as String? ?? '');
-            if (text.isEmpty) continue;
-            final para = row['para_id'] as int;
-            map[para] = map.containsKey(para) ? '${map[para]} $text' : text;
+          for (final (para, text) in await readParagraphs(
+              db, 'lang_$code.sentences', 'translation', book)) {
+            map[para] = text;
           }
         } catch (_) {
           // A language that will not answer is left out of the index.
@@ -256,7 +500,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
         var j = i;
         final content = StringBuffer();
         while (j < order.length && (j == i || words < targetWords)) {
-          final text = paragraphs[order[j]]!.toString();
+          final text = paragraphs[order[j]]!;
           if (content.isNotEmpty) content.write(' ');
           content.write(text);
           words += _countWords(text);
@@ -278,7 +522,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
             map.write(',$offset:${paraPage.tprPage}');
             lastPage = paraPage.tprPage;
           }
-          offset += _countWords(paragraphs[order[k]]!.toString());
+          offset += _countWords(paragraphs[order[k]]!);
         }
 
         final text = content.toString();
@@ -324,8 +568,11 @@ CREATE TABLE IF NOT EXISTS search_meta (
         }
 
         indexed++;
-        if (++pending >= 300) {
+        if (++pending >= writesPerCommit) {
           await batch.commit(noResult: true);
+          // Let a frame through between batches, as the old download
+          // service did, so the screen keeps moving during a long build.
+          await Future.delayed(Duration.zero);
           batch = db.batch();
           pending = 0;
         }
@@ -336,7 +583,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
       }
       if (pending > 0) await batch.commit(noResult: true);
 
-      if (onProgress != null && done % 10 == 0) {
+      if (onProgress != null && done % 2 == 0) {
         onProgress('Building search index: '
             '${(done / books.length * 100).round()}%');
       }
@@ -346,6 +593,11 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.rawInsert(
         "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('units', ?)",
         ['$unitId']);
+    await db.rawInsert(
+        "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('format', ?)",
+        [format]);
+    await _recordTranslationFormat(db);
+    await _recordLanguages(db, languages);
 
     onProgress?.call('Search index built');
     return indexed;
@@ -396,8 +648,80 @@ CREATE TABLE IF NOT EXISTS search_meta (
   static final _tag = RegExp(r'<[^>]*>');
   static final _space = RegExp(r'\s+');
 
-  static String _clean(String pali) =>
+  @visibleForTesting
+  static String clean(String pali) {
+    final untagged = pali.contains('<') ? _replaceTags(pali) : pali;
+    return _isClean(untagged)
+        ? untagged
+        : untagged.replaceAll(_space, ' ').trim();
+  }
+
+  /// Tags to spaces, runs of white space to one space, trimmed: what [clean]
+  /// does, written as the two patterns it used to be.
+  ///
+  /// The patterns cost most of a build: 11 of 13 seconds of reading the
+  /// canon went on them, against under 2 for the queries. So [clean] takes
+  /// tags out with a plain loop and leaves the text alone when its spacing
+  /// is already single, which it nearly always is. A test runs both on every
+  /// sentence of the real data and finds no difference.
+  @visibleForTesting
+  static String cleanByPattern(String pali) =>
       pali.replaceAll(_tag, ' ').replaceAll(_space, ' ').trim();
+
+  /// Each tag to a space, exactly as `<[^>]*>` replaces them: from a `<` to
+  /// the first `>` after it. A `<` with no `>` after it is left as it is.
+  static String _replaceTags(String text) {
+    final buffer = StringBuffer();
+    var i = 0;
+    while (i < text.length) {
+      final open = text.indexOf('<', i);
+      if (open < 0) break;
+      final close = text.indexOf('>', open + 1);
+      if (close < 0) break;
+      buffer
+        ..write(text.substring(i, open))
+        ..write(' ');
+      i = close + 1;
+    }
+    buffer.write(text.substring(i));
+    return buffer.toString();
+  }
+
+  /// True when [cleanByPattern] would return [text] unchanged: no tag, no
+  /// white space at either end, and none but single plain spaces inside.
+  static bool _isClean(String text) {
+    if (text.isEmpty) return true;
+    var previousSpace = true; // so a space at the start counts as a run
+    for (var i = 0; i < text.length; i++) {
+      final unit = text.codeUnitAt(i);
+      if (unit == 0x3C) return false; // '<'
+      if (unit == 0x20) {
+        if (previousSpace) return false;
+        previousSpace = true;
+      } else if (_isOtherSpace(unit)) {
+        return false;
+      } else {
+        previousSpace = false;
+      }
+    }
+    return !previousSpace; // a space at the end
+  }
+
+  /// White space other than the plain space, as `\s` in a Dart pattern
+  /// matches it, and 0x85, which `\s` does not match but `trim` removes.
+  /// Counting that one too only sends such text the long way round.
+  static bool _isOtherSpace(int unit) =>
+      (unit >= 0x09 && unit <= 0x0D) ||
+      unit == 0x85 ||
+      unit == 0xA0 ||
+      unit == 0x1680 ||
+      (unit >= 0x2000 && unit <= 0x200A) ||
+      unit == 0x2028 ||
+      unit == 0x2029 ||
+      unit == 0x202F ||
+      unit == 0x205F ||
+      unit == 0x3000 ||
+      unit == 0xFEFF;
 
   /// Words of a phrase, punctuation and case removed.
   ///

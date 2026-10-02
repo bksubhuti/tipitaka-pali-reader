@@ -10,6 +10,7 @@ import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
+import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
 
@@ -60,6 +61,8 @@ class DatabaseHelper {
     _setupChain = helper.buildSentenceFtsIfNeeded(
           onProgress: (msg) => myLogger.i(msg),
     ).then((_) => helper.retireLegacyDataIfReady(
+          onProgress: (msg) => myLogger.i(msg),
+        )).then((_) => helper.updateTranslationWordLists(
           onProgress: (msg) => myLogger.i(msg),
         )).then((_) => helper.reclaimSpaceIfWorthwhile(
           onProgress: (msg) => myLogger.i(msg),
@@ -244,6 +247,18 @@ class DatabaseHelper {
   static Future<void> _attachLanguages(Database db, String dbPath) async {
     final codes = <String>[];
     try {
+      // A download or copy cut off part way, by the app being closed or the
+      // phone dying. Only ever unfinished: an install renames its file to
+      // the real name as its last step.
+      for (final leftover in Directory(dbPath)
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith(LanguageInstaller.unfinished))) {
+        try {
+          leftover.deleteSync();
+          myLogger.i('removed unfinished ${basename(leftover.path)}');
+        } catch (_) {}
+      }
       final entries = Directory(dbPath).listSync();
       final names = entries
           .whereType<File>()
@@ -257,10 +272,29 @@ class DatabaseHelper {
         try {
           await db.execute("ATTACH DATABASE ? AS lang_$code",
               [join(dbPath, name)]);
-          await db.rawQuery('SELECT count(*) FROM lang_$code.sentences LIMIT 1');
-          codes.add(code);
         } catch (e) {
           myLogger.e('could not attach language $code: $e');
+          continue;
+        }
+        final complete = await languageComplete(db, code);
+        if (complete == true) {
+          codes.add(code);
+          continue;
+        }
+        try {
+          await db.execute('DETACH DATABASE lang_$code');
+        } catch (_) {}
+        if (complete == false) {
+          // There, but with nothing in it, or an install that never
+          // finished. Reading it would show no translation and search none,
+          // as if installed. Removed, it is offered for download again.
+          try {
+            File(join(dbPath, name)).deleteSync();
+            myLogger.e('language $code was incomplete and has been removed');
+          } catch (e) {
+            myLogger.e('language $code is incomplete and could not be '
+                'removed: $e');
+          }
         }
       }
     } catch (e) {
@@ -275,9 +309,15 @@ class DatabaseHelper {
     // This also repairs the older fault where the first-run screen wrote a
     // single language and nothing ever added to it, leaving a second install
     // on disk, attached, and invisible.
+    //
+    // Not before the reader has made the translation choice, though. A reset
+    // clears the preferences but keeps the language files, so every one of
+    // them reads as just appeared; switching them all on showed languages
+    // the reader had not asked for. The choice screen offers them instead,
+    // and shows the ones chosen.
     final known = Prefs.knownLanguages;
     final fresh = codes.where((c) => !known.contains(c)).toList();
-    if (fresh.isNotEmpty) {
+    if (fresh.isNotEmpty && Prefs.languageChoiceMade) {
       Prefs.knownLanguages = [...known, ...fresh];
       Prefs.activeLanguages = [
         ...Prefs.activeLanguages.where(codes.contains),
@@ -286,6 +326,32 @@ class DatabaseHelper {
       myLogger.i('showing languages: ${Prefs.activeLanguages.join(", ")}');
     }
     myLogger.i('languages attached: ${codes.isEmpty ? "none" : codes.join(", ")}');
+  }
+
+  /// Whether an attached language file holds a whole translation.
+  ///
+  /// True when its sentences table has rows and, for a file installed with
+  /// the record of it, the install got to its end. False when either is
+  /// missing. Null when the file could not be asked at all, which says
+  /// nothing about it, so nothing is done to it.
+  static Future<bool?> languageComplete(Database db, String code) async {
+    try {
+      final rows = await db.rawQuery(
+          'SELECT EXISTS(SELECT 1 FROM lang_$code.sentences) AS n');
+      if ((rows.first['n'] as int? ?? 0) == 0) return false;
+      final meta = await db.rawQuery(
+          "SELECT count(*) AS n FROM lang_$code.sqlite_master "
+          "WHERE type = 'table' AND name = 'meta'");
+      // Files from before the record was kept have none; rows are all
+      // they can show.
+      if ((meta.first['n'] as int? ?? 0) == 0) return true;
+      final done = await db.rawQuery(
+          "SELECT value FROM lang_$code.meta WHERE key = 'complete'");
+      return done.isNotEmpty;
+    } catch (e) {
+      myLogger.e('could not check language $code: $e');
+      return null;
+    }
   }
 
   /// Builds the sentence-based search index if it is not there yet.
@@ -318,12 +384,34 @@ class DatabaseHelper {
     return ((rows.first['n'] as int?) ?? 0) > 0;
   }
 
+  /// Index work runs one job at a time, in the order asked for.
+  ///
+  /// Handing a second caller the build already in flight was not enough: that
+  /// build had been started with the languages installed at the time, so a
+  /// language installed while it ran was never indexed. Queued, the second
+  /// call runs after the first and finds the language missing.
+  ///
+  /// Attaching and detaching a language go through the same queue, because a
+  /// language file cannot be detached while a build is reading it.
+  static Future<void> _indexQueue = Future.value();
+
+  static Future<T> _serial<T>(Future<T> Function() task) {
+    final next = _indexQueue.then((_) => task());
+    _indexQueue = next.then((_) {}, onError: (_) {});
+    return next;
+  }
+
+  /// What the index work is doing right now, for a screen that wants to show
+  /// it. Null when nothing is running.
+  static final ValueNotifier<String?> indexStatus = ValueNotifier(null);
+
   Future<int> buildSentenceFtsIfNeeded({
     void Function(String message)? onProgress,
   }) {
-    final running = _ftsBuild;
-    if (running != null) return running;
-    final started = _buildSentenceFts(onProgress: onProgress);
+    final started = _serial(() => _buildSentenceFts(onProgress: (message) {
+          indexStatus.value = message;
+          onProgress?.call(message);
+        }).whenComplete(() => indexStatus.value = null));
     _ftsBuild = started;
     return started.whenComplete(() {
       if (identical(_ftsBuild, started)) _ftsBuild = null;
@@ -335,22 +423,50 @@ class DatabaseHelper {
   }) async {
     if (!sentenceDataAvailable) return 0;
     final db = await database;
-    // Rebuild when the set of installed languages has changed, so adding or
-    // removing one is reflected in search rather than silently ignored.
+    // Follow the set of installed languages, so adding or removing one is
+    // reflected in search rather than silently ignored.
     final indexed = await SentenceFtsBuilder.indexedLanguages(db);
     final wanted = [...installedLanguages]..sort();
     final built = await SentenceFtsBuilder.isBuilt(db);
-    if (built && indexed.join(',') == wanted.join(',')) {
-      sentenceSearchAvailable = true;
-      return 0;
-    }
     try {
+      if (built) {
+        sentenceSearchAvailable = true;
+        if (!await SentenceFtsBuilder.translationIndexCurrent(db)) {
+          // Built before marks were kept inside words. Only the translation
+          // half is redone; the Pali index is left as it is.
+          myLogger.i('rebuilding the translation index');
+          await SentenceFtsBuilder.rebuildTranslations(db, wanted,
+              onProgress: onProgress);
+          return 0;
+        }
+        final removed = indexed.where((c) => !wanted.contains(c)).toList();
+        final added = wanted.where((c) => !indexed.contains(c)).toList();
+        // Only the language that changed; the Pali and the other languages
+        // are untouched by it.
+        for (final code in removed) {
+          await SentenceFtsBuilder.removeLanguage(db, code);
+        }
+        for (final code in added) {
+          await SentenceFtsBuilder.addLanguage(db, code,
+              onProgress: onProgress);
+        }
+        if (removed.isNotEmpty || added.isNotEmpty) {
+          myLogger.i('translation index now covers: ${wanted.join(", ")}');
+        }
+        return 0;
+      }
       final count = await SentenceFtsBuilder.build(db,
           languages: installedLanguages, onProgress: onProgress);
       sentenceSearchAvailable = count > 0;
       myLogger.i('sentence search index built: $count units');
       return count;
     } catch (e) {
+      if (built) {
+        // The Pali index is whole; only a language is missing from it, and
+        // the next start tries that language again.
+        myLogger.e('indexing a translation failed: $e');
+        rethrow;
+      }
       // A part-written index reads as a whole one and would quietly search a
       // fraction of the canon. Take it away and leave the next start to
       // build it again.
@@ -360,6 +476,60 @@ class DatabaseHelper {
       rethrow;
     }
   }
+
+  /// Puts the installed languages' words into the search suggestions, and
+  /// takes out the words of any that have gone. Queued with the index work,
+  /// so it never runs alongside an install doing the same.
+  Future<void> updateTranslationWordLists({
+    void Function(String message)? onProgress,
+  }) =>
+      _serial(() async {
+        if (!sentenceDataAvailable) return;
+        await LegacyDataRetirement.ensureTranslationWordLists(await database,
+            onProgress: (message) {
+          indexStatus.value = message;
+          onProgress?.call(message);
+        });
+        indexStatus.value = null;
+      });
+
+  /// Takes a language out of search so it is indexed again from its file,
+  /// for when the file has been replaced by a fresh download.
+  Future<void> forgetLanguageIndex(String code) => _serial(() async {
+        final db = await database;
+        if (!await SentenceFtsBuilder.isBuilt(db)) return;
+        await SentenceFtsBuilder.removeLanguage(db, code);
+      });
+
+  /// Attaches a newly installed language to the open database.
+  ///
+  /// Installing used to close the database and open it again to pick the
+  /// file up. Everything else holding the old handle — the book list, an
+  /// open reader — then failed against a closed database, which is the blank
+  /// book list and the hang after an install. Attaching to the connection
+  /// that is already open needs none of that.
+  Future<void> attachLanguage(String code) => _serial(() async {
+        if (installedLanguages.contains(code)) return;
+        final db = await database;
+        final path = join(Prefs.databaseDirPath, 'lang_$code.db');
+        await db.execute('ATTACH DATABASE ? AS lang_$code', [path]);
+        if (await languageComplete(db, code) != true) {
+          await db.execute('DETACH DATABASE lang_$code');
+          throw Exception('the $code translation is incomplete');
+        }
+        installedLanguages = [...installedLanguages, code]..sort();
+        myLogger.i('language attached: $code');
+      });
+
+  /// Detaches a language so its file can be deleted.
+  Future<void> detachLanguage(String code) => _serial(() async {
+        if (!installedLanguages.contains(code)) return;
+        final db = await database;
+        installedLanguages =
+            installedLanguages.where((c) => c != code).toList();
+        await db.execute('DETACH DATABASE lang_$code');
+        myLogger.i('language detached: $code');
+      });
 
   /// Removes the page-shaped data, once the sentence data is carrying the
   /// reader, the search and the contents.
@@ -430,7 +600,7 @@ class DatabaseHelper {
     // Wait for the work started when the database was opened rather than
     // closing it underneath. Both setup and installing a language close and
     // reopen, and either can land in the middle of an index build.
-    for (final pending in [_ftsBuild, _setupChain]) {
+    for (final pending in [_ftsBuild, _setupChain, _indexQueue]) {
       if (pending == null) continue;
       try {
         await pending;

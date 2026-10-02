@@ -23,6 +23,7 @@ class SearchSuggestionView extends StatelessWidget {
       itemBuilder: (context, index) => SuggestionListTile(
         suggestedWord: suggestions[index].word,
         frequency: suggestions[index].count,
+        asTyped: suggestions[index].asTyped,
         isFirstWord: isFistWord,
         onClickedAddButton: () => onClickedAddButton?.call(suggestions[index]),
         onClickedSuggestion: () =>

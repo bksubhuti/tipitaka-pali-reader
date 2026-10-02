@@ -22,11 +22,14 @@ class _BookSliderState extends State<BookSlider> {
     readerViewController =
         Provider.of<ReaderViewController>(context, listen: false);
 
-    min = readerViewController.book.firstPage.toDouble();
-    max = readerViewController.book.lastPage.toDouble();
-    divisions = (readerViewController.book.lastPage -
-            readerViewController.book.firstPage) +
-        1;
+    final first = readerViewController.book.firstPage;
+    // A one-page book would give the slider no range at all.
+    final last = readerViewController.book.lastPage > first
+        ? readerViewController.book.lastPage
+        : first + 1;
+    min = first.toDouble();
+    max = last.toDouble();
+    divisions = last - first;
     currentPage = readerViewController.currentPage.value;
     readerViewController.currentPage.addListener(_listenPageChange);
   }
@@ -40,7 +43,9 @@ class _BookSliderState extends State<BookSlider> {
   @override
   Widget build(BuildContext context) {
     return Slider(
-      value: currentPage.toDouble(),
+      // Kept inside the range: a page outside it, such as an old bookmark on
+      // a page the book no longer has, made the slider fail to draw.
+      value: currentPage.toDouble().clamp(min, max),
       min: min,
       max: max,
       label: currentPage.toString(),

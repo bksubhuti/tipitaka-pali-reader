@@ -17,6 +17,7 @@ import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../dialogs/reset_dialog.dart';
+import 'package:tipitaka_pali/ui/widgets/step_progress.dart';
 
 class InitialSetup extends StatefulWidget {
   final bool isUpdateMode;
@@ -135,144 +136,15 @@ class _InitialSetupState extends State<InitialSetup> {
 
   Widget _buildVerticalStepProgress(
       BuildContext context, InitialSetupNotifier notifier) {
-    final stepTitles = [
-      'Copying Core Database',
-      'Building Word List Index',
-      'Building Book Indexes',
-    ];
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 400),
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(stepTitles.length, (index) {
-          final isDone = notifier.stepsCompleted > index;
-          final isActive =
-              notifier.stepsCompleted == index && !notifier.setupIsFinished;
-          final isLast = index == stepTitles.length - 1;
-
-          Color circleColor;
-          Widget circleChild;
-
-          if (isDone) {
-            circleColor = Colors.green;
-            circleChild =
-                const Icon(Icons.check, size: 14, color: Colors.white);
-          } else if (isActive) {
-            circleColor = Colors.blue;
-            circleChild = Text(
-              '${index + 1}',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12),
-            );
-          } else {
-            circleColor = Colors.grey.shade400;
-            circleChild = Text(
-              '${index + 1}',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12),
-            );
-          }
-
-          return IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Column(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: circleColor,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: circleChild,
-                    ),
-                    if (!isLast)
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          color: isDone ? Colors.green : Colors.grey.shade300,
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: isLast ? 0 : 16.0, top: 2),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stepTitles[index],
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: isActive || isDone
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isActive
-                                ? Colors.blue
-                                : (isDone
-                                    ? Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.color
-                                    : Theme.of(context).disabledColor),
-                          ),
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.blue),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  notifier.status,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.blue,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
+    return StepProgress(
+      titles: const [
+        'Copying Core Database',
+        'Building Word List Index',
+        'Building Book Indexes',
+      ],
+      completed: notifier.stepsCompleted,
+      finished: notifier.setupIsFinished,
+      status: notifier.status,
     );
   }
 
@@ -318,8 +190,9 @@ class _InitialSetupState extends State<InitialSetup> {
 
     // With the sentence data present, translations are installed as language
     // files rather than as prebuilt extensions, so offer that instead.
+    // Asked whether languages are on the device or not: after a reset they
+    // are, and the reader is still asked, and told which ones are there.
     if (DatabaseHelper.sentenceDataAvailable &&
-        DatabaseHelper.installedLanguages.isEmpty &&
         !Prefs.languageChoiceMade &&
         context.mounted) {
       await Navigator.push(
@@ -371,8 +244,11 @@ class _InitialSetupState extends State<InitialSetup> {
     _openHomePage(context);
   }
 
+  // With the sentence data, translations are language files chosen in
+  // Settings › Translations; the old English extension is not offered.
   Future<bool> _isEnglishExtensionInstalled() async =>
-      DatabaseHelper.hasTranslations();
+      DatabaseHelper.sentenceDataAvailable ||
+      await DatabaseHelper.hasTranslations();
 
   void _openHomePage(context) {
     //Navigator.of(context).pop();

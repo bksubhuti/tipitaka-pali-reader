@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:convert';
 
 import 'package:flex_color_scheme/flex_color_scheme.dart';
@@ -17,6 +16,7 @@ import 'package:tipitaka_pali/services/rx_prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/interactive_html_text.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/search_widget.dart';
+import 'package:tipitaka_pali/ui/screens/reader/widgets/tts_controls.dart';
 import 'package:http/http.dart' as http;
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
@@ -86,6 +86,9 @@ class ReaderView extends StatelessWidget implements Searchable {
   ReaderView({super.key, required this.bookViewMode});
   final _sc = SlidableBarController(initialStatus: Prefs.controlBarShow);
 
+  /// Height of the control bar at the bottom, without its pull tab.
+  static const double _controlBarSize = 100;
+
   @override
   void onSearchRequested(BuildContext context) {
     debugPrint('on search requested');
@@ -95,22 +98,18 @@ class ReaderView extends StatelessWidget implements Searchable {
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-        shortcuts: <LogicalKeySet, Intent>{
-          LogicalKeySet(
-              Platform.isMacOS
-                  ? LogicalKeyboardKey.meta
-                  : LogicalKeyboardKey.control,
-              LogicalKeyboardKey.keyF): const SearchIntent(),
-        },
-        child: Actions(actions: <Type, Action<Intent>>{
-          SearchIntent: SearchAction(this, context),
-        }, child: _getReader(context)));
+    // Ctrl+F is handled app-wide by the reader controller, so it reaches the
+    // selected tab wherever the focus is.
+    return _getReader(context);
   }
 
   Widget _getReader(BuildContext context) {
     final isLoaded = context.select<ReaderViewController, bool>(
         (controller) => controller.isloadingFinished);
+    // Rebuild when the pages are composed again, after a translation is
+    // switched on or off, so the list draws the new pages in place.
+    context.select<ReaderViewController, int>(
+        (controller) => controller.pagesVersion);
 
     if (!isLoaded) {
       return const Material(
@@ -129,7 +128,7 @@ class ReaderView extends StatelessWidget implements Searchable {
               slidableController: _sc,
               side: Side.bottom,
               barContent: const ReaderToolbar(),
-              size: 100,
+              size: _controlBarSize,
               clicker: SlidableClicker(controller: _sc),
               frontColor: Colors.white,
               backgroundColor: Colors.blue.withOpacity(0.3),
@@ -137,8 +136,17 @@ class ReaderView extends StatelessWidget implements Searchable {
               clickerPosition: 0.98,
               child: Stack(
                 children: [
-                  // Main content
-                  Column(
+                  // Main content, kept clear of the control bar while it is
+                  // open. The bar is drawn over the reader, so without this the
+                  // last lines and the end of the scrollbar went behind it.
+                  StreamBuilder<bool>(
+                    stream: _sc.statusStream,
+                    initialData: _sc.currentStatus,
+                    builder: (context, barOpen) => AnimatedPadding(
+                      duration: const Duration(milliseconds: 300),
+                      padding: EdgeInsets.only(
+                          bottom: barOpen.data! ? _controlBarSize : 0),
+                      child: Column(
                     children: [
                       if (context.watch<ReaderViewController>().showSearch)
                         SearchWidget(
@@ -149,16 +157,26 @@ class ReaderView extends StatelessWidget implements Searchable {
                         ),
                       Expanded(
                         child: LayoutBuilder(
-                          builder: (context, constraints) =>
-                              SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 24),
+                          builder: (context, constraints) {
+                            // While the keyboard is up, the reader keeps a
+                            // usable height and scrolls rather than being
+                            // squeezed. Otherwise it fills exactly the room it
+                            // has: a fixed 80% of the screen ran past that room
+                            // on short windows and pushed the scrollbar under
+                            // the control bar.
+                            final keyboardUp =
+                                MediaQuery.of(context).viewInsets.bottom > 0;
+                            return SingleChildScrollView(
+                            padding: EdgeInsets.only(
+                                bottom: keyboardUp ? 24 : 0),
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
                                   minHeight: constraints.maxHeight),
                               child: IntrinsicHeight(
                                 child: SizedBox(
-                                  height:
-                                      MediaQuery.of(context).size.height * 0.8,
+                                  height: keyboardUp
+                                      ? MediaQuery.of(context).size.height * 0.8
+                                      : constraints.maxHeight,
                                   child: bookViewMode == BookViewMode.horizontal
                                       ? VerticalBookView(
                                           onSearchedSelectedText: (text) =>
@@ -213,11 +231,31 @@ class ReaderView extends StatelessWidget implements Searchable {
                                 ),
                               ),
                             ),
-                          ),
+                          );
+                          },
                         ),
                       ),
                     ],
                   ),
+                    ),
+                  ),
+
+                  // Read aloud, in the lower right, clear of the control bar's
+                  // pull tab. On desktop it is in the control bar instead.
+                  if (!PlatformInfo.isDesktop)
+                    PreferenceBuilder<bool>(
+                      preference: context
+                          .read<StreamingSharedPreferences>()
+                          .getBool(hideTtsControlsPref,
+                              defaultValue: defaultHideTtsControls),
+                      builder: (context, hide) => hide
+                          ? const SizedBox.shrink()
+                          : const Positioned(
+                              right: 12,
+                              bottom: 120,
+                              child: TtsControls(),
+                            ),
+                    ),
 
                   // Translation Overlay
                   _buildTranslationOverlay(context),

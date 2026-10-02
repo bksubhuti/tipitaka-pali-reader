@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/providers/font_provider.dart';
@@ -124,12 +125,43 @@ class _VerticalBookViewState extends State<VerticalBookView>
     itemPositionsListener.itemPositions.addListener(_listenItemPosition);
     readerViewController.currentPage.addListener(_listenPageChange);
     readerViewController.foundState.addListener(_listenSearchIndexChanged);
+    _readingPosition = Provider.of<TtsService>(context, listen: false).position
+      ..addListener(_followReading);
+  }
+
+  ValueNotifier<TtsPosition?>? _readingPosition;
+
+  /// Keeps the sentence being read aloud on screen.
+  ///
+  /// The block holding it draws its own highlight and nudges it into view,
+  /// but only a block that is built can do that. When the reading has moved
+  /// past the blocks on screen — down the page, or on to the next one —
+  /// the list is brought to it first.
+  void _followReading() {
+    final position = _readingPosition?.value;
+    if (position == null || position.bookUuid != readerViewController.bookUuid) {
+      return;
+    }
+    final index =
+        readerViewController.chunkIndexOfSentence(position.page, position.sentence);
+    if (index < 0) return;
+    if (index >= readerViewController.firstVisibleChunk &&
+        index <= readerViewController.lastVisibleChunk) {
+      return;
+    }
+    if (!itemScrollController.isAttached) return;
+    itemScrollController.scrollTo(
+      index: index,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 300),
+    );
   }
 
   @override
   void dispose() {
     _scrollOffsetSubscription?.cancel();
     itemPositionsListener.itemPositions.removeListener(_listenItemPosition);
+    _readingPosition?.removeListener(_followReading);
     readerViewController.currentPage.removeListener(_listenPageChange);
     readerViewController.foundState.removeListener(_listenSearchIndexChanged);
     super.dispose();
@@ -342,10 +374,15 @@ class _VerticalBookViewState extends State<VerticalBookView>
                         .getBool(hideScrollbarPref, defaultValue: false),
                     builder: (context, hideScrollbar) {
                       if (!hideScrollbar) {
+                        // The control bar's pull tab sits over the bottom
+                        // right corner, so the scrollbar stops short of it.
                         return SizedBox(
                           width: 32,
                           height: constraints.maxHeight,
-                          child: const VerticalBookSlider(),
+                          child: const Padding(
+                            padding: EdgeInsets.only(bottom: 32),
+                            child: VerticalBookSlider(),
+                          ),
                         );
                       } else {
                         return const SizedBox
@@ -394,6 +431,18 @@ class _VerticalBookViewState extends State<VerticalBookView>
     // if only one page exist in view, there in no need to update current page
     final positions = itemPositionsListener.itemPositions.value.toList();
     if (positions.isEmpty) return;
+
+    // Which blocks are actually on screen, for reading aloud to start at the
+    // top of what is showing and to know when the reading has moved off it.
+    final showing = positions
+        .where((p) => p.itemTrailingEdge > 0 && p.itemLeadingEdge < 1)
+        .map((p) => p.index)
+        .toList()
+      ..sort();
+    if (showing.isNotEmpty) {
+      readerViewController.firstVisibleChunk = showing.first;
+      readerViewController.lastVisibleChunk = showing.last;
+    }
     if (positions.length == 1) return;
 
     // ItemPositions are not guaranteed to be ordered by rendering, so we must sort them

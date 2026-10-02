@@ -17,6 +17,8 @@ import '../widgets/search_bar.dart';
 import 'search_history_view.dart';
 import 'search_suggestion_view.dart';
 import '../../../screens/ai_search/ai_search_page.dart';
+import 'package:tipitaka_pali/business_logic/models/search_suggestion.dart';
+import 'package:tipitaka_pali/utils/search_input.dart';
 
 enum QueryMode { exact, prefix, distance, anywhere, ai }
 
@@ -174,10 +176,10 @@ class _SearchPageState extends State<SearchPage>
                                     return SearchSuggestionView(
                                       suggestions: suggestions,
                                       onClickedAddButton: (suggestion) {
-                                        _updateInput(suggestion.word);
+                                        _updateInput(suggestion);
                                       },
                                       onClickedSuggestion: (suggestion) {
-                                        _updateInput(suggestion.word);
+                                        _updateInput(suggestion);
                                         _onSubmitted(controller.text, vm);
                                       },
                                     );
@@ -201,11 +203,12 @@ class _SearchPageState extends State<SearchPage>
         }));
   }
 
-  void _updateInput(String suggestion) {
+  void _updateInput(SearchSuggestion chosen) {
+    final suggestion = chosen.word;
     String inputText = controller.text;
     final inputScript = ScriptDetector.getLanguage(inputText);
     final words = inputText.split(' ');
-    if (inputScript == Script.roman) {
+    if (chosen.asTyped || inputScript == Script.roman) {
       words.last = suggestion;
     } else {
       words.last =
@@ -266,16 +269,18 @@ class _SearchPageState extends State<SearchPage>
       return;
     }
 
-    final inputScriptLanguage = ScriptDetector.getLanguage(searchWord);
-    if (inputScriptLanguage != Script.roman) {
-      searchWord = PaliScript.getRomanScriptFrom(
-          script: inputScriptLanguage, text: searchWord);
-    }
+    // Pali in the reader's script is turned into Roman letters for the Pali
+    // index; any other script is a translation's words and is searched as
+    // typed, in the translations alone. See SearchInput.
+    final input = SearchInput.of(searchWord);
+    searchWord = input.isTranslationOnly ? input.asTyped : input.pali;
     vm.onSubmmited(searchWord);
 
     var route = MaterialPageRoute(
         builder: (_) => SearchResultPage(
             searchWord: searchWord,
+            translationWord: input.wasConverted ? input.asTyped : null,
+            translationOnly: input.isTranslationOnly,
             queryMode: vm.queryMode,
             wordDistance: vm.wordDistance));
 

@@ -164,8 +164,9 @@ class LegacyDataRetirement {
         'plain': _plain(entry.key),
         'frequency': entry.value,
       });
-      if (++pending >= 2000) {
+      if (++pending >= 100) {
         await batch.commit(noResult: true);
+        await Future.delayed(Duration.zero);
         batch = db.batch();
         pending = 0;
       }
@@ -193,27 +194,54 @@ class LegacyDataRetirement {
   /// Only Latin-script translations yield anything, which is what the parsing
   /// version managed too. For Burmese or Thai the loop finds no words and
   /// adds none, rather than adding nonsense.
+  /// Languages whose words the suggestion list can hold. It takes words in
+  /// plain Latin letters only, so reading a Sinhala or Myanmar translation —
+  /// hundreds of megabytes — finds next to nothing and only makes adding or
+  /// removing one look hung.
+  static const wordListLanguages = {'en', 'pt', 'de'};
+
+  /// [replace] clears the translation words first and rebuilds them from
+  /// [languages]; otherwise [languages] are added to what is there, which is
+  /// all installing one needs.
   static Future<void> buildTranslationWordList(
     Database db, {
     List<String>? languages,
+    bool replace = true,
     void Function(String message)? onProgress,
   }) async {
-    final codes = languages ?? DatabaseHelper.installedLanguages;
+    final codes = (languages ?? DatabaseHelper.installedLanguages)
+        .where(wordListLanguages.contains)
+        .toList();
     // Nothing to put back means nothing is taken away. Someone still on the
     // old path may have an English list built from the page HTML, and
     // clearing that to replace it with nothing would be a plain loss.
     if (codes.isEmpty) return;
-    await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+    await _createWordLanguages(db);
+    if (replace) {
+      await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+      await db.rawDelete('DELETE FROM $_wordLanguages');
+    }
 
     for (final code in codes) {
-      onProgress?.call('Adding the $code word list…');
+      // Read a book at a time. One query for the whole translation pulled
+      // some 200 MB across in a single answer and split it in one go: ten
+      // seconds of a frozen screen on a phone, with no number to show it
+      // was working.
       final words = <String>{};
       try {
-        final rows =
-            await db.rawQuery('SELECT translation FROM lang_$code.sentences');
-        for (final row in rows) {
-          for (final word in _latinWords(row['translation'] as String? ?? '')) {
-            words.add(word);
+        final books = await db.rawQuery(
+            'SELECT DISTINCT book_id FROM lang_$code.sentences');
+        for (var i = 0; i < books.length; i++) {
+          final rows = await db.rawQuery(
+              'SELECT translation FROM lang_$code.sentences WHERE book_id = ?',
+              [books[i]['book_id']]);
+          for (final row in rows) {
+            words.addAll(_latinWords(row['translation'] as String? ?? ''));
+          }
+          if (i % 5 == 0) {
+            onProgress?.call('Reading the $code translation: '
+                '${((i + 1) / books.length * 100).round()}%');
+            await Future.delayed(Duration.zero);
           }
         }
       } catch (e) {
@@ -223,6 +251,7 @@ class LegacyDataRetirement {
 
       var batch = db.batch();
       var pending = 0;
+      var written = 0;
       for (final word in words) {
         // Pali wins any collision: it has a real frequency, which is what
         // orders the suggestions, and -1 would demote it.
@@ -230,15 +259,69 @@ class LegacyDataRetirement {
             'INSERT OR IGNORE INTO words (word, plain, frequency) '
             'VALUES (?, ?, -1)',
             [word, word]);
-        if (++pending >= 2000) {
+        written++;
+        if (++pending >= 100) {
           await batch.commit(noResult: true);
+          await Future.delayed(Duration.zero);
           batch = db.batch();
           pending = 0;
+          if (written % 2000 == 0) {
+            onProgress?.call('Adding $code words: $written of ${words.length}');
+          }
         }
       }
       if (pending > 0) await batch.commit(noResult: true);
+      // Recorded only once every word is written, so a build cut off part
+      // way reads as not done and is done again at the next start.
+      await db.rawInsert(
+          'INSERT OR IGNORE INTO $_wordLanguages (code) VALUES (?)', [code]);
       onProgress?.call('Added ${words.length} $code words');
     }
+  }
+
+  /// Which languages' words are in the suggestion list, each written once
+  /// all its words were. The words themselves cannot say where they came
+  /// from.
+  static const _wordLanguages = 'translation_word_languages';
+
+  static Future<void> _createWordLanguages(Database db) => db.execute(
+      'CREATE TABLE IF NOT EXISTS $_wordLanguages (code TEXT PRIMARY KEY)');
+
+  /// Brings the translation words into line with the installed languages.
+  ///
+  /// A reset leaves the language files in place but starts a fresh database,
+  /// whose suggestion list has none of their words; a build cut off part way
+  /// leaves some of them. Either way the language reads as installed while
+  /// its words are missing, so this checks what was actually completed rather
+  /// than whether a file is there, and adds what is not.
+  static Future<void> ensureTranslationWordLists(
+    Database db, {
+    void Function(String message)? onProgress,
+  }) async {
+    await _createWordLanguages(db);
+    final done = (await db.rawQuery('SELECT code FROM $_wordLanguages'))
+        .map((r) => r['code'] as String)
+        .toSet();
+    final wanted = DatabaseHelper.installedLanguages
+        .where(wordListLanguages.contains)
+        .toSet();
+    final gone = done.difference(wanted);
+    final missing = wanted.difference(done);
+    if (gone.isNotEmpty) {
+      // A language that has gone takes its words with it. The list cannot
+      // tell whose a word is, so the rest are put back from their files.
+      if (wanted.isEmpty) {
+        await db.rawDelete('DELETE FROM words WHERE frequency = -1');
+        await db.rawDelete('DELETE FROM $_wordLanguages');
+      } else {
+        await buildTranslationWordList(db,
+            languages: wanted.toList(), onProgress: onProgress);
+      }
+      return;
+    }
+    if (missing.isEmpty) return;
+    await buildTranslationWordList(db,
+        languages: missing.toList(), replace: false, onProgress: onProgress);
   }
 
   static final _notLatin = RegExp(r'[^a-z-]+');

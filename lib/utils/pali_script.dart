@@ -9,7 +9,15 @@ class PaliScript {
       RegExp(r'[0-9a-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌHṆḶṂ\.]+(?![^<>]*>)');
   PaliScript._();
 
-  static Map<String, String> cache = {};
+  /// Converted text by id, remembered with the text it was converted from.
+  ///
+  /// The id names a place — book, chunk, script — not its content, and the
+  /// content of a place can change: switching a translation on or off
+  /// recomposes every page. Keyed by id alone, the old conversion kept being
+  /// returned for the rest of the session, which is why a book reopened after
+  /// turning on a second language still showed one until the app restarted.
+  /// So a hit counts only if the source is the same text.
+  static Map<String, ({String source, String converted})> cache = {};
 
   static String getCachedScriptOf({
     required Script script,
@@ -17,12 +25,14 @@ class PaliScript {
     required String cacheId,
     bool isHtmlText = false,
   }) {
-    if (cache[cacheId] == null || cache[cacheId]?.isEmpty == true) {
-      cache[cacheId] = getScriptOf(
-          script: script, romanText: romanText, isHtmlText: isHtmlText);
+    final hit = cache[cacheId];
+    if (hit != null && hit.converted.isNotEmpty && hit.source == romanText) {
+      return hit.converted;
     }
-
-    return cache[cacheId] ?? '';
+    final converted = getScriptOf(
+        script: script, romanText: romanText, isHtmlText: isHtmlText);
+    cache[cacheId] = (source: romanText, converted: converted);
+    return converted;
   }
 
   // Regex to match translation block.

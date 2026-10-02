@@ -124,22 +124,30 @@ class BookmarkPageViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The words of a bookmark's saved passage worth highlighting, or null.
+  ///
+  /// Null, not empty, when nothing is left. An empty string reached the
+  /// highlighter as a search for "", which matches between every character:
+  /// a span went in between each letter of the page, tags included, and the
+  /// page showed its own HTML. Old bookmarks, saved without a passage or with
+  /// only short words, opened that way.
+  static String? highlightTextOf(String? selectedText) {
+    final words = (selectedText ?? '')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.length >= 4 && !word.contains(RegExp(r'\d')))
+        .join(' ');
+    return words.isEmpty ? null : words;
+  }
+
   void openBook(Bookmark bookmark, BuildContext context) async {
     final book = Book(id: bookmark.bookID, name: bookmark.name);
     final openningBookProvider = context.read<OpenningBooksProvider>();
 
-    // BUG FIX HACK  issue 217 https://github.com/bksubhuti/tipitaka-pali-reader/issues/217AND
-    // highlighting words with numbers and small words interferes withthe
+    // BUG FIX HACK  issue 217 https://github.com/bksubhuti/tipitaka-pali-reader/issues/217
+    // highlighting words with numbers and small words interferes with the
     // html code.  So this is a hack until we can do system based highlights
-    String textToHighlight = bookmark.selectedText
-        .split(' ') // Split the name into words
-        .where((word) =>
-            word.length >= 4 &&
-            !word.contains(RegExp(
-                r'\d'))) // Filter out words with less than 4 characters and words that contain numbers
-        .join(' '); // Join the words back into a string
+    final textToHighlight = highlightTextOf(bookmark.selectedText);
 
-// Now call the function with the filtered text
     openningBookProvider.add(
         book: book,
         currentPage: bookmark.pageNumber,

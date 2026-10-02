@@ -6,14 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common/sqflite.dart';
-import 'package:tipitaka_pali/business_logic/models/bookmark.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
+import 'package:tipitaka_pali/services/database/user_data_carry_over.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
-import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 
 //singleton model so setup will only get called one time in constructor
@@ -56,8 +55,8 @@ class InitialSetupService {
     final newDbDir = appSupportDir.path;
     final newDbPath = join(newDbDir, DatabaseInfo.fileName);
 
-    // Temp storage for data migration
-    List<Bookmark> bookmarksToRestore = [];
+    // The reader's own data, held while the database is replaced.
+    UserDataCarryOver? userData;
 
     // 2. BACKUP PHASE (Only runs if updating)
     if (isUpdateMode) {
@@ -84,11 +83,12 @@ class InitialSetupService {
           // On Desktop, we might need to ensure FFI is init, but usually safe.
           var oldDb = await openDatabase(oldDbPath);
 
-          // Fetch Bookmarks
-          final maps = await oldDb.query('bookmark');
-          bookmarksToRestore = maps.map((x) => Bookmark.fromJson(x)).toList();
+          // Bookmarks with their folders, recents, history and the
+          // dictionary order: everything the reader made, not only bookmarks.
+          userData = await UserDataCarryOver.read(oldDb);
 
-          debugPrint('--> Backed up ${bookmarksToRestore.length} bookmarks.');
+          debugPrint('--> Backed up ${userData.bookmarkCount} bookmarks '
+              'and the rest of the reader\'s data.');
           await oldDb.close();
         } catch (e) {
           debugPrint('--> ERROR during backup: $e');
@@ -126,17 +126,15 @@ class InitialSetupService {
     _cleanupLegacyFiles(newDbDir);
 
     // 6. RESTORE DATA
-    if (bookmarksToRestore.isNotEmpty) {
-      debugPrint('--> Restoring bookmarks to new DB...');
-
-      // Now it is safe to use the Singleton, because Prefs are updated!
-      final dbHelper = DatabaseHelper();
-      final bmRepo = BookmarkDatabaseRepository(dbHelper);
-
-      for (final bm in bookmarksToRestore) {
-        await bmRepo.insert(bm);
+    if (userData != null) {
+      debugPrint('--> Restoring the reader\'s data to new DB...');
+      try {
+        // Now it is safe to use the Singleton, because Prefs are updated!
+        await userData.writeTo(await DatabaseHelper().database);
+        debugPrint('--> Restore complete.');
+      } catch (e) {
+        debugPrint('--> ERROR during restore: $e');
       }
-      debugPrint('--> Restore complete.');
     }
 
     // 7. FINISH
@@ -163,7 +161,24 @@ class InitialSetupService {
       'full_english.sql',
       'full_vietnamese.sql',
     ];
-    for (final name in legacyNames) {
+    // The ePitaka "full" extensions: the downloaded zip and the database
+    // unpacked from it, a whole second copy of the canon with one
+    // translation in its pages. Translations are language files now and
+    // nothing opens these, so they are only space — over 500 MB for English.
+    final retired = <String>[];
+    try {
+      for (final entry in Directory(dbDir).listSync().whereType<File>()) {
+        final name = basename(entry.path);
+        final fullZip = name.startsWith('epitaka_') &&
+            name.contains('full') &&
+            name.endsWith('.zip');
+        final fullDb = name.startsWith('epitaka_') &&
+            name.endsWith('_full.db');
+        if (fullZip || fullDb) retired.add(name);
+      }
+    } catch (_) {}
+
+    for (final name in [...legacyNames, ...retired]) {
       final file = File(join(dbDir, name));
       if (file.existsSync()) {
         try {

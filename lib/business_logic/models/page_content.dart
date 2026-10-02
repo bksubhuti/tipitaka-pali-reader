@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:tipitaka_pali/utils/page_composer.dart';
+
 List<PageContent> pageContentFromJson(String str) => List<PageContent>.from(
     json.decode(str).map((x) => PageContent.fromJson(x)));
 
@@ -27,6 +29,12 @@ class PageContent {
   /// only draws the blocks on screen.
   final int? blockCount;
 
+  /// The sentences the page was composed from, when it came from the
+  /// sentence data, and the language of each of their translations. Reading
+  /// aloud speaks from these rather than from the HTML.
+  final List<PageSentence>? sentences;
+  final List<String> languages;
+
   PageContent(
       {this.id = 0,
       this.bookID = "",
@@ -34,7 +42,9 @@ class PageContent {
       String content = "",
       this.paragraphNumber = "",
       String Function()? build,
-      this.blockCount})
+      this.blockCount,
+      this.sentences,
+      this.languages = const []})
       : _content = build == null ? content : null,
         _build = build;
 

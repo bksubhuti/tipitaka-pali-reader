@@ -39,7 +39,7 @@ void main() {
     final messages = <String>[];
 
     await LanguageInstaller.install(option,
-        onProgress: (progress, message) => messages.add(message));
+        onStep: (step, fraction, message) => messages.add(message));
 
     final installed = File(join(scratch.path, 'lang_ru.db'));
     expect(installed.existsSync(), isTrue, reason: 'the language file');
@@ -47,6 +47,12 @@ void main() {
     // Nothing left behind: the download and the unpacked original are gone.
     expect(File(join(scratch.path, 'epitaka_ru.zip')).existsSync(), isFalse);
     expect(File(join(scratch.path, 'epitaka_ru.db')).existsSync(), isFalse);
+    // Nor anything still under the unfinished name.
+    expect(
+        scratch
+            .listSync()
+            .where((f) => f.path.endsWith(LanguageInstaller.unfinished)),
+        isEmpty);
 
     final db = await databaseFactory.openDatabase(installed.path);
     try {
@@ -55,6 +61,7 @@ void main() {
           "SELECT name FROM sqlite_master WHERE type='table'");
       final names = tables.map((t) => t['name'] as String).toSet();
       expect(names, contains('sentences'));
+      expect(names, contains('meta'));
       expect(names, isNot(contains('summaries')));
       expect(names, isNot(contains('translation_remarks')));
 
@@ -74,6 +81,23 @@ void main() {
       expect(one.first['para_id'], isA<int>());
       expect(one.first['line_id'], isA<int>());
       expect((one.first['translation'] as String).isNotEmpty, isTrue);
+
+      // Where it came from, to compare with the one online, and the mark
+      // that the install finished.
+      final meta = {
+        for (final row in await db.rawQuery('SELECT key, value FROM meta'))
+          row['key'] as String: row['value'] as String?
+      };
+      expect(meta['complete'], '1');
+      expect(meta['source_modified'], isNotNull);
+      final online = await LanguageInstaller.onlineCopy(option);
+      expect(online, isNotNull);
+      expect(
+          LanguageSource(meta['source_modified'],
+                  int.tryParse(meta['source_size'] ?? ''))
+              .sameAs(online!),
+          isTrue,
+          reason: 'just downloaded, so the same as the one online');
     } finally {
       await db.close();
     }

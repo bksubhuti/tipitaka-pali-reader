@@ -25,6 +25,9 @@ class ScriptDetector {
   //need check
   static final _regexCyrillic = RegExp('[\u0400-\u04FF\u0300-\u036F]');
 
+  /// Whether the text holds any Roman letter, Pali or plain.
+  static bool isRoman(String text) => text.contains(_regexRoman);
+
   static Script getLanguage(String scriptText) {
     if (scriptText.contains(_regexMM)) return Script.myanmar;
     if (scriptText.contains(_regexRoman)) return Script.roman;

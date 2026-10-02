@@ -1,12 +1,20 @@
 import 'package:collection/collection.dart';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/services/repositories/sentence_paragraph_mapping_repo.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:tipitaka_pali/utils/tts_highlight.dart';
 
 import '../../../../business_logic/models/book.dart';
 import '../../../../business_logic/models/bookmark.dart';
@@ -35,8 +43,47 @@ class ReaderViewController extends ChangeNotifier {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
+    _shownLanguages?.removeListener(_onShownLanguagesChanged);
+    // Closing the book stops it being read.
+    final tts = _tts;
+    if (tts != null && tts.bookUuid == bookUuid) tts.stop();
     super.dispose();
     _mounted = false;
+  }
+
+  /// Which translations are composed into the pages. When that changes the
+  /// open book composes its pages again, rather than keeping the ones it
+  /// opened with until the app restarts.
+  ShownLanguagesProvider? _shownLanguages;
+  TtsService? _tts;
+  int _composedForVersion = 0;
+
+  /// Moves each time the pages are reloaded, for the view to rebuild on.
+  int get pagesVersion => _pagesVersion;
+  int _pagesVersion = 0;
+
+  void _onShownLanguagesChanged() {
+    final version = _shownLanguages?.version ?? 0;
+    if (version == _composedForVersion) return; // display mode only
+    _composedForVersion = version;
+    reloadPages();
+  }
+
+  /// Composes the book again with the current languages, keeping the place.
+  ///
+  /// A translation is added inside the paragraph it belongs to, so the number
+  /// of blocks the list scrolls through does not change and the reader stays
+  /// where it was.
+  Future<void> reloadPages() async {
+    if (!isloadingFinished) return;
+    final reloaded = List<PageContent>.unmodifiable(await _loadPages(book.id));
+    if (!_mounted) return;
+    pages = reloaded;
+    chunks = _parseChunks(pages);
+    numberOfPage = pages.length;
+    _pagesVersion++;
+    notifyListeners();
   }
 
   final BuildContext context;
@@ -68,9 +115,80 @@ class ReaderViewController extends ChangeNotifier {
   /// Removes the goto/search word highlight everywhere in this book.
   void clearHighlights() => _isHighlightShown.value = false;
 
-  final ValueNotifier<String?> _ttsCurrentText = ValueNotifier(null);
-  ValueListenable<String?> get ttsCurrentText => _ttsCurrentText;
-  int _ttsSentenceIndex = 0;
+  /// The sentence the reader last tapped, where reading aloud starts if it
+  /// is still on screen.
+  ({int page, String sentence})? _tappedSentence;
+
+  /// The blocks of the list currently on screen, first and last, as the view
+  /// reports them.
+  int firstVisibleChunk = 0;
+  int lastVisibleChunk = 0;
+
+  void noteTappedSentence(int page, String? sentence) {
+    if (sentence == null) return;
+    _tappedSentence = (page: page, sentence: sentence);
+  }
+
+  /// The block of the list holding [sentence] on [page], or -1.
+  int chunkIndexOfSentence(int page, String sentence) {
+    final marker = '<a name="$sentence"></a>';
+    final first = getChunkIndexForPage(page);
+    if (first < 0) return -1;
+    for (var i = first; i < chunks.length && chunks[i].pageNumber == page; i++) {
+      if (chunks[i].htmlContent.contains(marker)) return i;
+    }
+    return -1;
+  }
+
+  /// Reads the book aloud from where the reader is.
+  ///
+  /// Starts at the sentence last tapped if it is on screen, otherwise at the
+  /// first sentence of the topmost block showing, and carries on through the
+  /// following pages, turning them as it goes. [page] and [sentence] start it
+  /// somewhere else instead, as a restart after a change of languages does.
+  ///
+  /// Returns a message for the reader, or null.
+  Future<String?> readAloud(
+    TtsService tts, {
+    required Set<String> languages,
+    required double speed,
+    int? page,
+    String? sentence,
+  }) async {
+    if (page == null) {
+      final tapped = _tappedSentence;
+      final tappedChunk = tapped == null
+          ? -1
+          : chunkIndexOfSentence(tapped.page, tapped.sentence);
+      if (tapped != null &&
+          tappedChunk >= firstVisibleChunk &&
+          tappedChunk <= lastVisibleChunk) {
+        page = tapped.page;
+        sentence = tapped.sentence;
+      } else if (firstVisibleChunk < chunks.length) {
+        final chunk = chunks[firstVisibleChunk];
+        page = chunk.pageNumber;
+        sentence = TtsHighlight.firstSentence(chunk.htmlContent);
+      } else {
+        page = _currentPage.value;
+      }
+    }
+    final index = pages.indexWhere((p) => p.pageNumber == page);
+    if (index < 0 || pages[index].sentences == null) {
+      return 'This page cannot be read aloud.';
+    }
+    return tts.start(
+      bookUuid: bookUuid,
+      pages: pages,
+      startIndex: index,
+      fromSentence: sentence,
+      chosen: languages,
+      speed: speed,
+      onPage: (pageNumber) {
+        if (_mounted) gotoPage(pageNumber: pageNumber);
+      },
+    );
+  }
 
   bool isloadingFinished = false;
 
@@ -106,7 +224,63 @@ class ReaderViewController extends ChangeNotifier {
     this.textToHighlight,
     this.queryMode,
     required this.bookUuid,
-  }) {}
+  }) {
+    try {
+      _shownLanguages = context.read<ShownLanguagesProvider>();
+      _composedForVersion = _shownLanguages!.version;
+      _shownLanguages!.addListener(_onShownLanguagesChanged);
+      _tts = context.read<TtsService>();
+    } catch (_) {
+      // Not provided, as in a test of the controller alone.
+    }
+    if (PlatformInfo.isDesktop) HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  /// Ctrl+F (Cmd+F on macOS) from anywhere in the app searches the book in
+  /// the selected tab.
+  ///
+  /// It used to be a shortcut on the reader itself, so it only worked once
+  /// the reader had been clicked into: with the focus in the dictionary or
+  /// the search pane, nothing happened. Nothing else in the app uses it, so
+  /// it is taken globally. Every open reader listens; only the selected one
+  /// answers.
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.keyF) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    final modifier =
+        Platform.isMacOS ? keyboard.isMetaPressed : keyboard.isControlPressed;
+    if (!modifier || keyboard.isShiftPressed || keyboard.isAltPressed) {
+      return false;
+    }
+    if (!_mounted || !isloadingFinished) return false;
+    try {
+      final tabs = context.read<OpenningBooksProvider>();
+      final index = tabs.selectedBookIndex;
+      if (index < 0 ||
+          index >= tabs.books.length ||
+          tabs.books[index]['uuid'] != bookUuid) {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    openSearch();
+    return true;
+  }
+
+  /// Asks the search box to take the keyboard, when it opens and when it is
+  /// already open but the focus is elsewhere.
+  ValueListenable<int> get searchFocusRequests => _searchFocusRequests;
+  final ValueNotifier<int> _searchFocusRequests = ValueNotifier(0);
+
+  /// Opens find-in-book, keeping what was typed if it is already open, and
+  /// puts the cursor in it.
+  void openSearch() {
+    showSearchWidget(true, searchText: _showSearch ? null : '');
+    _searchFocusRequests.value++;
+  }
 
   void onSearchTermChanged(String text) {
     if (text.isEmpty || text.length < 2) {
@@ -379,6 +553,17 @@ class ReaderViewController extends ChangeNotifier {
   Future<void> _loadBookInfo(String bookID) async {
     book.firstPage = await bookRepository.getFirstPage(bookID);
     book.lastPage = await bookRepository.getLastPage(bookID);
+    // The range comes from the pages actually loaded where it can. The books
+    // table was written for the old pages and is a page short or long for a
+    // few books in the sentence data (attha_vi_01_01 ends on 346, not 345;
+    // tika_sa_05 has a page 32 before its first, 393). Scrolling onto such a
+    // page put the scrollbar outside its own range, and moving it then
+    // failed.
+    if (pages.isNotEmpty) {
+      final numbers = pages.map((page) => page.pageNumber!);
+      book.firstPage = numbers.reduce(min);
+      book.lastPage = numbers.reduce(max);
+    }
     _currentPage = ValueNotifier(initialPage ?? book.firstPage);
     _pageToHighlight = initialPage;
   }
@@ -447,10 +632,7 @@ class ReaderViewController extends ChangeNotifier {
   }
 
   void gotoPage({required int pageNumber}) {
-    // Only reset TTS highlight when the page actually changes
-    if (_currentPage.value != pageNumber) {
-      _ttsCurrentText.value = null;
-    } else {
+    if (_currentPage.value == pageNumber) {
       // The page number is unchanged, so no listener will run. Drop any
       // pending permission here, otherwise the next page change - which would
       // come from plain scrolling - would inherit it and move the view.
@@ -464,7 +646,13 @@ class ReaderViewController extends ChangeNotifier {
 
   int getChunkIndexForPage(int pageNumber) {
     int index = chunks.indexWhere((chunk) => chunk.pageNumber == pageNumber);
-    return index != -1 ? index : 0;
+    if (index != -1) return index;
+    // Some books skip page numbers. Going to a missing one, as the scrollbar
+    // does while it is dragged, lands on the next page there is rather than
+    // back at the start of the book.
+    index = chunks.indexWhere((chunk) => chunk.pageNumber > pageNumber);
+    if (index != -1) return index;
+    return chunks.isEmpty ? 0 : chunks.length - 1;
   }
 
   int getPageNumberForChunk(int chunkIndex) {

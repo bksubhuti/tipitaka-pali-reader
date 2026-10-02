@@ -5,6 +5,10 @@ import 'package:html/dom.dart' as dom;
 
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/html_text_map.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
+import 'package:tipitaka_pali/utils/page_composer.dart';
+import 'package:tipitaka_pali/utils/tts_highlight.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
@@ -24,6 +28,7 @@ import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
 import '../../home/search_page/search_page.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/utils/script_detector.dart';
 
 class PaliPageWidget extends StatefulWidget {
   final int pageNumber;
@@ -175,9 +180,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (!mounted) return;
 
       final context = _ttsScrollKey.currentContext;
-      if (context != null) {
-        Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
-      }
+      if (context == null) return;
+      final target = context.findRenderObject();
+      final scrollable = Scrollable.maybeOf(context);
+      if (target == null || scrollable == null) return;
+      final viewport = RenderAbstractViewport.maybeOf(target);
+      if (viewport == null) return;
+
+      // Where the sentence begins, as a fraction of the screen from the top.
+      // Left alone while it is comfortably in view, so the page does not
+      // move at every sentence; brought up to a fifth of the way down once
+      // it nears the bottom or has gone off either edge. The marker has no
+      // height, so revealing it only at the bottom edge — which is what
+      // "keep visible" does — left the words being spoken just out of view.
+      final position = scrollable.position;
+      final top = viewport.getOffsetToReveal(target, 0.0).offset;
+      final fraction =
+          (top - position.pixels) / position.viewportDimension;
+      if (fraction >= 0.02 && fraction <= 0.6) return;
+      Scrollable.ensureVisible(context,
+          alignment: 0.2, duration: const Duration(milliseconds: 300));
     });
   }
 
@@ -237,18 +259,25 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final readerViewController =
         Provider.of<ReaderViewController>(context, listen: false);
 
-    return ValueListenableBuilder<String?>(
-      valueListenable: readerViewController.ttsCurrentText,
-      builder: (context, ttsCurrentText, child) {
-        if (ttsCurrentText != null) {
+    return ValueListenableBuilder<TtsPosition?>(
+      valueListenable: context.read<TtsService>().position,
+      builder: (context, position, child) {
+        // Only the block holding the sentence being read marks it.
+        final spoken = position != null &&
+                position.bookUuid == readerViewController.bookUuid &&
+                position.page == widget.pageNumber &&
+                widget.htmlContent.contains('<a name="${position.sentence}"></a>')
+            ? position
+            : null;
+        if (spoken != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _scrollToTtsNode();
           });
         }
         String html = _formatContent(
-            widget.htmlContent, widget.script, context, ttsCurrentText);
+            widget.htmlContent, widget.script, context, spoken);
 
-        return Padding(
+        return _withinReadingWidth(fontSize, Padding(
           padding: const EdgeInsets.all(8.0),
           child: Container(
             color: Colors.transparent,
@@ -297,6 +326,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                         word.allMatches(textBefore).length;
                     final wordIndex = findOccurrencesBefore(word, target) +
                         occurrencesInTextBefore;
+
+                    // Reading aloud starts from the sentence tapped.
+                    readerViewController.noteTappedSentence(
+                        widget.pageNumber,
+                        TtsHighlight.sentenceAt(
+                            widget.htmlContent, word, wordIndex));
 
                     // Tapping a word puts the goto/search highlight away for
                     // the whole book. It used to be cleared only in the chunk
@@ -452,8 +487,23 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               ),
             ),
           ),
-        );
+        ));
       },
+    );
+  }
+
+  /// Keeps lines to a comfortable length on wide screens.
+  ///
+  /// Text that ran the full width of a desktop window made lines too long to
+  /// follow back to the next one. The limit is in step with the font size, so
+  /// a larger font keeps about the same number of words to a line.
+  Widget _withinReadingWidth(int fontSize, Widget child) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: fontSize * 40.0),
+        child: child,
+      ),
     );
   }
 
@@ -479,8 +529,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
-  String _formatContent(
-      String content, Script script, BuildContext context, String? ttsText) {
+  String _formatContent(String content, Script script, BuildContext context,
+      TtsPosition? spoken) {
     content = _removeHiddenTags(content);
     content = _addLineBreak(content);
 
@@ -498,9 +548,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _addHighlightToSearchIndex(content);
     }
 
-    if (ttsText != null) {
-      content = _addTtsHighlight(content, ttsText);
+    if (spoken != null) {
+      content = TtsHighlight.highlight(
+          content, spoken.sentence, spoken.language);
     }
+    // The sentence markers have done their work; drawn, each would be an
+    // empty widget in the middle of the text.
+    content = content.replaceAll(PageComposer.sentenceMarkers, '');
 
     if (!Prefs.isShowAlternatePali) {
       content = _removeAlternatePali(content);
@@ -524,6 +578,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   String _addUnderline(String content, String lookupWord) {
+    if (lookupWord.isEmpty) return content;
     final hwi = highlightedWordIndex;
     final underlinedHighlight =
         '<span class = "underlined_highlight">$lookupWord</span>';
@@ -538,10 +593,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   String _addHighlightToSearchIndex(String content) {
     if (widget.founds?.isEmpty ?? true) return content;
 
-    final termInScript = PaliScript.getScriptOf(
-      script: context.read<ScriptLanguageProvider>().currentScript,
-      romanText: widget.founds!.first.term,
-    );
+    final termInScript = _inReadingScript(widget.founds!.first.term);
     if (termInScript.isEmpty) return content;
 
     final pattern = RegExp(RegExp.escape(termInScript), caseSensitive: false);
@@ -580,35 +632,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
     highlightedNode.parent?.insertBefore(anchor, highlightedNode);
     return soup.toString();
-  }
-
-  String _addTtsHighlight(String content, String ttsText) {
-    // Quick check: does this chunk even contain the spoken text?
-    if (!content.contains(ttsText)) return content;
-
-    // Find position of ttsText in the raw HTML
-    final int textPos = content.indexOf(ttsText);
-
-    // Search backwards from that position for the nearest
-    // <span ...translation_text...> opening tag
-    final String before = content.substring(0, textPos);
-    final spanRegex = RegExp(r'<span\s+[^>]*translation_text[^>]*>');
-    Match? lastSpanMatch;
-    for (final m in spanRegex.allMatches(before)) {
-      lastSpanMatch = m;
-    }
-    if (lastSpanMatch == null) return content;
-
-    // Surgically inject 'tts_highlighted' into the class attribute
-    final String spanTag = lastSpanMatch.group(0)!;
-    final String newSpanTag = spanTag.replaceFirst(
-        'translation_text', 'translation_text tts_highlighted');
-
-    // Insert a scroll anchor right before the span, and swap in the new tag
-    return content.substring(0, lastSpanMatch.start) +
-        '<a class="scroll_to_tts"></a>' +
-        newSpanTag +
-        content.substring(lastSpanMatch.end);
   }
 
   int _highlightSearchTermInNode({
@@ -754,6 +777,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       'unindented': baseStyle,
       'noindentbodytext': baseStyle,
 
+      // Headings from the sentence data, sized by level: 1 is the book,
+      // 2 a vagga or sutta, then sections. 0 is a title line at the head of
+      // a book ("Namo tassa…", the nikāya's name).
+      'heading0':
+          'font-size: 1.3em; text-align:center; font-weight: bold; $baseStyle',
+      'heading1':
+          'font-size: 1.8em; text-align:center; font-weight: bold; $baseStyle',
+      'heading2':
+          'font-size: 1.55em; text-align:center; font-weight: bold; $baseStyle',
+      'heading3':
+          'font-size: 1.4em; text-align:center; font-weight: bold; $baseStyle',
+      'heading4':
+          'font-size: 1.25em; text-align:center; font-weight: bold; $baseStyle',
+      'heading5':
+          'font-size: 1.15em; text-align:center; font-weight: bold; $baseStyle',
+      'heading6':
+          'font-size: 1.1em; text-align:center; font-weight: bold; $baseStyle',
+      'heading7':
+          'font-size: 1.05em; text-align:center; font-weight: bold; $baseStyle',
+
       // Headers
       'book':
           'font-size: 1.9em; text-align:center; font-weight: bold; $baseStyle',
@@ -855,23 +898,24 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
-  /// Whether [at] falls inside an already inserted highlight span.
+  /// [text] in the script the Pali is shown in, when it is Roman Pali.
   ///
-  /// Looks back for the nearest span boundary rather than at a fixed window:
-  /// if the last thing opened before this point is a highlight span that has
-  /// not been closed, the match is inside it and must be left alone.
-  static bool _insideSpan(String content, int at, String highlightClass) {
-    final open = content.lastIndexOf('<span', at);
-    if (open < 0) return false;
-    final close = content.lastIndexOf('</span>', at);
-    if (close > open) return false;
-    final tagEnd = content.indexOf('>', open);
-    if (tagEnd < 0 || tagEnd >= at) return false;
-    return content.substring(open, tagEnd).contains(highlightClass);
+  /// Words in any other script are a translation's, found by searching the
+  /// translations as typed, and are highlighted as they are. Converted, a
+  /// Sinhala word came out half Roman (අතැවැසි as "atැvැsi") and matched
+  /// nothing on the page.
+  String _inReadingScript(String text) {
+    if (ScriptDetector.getLanguage(text) != Script.roman) return text;
+    return PaliScript.getScriptOf(
+        script: context.read<ScriptLanguageProvider>().currentScript,
+        romanText: text);
   }
 
   String _addHighlight(String content, String textToHighlight,
       {highlightClass = "highlighted", addId = true}) {
+    // Nothing to find. Searching for "" matches between every character and
+    // would put a span between each letter of the page.
+    if (textToHighlight.trim().isEmpty) return content;
     final hwi = highlightedWordIndex;
     if (!Prefs.multiHighlight && hwi != null) {
       final highlighted =
@@ -888,9 +932,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         Provider.of<ReaderViewController>(context, listen: false).queryMode;
 
     // Convert search term to current script
-    final scriptTextToHighlight = PaliScript.getScriptOf(
-        script: context.read<ScriptLanguageProvider>().currentScript,
-        romanText: textToHighlight);
+    final scriptTextToHighlight = _inReadingScript(textToHighlight);
 
     // ==============================
     // PREFIX and DISTANCE modes:
@@ -918,23 +960,19 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
               r'[^\s",<“”‘’\-\–\—]*',
           caseSensitive: false,
         );
-        content = content.replaceAllMapped(pattern, (match) {
-          final matched = match.group(0)!;
-          // Don't re-highlight text that is already inside a highlight span.
-          //
-          // This used to ask whether the preceding 60 characters held one,
-          // which is a different question: when two of the search words sit
-          // next to each other in the text, the second is well within 60
-          // characters of the first and was silently left unmarked. That is
-          // the "skipping some words" in a phrase search.
-          if (_insideSpan(content, match.start, highlightClass)) {
-            return matched;
-          }
-          if (firstMatch && addId) {
-            firstMatch = false;
-            return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
-          }
-          return '<span class="$highlightClass">$matched</span>';
+        // Only the text, never the tags. A match already inside a highlight
+        // span is left alone; the old check looked back a fixed 60 characters,
+        // which dropped the second of two adjacent search words.
+        content = mapHtmlText(content, highlightClass, (text, insideHighlight) {
+          if (insideHighlight) return text;
+          return text.replaceAllMapped(pattern, (match) {
+            final matched = match.group(0)!;
+            if (firstMatch && addId) {
+              firstMatch = false;
+              return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
+            }
+            return '<span class="$highlightClass">$matched</span>';
+          });
         });
       }
       return content;
@@ -948,15 +986,17 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       final pattern =
           RegExp(RegExp.escape(scriptTextToHighlight), caseSensitive: false);
       bool firstMatch = true;
-      content = content.replaceAllMapped(pattern, (match) {
-        final matched = match.group(0)!;
-        if (firstMatch && addId) {
-          firstMatch = false;
-          return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
-        }
-        return '<span class="$highlightClass">$matched</span>';
+      return mapHtmlText(content, highlightClass, (text, insideHighlight) {
+        if (insideHighlight) return text;
+        return text.replaceAllMapped(pattern, (match) {
+          final matched = match.group(0)!;
+          if (firstMatch && addId) {
+            firstMatch = false;
+            return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
+          }
+          return '<span class="$highlightClass">$matched</span>';
+        });
       });
-      return content;
     }
 
     // ==============================
@@ -965,27 +1005,37 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     textToHighlight = scriptTextToHighlight;
 
     if (!textToHighlight.contains(' ')) {
-      final pattern =
-          RegExp('(?<=[\\s", ])${RegExp.escape(textToHighlight)}(?=[\\s", ])');
-      if (content.contains(pattern)) {
-        final replace =
-            '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
-        content = content.replaceAll(pattern, replace);
-        return content;
-      }
+      final pattern = RegExp(
+          '(?<=[\\s", ]|^)${RegExp.escape(textToHighlight)}(?=[\\s", ]|\$)');
+      var found = false;
+      final replaced = mapHtmlText(content, highlightClass, (text, _) {
+        return text.replaceAllMapped(pattern, (match) {
+          found = true;
+          return '<span id="$kGotoID" class = "$highlightClass">'
+              '${match.group(0)}</span>';
+        });
+      });
+      if (found) return replaced;
     }
 
-    final words = textToHighlight.trim().split(' ');
+    // Word by word, as the bookmark text is: each word is marked wherever it
+    // occurs in the text, and a word not found as it is is tried without a
+    // closing quotative (ti, nti).
+    final words = textToHighlight
+        .trim()
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .toList();
     for (final word in words) {
-      if (content.contains(word)) {
-        final String replace = '<span class = "$highlightClass">$word</span>';
-        content = content.replaceAll(word, replace);
-      } else {
-        String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
-        final replace = '<span class = "$highlightClass">$trimmedWord</span>';
-
-        content = content.replaceAll(trimmedWord, replace);
-      }
+      final target = content.replaceAll(anyHtmlTag, ' ').contains(word)
+          ? word
+          : word.replaceAll(RegExp(r'(nti|ti)$'), '');
+      if (target.isEmpty) continue;
+      content = mapHtmlText(content, highlightClass, (text, insideHighlight) {
+        if (insideHighlight) return text;
+        return text.replaceAll(
+            target, '<span class = "$highlightClass">$target</span>');
+      });
     }
 
     if (addId) {

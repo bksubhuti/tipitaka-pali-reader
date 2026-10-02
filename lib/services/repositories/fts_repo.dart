@@ -10,9 +10,14 @@ import '../database/unit_text.dart';
 import '../prefs.dart';
 
 abstract class FtsRespository {
+  /// [translationPhrase] is searched in the translations instead of
+  /// [phrase] when given: the words as typed, where [phrase] has been turned
+  /// into Roman Pali for the Pali side.
   Future<List<SearchResult>> getResults(
       String phrase, QueryMode queryMode, int wordDistance,
-      {bool isTranslationSearch = false, bool joinEnglish = true});
+      {bool isTranslationSearch = false,
+      bool joinEnglish = true,
+      String? translationPhrase});
 }
 
 class FtsDatabaseRepository implements FtsRespository {
@@ -44,9 +49,16 @@ class FtsDatabaseRepository implements FtsRespository {
   @override
   Future<List<SearchResult>> getResults(
       String phrase, QueryMode queryMode, int wordDistance,
-      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
+      {bool isTranslationSearch = false,
+      bool joinEnglish = true,
+      String? translationPhrase}) async {
+    // Typed in Myanmar, Sinhala, Thai or another script, the words are Pali
+    // in that script or a translation in that language, and nothing says
+    // which. The Pali side gets them turned into Roman Pali; the translations
+    // get them as typed, since a Myanmar translation is written in Myanmar.
+    final translated = translationPhrase ?? phrase;
     if (isTranslationSearch) {
-      return await _querySingleTable(phrase, queryMode, wordDistance,
+      return await _querySingleTable(translated, queryMode, wordDistance,
           isTranslation: true);
     }
 
@@ -59,12 +71,12 @@ class FtsDatabaseRepository implements FtsRespository {
     // wherever it is, which is what searching both and merging gives back.
     if (!combineLanguages) {
       if (paliResults.isNotEmpty) return paliResults;
-      return await _querySingleTable(phrase, queryMode, wordDistance,
+      return await _querySingleTable(translated, queryMode, wordDistance,
           isTranslation: true);
     }
 
     final translationResults = await _querySingleTable(
-        phrase, queryMode, wordDistance,
+        translated, queryMode, wordDistance,
         isTranslation: true);
 
     // Neither language holds the whole phrase. It may still be a query that
@@ -719,8 +731,14 @@ class FtsDatabaseRepository implements FtsRespository {
       // Where the hit actually is. For a phrase that is the phrase; for a
       // prefix or distance search the words are scattered and the place worth
       // showing is where they come together.
-      final hitAt = at?.start ??
+      var hitAt = at?.start ??
           locateHit(content, words, wordDistance > 0 ? wordDistance : 20);
+      // locateHit reads words as Pali letters, so in Myanmar, Thai or
+      // Chinese it finds none. The first word as written still says where
+      // the passage matched.
+      if (hitAt < 0) {
+        hitAt = content.toLowerCase().indexOf(words.first.toLowerCase());
+      }
 
       final unitPage = row['page'] as int;
       final pageNumber = hitAt < 0

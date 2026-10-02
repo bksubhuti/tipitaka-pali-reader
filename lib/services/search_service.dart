@@ -17,6 +17,51 @@ class SearchService {
     return suggestions;
   }
 
+  /// Words of a translation beginning with [prefix], most common first,
+  /// for a language the word list does not hold: Myanmar, Thai, Chinese and
+  /// the rest. Read from the words the translation index already holds, so
+  /// they cost nothing to keep.
+  static Future<List<SearchSuggestion>> getTranslationSuggestions(
+      String prefix) async {
+    prefix = prefix.trim().toLowerCase();
+    if (prefix.isEmpty || !DatabaseHelper.sentenceSearchAvailable) {
+      return const [];
+    }
+    final db = await DatabaseHelper().database;
+    Future<List<Map<String, Object?>>> read() async {
+      await db.execute('CREATE VIRTUAL TABLE IF NOT EXISTS '
+          "temp.translation_words USING fts5vocab(main, "
+          "'fts_translation_unit', 'row')");
+      return db.rawQuery(
+          'SELECT term, doc FROM temp.translation_words '
+          'WHERE term >= ? AND term < ? ORDER BY doc DESC LIMIT 50',
+          [prefix, '$prefix\u{10FFFF}']);
+    }
+
+    try {
+      List<Map<String, Object?>> rows;
+      try {
+        rows = await read();
+      } catch (_) {
+        // The index was rebuilt under it; look at the new one.
+        await db.execute('DROP TABLE IF EXISTS temp.translation_words');
+        rows = await read();
+      }
+      return [
+        for (final row in rows)
+          SearchSuggestion(
+            word: row['term'] as String,
+            plain: row['term'] as String,
+            count: row['doc'] as int? ?? 0,
+            asTyped: true,
+          )
+      ];
+    } catch (e) {
+      debugPrint('translation suggestions failed: $e');
+      return const [];
+    }
+  }
+
   /// The index to search: the paragraph-based one when it has been built,
   /// the old page index otherwise.
   ///
@@ -36,11 +81,15 @@ class SearchService {
 
   static Future<List<SearchResult>> getResultsByFTS(
       String searchWord, QueryMode queryMode, int wordDistance,
-      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
+      {bool isTranslationSearch = false,
+      bool joinEnglish = true,
+      String? translationWord}) async {
     final FtsRespository respository = repository();
     try {
       return await respository.getResults(searchWord, queryMode, wordDistance,
-          isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);
+          isTranslationSearch: isTranslationSearch,
+          joinEnglish: joinEnglish,
+          translationPhrase: translationWord);
     } catch (e) {
       // A failed search must report nothing found, not hang the screen on a
       // spinner the reader cannot get out of.

@@ -36,8 +36,11 @@ class _ReaderContainerState extends State<ReaderContainer> {
   TabbedViewController? _tabController;
   final Map<String, TabData> _tabDataCache = {};
 
+  // With the sentence data, translations are language files chosen in
+  // Settings › Translations; the old English extension is not offered.
   Future<bool> _hasTranslationExtension() async =>
-      DatabaseHelper.hasTranslations();
+      DatabaseHelper.sentenceDataAvailable ||
+      await DatabaseHelper.hasTranslations();
 
   @override
   void initState() {

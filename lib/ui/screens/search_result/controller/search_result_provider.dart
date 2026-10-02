@@ -13,10 +13,20 @@ import 'search_result_state.dart';
 class SearchResultController extends ChangeNotifier {
   SearchResultController(
       {required this.searchWord,
+      this.translationWord,
+      this.translationOnly = false,
       required this.queryMode,
       required this.wordDistance,
       required this.filterController});
   final String searchWord;
+
+  /// The words as typed, for the translations, when [searchWord] has been
+  /// turned into Roman Pali.
+  final String? translationWord;
+
+  /// Search only the translations: [searchWord] is in a translation's
+  /// language, not Pali.
+  final bool translationOnly;
   final QueryMode queryMode;
   final int wordDistance;
   final SearchFilterController filterController;
@@ -32,7 +42,9 @@ class SearchResultController extends ChangeNotifier {
   void init() async {
     var startTime = DateTime.now();
     _allResults = await SearchService.getResultsByFTS(
-        searchWord.toLowerCase(), queryMode, wordDistance);
+        searchWord.toLowerCase(), queryMode, wordDistance,
+        isTranslationSearch: translationOnly,
+        translationWord: translationWord?.toLowerCase());
     _isInitialized = true;
     debugPrint('total load time: ${DateTime.now().difference(startTime)}');
     if (_allResults.isEmpty) {
@@ -120,7 +132,10 @@ class SearchResultController extends ChangeNotifier {
     openningBookProvider.add(
       book: result.book,
       currentPage: result.pageNumber,
-      textToHighlight: searchWord,
+      // A translation found by the words as typed is marked by them too.
+      textToHighlight: result.isTranslation && translationWord != null
+          ? translationWord
+          : searchWord,
       queryMode: queryMode,
     );
 

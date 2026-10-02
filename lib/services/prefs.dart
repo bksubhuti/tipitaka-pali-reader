@@ -74,6 +74,7 @@ const String romanFontNamePref = "romanFontName";
 const String oldPasswordPref = 'oldPassword';
 const String oldUsernamePref = 'oldUsername';
 const String hideScrollbarPref = 'hideScrollbar';
+const String hideTtsControlsPref = 'hideTtsControls';
 const String hideIPAPref = 'hideIPA';
 const String hideSanskritPref = 'hideSanskrit';
 const String panelWidthKey = 'panelWidth';
@@ -105,6 +106,8 @@ const String windowYPref = "windowY";
 const String paliTextColorPref = "paliTextColor";
 const String translationColorPref = "translationColor";
 const String activeLanguagesPref = "activeLanguages";
+const String ttsLanguagesPref = "ttsLanguages";
+const String ttsSpeedPref = "ttsSpeed";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
 const String textDisplayModePref = "textDisplayMode";
@@ -170,6 +173,7 @@ const String defaultRomanFontName = "Open Sans";
 const String defaultOldPassword = '';
 const String defaultOldUsername = '';
 const bool defaultHideScrollbar = false;
+const bool defaultHideTtsControls = false;
 const bool defaultHideIPA = true;
 const bool defaultHideSanskrit = true;
 const double defaultPanelWidth = 350;
@@ -647,6 +651,17 @@ class Prefs {
       instance.getStringList(activeLanguagesPref) ?? const [];
   static set activeLanguages(List<String> value) =>
       instance.setStringList(activeLanguagesPref, value);
+
+  /// The languages read aloud: 'pali' and translation codes. Empty until
+  /// the reader first chooses, which means everything shown.
+  static List<String> get ttsLanguages =>
+      instance.getStringList(ttsLanguagesPref) ?? const [];
+  static set ttsLanguages(List<String> value) =>
+      instance.setStringList(ttsLanguagesPref, value);
+
+  /// Reading speed, 1 for the voice's normal pace.
+  static double get ttsSpeed => instance.getDouble(ttsSpeedPref) ?? 1.0;
+  static set ttsSpeed(double value) => instance.setDouble(ttsSpeedPref, value);
 
   /// Every language the app has seen installed, whether shown or not.
   ///

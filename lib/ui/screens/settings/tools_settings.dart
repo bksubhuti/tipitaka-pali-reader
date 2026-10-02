@@ -4,7 +4,6 @@ import 'package:tipitaka_pali/routes.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/flashcard_setup_view.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/text_converter_view.dart';
 import 'package:tipitaka_pali/ui/screens/settings/book_import_view.dart';
-import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
 
 class ToolsSettingsView extends StatefulWidget {
@@ -46,7 +45,6 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
             height: 10,
           ),
           _getExtensionsTile(context),
-          _getInstallTranslationTile(context),
           _getImportTile(context),
           _getFlashCardExportTile(context),
           _getTextConverterTile(context),
@@ -131,47 +129,6 @@ class _ToolsSettingsViewState extends State<ToolsSettingsView> {
         leading: const Icon(Icons.translate),
         title: ColoredText(
           AppLocalizations.of(context)!.scriptConverter,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        focusColor: Theme.of(context).focusColor,
-        hoverColor: Theme.of(context).hoverColor,
-        trailing: const Icon(Icons.navigate_next),
-      ),
-    );
-  }
-
-  Widget _getInstallTranslationTile(context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        onTap: () {
-          showDialog(
-            context: context,
-            builder: (BuildContext dialogContext) {
-              return AlertDialog(
-                title: Text(
-                    AppLocalizations.of(context)!.installEnglishTranslations),
-                content: Text(AppLocalizations.of(context)!
-                    .installTranslationInstructions),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      NestedNavigationHelper.openDownloadView(
-                        context,
-                        autoInstallEnglish: true,
-                      );
-                    },
-                    child: Text(AppLocalizations.of(context)!.ok),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-        leading: const Icon(Icons.g_translate),
-        title: ColoredText(
-          AppLocalizations.of(context)!.installEnglishTranslations,
           style: Theme.of(context).textTheme.titleLarge,
         ),
         focusColor: Theme.of(context).focusColor,

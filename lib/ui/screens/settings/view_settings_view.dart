@@ -4,7 +4,11 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/tts/tts_service.dart';
+import 'package:tipitaka_pali/services/language_installer.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
+import 'package:tipitaka_pali/ui/screens/settings/language_settings.dart';
 
 class ViewSettingsView extends StatefulWidget {
   final bool isMobilePopup;
@@ -17,6 +21,7 @@ class ViewSettingsView extends StatefulWidget {
 
 class _ViewSettingsViewState extends State<ViewSettingsView> {
   late bool _hideScrollbar;
+  late bool _hideTtsControls;
   late final StreamingSharedPreferences rxPrefs;
 
   @override
@@ -25,6 +30,9 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     rxPrefs = Provider.of<StreamingSharedPreferences>(context, listen: false);
     _hideScrollbar = rxPrefs
         .getBool(hideScrollbarPref, defaultValue: defaultHideScrollbar)
+        .getValue();
+    _hideTtsControls = rxPrefs
+        .getBool(hideTtsControlsPref, defaultValue: defaultHideTtsControls)
         .getValue();
   }
 
@@ -45,6 +53,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
       _getTranslationColorSetting(),
       const Divider(),
       _getHideScrollbarSwitch(),
+      _getHideTtsControlsSwitch(),
       if (!widget.isMobilePopup) ...[
         const Divider(),
         _getMultiTabsModeSwitch(),
@@ -94,10 +103,17 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     );
   }
 
+  /// One switch for the Pali and one for each installed translation.
+  ///
+  /// Switching off keeps the language on the device; removing one is in
+  /// Settings › Translations, not here. Something always stays on, so the
+  /// switch for the last thing showing is disabled rather than leaving an
+  /// empty page.
   Widget _getTextDisplayModeRadio() {
-    // WATCH: So the UI updates when mode or bold setting changes
-    final currentMode = context.watch<ThemeChangeNotifier>().textDisplayMode;
+    final shown = context.watch<ShownLanguagesProvider>();
+    // Bold depends on the theme notifier, which the switches also move.
     final isPaliBold = context.watch<ThemeChangeNotifier>().isPaliBold;
+    final installed = shown.installed;
 
     return Padding(
       padding: const EdgeInsets.only(left: 16.0),
@@ -108,55 +124,50 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
             child: Row(
               children: [
-                Text(
-                  AppLocalizations.of(context)!.textDisplayMode,
-                  style: Theme.of(context).textTheme.titleMedium,
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(context)!.textDisplayMode,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
-                const SizedBox(width: 8.0), // A little spacing
                 IconButton(
-                  icon: const Icon(Icons.info_outline, size: 20),
-                  tooltip: AppLocalizations.of(context)!.translationHelp,
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints(), // Keeps the button compact
-                  onPressed: () => _showExtensionInstallInstructions(context),
+                  icon: const Icon(Icons.translate_outlined, size: 20),
+                  tooltip: 'Translations',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LanguageSettings()),
+                  ),
                 ),
               ],
             ),
           ),
-          RadioGroup<TextDisplayMode>(
-            groupValue: currentMode,
-            onChanged: (TextDisplayMode? value) {
-              if (value != null) {
-                context
-                    .read<ThemeChangeNotifier>()
-                    .onChangeTextDisplayMode(value);
-              }
-            },
-            child: Column(
-              children: [
-                RadioListTile<TextDisplayMode>(
-                  title: Text(AppLocalizations.of(context)!.paliOnly),
-                  value: TextDisplayMode.paliOnly,
-                ),
-                RadioListTile<TextDisplayMode>(
-                  title: Text(AppLocalizations.of(context)!.paliAndTranslation),
-                  value: TextDisplayMode.paliAndTranslation,
-                ),
-                RadioListTile<TextDisplayMode>(
-                  title: Text(AppLocalizations.of(context)!.translationOnly),
-                  value: TextDisplayMode.translationOnly,
-                ),
-              ],
-            ),
+          SwitchListTile(
+            title: const Text('Pāḷi'),
+            value: shown.paliShown,
+            onChanged: shown.paliShown && !shown.canHidePali
+                ? null
+                : (on) => shown.setPaliShown(on),
           ),
-
-          // Bold Checkbox!
-          // Only show this checkbox if Pāḷi text is actually on the screen
-          if (currentMode != TextDisplayMode.translationOnly)
+          for (final code in installed)
+            SwitchListTile(
+              title: Text(LanguageInstaller.nameOf(code)),
+              value: shown.isShown(code),
+              onChanged: shown.isShown(code) && !shown.canHide(code)
+                  ? null
+                  : (on) => shown.setLanguageShown(code, on),
+            ),
+          if (installed.isEmpty)
             Padding(
-              padding: const EdgeInsets.only(
-                  left: 16.0), // Indent it slightly under the radio buttons
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'No translations installed. Add them with the button above.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+
+          // Only when the Pali is actually on screen.
+          if (shown.paliShown)
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0),
               child: CheckboxListTile(
                 title: Text(AppLocalizations.of(context)!.boldPaliText),
                 value: isPaliBold,
@@ -291,6 +302,25 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
     );
   }
 
+  /// Hides the read aloud buttons, on phones over the text and on desktop in
+  /// the control bar. Reading under way stops, since its stop button goes.
+  Widget _getHideTtsControlsSwitch() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: const Text('Hide TTS controls'),
+        trailing: Switch(
+          onChanged: (value) async {
+            setState(() => _hideTtsControls = value);
+            if (value) context.read<TtsService>().stop();
+            await rxPrefs.setBool(hideTtsControlsPref, _hideTtsControls);
+          },
+          value: _hideTtsControls,
+        ),
+      ),
+    );
+  }
+
   Widget _getMultiTabsModeSwitch() {
     return Padding(
       padding: const EdgeInsets.only(left: 32.0),
@@ -396,44 +426,6 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
                 onSave(tempSelectedColor);
                 Navigator.of(dialogContext).pop();
               },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showExtensionInstallInstructions(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.installEnglishTranslations),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppLocalizations.of(context)!.translationExtensionNotice),
-                const SizedBox(height: 8),
-                Text(AppLocalizations.of(context)!.stepOpenSettings),
-                const SizedBox(height: 2),
-                Text(AppLocalizations.of(context)!.stepNavigateExtensions),
-                const SizedBox(height: 2),
-                Text(AppLocalizations.of(context)!.stepSelectExtension),
-                const SizedBox(height: 2),
-                Text(AppLocalizations.of(context)!.stepWaitRefresh),
-                const SizedBox(height: 2),
-                Text(AppLocalizations.of(context)!.stepWarningReset),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: Text(AppLocalizations.of(context)!.ok),
             ),
           ],
         );
