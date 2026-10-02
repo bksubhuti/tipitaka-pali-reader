@@ -28,6 +28,7 @@ import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
 import '../../home/search_page/search_page.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/utils/script_detector.dart';
 
 class PaliPageWidget extends StatefulWidget {
   final int pageNumber;
@@ -592,10 +593,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   String _addHighlightToSearchIndex(String content) {
     if (widget.founds?.isEmpty ?? true) return content;
 
-    final termInScript = PaliScript.getScriptOf(
-      script: context.read<ScriptLanguageProvider>().currentScript,
-      romanText: widget.founds!.first.term,
-    );
+    final termInScript = _inReadingScript(widget.founds!.first.term);
     if (termInScript.isEmpty) return content;
 
     final pattern = RegExp(RegExp.escape(termInScript), caseSensitive: false);
@@ -900,6 +898,19 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
+  /// [text] in the script the Pali is shown in, when it is Roman Pali.
+  ///
+  /// Words in any other script are a translation's, found by searching the
+  /// translations as typed, and are highlighted as they are. Converted, a
+  /// Sinhala word came out half Roman (අතැවැසි as "atැvැsi") and matched
+  /// nothing on the page.
+  String _inReadingScript(String text) {
+    if (ScriptDetector.getLanguage(text) != Script.roman) return text;
+    return PaliScript.getScriptOf(
+        script: context.read<ScriptLanguageProvider>().currentScript,
+        romanText: text);
+  }
+
   String _addHighlight(String content, String textToHighlight,
       {highlightClass = "highlighted", addId = true}) {
     // Nothing to find. Searching for "" matches between every character and
@@ -921,9 +932,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         Provider.of<ReaderViewController>(context, listen: false).queryMode;
 
     // Convert search term to current script
-    final scriptTextToHighlight = PaliScript.getScriptOf(
-        script: context.read<ScriptLanguageProvider>().currentScript,
-        romanText: textToHighlight);
+    final scriptTextToHighlight = _inReadingScript(textToHighlight);
 
     // ==============================
     // PREFIX and DISTANCE modes:
