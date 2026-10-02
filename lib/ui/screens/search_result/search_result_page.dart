@@ -17,6 +17,10 @@ class SearchResultPage extends StatelessWidget {
   /// The words as typed, when [searchWord] is them turned into Roman Pali.
   /// Translations are searched with these.
   final String? translationWord;
+
+  /// [searchWord] is a translation's words, not Pali: search only the
+  /// translations.
+  final bool translationOnly;
   //  final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
   const SearchResultPage(
@@ -24,7 +28,8 @@ class SearchResultPage extends StatelessWidget {
       required this.searchWord,
       required this.queryMode,
       required this.wordDistance,
-      this.translationWord});
+      this.translationWord,
+      this.translationOnly = false});
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +42,7 @@ class SearchResultPage extends StatelessWidget {
               create: (ctx) => SearchResultController(
                   searchWord: searchWord,
                   translationWord: translationWord,
+                  translationOnly: translationOnly,
                   queryMode: queryMode,
                   wordDistance: wordDistance,
                   filterController: ctx.read<SearchFilterController>())

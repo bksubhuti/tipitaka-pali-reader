@@ -731,8 +731,14 @@ class FtsDatabaseRepository implements FtsRespository {
       // Where the hit actually is. For a phrase that is the phrase; for a
       // prefix or distance search the words are scattered and the place worth
       // showing is where they come together.
-      final hitAt = at?.start ??
+      var hitAt = at?.start ??
           locateHit(content, words, wordDistance > 0 ? wordDistance : 20);
+      // locateHit reads words as Pali letters, so in Myanmar, Thai or
+      // Chinese it finds none. The first word as written still says where
+      // the passage matched.
+      if (hitAt < 0) {
+        hitAt = content.toLowerCase().indexOf(words.first.toLowerCase());
+      }
 
       final unitPage = row['page'] as int;
       final pageNumber = hitAt < 0

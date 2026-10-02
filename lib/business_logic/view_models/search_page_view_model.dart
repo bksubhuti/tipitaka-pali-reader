@@ -1,15 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/business_logic/models/search_history.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/repositories/search_history_repo.dart';
 import 'package:tipitaka_pali/ui/screens/home/search_page/search_page.dart';
-import 'package:tipitaka_pali/utils/pali_script.dart';
-import 'package:tipitaka_pali/utils/pali_script_converter.dart';
-import 'package:tipitaka_pali/utils/script_detector.dart';
 
 import '../../services/search_service.dart';
 import '../models/search_suggestion.dart';
+import 'package:tipitaka_pali/utils/search_input.dart';
 
 // global variable
 final ValueNotifier<String?> globalSearchWord = ValueNotifier<String?>(null);
@@ -82,15 +79,19 @@ class SearchPageViewModel extends ChangeNotifier {
     }
     // loading suggested words
     isSearching.value = true;
-    final inputScriptLanguage = ScriptDetector.getLanguage(filterWord);
-    myLogger.i('input language is $inputScriptLanguage');
-
-    myLogger.i('original searchword: $filterWord');
-    if (inputScriptLanguage != Script.roman) {
-      filterWord = PaliScript.getRomanScriptFrom(
-          script: inputScriptLanguage, text: filterWord);
+    // Pali in the reader's script, or a translation's words in another:
+    // see SearchInput. A translation's words are suggested from the words
+    // its index holds, since the word list keeps only Pali and Roman ones.
+    final input = SearchInput.of(filterWord);
+    if (input.isTranslationOnly) {
+      _userInput = input.asTyped;
+      _suggestions.value = [
+        ...await SearchService.getTranslationSuggestions(
+            input.asTyped.split(' ').last)
+      ];
+      return;
     }
-    myLogger.i('searchword in roman: $filterWord');
+    filterWord = input.pali;
     _userInput = filterWord; // cache the user input
     final words = filterWord.split(' ');
     _suggestions.value = [

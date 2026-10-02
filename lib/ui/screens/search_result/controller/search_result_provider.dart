@@ -14,6 +14,7 @@ class SearchResultController extends ChangeNotifier {
   SearchResultController(
       {required this.searchWord,
       this.translationWord,
+      this.translationOnly = false,
       required this.queryMode,
       required this.wordDistance,
       required this.filterController});
@@ -22,6 +23,10 @@ class SearchResultController extends ChangeNotifier {
   /// The words as typed, for the translations, when [searchWord] has been
   /// turned into Roman Pali.
   final String? translationWord;
+
+  /// Search only the translations: [searchWord] is in a translation's
+  /// language, not Pali.
+  final bool translationOnly;
   final QueryMode queryMode;
   final int wordDistance;
   final SearchFilterController filterController;
@@ -38,6 +43,7 @@ class SearchResultController extends ChangeNotifier {
     var startTime = DateTime.now();
     _allResults = await SearchService.getResultsByFTS(
         searchWord.toLowerCase(), queryMode, wordDistance,
+        isTranslationSearch: translationOnly,
         translationWord: translationWord?.toLowerCase());
     _isInitialized = true;
     debugPrint('total load time: ${DateTime.now().difference(startTime)}');

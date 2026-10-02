@@ -10,6 +10,7 @@ class SuggestionListTile extends StatelessWidget {
     required this.suggestedWord,
     required this.frequency,
     this.isFirstWord = true,
+    this.asTyped = false,
     this.onClickedSubmitButton,
     this.onClickedSuggestion,
     this.onClickedAddButton,
@@ -18,15 +19,20 @@ class SuggestionListTile extends StatelessWidget {
   final String suggestedWord;
   final int frequency;
   final bool isFirstWord;
+
+  /// Shown as it is rather than in the reader's Pali script.
+  final bool asTyped;
   final VoidCallback? onClickedSubmitButton;
   final VoidCallback? onClickedSuggestion;
   final VoidCallback? onClickedAddButton;
 
   @override
   Widget build(BuildContext context) {
-    String scriptWord = PaliScript.getScriptOf(
-        script: context.read<ScriptLanguageProvider>().currentScript,
-        romanText: suggestedWord);
+    String scriptWord = asTyped
+        ? suggestedWord
+        : PaliScript.getScriptOf(
+            script: context.read<ScriptLanguageProvider>().currentScript,
+            romanText: suggestedWord);
     if (!isFirstWord) {
       scriptWord = '... $scriptWord';
     }
@@ -43,9 +49,11 @@ class SuggestionListTile extends StatelessWidget {
       //subtitle: const Icon(Icons.library_add),
       // word frequency
       trailing: Text(
-          PaliScript.getScriptOf(
-              script: context.read<ScriptLanguageProvider>().currentScript,
-              romanText: (frequency == -1) ? " " : frequency.toString()),
+          asTyped
+              ? frequency.toString()
+              : PaliScript.getScriptOf(
+                  script: context.read<ScriptLanguageProvider>().currentScript,
+                  romanText: (frequency == -1) ? " " : frequency.toString()),
           style: Theme.of(context).textTheme.bodyLarge),
       onTap: onClickedSuggestion,
     );
