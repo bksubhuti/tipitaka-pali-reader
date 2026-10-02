@@ -36,11 +36,15 @@ class SearchService {
 
   static Future<List<SearchResult>> getResultsByFTS(
       String searchWord, QueryMode queryMode, int wordDistance,
-      {bool isTranslationSearch = false, bool joinEnglish = true}) async {
+      {bool isTranslationSearch = false,
+      bool joinEnglish = true,
+      String? translationWord}) async {
     final FtsRespository respository = repository();
     try {
       return await respository.getResults(searchWord, queryMode, wordDistance,
-          isTranslationSearch: isTranslationSearch, joinEnglish: joinEnglish);
+          isTranslationSearch: isTranslationSearch,
+          joinEnglish: joinEnglish,
+          translationPhrase: translationWord);
     } catch (e) {
       // A failed search must report nothing found, not hang the screen on a
       // spinner the reader cannot get out of.

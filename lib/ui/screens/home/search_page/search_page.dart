@@ -266,8 +266,13 @@ class _SearchPageState extends State<SearchPage>
       return;
     }
 
+    // Turned into Roman Pali for the Pali, but kept as typed for the
+    // translations: Myanmar words copied from a Myanmar translation are not
+    // Pali, and converting them left nothing to find.
+    String? asTyped;
     final inputScriptLanguage = ScriptDetector.getLanguage(searchWord);
     if (inputScriptLanguage != Script.roman) {
+      asTyped = searchWord;
       searchWord = PaliScript.getRomanScriptFrom(
           script: inputScriptLanguage, text: searchWord);
     }
@@ -276,6 +281,7 @@ class _SearchPageState extends State<SearchPage>
     var route = MaterialPageRoute(
         builder: (_) => SearchResultPage(
             searchWord: searchWord,
+            translationWord: asTyped,
             queryMode: vm.queryMode,
             wordDistance: vm.wordDistance));
 
