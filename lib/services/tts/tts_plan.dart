@@ -13,7 +13,7 @@ class TtsUtterance {
   /// [TtsPlan.pali] or a translation's language code.
   final String language;
 
-  /// What the engine is given: Pali already in Kannada script.
+  /// What the engine is given: Pali already in the script of its voice.
   final String text;
 
   const TtsUtterance({
@@ -34,15 +34,32 @@ class TtsUtterance {
 /// No engine has a Pali voice; Kannada spells Pali sounds one for one and
 /// its voices read the result well. Devanagari with a Hindi voice was tried
 /// and drops the final short a, which Pali cannot lose.
+///
+/// Where the device has a Sinhala voice, as Android usually does, the Pali
+/// can be read in Sinhala instead: Sinhala script, Sinhala voice. That is
+/// how a Sri Lankan listener is used to hearing it.
 class TtsPlan {
   TtsPlan._();
 
   /// The language code used for the Pali itself.
   static const pali = 'pali';
 
-  /// The engine language for each code. Pali is spoken by a Kannada voice.
+  /// The voices the Pali can be read with, by key: the engine language and
+  /// the script the Pali is turned into for it.
+  static const paliVoices = {
+    'kn': PaliVoice('kn-IN', Script.kannada, 'Kannada'),
+    'si': PaliVoice('si-LK', Script.sinhala, 'Sinhala'),
+  };
+
+  /// Which of [paliVoices] reads the Pali. Set from the reader's choice
+  /// before reading starts; Kannada unless they chose otherwise.
+  static String paliVoiceKey = 'kn';
+
+  static PaliVoice get paliVoice =>
+      paliVoices[paliVoiceKey] ?? paliVoices['kn']!;
+
+  /// The engine language for each translation's code.
   static const voiceLanguage = {
-    pali: 'kn-IN',
     'en': 'en-US',
     'my': 'my-MM',
     'si': 'si-LK',
@@ -59,8 +76,9 @@ class TtsPlan {
     'ta': 'ta-IN',
   };
 
-  static String voiceFor(String language) =>
-      voiceLanguage[language] ?? language;
+  static String voiceFor(String language) => language == pali
+      ? paliVoice.engineLanguage
+      : voiceLanguage[language] ?? language;
 
   /// The utterances for one page.
   ///
@@ -122,7 +140,7 @@ class TtsPlan {
   static String _clean(String text) =>
       text.replaceAll(_tag, ' ').replaceAll(_space, ' ').trim();
 
-  /// The Pali as it should be spoken, in Kannada script.
+  /// The Pali as it should be spoken, in the script of its voice.
   static String speakablePali(String pali) {
     final roman = _clean(pali)
         .replaceAll(_variant, ' ')
@@ -130,6 +148,20 @@ class TtsPlan {
         .replaceAll(_space, ' ')
         .trim();
     if (roman.isEmpty) return '';
-    return PaliScript.getScriptOf(script: Script.kannada, romanText: roman);
+    return PaliScript.getScriptOf(script: paliVoice.script, romanText: roman);
   }
+}
+
+/// A voice the Pali can be read with.
+class PaliVoice {
+  /// What the speech engine calls it, e.g. 'si-LK'.
+  final String engineLanguage;
+
+  /// The script the Pali is written in for it.
+  final Script script;
+
+  /// What to call it in the interface.
+  final String name;
+
+  const PaliVoice(this.engineLanguage, this.script, this.name);
 }

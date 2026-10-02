@@ -18,6 +18,18 @@ void main() {
         translations: ['Then Pessa.', 'Тогда Песса.']),
   ];
 
+  test('Pali can go to a Sinhala voice in Sinhala script instead', () {
+    TtsPlan.paliVoiceKey = 'si';
+    try {
+      expect(TtsPlan.voiceFor(TtsPlan.pali), 'si-LK');
+      expect(TtsPlan.speakablePali('evaṃ me sutaṃ'), 'එවං මෙ සුතං');
+      // Translations keep their own voices.
+      expect(TtsPlan.voiceFor('en'), 'en-US');
+    } finally {
+      TtsPlan.paliVoiceKey = 'kn';
+    }
+  });
+
   test('Pali goes to the engine in Kannada script', () {
     // The listener's own sample, which reads well with a Kannada voice.
     expect(TtsPlan.speakablePali('Evaṃ me sutaṃ – ekaṃ samayaṃ bhagavā'),

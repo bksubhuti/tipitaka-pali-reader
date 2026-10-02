@@ -220,6 +220,10 @@ class TtsService extends ChangeNotifier {
   /// been superseded and ends without touching anything.
   int _session = 0;
 
+  /// Whether this device has a voice for an engine language, e.g. 'si-LK'.
+  Future<bool> hasVoice(String engineLanguage) =>
+      _engine.isAvailable(engineLanguage);
+
   /// Those of [languages] that have a voice on this device.
   Future<Set<String>> speakable(Iterable<String> languages) async {
     final out = <String>{};
@@ -376,7 +380,7 @@ class TtsService extends ChangeNotifier {
   static String _missingVoices(List<String> languages) {
     final names = languages
         .map((l) => l == TtsPlan.pali
-            ? 'Pāḷi (a Kannada voice)'
+            ? 'Pāḷi (a ${TtsPlan.paliVoice.name} voice)'
             : LanguageInstaller.nameOf(l))
         .join(', ');
     return 'No voice on this device for $names, so it is skipped. '

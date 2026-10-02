@@ -36,8 +36,19 @@ class TtsControls extends StatelessWidget {
   }
 
   static String _voiceName(String language) => language == TtsPlan.pali
-      ? 'Pāḷi (it needs a Kannada voice)'
+      ? 'Pāḷi (it needs a ${TtsPlan.paliVoice.name} voice)'
       : nameOf(language);
+
+  /// Puts the reader's choice of Pali voice into effect, falling back to
+  /// Kannada if the voice chosen is not on this device, say after a
+  /// Sinhala voice was removed. Returns whether Sinhala can be offered.
+  static Future<bool> _settlePaliVoice(TtsService tts) async {
+    final sinhala =
+        await tts.hasVoice(TtsPlan.paliVoices['si']!.engineLanguage);
+    TtsPlan.paliVoiceKey =
+        Prefs.ttsPaliVoice == 'si' && sinhala ? 'si' : 'kn';
+    return sinhala;
+  }
 
   static String nameOf(String language) =>
       language == TtsPlan.pali ? 'Pāḷi' : LanguageInstaller.nameOf(language);
@@ -84,6 +95,8 @@ class TtsControls extends StatelessWidget {
     final reader = context.read<ReaderViewController>();
     final tts = context.read<TtsService>();
     final messenger = ScaffoldMessenger.maybeOf(context);
+    await _settlePaliVoice(tts);
+    if (!context.mounted) return;
     final voiced = await tts
         .speakable(options(context.read<ShownLanguagesProvider>()));
     if (voiced.isEmpty) {
@@ -108,6 +121,8 @@ class TtsControls extends StatelessWidget {
   Future<void> _showOptions(BuildContext context) async {
     final shown = context.read<ShownLanguagesProvider>();
     final offered = options(shown);
+    final sinhalaVoice = await _settlePaliVoice(context.read<TtsService>());
+    if (!context.mounted) return;
     // Only languages this device can speak are offered; the rest are named
     // underneath, so a missing one is explained rather than silently absent.
     final voiced = await context.read<TtsService>().speakable(offered);
@@ -122,6 +137,8 @@ class TtsControls extends StatelessWidget {
     // change is applied, so closing the panel does not restart it again.
     var speedApplied = speedBefore;
     var selectionApplied = {...before};
+    var paliVoice = TtsPlan.paliVoiceKey;
+    var paliVoiceApplied = paliVoice;
     Timer? settle;
 
     /// Restarts the reading from the sentence being read, so a change is
@@ -153,9 +170,9 @@ class TtsControls extends StatelessWidget {
                 Text('Read aloud',
                     style: Theme.of(sheetContext).textTheme.titleMedium),
                 const SizedBox(height: 4),
-                const Text('Each sentence is read in every language chosen, '
+                Text('Each sentence is read in every language chosen, '
                     'in this order, before the next. Pāḷi is read by a '
-                    'Kannada voice.'),
+                    '${TtsPlan.paliVoice.name} voice.'),
                 const SizedBox(height: 12),
                 for (final language in all)
                   SwitchListTile(
@@ -182,6 +199,29 @@ class TtsControls extends StatelessWidget {
                                 restartHere();
                               });
                             }),
+                  ),
+                // Only where the device has a Sinhala voice: then the Pali
+                // can be read the way Sri Lankan listeners hear it.
+                if (sinhalaVoice)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Read Pāḷi in Sinhala'),
+                    subtitle: const Text(
+                        'Sinhala script and a Sinhala voice, instead of '
+                        'Kannada'),
+                    value: paliVoice == 'si',
+                    onChanged: (on) => setState(() {
+                      paliVoice = on ? 'si' : 'kn';
+                      Prefs.ttsPaliVoice = paliVoice;
+                      TtsPlan.paliVoiceKey = paliVoice;
+                      settle?.cancel();
+                      settle = Timer(const Duration(milliseconds: 500), () {
+                        paliVoiceApplied = paliVoice;
+                        selectionApplied = {...selection};
+                        speedApplied = speed;
+                        restartHere();
+                      });
+                    }),
                   ),
                 if (all.isEmpty)
                   const Text('No voice on this device can read these '
@@ -237,6 +277,7 @@ class TtsControls extends StatelessWidget {
     settle?.cancel();
     if (!context.mounted) return;
     final changed = speed != speedApplied ||
+        paliVoice != paliVoiceApplied ||
         selection.length != selectionApplied.length ||
         !selection.containsAll(selectionApplied);
     if (changed) await restartHere();

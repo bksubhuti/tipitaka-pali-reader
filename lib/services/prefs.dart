@@ -108,6 +108,7 @@ const String translationColorPref = "translationColor";
 const String activeLanguagesPref = "activeLanguages";
 const String ttsLanguagesPref = "ttsLanguages";
 const String ttsSpeedPref = "ttsSpeed";
+const String ttsPaliVoicePref = "ttsPaliVoice";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
 const String textDisplayModePref = "textDisplayMode";
@@ -662,6 +663,12 @@ class Prefs {
   /// Reading speed, 1 for the voice's normal pace.
   static double get ttsSpeed => instance.getDouble(ttsSpeedPref) ?? 1.0;
   static set ttsSpeed(double value) => instance.setDouble(ttsSpeedPref, value);
+
+  /// Which voice reads the Pali aloud: 'kn' (Kannada) or 'si' (Sinhala).
+  static String get ttsPaliVoice =>
+      instance.getString(ttsPaliVoicePref) ?? 'kn';
+  static set ttsPaliVoice(String value) =>
+      instance.setString(ttsPaliVoicePref, value);
 
   /// Every language the app has seen installed, whether shown or not.
   ///
