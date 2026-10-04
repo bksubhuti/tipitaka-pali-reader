@@ -41,7 +41,12 @@ class SentenceFtsBuilder {
   /// Bumped when the way the index is built changes enough that an existing
   /// one must be rebuilt. An index without it was built with large batches
   /// and may be missing text while reporting itself complete.
-  static const format = '2';
+  ///
+  /// '3': page starts are placed at the line and word they fall on. Before,
+  /// they were placed by paragraph, so a paragraph running across several
+  /// pages was filed under the last of them, and a hit in it opened on the
+  /// wrong page.
+  static const format = '3';
 
   /// Paragraphs of overlap between consecutive units.
   static const overlapParagraphs = 1;
@@ -388,6 +393,37 @@ CREATE TABLE IF NOT EXISTS search_meta (
     return result;
   }
 
+  /// As [readParagraphs], and also where each line starts in its paragraph,
+  /// as (line, words before it). A page can begin part-way through a
+  /// paragraph, and placing it needs the line it begins on turned into a word
+  /// offset. Lines that come out empty are left out, as their words are.
+  static Future<List<(int, String, List<(int, int)>)>> _readParagraphLines(
+      Database db, String table, String column, String book) async {
+    final rows = await db.rawQuery(
+      'SELECT para_id, line_id, $column AS text FROM $table '
+      'WHERE book_id = ? ORDER BY para_id, line_id',
+      [book],
+    );
+    final result = <(int, String, List<(int, int)>)>[];
+    var words = 0;
+    for (final row in rows) {
+      final text = clean(row['text'] as String? ?? '');
+      if (text.isEmpty) continue;
+      final para = row['para_id'] as int;
+      final line = row['line_id'] as int;
+      if (result.isNotEmpty && result.last.$1 == para) {
+        final last = result.last;
+        last.$3.add((line, words));
+        result[result.length - 1] = (para, '${last.$2} $text', last.$3);
+      } else {
+        words = 0;
+        result.add((para, text, [(line, 0)]));
+      }
+      words += _countWords(text);
+    }
+    return result;
+  }
+
   static int _firstAtOrAfter(List<int> sorted, int value) {
     var low = 0;
     var high = sorted.length;
@@ -429,8 +465,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
     // is addressed by book and page, and that numbering is unchanged by the
     // migration, so every unit records the page it starts on.
     final breaks = await db.rawQuery(
-      'SELECT book_id, para_id, tpr_book, tpr_page FROM ext.page_break '
-      'ORDER BY book_id, para_id, line_id',
+      'SELECT book_id, para_id, line_id, word_index, tpr_book, tpr_page '
+      'FROM ext.page_break ORDER BY book_id, para_id, line_id, word_index',
     );
     final pageStarts = <String, List<_PageStart>>{};
     for (final row in breaks) {
@@ -438,6 +474,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
           .putIfAbsent(row['book_id'] as String, () => <_PageStart>[])
           .add(_PageStart(
             row['para_id'] as int,
+            row['line_id'] as int,
+            row['word_index'] as int? ?? 0,
             row['tpr_book'] as String,
             row['tpr_page'] as int,
           ));
@@ -463,10 +501,12 @@ CREATE TABLE IF NOT EXISTS search_meta (
       }
 
       final paragraphs = <int, String>{};
+      final lineStarts = <int, List<(int, int)>>{};
       final order = <int>[];
-      for (final (para, text)
-          in await readParagraphs(db, 'epi.sentences', 'pali', book)) {
+      for (final (para, text, lines)
+          in await _readParagraphLines(db, 'epi.sentences', 'pali', book)) {
         paragraphs[para] = text;
+        lineStarts[para] = lines;
         order.add(para);
       }
       if (order.isEmpty) continue;
@@ -512,17 +552,36 @@ CREATE TABLE IF NOT EXISTS search_meta (
         // often falls past the page the unit started on. Without this the
         // result opens on the wrong page and the reader cannot find the
         // phrase to highlight.
-        final page = _pageFor(starts, order[i]);
+        //
+        // Placed at the line and word each page starts on, not by paragraph:
+        // a paragraph can run across several pages, and placed by paragraph
+        // it was filed under the last of them.
+        final firstPara = order[i];
+        final firstLine = lineStarts[firstPara]!.first.$1;
+        final at = _lastAtOrBefore(starts, firstPara, firstLine, 0);
+        final page = at >= 0 ? starts[at] : starts.first;
         final map = StringBuffer('0:${page.tprPage}');
         var offset = 0;
         var lastPage = page.tprPage;
+        var next = at + 1;
         for (var k = i; k < j; k++) {
-          final paraPage = _pageFor(starts, order[k]);
-          if (paraPage.tprPage != lastPage) {
-            map.write(',$offset:${paraPage.tprPage}');
-            lastPage = paraPage.tprPage;
+          final para = order[k];
+          final paraWords = _countWords(paragraphs[para]!);
+          while (next < starts.length && starts[next].paraId <= para) {
+            final start = starts[next++];
+            // A page starting in a paragraph with no text, between this one
+            // and the last, starts where this one does.
+            final within = start.paraId < para
+                ? 0
+                : (_lineOffset(lineStarts[para]!, start.lineId, paraWords) +
+                        start.wordIndex)
+                    .clamp(0, paraWords);
+            if (start.tprPage != lastPage) {
+              map.write(',${offset + within}:${start.tprPage}');
+              lastPage = start.tprPage;
+            }
           }
-          offset += _countWords(paragraphs[order[k]]!);
+          offset += paraWords;
         }
 
         final text = content.toString();
@@ -626,20 +685,33 @@ CREATE TABLE IF NOT EXISTS search_meta (
   }
 
   /// The page a paragraph falls on: the last page beginning at or before it.
-  static _PageStart _pageFor(List<_PageStart> starts, int paraId) {
+  /// The index of the last page start at or before word [word] of line
+  /// [line] in paragraph [para], or -1 if every page starts after it.
+  static int _lastAtOrBefore(
+      List<_PageStart> starts, int para, int line, int word) {
     var low = 0;
     var high = starts.length - 1;
-    var best = starts.first;
+    var best = -1;
     while (low <= high) {
       final mid = (low + high) >> 1;
-      if (starts[mid].paraId <= paraId) {
-        best = starts[mid];
+      if (starts[mid].compareTo(para, line, word) <= 0) {
+        best = mid;
         low = mid + 1;
       } else {
         high = mid - 1;
       }
     }
     return best;
+  }
+
+  /// Words before line [lineId] in a paragraph whose lines start as
+  /// [lines]. A line left out for having no text starts where the next one
+  /// with text does, or at the end of the paragraph.
+  static int _lineOffset(List<(int, int)> lines, int lineId, int paraWords) {
+    for (final (line, words) in lines) {
+      if (line >= lineId) return words;
+    }
+    return paraWords;
   }
 
   /// ePitaka keeps `<b>`, `<sup>` and `<i>` inside the Pali itself, on about a
@@ -742,8 +814,19 @@ CREATE TABLE IF NOT EXISTS search_meta (
 
 class _PageStart {
   final int paraId;
+  final int lineId;
+  final int wordIndex;
   final String tprBook;
   final int tprPage;
 
-  const _PageStart(this.paraId, this.tprBook, this.tprPage);
+  const _PageStart(
+      this.paraId, this.lineId, this.wordIndex, this.tprBook, this.tprPage);
+
+  /// Negative, zero or positive as this start comes before, at or after word
+  /// [word] of line [line] in paragraph [para].
+  int compareTo(int para, int line, int word) {
+    if (paraId != para) return paraId.compareTo(para);
+    if (lineId != line) return lineId.compareTo(line);
+    return wordIndex.compareTo(word);
+  }
 }
