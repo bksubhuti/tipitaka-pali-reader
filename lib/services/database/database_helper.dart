@@ -10,6 +10,7 @@ import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
+import 'package:tipitaka_pali/services/get_database_status.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/utils/fts_text_extractor.dart';
@@ -41,7 +42,16 @@ class DatabaseHelper {
         // several times, and this chain reopens it whenever it needs it, so
         // starting it here left work running against a handle setup had
         // closed. Setup does these steps itself, in order, when it is done.
-        if (!suspendBackgroundSetup) _startBackgroundSetup();
+        //
+        // Nor while setup is still to come. Something can open the database
+        // at start before setup has begun (a link opening the app can), and
+        // on a device with the sentence data that started an index build on
+        // the database setup was about to replace, which setup then waited
+        // out.
+        if (!suspendBackgroundSetup &&
+            getDatabaseStatus() == DatabaseStatus.uptoDate) {
+          _startBackgroundSetup();
+        }
       } catch (e) {
         _dbCompleter!.completeError(e);
         _dbCompleter = null;
