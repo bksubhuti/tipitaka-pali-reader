@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -112,6 +113,10 @@ class AiSearchService {
 
   AiSearchService({this.onStatusUpdate});
 
+  /// Below this a passage is too short for the AI to judge, so fewer passages
+  /// are shown each round rather than more of them cut shorter.
+  static const _minWordsPerPassage = 40;
+
   List<String> _parseStringList(dynamic jsonValue) {
     if (jsonValue == null) return [];
     if (jsonValue is List) {
@@ -127,7 +132,9 @@ class AiSearchService {
     if (jsonValue == null) return [];
     if (jsonValue is List) {
       return jsonValue
-          .map((e) => int.tryParse(e.toString()))
+          // The prompt labels overflow items "OF-5"; models often echo that.
+          .map((e) =>
+              int.tryParse(e.toString().replaceAll(RegExp(r'[^0-9]'), '')))
           .whereType<int>()
           .toList();
     }
@@ -173,6 +180,8 @@ class AiSearchService {
 
   void cancel() {
     _isCancelled = true;
+    // Drops the request in flight rather than waiting up to 50s for it.
+    _httpClient.close();
   }
 
   void _updateStatus(String message) {
@@ -257,7 +266,10 @@ class AiSearchService {
     int consecutiveZeroFinds = 0;
     try {
       for (int iteration = 1; iteration <= 5; iteration++) {
-        if (_isCancelled) break;
+        if (_isCancelled) {
+          _addLog('⚠️ Search cancelled by user.');
+          break;
+        }
         _updateStatus('--- Iteration $iteration ---');
 
         List<AiMatchedResult> requestedOverflow = [];
@@ -279,6 +291,7 @@ class AiSearchService {
           newResults.clear();
 
           for (final query in nextQueriesToSearch) {
+            if (_isCancelled) break;
             _addLog('🔍 Searching for "$query"...');
             try {
               final isMultiWord = query.contains(' ');
@@ -329,6 +342,20 @@ class AiSearchService {
           generalOverflow.addAll(newResults);
         }
 
+        // Every passage gets the same share of the word budget. What does not
+        // fit goes back to the front of the overflow, where the AI can still
+        // ask for it, instead of being dropped unseen.
+        final maxWords =
+            Prefs.activeAiProviderMode == 2 ? 1000 : maxResults * 40;
+        final wordsPerPassage = max(
+            _minWordsPerPassage, maxWords ~/ max(1, currentFullText.length));
+        final passagesThatFit = max(1, maxWords ~/ wordsPerPassage);
+        if (currentFullText.length > passagesThatFit) {
+          generalOverflow.insertAll(
+              0, currentFullText.sublist(passagesThatFit));
+          currentFullText = currentFullText.sublist(0, passagesThatFit);
+        }
+
         debugPrint(
             '[AiSearch] Budgeting Trace: maxResults=$maxResults, newResults.length=${newResults.length}');
         debugPrint(
@@ -355,6 +382,7 @@ class AiSearchService {
           generalOverflow: generalOverflow,
           isHeavy: isHeavyLifting,
           previousThoughts: aiMemory,
+          wordsPerPassage: wordsPerPassage,
           goOnline: goOnline,
         );
 
@@ -497,7 +525,7 @@ class AiSearchService {
     // Format a beautiful markdown log for the UI summary
     final summaryBuffer = StringBuffer();
     summaryBuffer.writeln(bestResults.isEmpty
-        ? '### No relevant results found after 5 iterations.\n'
+        ? '### No relevant results found.\n'
         : '### Found ${bestResults.length} relevant results.\n');
 
     summaryBuffer.writeln('**Agent Search Log:**');
@@ -563,16 +591,12 @@ class AiSearchService {
     required List<AiMatchedResult> generalOverflow,
     required bool isHeavy,
     required String previousThoughts,
+    required int wordsPerPassage,
     bool goOnline = true,
   }) async {
     final buffer = StringBuffer();
-    int wordCount = 0;
-    int maxWords = Prefs.aiMaxResults * 40;
-    if (Prefs.activeAiProviderMode == 2) {
-      maxWords = 1000;
-    }
 
-    for (int i = 0; i < currentFullText.length && wordCount < maxWords; i++) {
+    for (int i = 0; i < currentFullText.length; i++) {
       final r = currentFullText[i].searchResult;
       final cleanDesc = r.description
           .replaceAll(RegExp(r'<[^>]*>'), '')
@@ -580,14 +604,12 @@ class AiSearchService {
           .trim();
 
       final words = cleanDesc.split(' ');
-      final allowedWords = maxWords - wordCount;
-      final truncDesc = words.length > allowedWords
-          ? '${words.take(allowedWords).join(' ')}...'
+      final truncDesc = words.length > wordsPerPassage
+          ? '${words.take(wordsPerPassage).join(' ')}...'
           : cleanDesc;
 
       buffer.write(
           '[$i] ${r.book.name}, ${r.suttaName}, Pg ${r.pageNumber}: "$truncDesc"\n');
-      wordCount += words.take(allowedWords).length;
     }
 
     String cumulativeContext =
@@ -692,10 +714,13 @@ ${cumBuffer.toString()}''';
         thoughtProcess: _parseStringList(data['thought_process']),
         // SAFEGUARD 4: If it generated queries but they were all filtered out as duplicates, force a stop.
         isFullyAnswered: data['is_fully_answered'] == true ||
-            (rawQueries.isNotEmpty && safeQueries.isEmpty),
+            (rawQueries.isNotEmpty &&
+                safeQueries.isEmpty &&
+                safeOverflow.isEmpty),
         nextQueries: safeQueries,
       );
     } catch (e) {
+      if (_isCancelled) rethrow;
       debugPrint('Plan error: $e');
       return null;
     }
@@ -828,6 +853,7 @@ ${cumBuffer.toString()}''';
       final endpoint = apiUrl;
 
       for (int attempt = 0; attempt < 2; attempt++) {
+        if (_isCancelled) throw Exception('Cancelled by user');
         try {
           final providerName =
               endpoint.contains('deepseek') ? 'DeepSeek' : 'OpenRouter';
@@ -910,6 +936,7 @@ ${cumBuffer.toString()}''';
 
           return content;
         } catch (e) {
+          if (_isCancelled) rethrow;
           debugPrint('[AiSearch] Network error: $e');
           _addLog('❌ Network Error: $e');
           break;
@@ -942,16 +969,19 @@ ${cumBuffer.toString()}''';
           'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
 
       for (int attempt = 0; attempt < 2; attempt++) {
+        if (_isCancelled) throw Exception('Cancelled by user');
         try {
           // Only log the actual API network calls to standard debugPrint, keep the user UI clean
           debugPrint(
               '[AiSearch] Attempting connection to $model (Try ${attempt + 1})...');
 
-          final response = await _httpClient.post(
-            Uri.parse('$endpoint?key=$apiKey'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(requestBody),
-          );
+          final response = await _httpClient
+              .post(
+                Uri.parse('$endpoint?key=$apiKey'),
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode(requestBody),
+              )
+              .timeout(const Duration(seconds: 50));
 
           if (_isCancelled) {
             final msg = 'Cancelled by user';
@@ -1004,6 +1034,7 @@ ${cumBuffer.toString()}''';
 
           return text;
         } catch (e) {
+          if (_isCancelled) rethrow;
           debugPrint('[AiSearch] Network error: $e');
           if (attempt == 0) {
             _addLog('⚠️ Network Error (Retrying...): $e');
