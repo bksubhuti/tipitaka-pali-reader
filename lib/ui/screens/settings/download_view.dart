@@ -684,20 +684,12 @@ class _DownloadViewState extends State<DownloadView> {
           .whereType<File>()
           .where((f) => f.path.toLowerCase().endsWith('.zip'));
 
-      const legacyZips = {
-        'full_en.zip',
-        'full_vn.zip',
-        'en_full.zip',
-        'vn_full.zip',
-      };
-
       for (var file in files) {
         final stat = await file.stat();
         final fileName = file.path.split(Platform.pathSeparator).last;
-        final fileNameLower = fileName.toLowerCase();
 
         // Skip legacy outdated zips
-        if (legacyZips.contains(fileNameLower)) {
+        if (isRetiredExtensionZip(fileName)) {
           continue;
         }
 

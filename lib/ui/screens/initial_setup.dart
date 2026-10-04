@@ -11,6 +11,7 @@ import 'package:tipitaka_pali/business_logic/view_models/initial_setup_service.d
 import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/ui/screens/settings/download_service.dart';
 import 'package:tipitaka_pali/ui/dialogs/extension_prompt_dialog.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/ui/widgets/colored_text.dart';
@@ -261,16 +262,9 @@ class _InitialSetupState extends State<InitialSetup> {
     final files = directory.listSync().whereType<File>().toList();
     List<File> extensions = [];
 
-    const legacyZips = {
-      'full_en.zip',
-      'full_vn.zip',
-      'en_full.zip',
-      'vn_full.zip',
-    };
-
     for (final file in files) {
-      final nameLower = path.basename(file.path).toLowerCase();
-      if (nameLower.endsWith('.zip') && !legacyZips.contains(nameLower)) {
+      final name = path.basename(file.path);
+      if (name.toLowerCase().endsWith('.zip') && !isRetiredExtensionZip(name)) {
         extensions.add(file);
       }
     }

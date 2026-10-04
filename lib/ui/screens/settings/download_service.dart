@@ -1136,3 +1136,33 @@ class DownloadService {
     downloadNotifier.downloading = false;
   }
 }
+
+/// Zips in the database folder that must not be offered for restore.
+///
+/// Once the sentence data is in, translations are language files, and the old
+/// English and Vietnamese extensions are retired: restoring one would put the
+/// old translation tables (and the books bundled with them, such as Safeguard
+/// Recitals) back over the new data. A store install that had English keeps
+/// `epitaka_full_en.zip` in this folder, so an upgrade would otherwise offer
+/// it. Without the sentence data those extensions are still how translations
+/// are installed, so they stay restorable there.
+///
+/// A language archive (`epitaka_en.zip`) is removed after it installs, but
+/// one left by an interrupted install is not an extension either.
+bool isRetiredExtensionZip(String fileName) {
+  const alwaysRetired = {
+    'full_en.zip',
+    'full_vn.zip',
+    'en_full.zip',
+    'vn_full.zip',
+  };
+  const oldTranslations = {
+    'epitaka_full_en.zip',
+    'epitaka_viet_full.zip',
+  };
+  final name = fileName.toLowerCase();
+  if (alwaysRetired.contains(name)) return true;
+  if (!DatabaseHelper.sentenceDataAvailable) return false;
+  return oldTranslations.contains(name) ||
+      RegExp(r'^epitaka_[a-z]{2,3}\.zip$').hasMatch(name);
+}
