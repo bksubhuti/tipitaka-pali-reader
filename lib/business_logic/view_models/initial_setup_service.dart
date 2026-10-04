@@ -151,6 +151,7 @@ class InitialSetupService {
     var restored = false;
     if (userData != null) {
       debugPrint('--> Restoring the reader\'s data to new DB...');
+      updateMessageCallback('Restoring bookmarks and history…');
       try {
         // Now it is safe to use the Singleton, because Prefs are updated!
         await userData.writeTo(await DatabaseHelper().database);
@@ -180,7 +181,8 @@ class InitialSetupService {
     // taken over, and give back the space. The index itself was built during
     // the copy, so this usually has only the tidying left to do.
     try {
-      await DatabaseHelper.runBackgroundSetupNow();
+      await DatabaseHelper.runBackgroundSetupNow(
+          onProgress: updateMessageCallback);
     } catch (e) {
       // Nothing here should stop the app opening; the next start retries.
       debugPrint('--> background setup after install failed: $e');

@@ -66,16 +66,25 @@ class DatabaseHelper {
 
   /// Builds the index, retires the old page data and gives back the space, in
   /// that order, without holding up the screen.
-  static void _startBackgroundSetup() {
+  ///
+  /// [onProgress] also receives each step's messages, for a screen that is
+  /// waiting on them.
+  static void _startBackgroundSetup(
+      {void Function(String message)? onProgress}) {
     final helper = DatabaseHelper();
+    void report(String msg) {
+      myLogger.i(msg);
+      onProgress?.call(msg);
+    }
+
     _setupChain = helper.buildSentenceFtsIfNeeded(
-          onProgress: (msg) => myLogger.i(msg),
+          onProgress: report,
     ).then((_) => helper.retireLegacyDataIfReady(
-          onProgress: (msg) => myLogger.i(msg),
+          onProgress: report,
         )).then((_) => helper.updateTranslationWordLists(
-          onProgress: (msg) => myLogger.i(msg),
+          onProgress: report,
         )).then((_) => helper.reclaimSpaceIfWorthwhile(
-          onProgress: (msg) => myLogger.i(msg),
+          onProgress: report,
         )).catchError((Object e) {
       myLogger.e('sentence setup failed: $e');
       return false;
@@ -84,9 +93,14 @@ class DatabaseHelper {
   }
 
   /// Runs the steps setup skipped, once it has finished with the database.
-  static Future<void> runBackgroundSetupNow() async {
+  ///
+  /// Setup waits on these with its screen up, so [onProgress] lets it show
+  /// what they are doing. Reported only to the log, the screen sat on its
+  /// last message while the word lists were rebuilt and the space reclaimed.
+  static Future<void> runBackgroundSetupNow(
+      {void Function(String message)? onProgress}) async {
     suspendBackgroundSetup = false;
-    _startBackgroundSetup();
+    _startBackgroundSetup(onProgress: onProgress);
     await _setupChain;
   }
 
