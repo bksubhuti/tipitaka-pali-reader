@@ -15,7 +15,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/business_logic/models/bookmark.dart';
-import 'package:tipitaka_pali/business_logic/models/tpr_message.dart';
 import 'package:tipitaka_pali/business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
@@ -24,7 +23,6 @@ import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/services/provider/user_notifier.dart';
 import 'package:tipitaka_pali/services/repositories/sutta_repository.dart';
-import 'package:tipitaka_pali/ui/dialogs/show_tpr_message_dlg.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/unsupported_language_classes/ccp_intl.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
@@ -37,7 +35,6 @@ import 'services/provider/locale_change_notifier.dart';
 import 'services/provider/script_language_provider.dart';
 import 'services/provider/theme_change_notifier.dart';
 import 'ui/screens/splash_screen.dart';
-import 'package:tipitaka_pali/services/fetch_messages_if_needed.dart';
 import 'package:app_links/app_links.dart';
 
 final Logger myLogger = Logger(
@@ -350,157 +347,10 @@ class _AppState extends State<App> with WindowListener {
                 Locale('it', ''), // Italian, it
                 Locale('th', ''), // Italian, it
               ],
-              home: FutureBuilder(
-                future: generalStartupChecks(),
-                builder:
-                    (BuildContext context, AsyncSnapshot<TprMessage> snapshot) {
-                  //simulateFileOpen(context);
-
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (snapshot.hasData &&
-                          snapshot.data!.generalMessage.isNotEmpty) {
-                        showWhatsNewDialog(context, snapshot.data!);
-                      }
-                      // Check if Sangaha DB fix is needed
-                      _promptAndFixSangaha(context);
-                    });
-                  }
-
-                  return SplashScreen();
-                },
-              ),
+              home: SplashScreen(),
             );
           },
         ));
-  }
-
-  /// Checks if the Abhidhammatthasangaha fix is needed and prompts the user.
-  Future<void> _promptAndFixSangaha(BuildContext context) async {
-    final needsFix = await checkSangahaFixNeeded();
-    if (!needsFix) return;
-    if (!context.mounted) return;
-
-    // Ask the user for confirmation
-    final shouldFix = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Database Fix Required'),
-        content: const Text(
-          'The Abhidhammatthasangaha (eṭipitaka extension) has extra pages '
-          'that need to be removed. This will also rebuild the search index '
-          'and may take a minute.\n\nProceed with the fix?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Later'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Fix Now'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldFix != true) return;
-    if (!context.mounted) return;
-
-    // Show a progress dialog while running the fix
-    await _showSangahaProgressDialog(context);
-  }
-
-  /// Runs the actual DB fix inside a non-dismissible progress dialog.
-  Future<void> _showSangahaProgressDialog(BuildContext context) async {
-    final progressNotifier = ValueNotifier<String>('Starting fix…');
-
-    // Create a ValueNotifier for the state (null means in progress, true means success, false means error)
-    final hasErrorNotifier = ValueNotifier<bool>(false);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          title: const Text('Fixing Database…'),
-          content: ValueListenableBuilder<bool>(
-            valueListenable: hasErrorNotifier,
-            builder: (_, hasError, __) {
-              return ValueListenableBuilder<String>(
-                valueListenable: progressNotifier,
-                builder: (_, msg, __) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!hasError) const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    Text(msg, textAlign: TextAlign.center),
-                  ],
-                ),
-              );
-            },
-          ),
-          actions: [
-            ValueListenableBuilder<bool>(
-              valueListenable: hasErrorNotifier,
-              builder: (_, hasError, __) {
-                if (hasError) {
-                  return TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text('Close'),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final db = await DatabaseHelper().database;
-
-      // 1. Delete extra pages
-      progressNotifier.value = 'Removing extra pages…';
-      await db.rawDelete(
-        "DELETE FROM pages WHERE bookid = 'annya_bi_05' AND page > 68",
-      );
-      debugPrint('SangahaFix: deleted extra pages from annya_bi_05');
-
-      // 2. Drop the old FTS table so it can be rebuilt cleanly
-      progressNotifier.value = 'Dropping old search index…';
-      await db.execute('DROP TABLE IF EXISTS fts_pages;');
-
-      // 3. Rebuild FTS index (the long-running part)
-      await DatabaseHelper().buildFts((String msg) {
-        progressNotifier.value = msg;
-      });
-
-      // 4. Rebuild content indexes
-      progressNotifier.value = 'Rebuilding content indexes…';
-      await DatabaseHelper().buildBothIndexes((String msg) {
-        progressNotifier.value = msg;
-      });
-
-      // 5. Mark as done
-      Prefs.sangahaFixed = true;
-      debugPrint('SangahaFix: complete');
-
-      // Close automatically on success
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-    } catch (e) {
-      debugPrint('SangahaFix: error during fix — $e');
-      progressNotifier.value = 'An error occurred during the fix:\n$e';
-      hasErrorNotifier.value = true;
-    }
-
-    progressNotifier.dispose();
-    hasErrorNotifier.dispose();
   }
 
   Future<void> simulateFileOpen(BuildContext context) async {
