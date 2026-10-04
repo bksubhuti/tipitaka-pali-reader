@@ -239,21 +239,30 @@ No App Liability: The developer of this application is not responsible for any a
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
 
-        final translatedDesc =
-            PaliScript.getScriptOf(script: currentScript, romanText: cleanDesc);
+        final translatedDesc = r.isTranslation
+            ? cleanDesc
+            : PaliScript.getScriptOf(
+                script: currentScript, romanText: cleanDesc);
+        final cleanTranslation = (r.translation ?? '')
+            .replaceAll(RegExp(r'<[^>]*>'), '')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
         final translatedBook = PaliScript.getScriptOf(
             script: currentScript, romanText: r.book.name);
         final translatedPage = PaliScript.getScriptOf(
             script: currentScript, romanText: r.pageNumber.toString());
 
         buffer.writeln('${i + 1}. Book: $translatedBook');
-        if (r.suttaName.isNotEmpty) {
+        if (r.suttaName.isNotEmpty && r.suttaName != 'n/a') {
           final translatedSutta = PaliScript.getScriptOf(
               script: currentScript, romanText: r.suttaName);
           buffer.writeln('   Sutta: $translatedSutta');
         }
         buffer.writeln('   Page: $translatedPage');
         buffer.writeln('   "$translatedDesc"');
+        if (cleanTranslation.isNotEmpty) {
+          buffer.writeln('   "$cleanTranslation"');
+        }
         buffer.writeln('');
       }
     }
@@ -435,7 +444,7 @@ No App Liability: The developer of this application is not responsible for any a
                           textInputAction: TextInputAction.search,
                           decoration: InputDecoration(
                             hintText:
-                                'Ask in English (e.g. When did the Buddha teach dullabho daily?)',
+                                'Ask in English (e.g. Find me the story of the lady who needed seeds to save her baby)',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
