@@ -58,6 +58,12 @@ class InitialSetupService {
     // The reader's own data, held while the database is replaced.
     UserDataCarryOver? userData;
 
+    // The old database, moved aside rather than deleted, and kept until its
+    // data is in the new one. On a current install the old database is the
+    // very file replaced below, and it used to be deleted whether or not
+    // reading it had worked, taking the bookmarks with it.
+    final keptOldDb = File('$newDbPath.previous');
+
     // 2. BACKUP PHASE (Only runs if updating)
     if (isUpdateMode) {
       debugPrint('--> Starting Backup Phase...');
@@ -75,13 +81,30 @@ class InitialSetupService {
 
       final oldFile = File(oldDbPath);
 
+      // An earlier setup that moved the old database aside and did not
+      // finish left the reader's data there; the file in its place is a
+      // fresh copy without it. Read from the kept one, and keep it.
+      String? readFrom;
+      await DatabaseHelper().close();
+      if (await keptOldDb.exists()) {
+        readFrom = keptOldDb.path;
+      } else if (await oldFile.exists()) {
+        if (equals(oldDbPath, newDbPath)) {
+          await oldFile.rename(keptOldDb.path);
+          readFrom = keptOldDb.path;
+        } else {
+          // An older location, which nothing below deletes.
+          readFrom = oldDbPath;
+        }
+      }
+
       // B. Extract Data
-      if (await oldFile.exists()) {
+      if (readFrom != null) {
         try {
           // We use standard openDatabase here to read the old file safely
           // Note: On mobile, this uses standard platform channels.
           // On Desktop, we might need to ensure FFI is init, but usually safe.
-          var oldDb = await openDatabase(oldDbPath);
+          var oldDb = await openDatabase(readFrom);
 
           // Bookmarks with their folders, recents, history and the
           // dictionary order: everything the reader made, not only bookmarks.
@@ -92,8 +115,8 @@ class InitialSetupService {
           await oldDb.close();
         } catch (e) {
           debugPrint('--> ERROR during backup: $e');
-          // If backup fails, we proceed but log it.
-          // We DO NOT delete the old file, so user data is still safe on disk.
+          // The old database stays where it was moved, so the reader's data
+          // is still on disk to be recovered.
         }
       }
     }
@@ -111,8 +134,7 @@ class InitialSetupService {
     // 4. COPY ASSETS
     await _copyFromAssets(newDbPath);
 
-    // 4b. FORCE RE-INIT: Discard any stale DB handle that may have been
-    // opened during the copy (e.g. by the Sangaha check running in parallel).
+    // 4b. Discard any DB handle opened during the copy.
     await DatabaseHelper().close();
 
     // 5. UPDATE PREFS
@@ -126,14 +148,29 @@ class InitialSetupService {
     _cleanupLegacyFiles(newDbDir);
 
     // 6. RESTORE DATA
+    var restored = false;
     if (userData != null) {
       debugPrint('--> Restoring the reader\'s data to new DB...');
       try {
         // Now it is safe to use the Singleton, because Prefs are updated!
         await userData.writeTo(await DatabaseHelper().database);
         debugPrint('--> Restore complete.');
+        restored = true;
       } catch (e) {
         debugPrint('--> ERROR during restore: $e');
+      }
+    }
+
+    // Only now is the old database no longer needed. One whose data did not
+    // make it across is kept, under a name of its own: left as it is, a later
+    // setup would take it for one cut off part way and read it in place of
+    // the newer database.
+    if (await keptOldDb.exists()) {
+      if (restored) {
+        await keptOldDb.delete();
+      } else {
+        await keptOldDb.rename('$newDbPath.unrestored-'
+            '${DateTime.now().millisecondsSinceEpoch}');
       }
     }
 
