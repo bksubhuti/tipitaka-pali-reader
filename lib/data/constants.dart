@@ -7,7 +7,7 @@ class DatabaseInfo {
   /// database: the text is read from ePitaka's sentences now, and carrying it
   /// twice cost 204 MB. A change to the shipped file has to move this, or an
   /// existing install never copies the new one.
-  static const int version = 60;
+  static const int version = 61;
   static const String fileName = 'tipitaka_pali.db';
 }
 
