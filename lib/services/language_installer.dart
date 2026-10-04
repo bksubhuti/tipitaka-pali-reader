@@ -10,6 +10,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// A translation that can be installed.
 class LanguageOption {
@@ -120,6 +121,30 @@ class LanguageInstaller {
   static Future<void> install(
     LanguageOption option, {
     LanguageProgress? onStep,
+  }) =>
+      _keepingAwake(() => _install(option, onStep: onStep));
+
+  /// Keeps the screen on while [work] runs. A phone that sleeps part-way
+  /// through a download or the indexing after it can suspend the app and
+  /// leave the install unfinished.
+  static Future<T> _keepingAwake<T>(Future<T> Function() work) async {
+    try {
+      await WakelockPlus.enable();
+    } catch (_) {
+      // Not every platform has one; the install goes ahead without it.
+    }
+    try {
+      return await work();
+    } finally {
+      try {
+        await WakelockPlus.disable();
+      } catch (_) {}
+    }
+  }
+
+  static Future<void> _install(
+    LanguageOption option, {
+    LanguageProgress? onStep,
   }) async {
     // Everything is written under a name that says it is unfinished, and
     // given the real one only once whole. A download or copy cut off part
@@ -214,11 +239,12 @@ class LanguageInstaller {
 
   /// Uses a copy already on the device instead of downloading it again:
   /// shows it, and makes sure search and the suggestions cover it.
-  static Future<void> useLocal(String code, {LanguageProgress? onStep}) async {
-    activate(code);
-    await _reindex(onStep);
-    onStep?.call(LanguageStep.wordList, 1, '${nameOf(code)} ready');
-  }
+  static Future<void> useLocal(String code, {LanguageProgress? onStep}) =>
+      _keepingAwake(() async {
+        activate(code);
+        await _reindex(onStep);
+        onStep?.call(LanguageStep.wordList, 1, '${nameOf(code)} ready');
+      });
 
   /// What the release server says about a language's download, or null when
   /// it cannot be reached.
