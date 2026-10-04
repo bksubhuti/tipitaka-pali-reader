@@ -33,6 +33,17 @@ class _InitialSetupState extends State<InitialSetup> {
   void initState() {
     super.initState();
     WakelockPlus.enable();
+    // Started once, here. Started from build(), as it was, any rebuild of
+    // this screen (a theme or locale change, a resize) began a second setup
+    // over the first, deleting and copying the database again.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      InitialSetupService(
+              context,
+              Provider.of<InitialSetupNotifier>(context, listen: false),
+              widget.isUpdateMode)
+          .setUp(widget.isUpdateMode);
+    });
   }
 
   @override
@@ -45,10 +56,6 @@ class _InitialSetupState extends State<InitialSetup> {
   Widget build(BuildContext context) {
     final initialSetupNotifier =
         Provider.of<InitialSetupNotifier>(context, listen: false);
-    final initialSetupService =
-        InitialSetupService(context, initialSetupNotifier, widget.isUpdateMode);
-    initialSetupService.setUp(widget.isUpdateMode);
-
     return Material(
       // NOTE by Rydmike: Annotated region example for
       // Android: No AppBar status scrim and no sys nav scrim.
