@@ -111,6 +111,7 @@ const String ttsSpeedPref = "ttsSpeed";
 const String ttsPaliVoicePref = "ttsPaliVoice";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
+const String translationTermsAcceptedPref = "translationTermsAccepted";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
 const String sangahaFixedPref = "sangahaFixed";
@@ -643,6 +644,13 @@ class Prefs {
       instance.getBool(languageChoiceMadePref) ?? false;
   static set languageChoiceMade(bool value) =>
       instance.setBool(languageChoiceMadePref, value);
+
+  /// Whether the reader has agreed to the terms of the ePitaka translations,
+  /// which is asked before the first one is downloaded.
+  static bool get translationTermsAccepted =>
+      instance.getBool(translationTermsAcceptedPref) ?? false;
+  static set translationTermsAccepted(bool value) =>
+      instance.setBool(translationTermsAcceptedPref, value);
 
   /// The translations shown beneath the Pali, in display order.
   ///

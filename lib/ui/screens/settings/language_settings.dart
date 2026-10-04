@@ -6,6 +6,7 @@ import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/ui/widgets/language_steps.dart';
+import 'package:tipitaka_pali/ui/dialogs/translation_terms_dialog.dart';
 
 /// Choosing which translations are installed and the order they read in.
 ///
@@ -54,6 +55,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
       .name;
 
   Future<void> _install(LanguageOption option) async {
+    if (!await ensureTranslationTermsAccepted(context)) return;
     final steps = LanguageStepState(LanguageStep.install);
     setState(() {
       _busy = option.code;
