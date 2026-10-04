@@ -150,6 +150,24 @@ class _InitialSetupState extends State<InitialSetup> {
   }
 
   void concludeTheSetup(BuildContext context) async {
+    // With the sentence data present, translations are installed as language
+    // files rather than as prebuilt extensions, so offer that instead.
+    // Asked whether languages are on the device or not: after a reset they
+    // are, and the reader is still asked, and told which ones are there.
+    //
+    // Asked before the extensions below, not after. Choosing to restore
+    // extensions used to skip this and leave the offer to the home screen,
+    // and after a restore that offer did not appear.
+    if (DatabaseHelper.sentenceDataAvailable &&
+        !Prefs.languageChoiceMade &&
+        context.mounted) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LanguageChoiceScreen()),
+      );
+      if (!context.mounted) return;
+    }
+
     List<File> extensions = getExtensionFiles();
 
     // --- THE GATEKEEPER ---
@@ -187,21 +205,6 @@ class _InitialSetupState extends State<InitialSetup> {
         });
         return;
       }
-    }
-
-    // With the sentence data present, translations are installed as language
-    // files rather than as prebuilt extensions, so offer that instead.
-    // Asked whether languages are on the device or not: after a reset they
-    // are, and the reader is still asked, and told which ones are there.
-    if (DatabaseHelper.sentenceDataAvailable &&
-        !Prefs.languageChoiceMade &&
-        context.mounted) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const LanguageChoiceScreen()),
-      );
-      if (context.mounted) _openHomePage(context);
-      return;
     }
 
     // Prompt user for English Translation Extension if not installed

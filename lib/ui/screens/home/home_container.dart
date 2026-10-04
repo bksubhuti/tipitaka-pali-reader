@@ -36,6 +36,10 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> _offerTranslation() async {
+    // The database is opened first. On a normal start the home screen is
+    // built before anything has opened it, and the sentence data, attached as
+    // it opens, read as missing, so the offer never came.
+    await DatabaseHelper().database;
     if (!DatabaseHelper.sentenceDataAvailable) return;
     // Not skipped when a language is already on the device: a reset keeps
     // the files, and the reader is still asked, and shown which are there.
