@@ -321,6 +321,10 @@ class SentencePageContentRepository implements PageContentRepository {
     }
 
     final languages = _shownLanguages();
+    // The ePitaka credit opens the book when it has a translation to show.
+    final hasTranslation = languages.isNotEmpty &&
+        translations.values
+            .any((perLanguage) => perLanguage.any((t) => t.isNotEmpty));
     final out = <PageContent>[];
     final cursor = <String, int>{};
     for (var i = 0; i < breaks.length; i++) {
@@ -390,12 +394,15 @@ class SentencePageContentRepository implements PageContentRepository {
       // itself when it is first looked at; only the block count is needed up
       // front, and that can be counted without building anything.
       final continues = start.wordIndex > 0;
+      final withCredit = hasTranslation && out.isEmpty;
       out.add(PageContent(
         bookID: bookID,
         pageNumber: breaks[i]['tpr_page'] as int,
         build: () => PageComposer.compose(built,
-            continuesFromPreviousPage: continues, languages: languages),
-        blockCount: PageComposer.blockCount(built),
+            continuesFromPreviousPage: continues,
+            languages: languages,
+            withCredit: withCredit),
+        blockCount: PageComposer.blockCount(built, withCredit: withCredit),
         paragraphNumber: '',
         sentences: built,
         languages: languages,

@@ -120,14 +120,18 @@ class PageComposer {
   ///
   /// [languages] names the language of each translation, in the same order
   /// as [PageSentence.translations].
+  ///
+  /// [withCredit] opens the page with [translationCredit], as its own block.
   static String compose(
     List<PageSentence> sentences, {
     bool continuesFromPreviousPage = false,
     List<String> languages = const [],
+    bool withCredit = false,
   }) {
     if (sentences.isEmpty) return '';
 
     final buffer = StringBuffer();
+    if (withCredit) buffer.write(translationCredit);
     int? openParaId;
     var first = true;
     var previousHadTranslation = false;
@@ -192,6 +196,20 @@ class PageComposer {
   static final _variantReading =
       RegExp(r'\[[^\[\]]*\([^()]*\)\s*\]');
 
+  /// The credit and caution for the ePitaka translations, written at the top
+  /// of a book's first page when a translation is shown.
+  ///
+  /// The text sits in a `translation_text` span so that it is treated as a
+  /// translation is: not turned into the reader's Pali script, and hidden
+  /// with the translations when the reader shows Pali only. It carries no
+  /// sentence marker, so reading aloud passes over it.
+  static const translationCredit = '<p class="centered">'
+      '<span class="translation_text"><i>'
+      'Epitaka.org AI Translation (2026) — use with discretion.<br>'
+      'The translation was created with Myanmar Nissaya data provided by '
+      'Wikipali.org.'
+      '</i></span></p>';
+
   /// The class a heading of [level] is written with, `heading1` to
   /// `heading7`, or `heading0` for a title line. The reader sizes them.
   static String headingClass(int level) => 'heading${level.clamp(0, 7)}';
@@ -211,8 +229,10 @@ class PageComposer {
   /// building every page of the book first. It mirrors the one condition
   /// [compose] uses to open a paragraph, so the two cannot drift apart
   /// without this line changing too.
-  static int blockCount(List<PageSentence> sentences) {
-    var blocks = 0;
+  static int blockCount(List<PageSentence> sentences,
+      {bool withCredit = false}) {
+    if (sentences.isEmpty) return 0;
+    var blocks = withCredit ? 1 : 0;
     int? openParaId;
     for (final sentence in sentences) {
       if (sentence.paraId != openParaId) {

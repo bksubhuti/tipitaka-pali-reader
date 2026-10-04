@@ -396,5 +396,28 @@ void main() {
     test('an empty page composes to nothing', () {
       expect(_compose(const []), '');
     });
+
+    test('the translation credit is a block of its own, and counted', () {
+      const sentences = [
+        PageSentence(
+            paraId: 6,
+            lineId: 1,
+            pali: 'evaṃ me sutaṃ',
+            translations: ['Thus have I heard.']),
+        PageSentence(paraId: 7, lineId: 1, pali: 'tena samayena'),
+      ];
+      final html = PageComposer.compose(sentences,
+          languages: const ['en'], withCredit: true);
+
+      expect(html, startsWith(PageComposer.translationCredit));
+      // The reader sizes its list from the count without composing, so the
+      // two have to agree or every block after the credit is off by one.
+      expect(PageComposer.blocksOf(html).length,
+          PageComposer.blockCount(sentences, withCredit: true));
+      expect(PageComposer.blockCount(sentences, withCredit: true),
+          PageComposer.blockCount(sentences) + 1);
+      expect(_compose(sentences, languages: const ['en']),
+          isNot(contains('Epitaka.org')));
+    });
   });
 }
