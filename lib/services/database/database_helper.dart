@@ -343,9 +343,13 @@ class DatabaseHelper {
     final fresh = codes.where((c) => !known.contains(c)).toList();
     if (fresh.isNotEmpty && Prefs.languageChoiceMade) {
       Prefs.knownLanguages = [...known, ...fresh];
+      // One already shown is not added again: switched on from the quick
+      // settings, a language could be shown without being known yet, and
+      // was then listed, and shown, twice.
+      final shown = Prefs.activeLanguages.where(codes.contains).toList();
       Prefs.activeLanguages = [
-        ...Prefs.activeLanguages.where(codes.contains),
-        ...fresh,
+        ...shown,
+        ...fresh.where((c) => !shown.contains(c)),
       ];
       myLogger.i('showing languages: ${Prefs.activeLanguages.join(", ")}');
     }

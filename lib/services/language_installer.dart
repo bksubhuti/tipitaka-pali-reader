@@ -318,6 +318,11 @@ class LanguageInstaller {
       return;
     }
     if (active.contains(code)) return;
+    // Known as well as shown. Shown alone, the next start took it for a
+    // language just found and added it to the shown list a second time.
+    if (!Prefs.knownLanguages.contains(code)) {
+      Prefs.knownLanguages = [...Prefs.knownLanguages, code];
+    }
     // Back into its remembered place rather than onto the end, so switching
     // one off and on again does not reorder the page.
     final order = Prefs.knownLanguages;

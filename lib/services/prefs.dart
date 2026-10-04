@@ -656,10 +656,17 @@ class Prefs {
   ///
   /// A subset of what is installed: a language can be on disk and switched
   /// off, so turning it off does not mean downloading it again later.
+  ///
+  /// Each language once, in its first place. A list holding one twice
+  /// showed every translated line twice; read this way it is repaired on
+  /// devices that already have it.
   static List<String> get activeLanguages =>
-      instance.getStringList(activeLanguagesPref) ?? const [];
+      _distinct(instance.getStringList(activeLanguagesPref) ?? const []);
   static set activeLanguages(List<String> value) =>
-      instance.setStringList(activeLanguagesPref, value);
+      instance.setStringList(activeLanguagesPref, _distinct(value));
+
+  static List<String> _distinct(List<String> codes) =>
+      codes.toSet().toList();
 
   /// The languages read aloud: 'pali' and translation codes. Empty until
   /// the reader first chooses, which means everything shown.
@@ -684,9 +691,9 @@ class Prefs {
   /// from one that has just appeared and has never been offered. The first
   /// must stay off; the second should be shown.
   static List<String> get knownLanguages =>
-      instance.getStringList(knownLanguagesPref) ?? const [];
+      _distinct(instance.getStringList(knownLanguagesPref) ?? const []);
   static set knownLanguages(List<String> value) =>
-      instance.setStringList(knownLanguagesPref, value);
+      instance.setStringList(knownLanguagesPref, _distinct(value));
 
   static int get translationColor =>
       instance.getInt(translationColorPref) ?? defaultTranslationColor;
