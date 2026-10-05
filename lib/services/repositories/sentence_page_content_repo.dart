@@ -129,11 +129,14 @@ class SentencePageContentRepository implements PageContentRepository {
         dropped = start.wordIndex;
         pali = _dropWords(pali, start.wordIndex);
       }
+      // The next page's start is fetched with this page's sentences, so that
+      // a sentence the break falls inside can be cut at it. A break at the
+      // first word cuts the whole sentence away: it belongs to the next page
+      // alone, and keeping it showed it twice, either side of the break.
       if (end != null &&
           i == rows.length - 1 &&
           paraId == end.paraId &&
-          lineId == end.lineId &&
-          end.wordIndex > 0) {
+          lineId == end.lineId) {
         pali = _keepWords(pali, end.wordIndex - dropped);
       }
       if (pali.isEmpty) continue;
