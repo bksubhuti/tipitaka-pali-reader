@@ -11,16 +11,41 @@
 
   <description>
     <p>
-      Tipitaka Pali Reader (TPR) is designed for reading and studying Pāḷi texts. 
-      It offers integrated dictionary support, multi-language definitions, and 
-      support for various scripts. Ideal for students of early Buddhist texts, it 
+      Tipitaka Pali Reader (TPR) is designed for reading and studying Pāḷi texts.
+      It offers integrated dictionary support, multi-language definitions, and
+      support for various scripts. Ideal for students of early Buddhist texts, it
       enables fast lookup of word meanings and root structures.
-
+    </p>
+    <ul>
+      <li>The whole Tipitaka with commentaries and sub-commentaries, in many scripts</li>
+      <li>Translations in many languages from ePitaka, shown beneath the Pāḷi</li>
+      <li>Tap a word to see its meaning, grammar and root in several dictionaries</li>
+      <li>Search the Pāḷi and the translations, in the script you read them in</li>
+      <li>Page numbers of the Myanmar, VRI, PTS and Thai editions</li>
+      <li>Bookmarks in folders, with cloud transfer between devices</li>
+    </ul>
+    <p>
       May all beings benefit from this dhamma donation!
     </p>
   </description>
 
   <releases>
+    <release version="3.0.1+125" date="2026-10-05">
+      <description>
+        <p>
+          The texts now come from ePitaka's sentence data, and translations can be added.
+        </p>
+        <ul>
+          <li>Download translations in many languages and show them beneath the Pāḷi</li>
+          <li>Turn the Pāḷi and each language on or off from the quick settings</li>
+          <li>Search translations in their own script, such as Myanmar, Thai and Sinhala</li>
+          <li>A search hit opens on the page it is on</li>
+          <li>Headings sized by their level, and book text kept to a readable width</li>
+          <li>Old bookmarks, history and settings are kept on upgrade</li>
+          <li>AI search copies the translation along with the Pāḷi</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.9.3+123" date="2026-09-04">
       <description>
         <p>

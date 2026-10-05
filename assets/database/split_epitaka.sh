@@ -46,3 +46,5 @@ split_one tpr_extension.db tpr_extension_part.
 
 echo "Success. Add the part names to pubspec.yaml and to AssetsFile in"
 echo "lib/data/constants.dart if the number of parts has changed."
+echo "Then run: shasum -a 256 *_part.* > SHA256SUMS"
+echo "and upload the parts to the release the Linux build reads from."

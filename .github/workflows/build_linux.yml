@@ -7,6 +7,10 @@ on:
         description: 'Release Tag (e.g., v2.9.3+123). Leave empty to use version from pubspec.yaml'
         required: false
         default: ''
+      data_tag:
+        description: 'Release tag that holds the databases (tipitaka_pali.db.tar.bz2, epitaka_part.*, tpr_extension_part.*)'
+        required: true
+        default: 'sentence-data-2026-09-28'
 
 # REQUIRED: Grant the action permission to create a release in your repo
 permissions:
@@ -51,25 +55,59 @@ jobs:
             clang cmake ninja-build pkg-config libgtk-3-dev \
             libstdc++-12-dev libfuse2
 
-      - name: Prepare assets directory
-        run: mkdir -p assets/database
-
-      - name: Download zip file
+      # The databases come from a GitHub release: tipitaka_pali.db.tar.bz2 is
+      # split here, and the epitaka/tpr_extension parts are used as they are.
+      - name: Download databases from release ${{ github.event.inputs.data_tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_TAG: ${{ github.event.inputs.data_tag }}
         run: |
+          set -euo pipefail
           mkdir -p assets/database
-          curl -L -o assets/database/tipitaka_pali.zip "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1"
-
-      - name: Extract zip file
-        run: unzip -o assets/database/tipitaka_pali.zip -d assets/database/
-
-      - name: Delete zip file
-        run: rm -f assets/database/tipitaka_pali.zip
-
-      - name: Run split.sh script inside assets/database
-        run: |
           cd assets/database
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${DATA_TAG}" \
+            | jq -r '.assets[] | select(.name | test("^(tipitaka_pali\\.db\\.tar\\.bz2|epitaka_part\\..*|tpr_extension_part\\..*)$")) | "\(.name) \(.browser_download_url)"' \
+            > assets.txt
+          cat assets.txt
+          test -s assets.txt
+          while read -r name url; do
+            echo "Downloading $name"
+            curl -fL --retry 3 -o "$name" "$url"
+          done < assets.txt
+          rm assets.txt
+
+      - name: Extract and split tipitaka_pali.db
+        run: |
+          set -euo pipefail
+          cd assets/database
+          tar -xjf tipitaka_pali.db.tar.bz2
+          rm tipitaka_pali.db.tar.bz2
           chmod +x split.sh
           ./split.sh
+
+      # A part on disk that pubspec.yaml does not list would be left out of
+      # the app silently, and a listed part that is missing fails late, so
+      # check that both lists agree before building.
+      - name: Check database parts match pubspec.yaml
+        run: |
+          set -euo pipefail
+          grep -oE 'assets/database/[a-z_]+_part\.[a-z]+' pubspec.yaml | sort > expected.txt
+          ls assets/database/*_part.* | sort > actual.txt
+          ls -l assets/database/
+          if ! diff expected.txt actual.txt; then
+            echo "::error::Database parts in the release do not match pubspec.yaml (< pubspec, > release)"
+            exit 1
+          fi
+          rm expected.txt actual.txt
+
+      # SHA256SUMS holds the hashes of the parts that were tested locally, so a
+      # release that still carries older data fails here instead of shipping.
+      - name: Check database parts match SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd assets/database
+          sha256sum -c SHA256SUMS
 
       - name: Flutter doctor
         run: flutter doctor -v

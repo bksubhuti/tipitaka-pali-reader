@@ -4,6 +4,8 @@ PODS:
   - Flutter (1.0.0)
   - flutter_keyboard_visibility (0.0.1):
     - Flutter
+  - flutter_tts (0.0.1):
+    - Flutter
   - permission_handler_apple (9.3.0):
     - Flutter
 
@@ -11,6 +13,7 @@ DEPENDENCIES:
   - devicelocale (from `.symlinks/plugins/devicelocale/ios`)
   - Flutter (from `Flutter`)
   - flutter_keyboard_visibility (from `.symlinks/plugins/flutter_keyboard_visibility/ios`)
+  - flutter_tts (from `.symlinks/plugins/flutter_tts/ios`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
 
 EXTERNAL SOURCES:
@@ -20,6 +23,8 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_keyboard_visibility:
     :path: ".symlinks/plugins/flutter_keyboard_visibility/ios"
+  flutter_tts:
+    :path: ".symlinks/plugins/flutter_tts/ios"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
 
@@ -27,6 +32,7 @@ SPEC CHECKSUMS:
   devicelocale: bd64aa714485a8afdaded0892c1e7d5b7f680cf8
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_keyboard_visibility: 4625131e43015dbbe759d9b20daaf77e0e3f6619
+  flutter_tts: 35ac3c7d42412733e795ea96ad2d7e05d0a75113
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
 
 PODFILE CHECKSUM: 02376ac410bb808b83f7c91b0d80019e554d0eb5
