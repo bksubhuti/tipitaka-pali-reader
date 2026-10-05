@@ -61,7 +61,10 @@ class PaliPageWidget extends StatefulWidget {
   State<PaliPageWidget> createState() => _PaliPageWidgetState();
 }
 
-final nonPali = RegExp(r'[.,:;\"{}\[\]<>\/\(\) ]+', caseSensitive: false);
+// Whitespace of every kind ends a word, not just the space: a line break
+// separates a sentence from its translation, and without it a word at the end
+// of the Pali ran on into the translation's first word.
+final nonPali = RegExp(r'[.,:;?!\"{}\[\]<>\/\(\)\s]+', caseSensitive: false);
 
 // Scroll configuration constants
 const _kScrollDelayDuration = Duration(milliseconds: 50);
