@@ -5,8 +5,13 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/locale_change_notifier.dart';
 
 import '../../utils/font_utils.dart';
+import '../system_fonts.dart';
 
 class ThemeChangeNotifier extends ChangeNotifier {
+  ThemeChangeNotifier() {
+    _loadAppFont();
+  }
+
   ThemeMode themeMode = (Prefs.darkThemeOn) ? ThemeMode.dark : ThemeMode.light;
   // ignore: unused_field
   int _themeIndex = 1;
@@ -77,6 +82,30 @@ class ThemeChangeNotifier extends ChangeNotifier {
   void onChangeIsPaliBold(bool isBold) {
     Prefs.isPaliBold = isBold;
     notifyListeners(); // Instantly updates the Reader view!
+  }
+
+  /// The font chosen for the menus, or null for the language's own.
+  String? get appFont => Prefs.appFontName.isEmpty ? null : Prefs.appFontName;
+
+  /// Uses [family] for the menus and settings, loading it first when it is
+  /// one of the device's own fonts. Null goes back to the language's own.
+  Future<void> onChangeAppFont(String? family,
+      {List<String> files = const []}) async {
+    if (family != null && files.isNotEmpty) {
+      await SystemFonts.load(family, files);
+    }
+    Prefs.setAppFont(family ?? '', files);
+    notifyListeners();
+  }
+
+  /// A font from the device for the menus is loaded again at each start,
+  /// and the app redrawn in it once it is.
+  void _loadAppFont() {
+    final name = Prefs.appFontName;
+    final files = Prefs.appFontFiles;
+    if (name.isEmpty || files.isEmpty) return;
+    SystemFonts.load(name, files)
+        .then((_) => notifyListeners(), onError: (_) {});
   }
 
   bool get sideBySide => Prefs.sideBySide;

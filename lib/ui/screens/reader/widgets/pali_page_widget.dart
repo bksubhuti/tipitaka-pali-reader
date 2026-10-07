@@ -915,7 +915,21 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       }
     });
 
-    return content;
+    return _withTranslationFonts(content);
+  }
+
+  static final _translationStyle = RegExp(r'style="([^"]*)" lang="([^"]*)"');
+
+  /// Each translation in the font chosen for its language in Settings ›
+  /// Theme. Without one it is drawn in the Pāḷi font, as it always was.
+  String _withTranslationFonts(String content) {
+    if (!content.contains(' lang="')) return content;
+    return content.replaceAllMapped(_translationStyle, (m) {
+      final font = Prefs.translationFontName(m.group(2)!);
+      if (font.isEmpty) return m.group(0)!;
+      return 'style="${m.group(1)} font-family: \'$font\';" '
+          'lang="${m.group(2)}"';
+    });
   }
 
   String _formatWithUserSetting(String pageContent) {

@@ -71,6 +71,7 @@ const String disableVelthuisPref = 'disableVelthuis';
 const String persitentSearchFilterPref = 'persistentSearchFilter';
 const String useM3Pref = 'useM3';
 const String romanFontNamePref = "romanFontName";
+const String romanFontFilesPref = "romanFontFiles";
 const String oldPasswordPref = 'oldPassword';
 const String oldUsernamePref = 'oldUsername';
 const String hideScrollbarPref = 'hideScrollbar';
@@ -472,6 +473,47 @@ class Prefs {
       instance.getString(romanFontNamePref) ?? defaultRomanFontName;
   static set romanFontName(String value) =>
       instance.setString(romanFontNamePref, value);
+
+  /// The files of a Roman font chosen from those on the device, loaded at
+  /// start. Empty for one that comes with the app.
+  static List<String> get romanFontFiles =>
+      instance.getStringList(romanFontFilesPref) ?? const [];
+  static set romanFontFiles(List<String> value) =>
+      instance.setStringList(romanFontFilesPref, value);
+
+  /// The font chosen for Pāḷi in a script other than Roman, by the script's
+  /// name ("devanagari"), and its files when it is one of the device's own.
+  /// Empty for the one that comes with the app.
+  static String scriptFontName(String script) =>
+      instance.getString('scriptFont_$script') ?? '';
+  static List<String> scriptFontFiles(String script) =>
+      instance.getStringList('scriptFontFiles_$script') ?? const [];
+  static void setScriptFont(String script, String name, List<String> files) {
+    instance.setString('scriptFont_$script', name);
+    instance.setStringList('scriptFontFiles_$script', files);
+  }
+
+  /// The font chosen for a translation, by its language ("en"), and its
+  /// files. Empty to draw it in the Pāḷi font, as it always was.
+  static String translationFontName(String language) =>
+      instance.getString('translationFont_$language') ?? '';
+  static List<String> translationFontFiles(String language) =>
+      instance.getStringList('translationFontFiles_$language') ?? const [];
+  static void setTranslationFont(
+      String language, String name, List<String> files) {
+    instance.setString('translationFont_$language', name);
+    instance.setStringList('translationFontFiles_$language', files);
+  }
+
+  /// The font for the app's menus and settings, and its files. Empty for
+  /// the one that goes with the app's language.
+  static String get appFontName => instance.getString('appFont') ?? '';
+  static List<String> get appFontFiles =>
+      instance.getStringList('appFontFiles') ?? const [];
+  static void setAppFont(String name, List<String> files) {
+    instance.setString('appFont', name);
+    instance.setStringList('appFontFiles', files);
+  }
 
   static String get oldPassword =>
       instance.getString(oldPasswordPref) ?? defaultOldPassword;
