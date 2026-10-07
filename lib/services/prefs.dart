@@ -114,6 +114,7 @@ const String languageChoiceMadePref = "languageChoiceMade";
 const String translationTermsAcceptedPref = "translationTermsAccepted";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
+const String sideBySidePref = "sideBySide";
 const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
 const String hideAiSearchNagPref = "hideAiSearchNag";
@@ -715,6 +716,11 @@ class Prefs {
       instance.getBool(isPaliBoldPref) ?? defaultIsPaliBold;
 
   static set isPaliBold(bool value) => instance.setBool(isPaliBoldPref, value);
+
+  /// The Pāḷi and the first translation shown in two columns, rather than
+  /// the translation under each sentence.
+  static bool get sideBySide => instance.getBool(sideBySidePref) ?? false;
+  static set sideBySide(bool value) => instance.setBool(sideBySidePref, value);
 
   static bool get sangahaFixed =>
       instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;

@@ -79,6 +79,13 @@ class ThemeChangeNotifier extends ChangeNotifier {
     notifyListeners(); // Instantly updates the Reader view!
   }
 
+  bool get sideBySide => Prefs.sideBySide;
+
+  void onChangeSideBySide(bool on) {
+    Prefs.sideBySide = on;
+    notifyListeners();
+  }
+
   // Returns dark ThemeData made by FlexColorScheme
   ThemeData get darkTheme => FlexThemeData.dark(
         colors: myFlexSchemes[Prefs.themeIndex].dark,

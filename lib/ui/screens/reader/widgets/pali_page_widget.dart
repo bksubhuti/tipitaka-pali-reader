@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/utils/html_text_map.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/page_composer.dart';
+import 'package:tipitaka_pali/utils/side_by_side.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/utils/tts_highlight.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
@@ -198,8 +200,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       // "keep visible" does — left the words being spoken just out of view.
       final position = scrollable.position;
       final top = viewport.getOffsetToReveal(target, 0.0).offset;
-      final fraction =
-          (top - position.pixels) / position.viewportDimension;
+      final fraction = (top - position.pixels) / position.viewportDimension;
       if (fraction >= 0.02 && fraction <= 0.6) return;
       Scrollable.ensureVisible(context,
           alignment: 0.2, duration: const Duration(milliseconds: 300));
@@ -269,7 +270,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         final spoken = position != null &&
                 position.bookUuid == readerViewController.bookUuid &&
                 position.page == widget.pageNumber &&
-                widget.htmlContent.contains('<a name="${position.sentence}"></a>')
+                widget.htmlContent
+                    .contains('<a name="${position.sentence}"></a>')
             ? position
             : null;
         if (spoken != null) {
@@ -277,220 +279,265 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             _scrollToTtsNode();
           });
         }
+        final beside = _sideBySideLanguage(context);
         String html = _formatContent(
-            widget.htmlContent, widget.script, context, spoken);
+            widget.htmlContent, widget.script, context, spoken, beside);
+        final rows = beside == null ? null : SideBySide.split(html);
 
-        return _withinReadingWidth(fontSize, Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Container(
-            color: Colors.transparent,
-            child: GestureDetector(
-              onTapUp: (details) {
-                final renderObject =
-                    _textKey.currentContext?.findRenderObject();
-                if (renderObject == null) return;
-
-                final box = renderObject as RenderBox;
-
-                final result = BoxHitTestResult();
-                final offset = box.globalToLocal(details.globalPosition);
-                if (!box.hitTest(result, position: offset)) {
-                  return;
-                }
-
-                for (final entry in result.path) {
-                  final target = entry.target;
-                  if (entry is! BoxHitTestEntry || target is! RenderParagraph) {
-                    continue;
-                  }
-
-                  final p = target.getPositionForOffset(entry.localPosition);
-                  final text =
-                      target.text.toPlainText(); //.replaceAll('\ufffc', '');
-
-                  if (text.isNotEmpty && p.offset < text.length) {
-                    final int offset = p.offset;
-
-                    final leftSentence = getLeftSentence(text, offset);
-                    final rightSentence = getRightSentence(text, offset);
-                    final sentence = leftSentence + rightSentence;
-
-                    final charUnderTap = text[offset];
-                    final leftChars = getLeftCharacters(text, offset);
-                    final rightChars = getRightCharacters(text, offset);
-
-                    final word = leftChars + charUnderTap + rightChars;
-                    writeHistory(
-                        word, sentence, widget.pageNumber, widget.book!.id);
-
-                    final textBefore =
-                        text.substring(0, p.offset - leftChars.length);
-                    final occurrencesInTextBefore =
-                        word.allMatches(textBefore).length;
-                    final wordIndex = findOccurrencesBefore(word, target) +
-                        occurrencesInTextBefore;
-
-                    // Reading aloud starts from the sentence tapped.
-                    readerViewController.noteTappedSentence(
-                        widget.pageNumber,
-                        TtsHighlight.sentenceAt(
-                            widget.htmlContent, word, wordIndex));
-
-                    // Tapping a word puts the goto/search highlight away for
-                    // the whole book. It used to be cleared only in the chunk
-                    // that was tapped, leaving the rest of the page marked.
-                    _readerViewController.clearHighlights();
-
-                    if (word == lookupWord &&
-                        highlightedWordIndex == wordIndex) {
-                      setState(() {
-                        highlightedWord = null;
-                        _isLocalHighlight = false;
-                        lookupWord = null;
-                        highlightedWordIndex = null;
-                        _pageToHighlight = null;
-                      });
-                    } else {
-                      setState(() {
-                        widget.onClick?.call(word);
-                        highlightedWord = null;
-                        _isLocalHighlight = false;
-                        lookupWord = word;
-                        highlightedWordIndex = wordIndex;
-
-                        _pageToHighlight = widget.pageNumber;
-                      });
-                    }
-                  }
-                }
-              },
+        return _withinReadingWidth(
+            fontSize,
+            rows != null,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
               child: Container(
-                key: _textKey,
-                child: HtmlWidget(
-                  key: _htmlKey,
-                  html,
-                  factoryBuilder: () => WidgetFactory(),
-                  textStyle: TextStyle(
-                      fontSize: fontSize.toDouble(),
-                      inherit: true,
-                      fontFamily: fontName),
-                  customStylesBuilder: (element) {
-                    if (element.localName == 'a') {
-                      final isHighlight = element.parent!.className
-                              .contains('search-highlight') ==
-                          true;
-                      if (isHighlight) {
-                        return {'color': '#000', 'text-decoration': 'none'};
+                color: Colors.transparent,
+                child: GestureDetector(
+                  onTapUp: (details) {
+                    final renderObject =
+                        _textKey.currentContext?.findRenderObject();
+                    if (renderObject == null) return;
+
+                    final box = renderObject as RenderBox;
+
+                    final result = BoxHitTestResult();
+                    final offset = box.globalToLocal(details.globalPosition);
+                    if (!box.hitTest(result, position: offset)) {
+                      return;
+                    }
+
+                    for (final entry in result.path) {
+                      final target = entry.target;
+                      if (entry is! BoxHitTestEntry ||
+                          target is! RenderParagraph) {
+                        continue;
                       }
 
-                      if (context.read<ThemeChangeNotifier>().isDarkMode) {
-                        return {
-                          'color': 'white',
-                          'text-decoration': 'none',
-                        };
-                      } else {
-                        return {
-                          'color': 'black',
-                          'text-decoration': 'none',
-                        };
+                      final p =
+                          target.getPositionForOffset(entry.localPosition);
+                      final text = target.text
+                          .toPlainText(); //.replaceAll('\ufffc', '');
+
+                      if (text.isNotEmpty && p.offset < text.length) {
+                        final int offset = p.offset;
+
+                        final leftSentence = getLeftSentence(text, offset);
+                        final rightSentence = getRightSentence(text, offset);
+                        final sentence = leftSentence + rightSentence;
+
+                        final charUnderTap = text[offset];
+                        final leftChars = getLeftCharacters(text, offset);
+                        final rightChars = getRightCharacters(text, offset);
+
+                        final word = leftChars + charUnderTap + rightChars;
+                        writeHistory(
+                            word, sentence, widget.pageNumber, widget.book!.id);
+
+                        final textBefore =
+                            text.substring(0, p.offset - leftChars.length);
+                        final occurrencesInTextBefore =
+                            word.allMatches(textBefore).length;
+                        final wordIndex = findOccurrencesBefore(word, target) +
+                            occurrencesInTextBefore;
+
+                        // Reading aloud starts from the sentence tapped.
+                        readerViewController.noteTappedSentence(
+                            widget.pageNumber,
+                            TtsHighlight.sentenceAt(
+                                widget.htmlContent, word, wordIndex));
+
+                        // Tapping a word puts the goto/search highlight away for
+                        // the whole book. It used to be cleared only in the chunk
+                        // that was tapped, leaving the rest of the page marked.
+                        _readerViewController.clearHighlights();
+
+                        if (word == lookupWord &&
+                            highlightedWordIndex == wordIndex) {
+                          setState(() {
+                            highlightedWord = null;
+                            _isLocalHighlight = false;
+                            lookupWord = null;
+                            highlightedWordIndex = null;
+                            _pageToHighlight = null;
+                          });
+                        } else {
+                          setState(() {
+                            widget.onClick?.call(word);
+                            highlightedWord = null;
+                            _isLocalHighlight = false;
+                            lookupWord = word;
+                            highlightedWordIndex = wordIndex;
+
+                            _pageToHighlight = widget.pageNumber;
+                          });
+                        }
                       }
                     }
-
-                    if (element.className == 'highlighted') {
-                      String styleColor =
-                          (Prefs.darkThemeOn) ? "white" : "black";
-                      Color c = Theme.of(context).primaryColorLight;
-
-                      // Converting the Flutter Color object to a CSS hex string for the text color
-                      String colorHex =
-                          '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-
-                      return {
-                        'color': 'inherit', // Uses the default text color
-                        'background-color':
-                            colorHex, // Highlights the text with colorHex
-                        //'font-weight': '500', // Sets the font weight to 500
-                        'text-decoration': 'underline', // Underlines the text
-                        'text-decoration-color':
-                            colorHex, // Sets underline color to match colorHex
-                      };
-                    }
-                    // no style
-                    return {'text-decoration': 'none'};
                   },
-                  customWidgetBuilder: (element) {
-                    if (element.localName == 'span' &&
-                        element.className == 'linebreak') {
-                      return const InlineCustomWidget(
-                          child: SizedBox(
-                        height: 0.0,
-                        child: Text('\n '),
-                      ));
-                    }
-
-                    if (element.localName == 'a' &&
-                        element.className == 'bookmark') {
-                      final bookmark = element.text;
-                      return InlineCustomWidget(
-                        child: IconButton(
-                            onPressed: () {
-                              onClickBookmark(bookmark);
-                            },
-                            tooltip: bookmark,
-                            icon: const Icon(Icons.note, color: Colors.red)),
-                      );
-                    }
-
-                    // Anchor element for scrolling to current search result
-                    if (element.localName == 'a' &&
-                        element.className == 'scroll_to_term') {
-                      return InlineCustomWidget(
-                        child: SizedBox.shrink(key: _scrollKey),
-                      );
-                    }
-                    if (element.localName == 'a' &&
-                        element.className == highlightedWordScrollCssClass) {
-                      return InlineCustomWidget(
-                        child: SizedBox.shrink(key: _highlightedWordScrollKey),
-                      );
-                    }
-                    if (element.localName == 'a' &&
-                        element.className == 'scroll_to_tts') {
-                      return InlineCustomWidget(
-                        child: SizedBox.shrink(key: _ttsScrollKey),
-                      );
-                    }
-
-                    // Hide empty anchor tags that are causing red 'X' rendering errors
-                    if (element.localName == 'a' &&
-                        element.attributes.containsKey('name') &&
-                        !element.attributes.containsKey('href') &&
-                        element.text.trim().isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-
-                    return null;
-                  },
-                  onTapUrl: (word) {
-                    if (widget.onClick != null) {
-                      // #goto is used for scrolling to selected text
-                      if (word != '#goto') {
-                        setState(() {
-                          highlightedWord = word;
-                          // Asked for by this tap, so the book-wide clear does
-                          // not apply to it.
-                          _isLocalHighlight = true;
-                          widget.onClick!(word);
-                        });
-                      }
-                    }
-                    return false;
-                  },
+                  child: Container(
+                    key: _textKey,
+                    child: rows == null
+                        ? _htmlView(html, fontSize, fontName, key: _htmlKey)
+                        : _sideBySideView(rows, fontSize, fontName),
+                  ),
                 ),
               ),
+            ));
+      },
+    );
+  }
+
+  /// The translation shown beside the Pāḷi, when the reader has asked for
+  /// the two side by side: the first of those shown. Null to draw the block
+  /// as usual, one language under the other.
+  String? _sideBySideLanguage(BuildContext context) {
+    if (!Prefs.sideBySide ||
+        Prefs.textDisplayMode != TextDisplayMode.paliAndTranslation) {
+      return null;
+    }
+    try {
+      return context.read<ShownLanguagesProvider>().shownLanguages.firstOrNull;
+    } catch (_) {
+      return null; // not provided, as in a test of the page alone
+    }
+  }
+
+  /// A bilingual block side by side, one row to a sentence.
+  Widget _sideBySideView(
+      List<(String, String)> rows, int fontSize, String? fontName) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: fontSize.toDouble()),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (pali, translation) in rows)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _htmlView(pali, fontSize, fontName)),
+                SizedBox(width: fontSize.toDouble()),
+                Expanded(
+                    child: translation.isEmpty
+                        ? const SizedBox.shrink()
+                        : _htmlView(translation, fontSize, fontName)),
+              ],
             ),
-          ),
-        ));
+        ],
+      ),
+    );
+  }
+
+  /// The block, or one cell of it side by side, as the reader draws it.
+  Widget _htmlView(String html, int fontSize, String? fontName, {Key? key}) {
+    return HtmlWidget(
+      key: key,
+      html,
+      factoryBuilder: () => WidgetFactory(),
+      textStyle: TextStyle(
+          fontSize: fontSize.toDouble(), inherit: true, fontFamily: fontName),
+      customStylesBuilder: (element) {
+        if (element.localName == 'a') {
+          final isHighlight =
+              element.parent!.className.contains('search-highlight') == true;
+          if (isHighlight) {
+            return {'color': '#000', 'text-decoration': 'none'};
+          }
+
+          if (context.read<ThemeChangeNotifier>().isDarkMode) {
+            return {
+              'color': 'white',
+              'text-decoration': 'none',
+            };
+          } else {
+            return {
+              'color': 'black',
+              'text-decoration': 'none',
+            };
+          }
+        }
+
+        if (element.className == 'highlighted') {
+          String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
+          Color c = Theme.of(context).primaryColorLight;
+
+          // Converting the Flutter Color object to a CSS hex string for the text color
+          String colorHex =
+              '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+
+          return {
+            'color': 'inherit', // Uses the default text color
+            'background-color': colorHex, // Highlights the text with colorHex
+            //'font-weight': '500', // Sets the font weight to 500
+            'text-decoration': 'underline', // Underlines the text
+            'text-decoration-color':
+                colorHex, // Sets underline color to match colorHex
+          };
+        }
+        // no style
+        return {'text-decoration': 'none'};
+      },
+      customWidgetBuilder: (element) {
+        if (element.localName == 'span' && element.className == 'linebreak') {
+          return const InlineCustomWidget(
+              child: SizedBox(
+            height: 0.0,
+            child: Text('\n '),
+          ));
+        }
+
+        if (element.localName == 'a' && element.className == 'bookmark') {
+          final bookmark = element.text;
+          return InlineCustomWidget(
+            child: IconButton(
+                onPressed: () {
+                  onClickBookmark(bookmark);
+                },
+                tooltip: bookmark,
+                icon: const Icon(Icons.note, color: Colors.red)),
+          );
+        }
+
+        // Anchor element for scrolling to current search result
+        if (element.localName == 'a' && element.className == 'scroll_to_term') {
+          return InlineCustomWidget(
+            child: SizedBox.shrink(key: _scrollKey),
+          );
+        }
+        if (element.localName == 'a' &&
+            element.className == highlightedWordScrollCssClass) {
+          return InlineCustomWidget(
+            child: SizedBox.shrink(key: _highlightedWordScrollKey),
+          );
+        }
+        if (element.localName == 'a' && element.className == 'scroll_to_tts') {
+          return InlineCustomWidget(
+            child: SizedBox.shrink(key: _ttsScrollKey),
+          );
+        }
+
+        // Hide empty anchor tags that are causing red 'X' rendering errors
+        if (element.localName == 'a' &&
+            element.attributes.containsKey('name') &&
+            !element.attributes.containsKey('href') &&
+            element.text.trim().isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return null;
+      },
+      onTapUrl: (word) {
+        if (widget.onClick != null) {
+          // #goto is used for scrolling to selected text
+          if (word != '#goto') {
+            setState(() {
+              highlightedWord = word;
+              // Asked for by this tap, so the book-wide clear does
+              // not apply to it.
+              _isLocalHighlight = true;
+              widget.onClick!(word);
+            });
+          }
+        }
+        return false;
       },
     );
   }
@@ -500,11 +547,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   /// Text that ran the full width of a desktop window made lines too long to
   /// follow back to the next one. The limit is in step with the font size, so
   /// a larger font keeps about the same number of words to a line.
-  Widget _withinReadingWidth(int fontSize, Widget child) {
+  ///
+  /// Side by side there are two columns of text, each given that width.
+  Widget _withinReadingWidth(int fontSize, bool twoColumns, Widget child) {
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: fontSize * 40.0),
+        constraints:
+            BoxConstraints(maxWidth: fontSize * (twoColumns ? 80.0 : 40.0)),
         child: child,
       ),
     );
@@ -532,8 +582,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
   }
 
-  String _formatContent(String content, Script script, BuildContext context,
-      TtsPosition? spoken) {
+  String _formatContent(
+      String content, Script script, BuildContext context, TtsPosition? spoken,
+      [String? sideBySide]) {
+    // Side by side, only the translation beside the Pāḷi is drawn. Taken out
+    // first, so what is counted and underlined below is what is shown.
+    if (sideBySide != null) {
+      content = SideBySide.keepOnly(content, sideBySide);
+    }
     content = _removeHiddenTags(content);
     content = _addLineBreak(content);
 
@@ -552,11 +608,14 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     }
 
     if (spoken != null) {
-      content = TtsHighlight.highlight(
-          content, spoken.sentence, spoken.language);
+      content =
+          TtsHighlight.highlight(content, spoken.sentence, spoken.language);
     }
     // The sentence markers have done their work; drawn, each would be an
     // empty widget in the middle of the text.
+    // Side by side, the places to cut the block into rows are marked while
+    // the sentence markers are still there to show where sentences begin.
+    if (sideBySide != null) content = SideBySide.mark(content);
     content = content.replaceAll(PageComposer.sentenceMarkers, '');
 
     if (!Prefs.isShowAlternatePali) {
@@ -1024,11 +1083,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     // Word by word, as the bookmark text is: each word is marked wherever it
     // occurs in the text, and a word not found as it is is tried without a
     // closing quotative (ti, nti).
-    final words = textToHighlight
-        .trim()
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .toList();
+    final words =
+        textToHighlight.trim().split(' ').where((w) => w.isNotEmpty).toList();
     for (final word in words) {
       final target = content.replaceAll(anyHtmlTag, ' ').contains(word)
           ? word

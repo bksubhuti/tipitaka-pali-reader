@@ -171,6 +171,28 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
               ),
             ),
 
+          // Only with both the Pali and a translation on screen. Beside the
+          // Pali goes the first translation shown, the one at the top here.
+          if (shown.paliShown && shown.shownLanguages.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0),
+              child: CheckboxListTile(
+                title: const Text('Side by side'),
+                subtitle: Text('Pāḷi beside '
+                    '${LanguageInstaller.nameOf(shown.shownLanguages.first)}'),
+                value: context.watch<ThemeChangeNotifier>().sideBySide,
+                onChanged: (bool? value) {
+                  if (value != null) {
+                    context
+                        .read<ThemeChangeNotifier>()
+                        .onChangeSideBySide(value);
+                  }
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+
           // Only when the Pali is actually on screen.
           if (shown.paliShown)
             Padding(
