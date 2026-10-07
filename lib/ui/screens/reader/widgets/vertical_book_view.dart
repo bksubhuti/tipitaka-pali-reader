@@ -151,8 +151,70 @@ class _VerticalBookViewState extends State<VerticalBookView>
     );
   }
 
+  /// Keeps the same words at the top of the reader when its width changes:
+  /// when a second book opens beside it, one beside it closes, or the side
+  /// panel opens, closes or is dragged.
+  ///
+  /// The list holds its place as a distance from the block it last jumped
+  /// to. At a new width every block in between is a new height, so that
+  /// distance came to a different part of the book, far off after a long
+  /// read. Instead, the block at the top and how far into it the view was
+  /// are taken before the change, and that point is put back at the top
+  /// once the width has settled.
+  double? _laidOutWidth;
+  Timer? _keepPlaceTimer;
+  ({int index, double into})? _place;
+
+  void _onWidth(double width) {
+    final before = _laidOutWidth;
+    _laidOutWidth = width;
+    if (before == null || (before - width).abs() < 0.5) return;
+    // Taken once for a run of changes, as while the panel is dragged, from
+    // the last layout at the old width.
+    _place ??= _topOfView();
+    _keepPlaceTimer?.cancel();
+    _keepPlaceTimer = Timer(const Duration(milliseconds: 80), () {
+      final place = _place;
+      _place = null;
+      if (place != null) _putAtTop(place, retries: 2);
+    });
+  }
+
+  /// The block at the top of the view, and the part of it above the top.
+  ({int index, double into})? _topOfView() {
+    for (final p in itemPositionsListener.itemPositions.value) {
+      if (p.itemLeadingEdge <= 0 && p.itemTrailingEdge > 0) {
+        final extent = p.itemTrailingEdge - p.itemLeadingEdge;
+        return (index: p.index, into: -p.itemLeadingEdge / extent);
+      }
+    }
+    return null;
+  }
+
+  void _putAtTop(({int index, double into}) place, {required int retries}) {
+    if (!mounted || !itemScrollController.isAttached) return;
+    ItemPosition? now;
+    for (final p in itemPositionsListener.itemPositions.value) {
+      if (p.index == place.index) now = p;
+    }
+    if (now == null) {
+      // Moved out of view by the change. Brought back first, to be measured
+      // at its new height.
+      if (retries == 0) return;
+      itemScrollController.jumpTo(index: place.index);
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _putAtTop(place, retries: retries - 1));
+      return;
+    }
+    final alignment =
+        -place.into * (now.itemTrailingEdge - now.itemLeadingEdge);
+    if ((now.itemLeadingEdge - alignment).abs() < 0.002) return;
+    itemScrollController.jumpTo(index: place.index, alignment: alignment);
+  }
+
   @override
   void dispose() {
+    _keepPlaceTimer?.cancel();
     _scrollOffsetSubscription?.cancel();
     itemPositionsListener.itemPositions.removeListener(_listenItemPosition);
     _readingPosition?.removeListener(_followReading);
@@ -183,6 +245,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
     debugPrint('searchText-searchText: $searchText');
 
     return LayoutBuilder(builder: (context, constraints) {
+      _onWidth(constraints.maxWidth);
       return Shortcuts(
         shortcuts: <LogicalKeySet, Intent>{
           LogicalKeySet(LogicalKeyboardKey.pageUp): const PageUpIntent(),

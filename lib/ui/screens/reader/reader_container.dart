@@ -113,6 +113,16 @@ class _ReaderContainerState extends State<ReaderContainer> {
       }
     });
 
+    // Multi-view turned on with books already open, or the last pane
+    // hidden: the selected book is shown, rather than an empty area.
+    if (multiWindowMode &&
+        books.isNotEmpty &&
+        !books.any((b) => tabsVisibility[b['uuid']] == true)) {
+      final selected =
+          openedBookProvider.selectedBookIndex.clamp(0, books.length - 1);
+      tabsVisibility[books[selected]['uuid']] = true;
+    }
+
     final tabs = books.asMap().entries.map((entry) {
       final index = entry.key;
       final book = entry.value['book'] as Book;
@@ -388,6 +398,14 @@ class _ReaderContainerState extends State<ReaderContainer> {
               top: BorderSide(color: Colors.transparent)));
     }
 
+    // With books side by side, the selected tab is the pane clicked in last.
+    // Its tab carries the same line along the top as that pane, so the two
+    // can be matched at a glance (#201).
+    if (multiWindowMode) {
+      themeData.tab.selectedStatus.innerTopBorder =
+          BorderSide(color: primaryColor, width: 3);
+    }
+
     // cannot watch two notifiers simultaneity in a single widget
     // so warp in consumer for watching theme change
     final tabsArea = getTabArea(themeData, multiWindowMode, tabs, books);
@@ -533,7 +551,16 @@ class _ReaderContainerState extends State<ReaderContainer> {
     );
   }
 
+  void _selectPane(int index) {
+    final books = context.read<OpenningBooksProvider>();
+    if (books.selectedBookIndex == index) return;
+    books.updateSelectedBookIndex(index, forceNotify: true);
+  }
+
   Widget getColumns(List<Map<String, dynamic>> books) {
+    final selected = context.read<OpenningBooksProvider>().selectedBookIndex;
+    final shown = books.where((b) => tabsVisibility[b['uuid']] ?? false);
+    final marked = shown.length > 1;
     return Container(
       padding: const EdgeInsets.fromLTRB(1, 31, 1, 1),
       child: Row(
@@ -547,8 +574,29 @@ class _ReaderContainerState extends State<ReaderContainer> {
                   // window re-uses this reader instead of matching it by
                   // position against a different book, which rebuilt it and
                   // lost its place in the text.
+                  //
+                  // Clicking in a pane selects its tab, so the tab shows the
+                  // book being read and Ctrl+F searches it (#201). With more
+                  // than one pane showing, that one is marked along its top.
                   return Expanded(
-                      key: ValueKey(uuid), child: readerAt(i, books));
+                      key: ValueKey(uuid),
+                      child: Listener(
+                        onPointerDown: (_) => _selectPane(i),
+                        child: DecoratedBox(
+                          position: DecorationPosition.foreground,
+                          decoration: BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                width: 3,
+                                color: marked && i == selected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.transparent,
+                              ),
+                            ),
+                          ),
+                          child: readerAt(i, books),
+                        ),
+                      ));
                 } else {
                   return null;
                 }

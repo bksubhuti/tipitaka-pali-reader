@@ -80,6 +80,10 @@ class OpenningBooksProvider extends ChangeNotifier {
     }
   }
 
+  /// Redraws the open books after a change to how they are laid out, such
+  /// as multi-view being turned on, which the reader reads as it draws.
+  void layoutChanged() => notifyListeners();
+
   void swap(int source, int target, {int? selected}) {
     var tmp = books[source];
     books[source] = books[target];

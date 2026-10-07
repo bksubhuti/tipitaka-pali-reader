@@ -8,7 +8,9 @@ import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
+import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/ui/screens/settings/language_settings.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 
 class ViewSettingsView extends StatefulWidget {
   final bool isMobilePopup;
@@ -54,11 +56,16 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
       const Divider(),
       _getHideScrollbarSwitch(),
       _getHideTtsControlsSwitch(),
-      if (!widget.isMobilePopup) ...[
+      // Books side by side, here and in the reader's quick view settings,
+      // so they can be laid out from where they are read. Only where there
+      // is room for more than one: computers and tablets.
+      if (PlatformInfo.isDesktop || Mobile.isTablet(context)) ...[
         const Divider(),
         _getMultiTabsModeSwitch(),
         const Divider(),
         _getNewTabAtEndSwitch(),
+      ],
+      if (!widget.isMobilePopup) ...[
         const Divider(),
         _getExpandedBookListSwitch(),
         const SizedBox(height: 10),
@@ -331,6 +338,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             trailing: Switch(
               onChanged: (value) {
                 setState(() => Prefs.multiTabMode = value);
+                context.read<OpenningBooksProvider>().layoutChanged();
               },
               value: Prefs.multiTabMode,
             ),
@@ -352,6 +360,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
         IconButton(
           onPressed: () => setState(() {
             if (Prefs.tabsVisible > 2) Prefs.tabsVisible--;
+            context.read<OpenningBooksProvider>().layoutChanged();
           }),
           icon: const Icon(Icons.remove),
         ),
@@ -359,6 +368,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
         IconButton(
           onPressed: () => setState(() {
             if (Prefs.tabsVisible < 5) Prefs.tabsVisible++;
+            context.read<OpenningBooksProvider>().layoutChanged();
           }),
           icon: const Icon(Icons.add),
         ),
