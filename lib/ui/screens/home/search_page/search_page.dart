@@ -3,6 +3,8 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/routes.dart';
 import 'package:tipitaka_pali/ui/screens/search_result/search_result_page.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
+import 'package:tipitaka_pali/ui/widgets/focus_when_shown.dart';
 import 'package:tipitaka_pali/ui/widgets/value_listenser.dart';
 
 import '../../../../business_logic/view_models/search_page_view_model.dart';
@@ -40,6 +42,7 @@ class _SearchPageState extends State<SearchPage>
     with AutomaticKeepAliveClientMixin {
   late final TextEditingController controller;
   late bool isShowingSearchModeView;
+  final FocusNode _searchFocus = FocusNode();
 
   @override
   void initState() {
@@ -55,6 +58,7 @@ class _SearchPageState extends State<SearchPage>
   void dispose() {
     super.dispose();
     controller.dispose();
+    _searchFocus.dispose();
   }
 
   @override
@@ -67,89 +71,94 @@ class _SearchPageState extends State<SearchPage>
             )..init(),
         child: Builder(builder: (context) {
           final vm = context.watch<SearchPageViewModel>();
-          return Scaffold(
-              appBar: AppBar(
-                // Disable because of conflict with mobile search
-                // leading: getVelthuisHelp(context),
+          return FocusWhenShown(
+            navigationIndex:
+                context.read<NavigationProvider>().indexOfSearchNavigation,
+            focusNode: _searchFocus,
+            child: Scaffold(
+                appBar: AppBar(
+                  // Disable because of conflict with mobile search
+                  // leading: getVelthuisHelp(context),
 
-                // Rydmike: Consider not having implicit back, as it will give idea that
-                //  user can go back, but back leads out of app in this case.
-                automaticallyImplyLeading: false, // Mobile.isPhone(context),
-                title: Text(AppLocalizations.of(context)!.search),
-                // Rydmike info: Prefer consistent alignment on AppBar.
-                //  if default, iOs is centered, Android start by default
-                // centerTitle: true,
+                  // Rydmike: Consider not having implicit back, as it will give idea that
+                  //  user can go back, but back leads out of app in this case.
+                  automaticallyImplyLeading: false, // Mobile.isPhone(context),
+                  title: Text(AppLocalizations.of(context)!.search),
+                  // Rydmike info: Prefer consistent alignment on AppBar.
+                  //  if default, iOs is centered, Android start by default
+                  // centerTitle: true,
 
-                // Rydmike proposal: Consider converting Drawer on Home screen
-                //    to a Widget and add it also to other top level screens.
-                // drawer: Mobile.isPhone(context) ? AppDrawer(context) : null,
-                actions: [
-                  FilterChip(
-                      label: Text(
-                        AppLocalizations.of(context)!.fuzzy,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      selected: Prefs.isFuzzy,
-                      onSelected: (value) {
-                        setState(() {
-                          Prefs.isFuzzy = !Prefs.isFuzzy;
-                          vm.isFuzzy = Prefs.isFuzzy;
-                          vm.onTextChanged(controller.text);
-                        });
-                      }),
-                  const SizedBox(
-                    width: 8,
-                  )
-                ],
-              ),
-              body: ValueListenableListener(
-                onValueChanged: (searchWord) {
-                  if (searchWord != null) {
-                    _onSubmitted(searchWord, vm);
-                  }
-                },
-                valueListenable: globalSearchWord,
-                child: Column(
-                  children: [
-                    SearchTypeSegmentedControl(
-                      mode: vm.queryMode,
-                      wordDistance: vm.wordDistance,
-                      onModeChanged: (value) {
-                        if (value == QueryMode.ai) {
-                          FocusScope.of(context).unfocus();
-                          _openAiSearchPage('');
-                        } else {
-                          setState(() {
-                            vm.onQueryModeChanged(value);
-                          });
-                        }
-                      },
-                      onDistanceChanged: (value) {
-                        vm.onWordDistanceChanged(value);
-                      },
-                    ),
-                    // search bar
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TprSearchBar(
-                            hint: _getHint(vm.queryMode),
-                            controller: controller,
-                            onSubmitted: (value) {
-                              _onSubmitted(value, vm);
-                            },
-                            onTextChanged: vm.onTextChanged,
-                          ),
+                  // Rydmike proposal: Consider converting Drawer on Home screen
+                  //    to a Widget and add it also to other top level screens.
+                  // drawer: Mobile.isPhone(context) ? AppDrawer(context) : null,
+                  actions: [
+                    FilterChip(
+                        label: Text(
+                          AppLocalizations.of(context)!.fuzzy,
+                          style: const TextStyle(fontSize: 12),
                         ),
-                        const SizedBox(width: 8),
-                      ],
-                    ),
-                    _getMakeWordListButton(vm, context),
-                    // search mode chooser view
-                    AnimatedSize(
-                      duration:
-                          Duration(milliseconds: Prefs.animationSpeed.round()),
-                      child: /* isShowingSearchModeView
+                        selected: Prefs.isFuzzy,
+                        onSelected: (value) {
+                          setState(() {
+                            Prefs.isFuzzy = !Prefs.isFuzzy;
+                            vm.isFuzzy = Prefs.isFuzzy;
+                            vm.onTextChanged(controller.text);
+                          });
+                        }),
+                    const SizedBox(
+                      width: 8,
+                    )
+                  ],
+                ),
+                body: ValueListenableListener(
+                  onValueChanged: (searchWord) {
+                    if (searchWord != null) {
+                      _onSubmitted(searchWord, vm);
+                    }
+                  },
+                  valueListenable: globalSearchWord,
+                  child: Column(
+                    children: [
+                      SearchTypeSegmentedControl(
+                        mode: vm.queryMode,
+                        wordDistance: vm.wordDistance,
+                        onModeChanged: (value) {
+                          if (value == QueryMode.ai) {
+                            FocusScope.of(context).unfocus();
+                            _openAiSearchPage('');
+                          } else {
+                            setState(() {
+                              vm.onQueryModeChanged(value);
+                            });
+                          }
+                        },
+                        onDistanceChanged: (value) {
+                          vm.onWordDistanceChanged(value);
+                        },
+                      ),
+                      // search bar
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TprSearchBar(
+                              hint: _getHint(vm.queryMode),
+                              controller: controller,
+                              focusNode: _searchFocus,
+                              onSubmitted: (value) {
+                                _onSubmitted(value, vm);
+                              },
+                              onTextChanged: vm.onTextChanged,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+                      _getMakeWordListButton(vm, context),
+                      // search mode chooser view
+                      AnimatedSize(
+                        duration: Duration(
+                            milliseconds: Prefs.animationSpeed.round()),
+                        child: /* isShowingSearchModeView
                           ? SearchModeView(
                               mode: vm.queryMode,
                               wordDistance: vm.wordDistance,
@@ -161,45 +170,46 @@ class _SearchPageState extends State<SearchPage>
                               },
                             )
                           : */
-                          const SizedBox.shrink(),
-                    ),
-                    // suggestion view
+                            const SizedBox.shrink(),
+                      ),
+                      // suggestion view
 
-                    Expanded(
-                      child: ValueListenableBuilder(
-                          valueListenable: vm.isSearching,
-                          builder: (context, isSearching, child) {
-                            if (isSearching) {
+                      Expanded(
+                        child: ValueListenableBuilder(
+                            valueListenable: vm.isSearching,
+                            builder: (context, isSearching, child) {
+                              if (isSearching) {
+                                return ValueListenableBuilder(
+                                    valueListenable: vm.suggestions,
+                                    builder: (_, suggestions, __) {
+                                      return SearchSuggestionView(
+                                        suggestions: suggestions,
+                                        onClickedAddButton: (suggestion) {
+                                          _updateInput(suggestion);
+                                        },
+                                        onClickedSuggestion: (suggestion) {
+                                          _updateInput(suggestion);
+                                          _onSubmitted(controller.text, vm);
+                                        },
+                                      );
+                                    });
+                              }
                               return ValueListenableBuilder(
-                                  valueListenable: vm.suggestions,
-                                  builder: (_, suggestions, __) {
-                                    return SearchSuggestionView(
-                                      suggestions: suggestions,
-                                      onClickedAddButton: (suggestion) {
-                                        _updateInput(suggestion);
-                                      },
-                                      onClickedSuggestion: (suggestion) {
-                                        _updateInput(suggestion);
-                                        _onSubmitted(controller.text, vm);
-                                      },
-                                    );
+                                  valueListenable: vm.histories,
+                                  builder: (_, histories, __) {
+                                    return SearchHistoryView(
+                                        histories: histories,
+                                        onClick: (value) {
+                                          _onSubmitted(value, vm);
+                                        },
+                                        onDelete: vm.onDeleteButtonClicked);
                                   });
-                            }
-                            return ValueListenableBuilder(
-                                valueListenable: vm.histories,
-                                builder: (_, histories, __) {
-                                  return SearchHistoryView(
-                                      histories: histories,
-                                      onClick: (value) {
-                                        _onSubmitted(value, vm);
-                                      },
-                                      onDelete: vm.onDeleteButtonClicked);
-                                });
-                          }),
-                    ),
-                  ],
-                ),
-              ));
+                            }),
+                      ),
+                    ],
+                  ),
+                )),
+          );
         }));
   }
 
@@ -257,7 +267,7 @@ class _SearchPageState extends State<SearchPage>
       builder: (_) => AiSearchPage(query: query),
     );
     NestedNavigationHelper.goto(
-      context: context, route: route, navkey: searchNavigationKey);
+        context: context, route: route, navkey: searchNavigationKey);
   }
 
   void _onSubmitted(String searchWord, SearchPageViewModel vm) {

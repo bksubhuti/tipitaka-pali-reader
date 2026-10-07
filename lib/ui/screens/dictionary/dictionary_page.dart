@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/repositories/dictionary_repo.dart';
 import 'package:tipitaka_pali/ui/widgets/get_velthuis_help_widget.dart';
@@ -9,6 +10,7 @@ import 'package:tipitaka_pali/ui/widgets/get_velthuis_help_widget.dart';
 import '../../../business_logic/models/dictionary_history.dart';
 import '../../../services/repositories/dictionary_history_repo.dart';
 import '../../widgets/colored_text.dart';
+import '../../widgets/focus_when_shown.dart';
 import 'controller/dictionary_controller.dart';
 import 'widget/dict_algo_selector.dart';
 import 'widget/dict_content_view.dart';
@@ -23,6 +25,19 @@ class DictionaryPage extends StatefulWidget {
 
 class _DictionaryPageState extends State<DictionaryPage>
     with AutomaticKeepAliveClientMixin {
+  /// Kept, not made on each build: a new one each time the page rebuilt,
+  /// which it does as the dictionary changes, put a new focus node over the
+  /// search box while it was being typed in.
+  final FocusNode _keysFocus = FocusNode(skipTraversal: true);
+  final FocusNode _searchFocus = FocusNode();
+
+  @override
+  void dispose() {
+    _keysFocus.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -37,44 +52,50 @@ class _DictionaryPageState extends State<DictionaryPage>
       )..onLoad(),
       child: Consumer<DictionaryController>(builder: (context, dc, __) {
         return RawKeyboardListener(
-          focusNode: FocusNode(), // Ensure the widget has focus
+          focusNode: _keysFocus,
           onKey: (event) => _handleKeyboardEvent(event, context, dc),
-
-          child: Scaffold(
-            extendBody: true,
-            appBar: AppBar(
-              leading: getVelthuisHelp(context),
-              title: Text(AppLocalizations.of(context)!.dictionary),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
-                  tooltip: AppLocalizations.of(context)!.dictionaryPrevious,
-                  onPressed: () => dc.onClickedPrevious(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios),
-                  tooltip: AppLocalizations.of(context)!.dictionaryNext,
-                  onPressed: () => dc.onClickedNext(),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.history),
-                  onPressed: dc.onClickedHistoryButton,
-                ),
-              ],
-            ),
-            body: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Column(children: [
-                Row(
-                  children: [
-                    Expanded(child: DictionarySearchField()),
-                    SizedBox(width: 8), // padding
-                    DictionaryAlgorithmModeView(),
-                  ],
-                ),
-                SizedBox(height: 4), // padding
-                Expanded(child: DictionaryContentView()),
-              ]),
+          child: FocusWhenShown(
+            navigationIndex:
+                context.read<NavigationProvider>().indexOfDictionaryNavigation,
+            focusNode: _searchFocus,
+            child: Scaffold(
+              extendBody: true,
+              appBar: AppBar(
+                leading: getVelthuisHelp(context),
+                title: Text(AppLocalizations.of(context)!.dictionary),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios),
+                    tooltip: AppLocalizations.of(context)!.dictionaryPrevious,
+                    onPressed: () => dc.onClickedPrevious(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios),
+                    tooltip: AppLocalizations.of(context)!.dictionaryNext,
+                    onPressed: () => dc.onClickedNext(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.history),
+                    onPressed: dc.onClickedHistoryButton,
+                  ),
+                ],
+              ),
+              body: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(children: [
+                  Row(
+                    children: [
+                      Expanded(
+                          child:
+                              DictionarySearchField(focusNode: _searchFocus)),
+                      const SizedBox(width: 8), // padding
+                      const DictionaryAlgorithmModeView(),
+                    ],
+                  ),
+                  const SizedBox(height: 4), // padding
+                  const Expanded(child: DictionaryContentView()),
+                ]),
+              ),
             ),
           ),
         );

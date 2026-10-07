@@ -10,12 +10,16 @@ class TprSearchBar extends StatefulWidget {
   final void Function(String) onSubmitted;
   final void Function(String) onTextChanged;
   final String hint;
+  final FocusNode? focusNode;
+  final bool autofocus;
   const TprSearchBar({
     super.key,
     required this.controller,
     required this.onSubmitted,
     required this.onTextChanged,
     this.hint = 'search',
+    this.focusNode,
+    this.autofocus = false,
   });
 
   @override
@@ -48,6 +52,8 @@ class _TprSearchBarState extends State<TprSearchBar> {
       child: TextField(
         autocorrect: false,
         controller: widget.controller,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
         textInputAction: TextInputAction.search,
         maxLines: 1,
         // this cause the keyboard to endlessly pop up
@@ -69,10 +75,15 @@ class _TprSearchBarState extends State<TprSearchBar> {
             final uniText = PaliTools.velthuisToUni(velthiusInput: text);
             // after conversion get length and add the difference (if any)
             int uniTextlen = uniText.length;
-            widget.controller.text = uniText;
-            widget.controller.selection = TextSelection.fromPosition(
-                TextPosition(offset: pos + uniTextlen - origTextLen));
-            text = uniText;
+            // Written back only when it changed. Writing it on every key
+            // hands the text back to the Android keyboard, which then stops
+            // repeating a held backspace after one letter (#315).
+            if (uniText != text) {
+              widget.controller.text = uniText;
+              widget.controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: pos + uniTextlen - origTextLen));
+              text = uniText;
+            }
           }
 
           widget.onTextChanged(text);

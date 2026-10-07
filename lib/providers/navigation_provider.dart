@@ -12,8 +12,18 @@ class NavigationProvider extends ChangeNotifier {
   final int _indexOfDictionaryNavigation = 4;
   final int _indexOfSettingNavigation = 5;
   int get indexOfSettingNavigation => _indexOfSettingNavigation;
+  int get indexOfSearchNavigation => _indexOfSearchNavigation;
+  int get indexOfDictionaryNavigation => _indexOfDictionaryNavigation;
+
+  /// Counts the times a pane has been chosen on the navigation rail, and
+  /// which was chosen last. Moving to the dictionary because a word was
+  /// tapped in the reader is not counted.
+  int railChoices = 0;
+  int lastRailChoice = 0;
 
   void onClickedNavigationItem(int index) {
+    railChoices++;
+    lastRailChoice = index;
     if (!isNavigationPaneOpened) {
       isNavigationPaneOpened = !isNavigationPaneOpened;
       currentNavigation = index;

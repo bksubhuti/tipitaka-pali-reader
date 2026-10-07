@@ -89,9 +89,12 @@ class _PaliSearchFieldState extends State<PaliSearchField> {
             final uniText = PaliTools.velthuisToUni(velthiusInput: text);
             // after conversion get length and add the difference (if any)
             int uniTextlen = uniText.length;
-            controller.text = uniText;
-            controller.selection = TextSelection.fromPosition(
-                TextPosition(offset: pos + uniTextlen - origTextLen));
+            // Written back only when it changed: see TprSearchBar (#315).
+            if (uniText != text) {
+              controller.text = uniText;
+              controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: pos + uniTextlen - origTextLen));
+            }
             widget.onTextChanged?.call(uniText);
             return;
           }

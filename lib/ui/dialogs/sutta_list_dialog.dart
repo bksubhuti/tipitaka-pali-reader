@@ -186,6 +186,10 @@ class _SuttaListDialogState extends State<SuttaListDialog> {
           child: TprSearchBar(
             hint: AppLocalizations.of(context)!.nameOrShorthand,
             controller: textEditingController,
+            // The cursor waits in the box, for the name to be typed straight
+            // away. Not on a phone or tablet, where it would bring the
+            // keyboard up over the list each time the dialog opens.
+            autofocus: PlatformInfo.isDesktop,
             onTextChanged: viewController.onFilterChanged,
             onSubmitted: (value) {
               if (viewController.suttas.value != null) {

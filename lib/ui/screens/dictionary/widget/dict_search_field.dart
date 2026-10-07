@@ -72,6 +72,7 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
   Widget build(BuildContext context) {
     return TypeAheadField<String>(
       controller: textEditingController,
+      focusNode: widget.focusNode,
       suggestionsCallback: (text) async {
         if (text.isEmpty) return <String>[];
         final inputLanguage = ScriptDetector.getLanguage(text);
@@ -104,7 +105,7 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
       builder: (context, controller, focusNode) {
         return TextField(
           controller: controller,
-          focusNode: widget.focusNode ?? focusNode,
+          focusNode: focusNode,
           autocorrect: false,
           decoration: InputDecoration(
             border: const OutlineInputBorder(
@@ -141,10 +142,13 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
               if (!Prefs.disableVelthuis && inputScript == Script.roman) {
                 final uniText = PaliTools.velthuisToUni(velthiusInput: text);
                 int uniTextlen = uniText.length;
-                controller.text = uniText;
-                controller.selection = TextSelection.fromPosition(
-                  TextPosition(offset: pos + uniTextlen - origTextLen),
-                );
+                // Written back only when it changed: see TprSearchBar (#315).
+                if (uniText != text) {
+                  controller.text = uniText;
+                  controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: pos + uniTextlen - origTextLen),
+                  );
+                }
               }
             } else {
               context.read<DictionaryController>().onInputIsEmpty();
