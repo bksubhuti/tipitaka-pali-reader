@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../providers/font_provider.dart';
 import '../../../services/database/database_helper.dart';
 import '../../../services/prefs.dart';
 import '../../../utils/platform_info.dart';
@@ -33,6 +34,42 @@ class _HomeState extends State<Home> {
     // to use one. First-run setup covers a fresh install; this covers an
     // existing one, which never runs that.
     WidgetsBinding.instance.addPostFrameCallback((_) => _offerTranslation());
+    HardwareKeyboard.instance.addHandler(_onFontSizeKey);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onFontSizeKey);
+    super.dispose();
+  }
+
+  /// Ctrl and + or - (Cmd on macOS) makes the reader's text larger or
+  /// smaller from anywhere in the app, while a book is open.
+  ///
+  /// They were shortcuts on the reader itself, so they only worked once the
+  /// reader had been clicked into, and on macOS they wanted Ctrl, not Cmd.
+  /// Like Ctrl+F, they are taken before the focus is asked: with the focus
+  /// in the dictionary, the search pane or the book list, they still go to
+  /// the reader. With no book open they are left alone.
+  bool _onFontSizeKey(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    final keyboard = HardwareKeyboard.instance;
+    final modifier =
+        Platform.isMacOS ? keyboard.isMetaPressed : keyboard.isControlPressed;
+    if (!modifier || keyboard.isAltPressed) return false;
+    final key = event.logicalKey;
+    final larger = key == LogicalKeyboardKey.equal ||
+        key == LogicalKeyboardKey.add ||
+        key == LogicalKeyboardKey.numpadAdd;
+    final smaller = key == LogicalKeyboardKey.minus ||
+        key == LogicalKeyboardKey.numpadSubtract;
+    if (!larger && !smaller) return false;
+    if (!mounted || context.read<OpenningBooksProvider>().books.isEmpty) {
+      return false;
+    }
+    final fonts = context.read<ReaderFontProvider>();
+    larger ? fonts.onIncreaseFontSize() : fonts.onDecreaseFontSize();
+    return true;
   }
 
   Future<void> _offerTranslation() async {

@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:tipitaka_pali/providers/font_provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/intents.dart';
 
@@ -48,13 +47,7 @@ class VerticalBookView extends StatefulWidget {
 }
 
 class _VerticalBookViewState extends State<VerticalBookView>
-    implements
-        PageUp,
-        PageDown,
-        ScrollUp,
-        ScrollDown,
-        IncreaseFont,
-        DecreaseFont {
+    implements PageUp, PageDown, ScrollUp, ScrollDown {
   late final ReaderViewController readerViewController;
   late final ItemPositionsListener itemPositionsListener;
   late final ItemScrollController itemScrollController;
@@ -139,11 +132,12 @@ class _VerticalBookViewState extends State<VerticalBookView>
   /// the list is brought to it first.
   void _followReading() {
     final position = _readingPosition?.value;
-    if (position == null || position.bookUuid != readerViewController.bookUuid) {
+    if (position == null ||
+        position.bookUuid != readerViewController.bookUuid) {
       return;
     }
-    final index =
-        readerViewController.chunkIndexOfSentence(position.page, position.sentence);
+    final index = readerViewController.chunkIndexOfSentence(
+        position.page, position.sentence);
     if (index < 0) return;
     if (index >= readerViewController.firstVisibleChunk &&
         index <= readerViewController.lastVisibleChunk) {
@@ -199,10 +193,6 @@ class _VerticalBookViewState extends State<VerticalBookView>
               const PageDownIntent(),
           LogicalKeySet(LogicalKeyboardKey.arrowUp): const ScrollUpIntent(),
           LogicalKeySet(LogicalKeyboardKey.arrowDown): const ScrollDownIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.equal):
-              const IncreaseFontIntent(),
-          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.minus):
-              const DecreaseFontIntent(),
         },
         child: Actions(
           actions: <Type, Action<Intent>>{
@@ -210,8 +200,6 @@ class _VerticalBookViewState extends State<VerticalBookView>
             PageDownIntent: PageDownAction(this, context),
             ScrollUpIntent: ScrollUpAction(this, context),
             ScrollDownIntent: ScrollDownAction(this, context),
-            IncreaseFontIntent: IncreaseFontAction(this, context),
-            DecreaseFontIntent: DecreaseFontAction(this, context),
           },
           child: Stack(
             children: [
@@ -352,9 +340,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                       height: constraints.maxHeight,
                                       founds: _getFounds(
                                           pageChunk.pageNumber, foundState),
-                                      currentOccurrence:
-                                          _getCurrentOccurrence(
-                                              index, foundState),
+                                      currentOccurrence: _getCurrentOccurrence(
+                                          index, foundState),
                                       onClick: widget.onClickedWord,
                                       book: readerViewController.book,
                                       isFirstChunkOfPage:
@@ -648,17 +635,5 @@ class _VerticalBookViewState extends State<VerticalBookView>
       offset: -lineHeight,
       duration: const Duration(milliseconds: 100),
     );
-  }
-
-  @override
-  void onIncreaseFontRequested(BuildContext context) {
-    context.read<ReaderFontProvider>().onIncreaseFontSize();
-    debugPrint("increase font");
-  }
-
-  @override
-  void onDecreaseFontRequested(BuildContext context) {
-    context.read<ReaderFontProvider>().onDecreaseFontSize();
-    debugPrint("increase font");
   }
 }
