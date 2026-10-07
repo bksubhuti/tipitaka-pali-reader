@@ -70,7 +70,11 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
           ORDER BY b.para_id DESC LIMIT 1) AS tpr_book,
         (SELECT b.tpr_page FROM ext.page_break b
           WHERE b.book_id = l.${there}_book AND b.para_id <= l.${there}_para
-          ORDER BY b.para_id DESC LIMIT 1) AS tpr_page
+          ORDER BY b.para_id DESC LIMIT 1) AS tpr_page,
+        (SELECT s.vripara FROM epi.sentences s
+          WHERE s.book_id = l.${there}_book AND s.para_id <= l.${there}_para
+            AND s.vripara IS NOT NULL AND s.vripara <> ''
+          ORDER BY s.para_id DESC LIMIT 1) AS printed
       FROM epi.book_links l
       WHERE l.${here}_book = ? AND $range
       ORDER BY l.${there}_book, l.${there}_para
@@ -97,6 +101,10 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
         expBookID: targetBook,
         expPageNumber: targetPage,
         bookName: names.first['name'] as String,
+        // The number printed at the head of the paragraph, or of the one it
+        // continues. The para_id is a running count, 1209 where the book
+        // says 421.
+        printedNumber: row['printed']?.toString(),
       ));
     }
     return mappings;

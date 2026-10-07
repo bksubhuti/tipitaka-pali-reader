@@ -491,7 +491,7 @@ class LowerRow extends StatelessWidget {
                       visualDensity:
                           const VisualDensity(horizontal: 0, vertical: -4),
                       title: Text(
-                        'Para.${paragraphs[i].paragraph} - ${PaliScript.getScriptOf(script: context.read<ScriptLanguageProvider>().currentScript, romanText: '${paragraphs[i].bookName} - $pageNumberIfFound')}',
+                        'Para.${paragraphs[i].printedNumber ?? paragraphs[i].paragraph} - ${PaliScript.getScriptOf(script: context.read<ScriptLanguageProvider>().currentScript, romanText: '${paragraphs[i].bookName} - $pageNumberIfFound')}',
                       ),
                       // title: Text(
                       //     '${AppLocalizations.of(context)!.paragraph_number}: ${paragraphs[i].paragraph}'),
