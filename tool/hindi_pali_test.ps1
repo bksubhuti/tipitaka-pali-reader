@@ -1,5 +1,5 @@
 ﻿# Speaks Pali in Devanagari with the Windows Hindi voice, the way the app
-# does, in several spellings, to hear which keeps the short a.
+# does, in several spellings, to hear which reads it best.
 # Run in PowerShell:  powershell -ExecutionPolicy Bypass -File hindi_pali_test.ps1
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
@@ -26,21 +26,9 @@ function Say([string]$text) {
   (New-Object System.Media.SoundPlayer $wav).PlaySync()
 }
 $tests = @(
-  @('Line 1, 1 as now', 'एवं मे सुतं – एकं समयं भगवा सावत्थियं विहरति जेतवने अनाथपिण्डिकस्स आरामे।'),
-  @('Line 1, 2 word ends spelled out', 'एवं मे सुतं – एकं समयं भगवा सावत्थियं विहरति जेतवने अनाथपिण्डिकस्स्अ आरामे।'),
-  @('Line 1, 3 every short a spelled out', 'एव्अं मे सुत्अं – एक्अं स्अम्अय्अं भ्अग्अवा साव्अत्थिय्अं विह्अर्अति जेत्अव्अने अनाथ्अपिण्डिक्अस्स्अ आरामे।'),
-  @('Line 1, 4 avagraha at word ends', 'एवं मे सुतं – एकं समयं भगवा सावत्थियं विहरति जेतवने अनाथपिण्डिकस्सऽ आरामे।'),
-  @('Line 1, 5 only where Hindi drops it', 'एवं मे सुतं – एकं सम्अयं भग्अवा साव्अत्थियं विह्अर्अति जेत्अव्अने अनाथ्अपिण्डिक्अस्स्अ आरामे।'),
-  @('Line 2, 1 as now', 'नमो तस्स भगवतो अरहतो सम्मासम्बुद्धस्स।'),
-  @('Line 2, 2 word ends spelled out', 'नमो तस्स्अ भगवतो अरहतो सम्मासम्बुद्धस्स।'),
-  @('Line 2, 3 every short a spelled out', 'न्अमो त्अस्स्अ भ्अग्अव्अतो अर्अह्अतो स्अम्मास्अम्बुद्ध्अस्स्अ।'),
-  @('Line 2, 4 avagraha at word ends', 'नमो तस्सऽ भगवतो अरहतो सम्मासम्बुद्धस्स।'),
-  @('Line 2, 5 only where Hindi drops it', 'नमो तस्स्अ भग्अव्अतो अर्अह्अतो सम्मास्अम्बुद्ध्अस्स्अ।'),
-  @('Line 3, 1 as now', 'बुद्धं सरणं गच्छामि। धम्मं सरणं गच्छामि। सङ्घं सरणं गच्छामि।'),
-  @('Line 3, 2 word ends spelled out', 'बुद्धं सरणं गच्छामि। धम्मं सरणं गच्छामि। सङ्घं सरणं गच्छामि।'),
-  @('Line 3, 3 every short a spelled out', 'बुद्ध्अं स्अर्अण्अं ग्अच्छामि। ध्अम्म्अं स्अर्अण्अं ग्अच्छामि। स्अङ्घ्अं स्अर्अण्अं ग्अच्छामि।'),
-  @('Line 3, 4 avagraha at word ends', 'बुद्धं सरणं गच्छामि। धम्मं सरणं गच्छामि। सङ्घं सरणं गच्छामि।'),
-  @('Line 3, 5 only where Hindi drops it', 'बुद्धं सर्अणं गच्छामि। धम्मं सर्अणं गच्छामि। सङ्घं सर्अणं गच्छामि।')
+  @('1 plain', 'मञ्ञति। पञ्ञा। धम्मं। सम्मा। अत्तनो। भगवा।'),
+  @('2 as the app does now', 'म्अञ्ञ्अति। प्अञ्ञा। ध्अम्म्अं। स्अम्मा। अत्त्अनो। भ्अग्अवा।'),
+  @('3 no separate a before a double consonant', 'मञ्ञ्अति। पञ्ञा। धम्म्अं। सम्मा। अत्त्अनो। भ्अग्अवा।')
 )
 foreach ($t in $tests) {
   Write-Host ''
