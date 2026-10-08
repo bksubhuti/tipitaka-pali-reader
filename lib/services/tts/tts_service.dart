@@ -434,8 +434,25 @@ class TtsService extends ChangeNotifier {
             : LanguageInstaller.nameOf(l))
         .join(', ');
     return 'No voice on this device for $names, so it is skipped. '
-        'Voices can be added in the system speech settings.';
+        '$addVoicesHint';
   }
+
+  static bool get _isWindows => !kIsWeb && Platform.isWindows;
+
+  /// How to add a voice, said where a voice is missing. Windows gets the
+  /// way there spelled out: the settings are hard to find, and on a metered
+  /// connection the download goes round in circles asking for apps to be
+  /// closed, without saying why.
+  static String get addVoicesHint => _isWindows
+      ? 'On Windows, add one in Settings → Time & language → Speech → '
+          'Add voices; Hindi reads the Pāḷi. If it keeps asking for apps '
+          'to be closed, turn off Metered connection for your network '
+          'while it downloads.'
+      : 'Voices can be added in the system speech settings.';
+
+  /// The system's speech settings, where it can open them.
+  static Uri? get speechSettings =>
+      _isWindows ? Uri.parse('ms-settings:speech') : null;
 
   @override
   void dispose() {

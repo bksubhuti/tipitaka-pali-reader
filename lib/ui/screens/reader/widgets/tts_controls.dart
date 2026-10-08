@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -105,25 +106,52 @@ class TtsControls extends StatelessWidget {
     final messenger = ScaffoldMessenger.maybeOf(context);
     await _settlePaliVoice(tts);
     if (!context.mounted) return;
-    final voiced = await tts
-        .speakable(options(context.read<ShownLanguagesProvider>()));
+    final offered = options(context.read<ShownLanguagesProvider>());
+    final voiced = await tts.speakable(offered);
     if (voiced.isEmpty) {
-      messenger?.showSnackBar(const SnackBar(
-          content: Text('There is no voice on this device for these '
-              'languages. Voices can be added in the system speech '
-              'settings.'),
-          duration: Duration(seconds: 6)));
+      _tell(messenger,
+          'There is no voice on this device for these languages. '
+          '${TtsService.addVoicesHint}');
       return;
     }
+    // A language the reader wants but has no voice for is named, once a
+    // run, rather than silently left out: on Windows the Pali needs a Hindi
+    // voice that is often not installed.
+    final missing = chosen(offered)
+        .where((l) => !voiced.contains(l) && _toldMissing.add(l))
+        .toList();
     final note = await reader.readAloud(tts,
         languages: chosen(voiced.toList()),
         speed: Prefs.ttsSpeed,
         page: page,
         sentence: sentence);
     if (note != null) {
-      messenger?.showSnackBar(SnackBar(
-          content: Text(note), duration: const Duration(seconds: 6)));
+      _tell(messenger, note);
+    } else if (missing.isNotEmpty) {
+      _tell(messenger,
+          'No voice on this device for ${missing.map(_voiceName).join(', ')}, '
+          'so it is skipped. ${TtsService.addVoicesHint}');
     }
+  }
+
+  /// Languages already named as having no voice, so it is said once a run
+  /// and not at every play.
+  static final Set<String> _toldMissing = {};
+
+  /// Opens the system's speech settings, where the app can.
+  static void _openSpeechSettings() {
+    final settings = TtsService.speechSettings;
+    if (settings != null) launchUrl(settings);
+  }
+
+  static void _tell(ScaffoldMessengerState? messenger, String message) {
+    messenger?.showSnackBar(SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 10),
+        action: TtsService.speechSettings == null
+            ? null
+            : SnackBarAction(
+                label: 'Open settings', onPressed: _openSpeechSettings)));
   }
 
   Future<void> _showOptions(BuildContext context) async {
@@ -244,9 +272,15 @@ class TtsControls extends StatelessWidget {
                     child: Text(
                       'No voice on this device for '
                       '${unvoiced.map(_voiceName).join(', ')}. '
-                      'Voices can be added in the system speech settings.',
+                      '${TtsService.addVoicesHint}',
                       style: Theme.of(sheetContext).textTheme.bodySmall,
                     ),
+                  ),
+                if ((all.isEmpty || unvoiced.isNotEmpty) &&
+                    TtsService.speechSettings != null)
+                  const TextButton(
+                    onPressed: _openSpeechSettings,
+                    child: Text('Open speech settings'),
                   ),
                 const SizedBox(height: 12),
                 Row(
