@@ -12,7 +12,11 @@ class _Engine extends TtsEngine {
   final Set<String> voices;
   final spoken = <String>[];
   String language = '';
+  double speed = 1.0;
   Completer<void>? hold;
+
+  /// Each utterance with the speed it was spoken at.
+  final paced = <String>[];
 
   _Engine(this.voices);
 
@@ -25,10 +29,11 @@ class _Engine extends TtsEngine {
   }
 
   @override
-  Future<void> setSpeed(double speed) async {}
+  Future<void> setSpeed(double speed) async => this.speed = speed;
   @override
   Future<void> speak(String text) async {
     spoken.add('$language:$text');
+    paced.add('$text@$speed');
     if (hold != null) await hold!.future;
   }
 
@@ -119,6 +124,20 @@ void main() {
     expect(turned, [2]);
     expect(tts.isPlaying, isFalse);
     expect(tts.position.value, isNull);
+  });
+
+  test('the Pali and the translations each at their own speed', () async {
+    final engine = _Engine({'kn-IN', 'en-US'});
+    final tts = TtsService(engine: engine);
+    await tts.start(
+        bookUuid: 'b',
+        pages: pages,
+        startIndex: 1,
+        chosen: {TtsPlan.pali, 'en'},
+        speed: 1.5,
+        paliSpeed: 0.5);
+    await _settle();
+    expect(engine.paced, ['ಸುತಂ@0.5', 'heard 1@1.5']);
   });
 
   test('starts at the sentence asked for', () async {

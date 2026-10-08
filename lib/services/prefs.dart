@@ -109,6 +109,7 @@ const String translationColorPref = "translationColor";
 const String activeLanguagesPref = "activeLanguages";
 const String ttsLanguagesPref = "ttsLanguages";
 const String ttsSpeedPref = "ttsSpeed";
+const String ttsPaliSpeedPref = "ttsPaliSpeed";
 const String ttsPaliVoicePref = "ttsPaliVoice";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
@@ -721,6 +722,13 @@ class Prefs {
   /// Reading speed, 1 for the voice's normal pace.
   static double get ttsSpeed => instance.getDouble(ttsSpeedPref) ?? 1.0;
   static set ttsSpeed(double value) => instance.setDouble(ttsSpeedPref, value);
+
+  /// Reading speed for the Pali, which has a voice of its own, faster or
+  /// slower than the translations' voices.
+  static double get ttsPaliSpeed =>
+      instance.getDouble(ttsPaliSpeedPref) ?? 1.0;
+  static set ttsPaliSpeed(double value) =>
+      instance.setDouble(ttsPaliSpeedPref, value);
 
   /// Which voice reads the Pali aloud: 'kn' (Kannada) or 'si' (Sinhala).
   static String get ttsPaliVoice =>

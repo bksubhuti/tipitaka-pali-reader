@@ -109,7 +109,8 @@ class TtsControls extends StatelessWidget {
     final offered = options(context.read<ShownLanguagesProvider>());
     final voiced = await tts.speakable(offered);
     if (voiced.isEmpty) {
-      _tell(messenger,
+      _tell(
+          messenger,
           'There is no voice on this device for these languages. '
           '${TtsService.addVoicesHint}');
       return;
@@ -123,12 +124,14 @@ class TtsControls extends StatelessWidget {
     final note = await reader.readAloud(tts,
         languages: chosen(voiced.toList()),
         speed: Prefs.ttsSpeed,
+        paliSpeed: Prefs.ttsPaliSpeed,
         page: page,
         sentence: sentence);
     if (note != null) {
       _tell(messenger, note);
     } else if (missing.isNotEmpty) {
-      _tell(messenger,
+      _tell(
+          messenger,
           'No voice on this device for ${missing.map(_voiceName).join(', ')}, '
           'so it is skipped. ${TtsService.addVoicesHint}');
     }
@@ -172,6 +175,8 @@ class TtsControls extends StatelessWidget {
     // The speed the reading is actually going at, which moves when a live
     // change is applied, so closing the panel does not restart it again.
     var speedApplied = speedBefore;
+    var paliSpeed = Prefs.ttsPaliSpeed;
+    var paliSpeedApplied = paliSpeed;
     var selectionApplied = {...before};
     var paliVoice = TtsPlan.paliVoiceKey;
     var paliVoiceApplied = paliVoice;
@@ -191,6 +196,39 @@ class TtsControls extends StatelessWidget {
       }
       await _play(context, page: position.page, sentence: position.sentence);
     }
+
+    /// Heard straight away, once the controls have been left alone for a
+    /// moment: not at every step of a drag, each of which would restart the
+    /// sentence.
+    void applyLive() {
+      settle?.cancel();
+      settle = Timer(const Duration(milliseconds: 500), () {
+        selectionApplied = {...selection};
+        speedApplied = speed;
+        paliSpeedApplied = paliSpeed;
+        paliVoiceApplied = paliVoice;
+        restartHere();
+      });
+    }
+
+    /// A speed slider: 0.5 to 2 times the voice's normal pace.
+    Widget speedSlider(
+            String label, double value, ValueChanged<double> onChanged) =>
+        Row(
+          children: [
+            Text(label),
+            Expanded(
+              child: Slider(
+                value: value,
+                min: 0.5,
+                max: 2.0,
+                divisions: 6,
+                label: '${value.toStringAsFixed(2)}×',
+                onChanged: onChanged,
+              ),
+            ),
+          ],
+        );
 
     await showModalBottomSheet<void>(
       context: context,
@@ -220,25 +258,17 @@ class TtsControls extends StatelessWidget {
                     title: Text(nameOf(language)),
                     value: selection.contains(language),
                     // At least one stays on.
-                    onChanged: selection.contains(language) &&
-                            selection.length == 1
-                        ? null
-                        : (on) => setState(() {
-                              on
-                                  ? selection.add(language)
-                                  : selection.remove(language);
-                              Prefs.ttsLanguages =
-                                  all.where(selection.contains).toList();
-                              // Heard straight away, once the switches have
-                              // been left alone for a moment.
-                              settle?.cancel();
-                              settle = Timer(
-                                  const Duration(milliseconds: 500), () {
-                                selectionApplied = {...selection};
-                                speedApplied = speed;
-                                restartHere();
-                              });
-                            }),
+                    onChanged:
+                        selection.contains(language) && selection.length == 1
+                            ? null
+                            : (on) => setState(() {
+                                  on
+                                      ? selection.add(language)
+                                      : selection.remove(language);
+                                  Prefs.ttsLanguages =
+                                      all.where(selection.contains).toList();
+                                  applyLive();
+                                }),
                   ),
                 // Only where the device has a Sinhala voice: then the Pali
                 // can be read the way Sri Lankan listeners hear it.
@@ -246,21 +276,15 @@ class TtsControls extends StatelessWidget {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Read Pāḷi in Sinhala'),
-                    subtitle: Text(
-                        'Sinhala script and a Sinhala voice, instead of '
-                        '${TtsPlan.paliVoices[_defaultPaliVoice]!.name}'),
+                    subtitle:
+                        Text('Sinhala script and a Sinhala voice, instead of '
+                            '${TtsPlan.paliVoices[_defaultPaliVoice]!.name}'),
                     value: paliVoice == 'si',
                     onChanged: (on) => setState(() {
                       paliVoice = on ? 'si' : _defaultPaliVoice;
                       Prefs.ttsPaliVoice = paliVoice;
                       TtsPlan.paliVoiceKey = paliVoice;
-                      settle?.cancel();
-                      settle = Timer(const Duration(milliseconds: 500), () {
-                        paliVoiceApplied = paliVoice;
-                        selectionApplied = {...selection};
-                        speedApplied = speed;
-                        restartHere();
-                      });
+                      applyLive();
                     }),
                   ),
                 if (all.isEmpty)
@@ -283,33 +307,28 @@ class TtsControls extends StatelessWidget {
                     child: Text('Open speech settings'),
                   ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text('Speed'),
-                    Expanded(
-                      child: Slider(
-                        value: speed,
-                        min: 0.5,
-                        max: 2.0,
-                        divisions: 6,
-                        label: '${speed.toStringAsFixed(2)}×',
-                        onChanged: (value) => setState(() {
-                          speed = value;
-                          Prefs.ttsSpeed = value;
-                          // Applied once the slider rests for a moment, not
-                          // at every step of a drag, each of which would
-                          // restart the sentence.
-                          settle?.cancel();
-                          settle = Timer(const Duration(milliseconds: 500), () {
-                            speedApplied = value;
-                            selectionApplied = {...selection};
-                            restartHere();
-                          });
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
+                // The Pali has a voice of its own, so a speed of its own:
+                // on Windows the Hindi voice runs well ahead of the English.
+                if (all.contains(TtsPlan.pali))
+                  speedSlider(
+                      all.length > 1 ? 'Pāḷi speed' : 'Speed',
+                      paliSpeed,
+                      (value) => setState(() {
+                            paliSpeed = value;
+                            Prefs.ttsPaliSpeed = value;
+                            applyLive();
+                          })),
+                if (all.any((l) => l != TtsPlan.pali))
+                  speedSlider(
+                      all.contains(TtsPlan.pali)
+                          ? 'Translation speed'
+                          : 'Speed',
+                      speed,
+                      (value) => setState(() {
+                            speed = value;
+                            Prefs.ttsSpeed = value;
+                            applyLive();
+                          })),
               ],
             ),
           ),
@@ -323,10 +342,10 @@ class TtsControls extends StatelessWidget {
     settle?.cancel();
     if (!context.mounted) return;
     final changed = speed != speedApplied ||
+        paliSpeed != paliSpeedApplied ||
         paliVoice != paliVoiceApplied ||
         selection.length != selectionApplied.length ||
         !selection.containsAll(selectionApplied);
     if (changed) await restartHere();
   }
-
 }

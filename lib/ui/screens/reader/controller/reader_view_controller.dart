@@ -162,6 +162,7 @@ class ReaderViewController extends ChangeNotifier {
     TtsService tts, {
     required Set<String> languages,
     required double speed,
+    double paliSpeed = 1.0,
     int? page,
     String? sentence,
   }) async {
@@ -194,6 +195,7 @@ class ReaderViewController extends ChangeNotifier {
       fromSentence: sentence,
       chosen: languages,
       speed: speed,
+      paliSpeed: paliSpeed,
       onPage: (pageNumber) {
         if (_mounted) gotoPage(pageNumber: pageNumber);
       },

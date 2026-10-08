@@ -295,6 +295,10 @@ class TtsService extends ChangeNotifier {
   /// named in the message returned; if none has a voice nothing starts.
   /// Returns null when everything chosen can be spoken.
   ///
+  /// [speed] is for the translations and [paliSpeed] for the Pali: the
+  /// Pali has a voice of its own, the Hindi one on Windows much quicker than
+  /// the English, so one speed cannot suit both.
+  ///
   /// [onPage] is told each time the reading moves on to a new page, so the
   /// reader can turn to it.
   Future<String?> start({
@@ -304,6 +308,7 @@ class TtsService extends ChangeNotifier {
     String? fromSentence,
     required Set<String> chosen,
     double speed = 1.0,
+    double paliSpeed = 1.0,
     void Function(int pageNumber)? onPage,
   }) async {
     await stop();
@@ -322,12 +327,11 @@ class TtsService extends ChangeNotifier {
     final note = missing.isEmpty ? null : _missingVoices(missing);
     if (speakable.isEmpty) return note;
 
-    await _engine.setSpeed(speed);
     _playing = true;
     _bookUuid = bookUuid;
     notifyListeners();
     unawaited(_read(session, bookUuid, pages, startIndex, fromSentence,
-        speakable, onPage));
+        speakable, speed, paliSpeed, onPage));
     return note;
   }
 
@@ -353,11 +357,23 @@ class TtsService extends ChangeNotifier {
     int startIndex,
     String? from,
     Set<String> speakable,
+    double speed,
+    double paliSpeed,
     void Function(int pageNumber)? onPage,
   ) async {
+    // Whether the engine is at the Pali's speed, set as the reading moves
+    // between the Pali and a translation. An engine that queues ahead takes
+    // the speed with each utterance as it is queued.
+    bool? atPaliSpeed;
+    Future<void> paceFor(String language) async {
+      final pali = language == TtsPlan.pali;
+      if (pali == atPaliSpeed) return;
+      atPaliSpeed = pali;
+      await _engine.setSpeed(pali ? paliSpeed : speed);
+    }
+
     try {
-      final upcoming =
-          _utterances(pages, startIndex, from, speakable).iterator;
+      final upcoming = _utterances(pages, startIndex, from, speakable).iterator;
       if (!upcoming.moveNext()) {
         if (session == _session) _finished();
         return;
@@ -367,6 +383,7 @@ class TtsService extends ChangeNotifier {
       String? language;
       Future<void>? currentDone;
       if (_engine.queuesAhead) {
+        await paceFor(current.language);
         currentDone = (await _engine.queue(
                 TtsPlan.voiceFor(current.language), current.text))
             .done;
@@ -390,6 +407,7 @@ class TtsService extends ChangeNotifier {
           // The next one goes in now, so it is ready when this one ends.
           Future<void>? nextDone;
           if (next != null) {
+            await paceFor(next.language);
             nextDone = (await _engine.queue(
                     TtsPlan.voiceFor(next.language), next.text))
                 .done;
@@ -402,6 +420,7 @@ class TtsService extends ChangeNotifier {
             await _engine.setLanguage(TtsPlan.voiceFor(current.language));
             language = current.language;
           }
+          await paceFor(current.language);
           if (session != _session) return;
           await _engine.speak(current.text);
         }
