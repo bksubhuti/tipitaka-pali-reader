@@ -30,6 +30,16 @@ void main() {
     }
   });
 
+  test('on Windows the Pali goes to a Hindi voice in Devanagari', () {
+    TtsPlan.paliVoiceKey = 'hi';
+    try {
+      expect(TtsPlan.voiceFor(TtsPlan.pali), 'hi-IN');
+      expect(TtsPlan.speakablePali('evaṃ me sutaṃ'), 'एवं मे सुतं');
+    } finally {
+      TtsPlan.paliVoiceKey = 'kn';
+    }
+  });
+
   test('Pali goes to the engine in Kannada script', () {
     // The listener's own sample, which reads well with a Kannada voice.
     expect(TtsPlan.speakablePali('Evaṃ me sutaṃ – ekaṃ samayaṃ bhagavā'),

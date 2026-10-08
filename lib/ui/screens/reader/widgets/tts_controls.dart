@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -39,14 +42,19 @@ class TtsControls extends StatelessWidget {
       ? 'Pāḷi (it needs a ${TtsPlan.paliVoice.name} voice)'
       : nameOf(language);
 
+  /// What reads the Pali unless Sinhala is chosen: Hindi on Windows, which
+  /// has no Kannada voice, and Kannada everywhere else.
+  static String get _defaultPaliVoice =>
+      !kIsWeb && Platform.isWindows ? 'hi' : 'kn';
+
   /// Puts the reader's choice of Pali voice into effect, falling back to
-  /// Kannada if the voice chosen is not on this device, say after a
+  /// the default if the voice chosen is not on this device, say after a
   /// Sinhala voice was removed. Returns whether Sinhala can be offered.
   static Future<bool> _settlePaliVoice(TtsService tts) async {
     final sinhala =
         await tts.hasVoice(TtsPlan.paliVoices['si']!.engineLanguage);
     TtsPlan.paliVoiceKey =
-        Prefs.ttsPaliVoice == 'si' && sinhala ? 'si' : 'kn';
+        Prefs.ttsPaliVoice == 'si' && sinhala ? 'si' : _defaultPaliVoice;
     return sinhala;
   }
 
@@ -210,12 +218,12 @@ class TtsControls extends StatelessWidget {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Read Pāḷi in Sinhala'),
-                    subtitle: const Text(
+                    subtitle: Text(
                         'Sinhala script and a Sinhala voice, instead of '
-                        'Kannada'),
+                        '${TtsPlan.paliVoices[_defaultPaliVoice]!.name}'),
                     value: paliVoice == 'si',
                     onChanged: (on) => setState(() {
-                      paliVoice = on ? 'si' : 'kn';
+                      paliVoice = on ? 'si' : _defaultPaliVoice;
                       Prefs.ttsPaliVoice = paliVoice;
                       TtsPlan.paliVoiceKey = paliVoice;
                       settle?.cancel();

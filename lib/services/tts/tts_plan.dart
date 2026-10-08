@@ -38,6 +38,10 @@ class TtsUtterance {
 /// Where the device has a Sinhala voice, as Android usually does, the Pali
 /// can be read in Sinhala instead: Sinhala script, Sinhala voice. That is
 /// how a Sri Lankan listener is used to hearing it.
+///
+/// Windows has neither a Kannada nor a Sinhala voice, but can have a Hindi
+/// one. There the Pali goes to it in Devanagari, final short a and all,
+/// since some Pali is better than none.
 class TtsPlan {
   TtsPlan._();
 
@@ -49,6 +53,7 @@ class TtsPlan {
   static const paliVoices = {
     'kn': PaliVoice('kn-IN', Script.kannada, 'Kannada'),
     'si': PaliVoice('si-LK', Script.sinhala, 'Sinhala'),
+    'hi': PaliVoice('hi-IN', Script.devanagari, 'Hindi'),
   };
 
   /// Which of [paliVoices] reads the Pali. Set from the reader's choice
