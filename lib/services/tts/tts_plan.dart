@@ -40,8 +40,9 @@ class TtsUtterance {
 /// how a Sri Lankan listener is used to hearing it.
 ///
 /// Windows has neither a Kannada nor a Sinhala voice, but can have a Hindi
-/// one. There the Pali goes to it in Devanagari, final short a and all,
-/// since some Pali is better than none.
+/// one. There the Pali goes to it in Devanagari with every short a spelled
+/// out as a letter of its own, which a Hindi voice does not drop. See
+/// [keepShortA].
 class TtsPlan {
   TtsPlan._();
 
@@ -53,7 +54,7 @@ class TtsPlan {
   static const paliVoices = {
     'kn': PaliVoice('kn-IN', Script.kannada, 'Kannada'),
     'si': PaliVoice('si-LK', Script.sinhala, 'Sinhala'),
-    'hi': PaliVoice('hi-IN', Script.devanagari, 'Hindi'),
+    'hi': PaliVoice('hi-IN', Script.devanagari, 'Hindi', keepsShortA: true),
   };
 
   /// Which of [paliVoices] reads the Pali. Set from the reader's choice
@@ -153,8 +154,23 @@ class TtsPlan {
         .replaceAll(_space, ' ')
         .trim();
     if (roman.isEmpty) return '';
-    return PaliScript.getScriptOf(script: paliVoice.script, romanText: roman);
+    final text =
+        PaliScript.getScriptOf(script: paliVoice.script, romanText: roman);
+    return paliVoice.keepsShortA ? keepShortA(text) : text;
   }
+
+  /// A consonant carrying its inherent short a: one not followed by a vowel
+  /// sign, a virama or a nukta.
+  static final _bareConsonant =
+      RegExp('([\u0915-\u0939])(?![\u093C\u093E-\u094D])');
+
+  /// Devanagari with each inherent short a written as a letter of its own:
+  /// the consonant with a virama, then अ. Hindi voices drop the inherent a
+  /// at the end of a word and between syllables, so bhagavā is heard as
+  /// bhagwā and dhamma as dhamm; a written अ they always say. Spelling out
+  /// only where Hindi drops it also works, but every one sounded better.
+  static String keepShortA(String devanagari) =>
+      devanagari.replaceAllMapped(_bareConsonant, (m) => '${m[1]}\u094D\u0905');
 }
 
 /// A voice the Pali can be read with.
@@ -168,5 +184,10 @@ class PaliVoice {
   /// What to call it in the interface.
   final String name;
 
-  const PaliVoice(this.engineLanguage, this.script, this.name);
+  /// Whether the inherent short a has to be spelled out for the voice to
+  /// say it. See [TtsPlan.keepShortA].
+  final bool keepsShortA;
+
+  const PaliVoice(this.engineLanguage, this.script, this.name,
+      {this.keepsShortA = false});
 }

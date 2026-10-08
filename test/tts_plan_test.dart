@@ -34,7 +34,10 @@ void main() {
     TtsPlan.paliVoiceKey = 'hi';
     try {
       expect(TtsPlan.voiceFor(TtsPlan.pali), 'hi-IN');
-      expect(TtsPlan.speakablePali('evaṃ me sutaṃ'), 'एवं मे सुतं');
+      // Each short a spelled out, so the Hindi voice does not drop it.
+      expect(TtsPlan.speakablePali('evaṃ me sutaṃ'), 'एव्अं मे सुत्अं');
+      expect(TtsPlan.speakablePali('bhagavā viharati dhamma'),
+          'भ्अग्अवा विह्अर्अति ध्अम्म्अ');
     } finally {
       TtsPlan.paliVoiceKey = 'kn';
     }
