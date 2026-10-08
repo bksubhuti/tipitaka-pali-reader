@@ -170,9 +170,13 @@ class TtsControls extends StatelessWidget {
                 Text('Read aloud',
                     style: Theme.of(sheetContext).textTheme.titleMedium),
                 const SizedBox(height: 4),
+                // The Pali voice is named only where there is one; on
+                // Windows there is no Kannada voice, and the Pali is
+                // explained below with the other missing voices.
                 Text('Each sentence is read in every language chosen, '
-                    'in this order, before the next. Pāḷi is read by a '
-                    '${TtsPlan.paliVoice.name} voice.'),
+                    'in this order, before the next.'
+                    '${all.contains(TtsPlan.pali) ? ' Pāḷi is read by a '
+                        '${TtsPlan.paliVoice.name} voice.' : ''}'),
                 const SizedBox(height: 12),
                 for (final language in all)
                   SwitchListTile(
