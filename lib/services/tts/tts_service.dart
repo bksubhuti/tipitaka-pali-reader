@@ -187,12 +187,15 @@ class FlutterTtsEngine extends TtsEngine {
   }
 
   /// [speed] is 1 for normal. The engines disagree on what normal is: 0.5 on
-  /// Android, iOS and macOS, 1.0 on Windows.
+  /// Android, iOS and macOS. The Windows plugin adds 0.5 to the rate it is
+  /// given before handing it to Windows, where 1 is normal, so there [speed]
+  /// goes over less 0.5; sent as is, normal was heard at one and a half.
   @override
   Future<void> setSpeed(double speed) async {
     await _init();
-    final normal = !kIsWeb && Platform.isWindows ? 1.0 : 0.5;
-    final rate = (normal * speed).clamp(0.1, !kIsWeb && Platform.isWindows ? 3.0 : 1.0);
+    final rate = !kIsWeb && Platform.isWindows
+        ? (speed - 0.5).clamp(0.0, 5.5)
+        : (0.5 * speed).clamp(0.1, 1.0);
     await _tts.setSpeechRate(rate.toDouble());
   }
 
