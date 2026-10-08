@@ -114,9 +114,52 @@ class FlutterTtsEngine extends TtsEngine {
     if (current != null && !current.isCompleted) current.complete();
   }
 
+  /// The Windows plugin has no isLanguageAvailable, and its setLanguage
+  /// answers yes whether or not a voice matched, and matches only the full
+  /// code. So on Windows the voices are listed and one is picked by locale.
+  bool get _isWindows => !kIsWeb && Platform.isWindows;
+  List<({String name, String locale})>? _windowsVoices;
+
+  Future<List<({String name, String locale})>> _voices() async {
+    if (_windowsVoices != null) return _windowsVoices!;
+    final voices = <({String name, String locale})>[];
+    try {
+      for (final v in (await _tts.getVoices) as List? ?? const []) {
+        final name = v['name']?.toString();
+        final locale = v['locale']?.toString();
+        if (name != null && locale != null) {
+          voices.add((name: name, locale: locale));
+        }
+      }
+    } catch (e) {
+      debugPrint('could not list the voices: $e');
+    }
+    // An empty list is not kept, so a voice added while the app runs is
+    // found on the next try.
+    if (voices.isNotEmpty) _windowsVoices = voices;
+    return voices;
+  }
+
+  /// A voice for [language], 'hi-IN' say: one for that exact locale, else
+  /// one for the same base language.
+  Future<({String name, String locale})?> _windowsVoiceFor(
+      String language) async {
+    final voices = await _voices();
+    final want = language.toLowerCase();
+    final base = want.split('-').first;
+    for (final v in voices) {
+      if (v.locale.toLowerCase() == want) return v;
+    }
+    for (final v in voices) {
+      if (v.locale.toLowerCase().split('-').first == base) return v;
+    }
+    return null;
+  }
+
   @override
   Future<bool> isAvailable(String language) async {
     await _init();
+    if (_isWindows) return await _windowsVoiceFor(language) != null;
     try {
       if (await _tts.isLanguageAvailable(language) == true) return true;
       // Some engines know a language only by its base code.
@@ -130,6 +173,13 @@ class FlutterTtsEngine extends TtsEngine {
   @override
   Future<bool> setLanguage(String language) async {
     await _init();
+    if (_isWindows) {
+      final voice = await _windowsVoiceFor(language);
+      if (voice == null) return false;
+      final set =
+          await _tts.setVoice({'name': voice.name, 'locale': voice.locale});
+      return set == 1 || set == true;
+    }
     final set = await _tts.setLanguage(language);
     if (set == 1 || set == true) return true;
     final base = await _tts.setLanguage(language.split('-').first);
