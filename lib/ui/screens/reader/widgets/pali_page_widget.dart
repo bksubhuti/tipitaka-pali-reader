@@ -1,13 +1,14 @@
 import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/rendering.dart';
-import 'package:html/dom.dart' as dom;
 
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/utils/html_text_map.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/page_composer.dart';
+import 'package:tipitaka_pali/utils/formatted_copy.dart';
+import 'package:tipitaka_pali/utils/search_highlight.dart';
 import 'package:tipitaka_pali/utils/side_by_side.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/utils/tts_highlight.dart';
@@ -44,6 +45,10 @@ class PaliPageWidget extends StatefulWidget {
   final Book? book;
   final Function(String clickedWord)? onClick;
   final bool isFirstChunkOfPage;
+
+  /// Where the block is in the book, to keep the blocks drawn in order; the
+  /// page number when a page is drawn whole.
+  final int? blockIndex;
   const PaliPageWidget({
     super.key,
     required this.pageNumber,
@@ -57,6 +62,7 @@ class PaliPageWidget extends StatefulWidget {
     this.onClick,
     this.book,
     this.isFirstChunkOfPage = true,
+    this.blockIndex,
   });
 
   @override
@@ -123,8 +129,24 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     });
   }
 
+  int get _blockKey => widget.blockIndex ?? widget.pageNumber;
+
+  /// What this block last put in the controller's [shownBlocks]. Taken out
+  /// only if it is still there, not one put in since by a new widget for
+  /// the same block.
+  ShownBlock? _shown;
+
+  static final _firstSentence = RegExp(r'<a name="s(\d+)_\d+"></a>');
+
+  void _forgetShown(int key) {
+    if (identical(_readerViewController.shownBlocks[key], _shown)) {
+      _readerViewController.shownBlocks.remove(key);
+    }
+  }
+
   @override
   void dispose() {
+    _forgetShown(_blockKey);
     _readerViewController.isHighlightShown
         .removeListener(_onHighlightVisibilityChanged);
     super.dispose();
@@ -137,6 +159,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   @override
   void didUpdateWidget(PaliPageWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final oldKey = oldWidget.blockIndex ?? oldWidget.pageNumber;
+    if (oldKey != _blockKey) _forgetShown(oldKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Handle search result scroll - uses Scrollable.ensureVisible for better
       // alignment. Only when the current match actually moved, so that
@@ -622,6 +646,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       content = _removeAlternatePali(content);
     }
     content = _formatWithUserSetting(content);
+    _readerViewController.shownBlocks[_blockKey] = _shown = ShownBlock(
+        widget.pageNumber,
+        content
+            .replaceAll(SideBySide.rowBreak, '')
+            .replaceAll(SideBySide.columnBreak, ''),
+        paraId: int.tryParse(
+            _firstSentence.firstMatch(widget.htmlContent)?.group(1) ?? ''));
     content = _changeToInlineStyle(content);
 
     return content;
@@ -658,29 +689,15 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     final termInScript = _inReadingScript(widget.founds!.first.term);
     if (termInScript.isEmpty) return content;
 
-    final pattern = RegExp(RegExp.escape(termInScript), caseSensitive: false);
-    final soup = BeautifulSoup(content);
-    final List<ReplaceResult> toReplace = [];
-    var occurrence = 0;
-
-    for (final node in (soup.body?.nodes ?? <dom.Node>[])) {
-      occurrence = _highlightSearchTermInNode(
-        node: node,
-        pattern: pattern,
-        toReplace: toReplace,
-        currentOccurrence: widget.currentOccurrence,
-        occurrence: occurrence,
-      );
-    }
-
-    for (final result in toReplace) {
-      for (final newNode in result.newNodes) {
-        result.node.parent?.insertBefore(newNode, result.node);
-      }
-      result.node.remove();
-    }
-
-    return soup.toString();
+    return SearchHighlight.highlight(
+      content,
+      termInScript,
+      current: widget.currentOccurrence,
+      cssClass: searchTermCssClass,
+      currentCssClass: currentSearchTermCssClass,
+      anchorCssClass: 'scroll_to_term',
+      hiddenClasses: SearchHighlight.hiddenIn(Prefs.textDisplayMode),
+    );
   }
 
   String _addHighlightedWordScrollAnchor(String content) {
@@ -694,72 +711,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     );
     highlightedNode.parent?.insertBefore(anchor, highlightedNode);
     return soup.toString();
-  }
-
-  int _highlightSearchTermInNode({
-    required dom.Node node,
-    required RegExp pattern,
-    required List<ReplaceResult> toReplace,
-    required int? currentOccurrence,
-    required int occurrence,
-  }) {
-    if (node.nodeType == dom.Node.TEXT_NODE) {
-      final text = node.text;
-      if (text == null || text.isEmpty) return occurrence;
-
-      final matches = pattern.allMatches(text).toList();
-      if (matches.isEmpty) return occurrence;
-
-      final buffer = StringBuffer();
-      var start = 0;
-      for (final match in matches) {
-        buffer.write(text.substring(start, match.start));
-        occurrence++;
-
-        final matchedText = match.group(0)!;
-        final isCurrent =
-            currentOccurrence != null && occurrence == currentOccurrence;
-        if (isCurrent) {
-          buffer.write('<a class="scroll_to_term"></a>');
-          buffer.write(
-              '<span class="$currentSearchTermCssClass">$matchedText</span>');
-        } else {
-          buffer.write('<span class="$searchTermCssClass">$matchedText</span>');
-        }
-
-        start = match.end;
-      }
-      buffer.write(text.substring(start));
-
-      final highlighted = BeautifulSoup(buffer.toString());
-      final newNodes = (highlighted.body?.nodes ?? <dom.Node>[])
-          .toList(growable: false)
-          .cast<dom.Node>();
-      toReplace.add(ReplaceResult(node, newNodes));
-      return occurrence;
-    }
-
-    if (node is dom.Element) {
-      if (node.localName == 'script' || node.localName == 'style') {
-        return occurrence;
-      }
-      // Avoid highlighting injected bookmark header text.
-      if (node.localName == 'a' && node.className == 'bookmark') {
-        return occurrence;
-      }
-    }
-
-    for (final child in node.nodes) {
-      occurrence = _highlightSearchTermInNode(
-        node: child,
-        pattern: pattern,
-        toReplace: toReplace,
-        currentOccurrence: currentOccurrence,
-        occurrence: occurrence,
-      );
-    }
-
-    return occurrence;
   }
 
   String _toCssHex(int colorValue) {
@@ -1179,10 +1130,4 @@ String _insertBookmarkNewlines(String bookmark) {
       .replaceAll("pageNumber:", "\npageNumber:")
       .replaceAll("note:", "\nnote:")
       .replaceAll("selected_text:", "\nselected_text:");
-}
-
-class ReplaceResult {
-  dom.Node node;
-  List<dom.Node> newNodes;
-  ReplaceResult(this.node, this.newNodes);
 }

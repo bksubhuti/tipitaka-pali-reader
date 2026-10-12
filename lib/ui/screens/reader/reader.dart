@@ -29,7 +29,12 @@ import '../../../services/provider/script_language_provider.dart';
 import '../../../services/repositories/book_repo.dart';
 import '../../../services/repositories/bookmark_repo.dart';
 import '../../../services/repositories/page_content_repo.dart';
+import '../../../services/repositories/heading_trail_repo.dart';
+import '../../../services/rich_clipboard.dart';
+import '../../../utils/formatted_copy.dart';
 import '../../../utils/pali_script.dart';
+import '../../../utils/pali_script_converter.dart';
+import '../../../utils/search_highlight.dart';
 import '../../../utils/platform_info.dart';
 import '../../../env/env.dart';
 import '../../dialogs/dictionary_dialog.dart';
@@ -196,6 +201,10 @@ class ReaderView extends StatelessWidget implements Searchable {
                                               _onCopyLink(text, context),
                                           onShareLink: (text) =>
                                               _onShareLink(text, context),
+                                          onCopyFormatted: (text) =>
+                                              _onCopyFormatted(text, context),
+                                          onCopyPlain: (text) =>
+                                              _onCopyPlain(text, context),
                                           onSelectionChanged: (text) {
                                             Provider.of<ReaderViewController>(
                                                     context,
@@ -221,6 +230,10 @@ class ReaderView extends StatelessWidget implements Searchable {
                                               _onCopyLink(text, context),
                                           onShareLink: (text) =>
                                               _onShareLink(text, context),
+                                          onCopyFormatted: (text) =>
+                                              _onCopyFormatted(text, context),
+                                          onCopyPlain: (text) =>
+                                              _onCopyPlain(text, context),
                                           onSelectionChanged: (text) {
                                             Provider.of<ReaderViewController>(
                                                     context,
@@ -500,6 +513,13 @@ class ReaderView extends StatelessWidget implements Searchable {
 
   String _generateDeepLink(String selectedText, BuildContext context) {
     final rc = Provider.of<ReaderViewController>(context, listen: false);
+    return _deepLink(rc, selectedText, rc.currentPage.value);
+  }
+
+  /// A link that opens [rc]'s book at [pageNumber] with [selectedText]
+  /// marked.
+  String _deepLink(
+      ReaderViewController rc, String selectedText, int pageNumber) {
 
     String safeEncode(String? text) {
       if (text == null || text.trim().isEmpty) return '';
@@ -512,7 +532,7 @@ class ReaderView extends StatelessWidget implements Searchable {
       path: '/open',
       queryParameters: {
         'book_id': rc.book.id,
-        'page_number': rc.currentPage.value.toString(),
+        'page_number': pageNumber.toString(),
         'name': rc.book.name,
         'note': '',
         'selected_text': safeEncode(selectedText),
@@ -520,6 +540,80 @@ class ReaderView extends StatelessWidget implements Searchable {
     );
 
     return uri.toString();
+  }
+
+  /// [text], selected in the reader, laid out in [format] from the blocks
+  /// drawn. With a [source], it goes under the text as a link that opens
+  /// the book at the page. Null when the text cannot be placed on the page.
+  ({String text, int pageNumber, ShownBlock block})? _formatSelection(
+      String text, CopyFormat format, ReaderViewController rc,
+      {String? source}) {
+    // The link marks the passage when it is opened by its first words; the
+    // whole of a long one would make a link too long to paste.
+    final opening = text.trim().split(RegExp(r'\s+')).take(6).join(' ');
+    return FormattedCopy.format(
+      text,
+      rc.shownBlocksInOrder(),
+      format,
+      hiddenClasses: SearchHighlight.hiddenIn(Prefs.textDisplayMode),
+      paliBold: Prefs.isPaliBold,
+      source: source,
+      link: (page) => _deepLink(rc, opening, page),
+    );
+  }
+
+  /// Where a passage copied from [start] comes from: the headings it is
+  /// under, the book's first, and its SuttaCentral reference. Just the
+  /// book's name for a book without headings.
+  Future<String> _sourceOf(
+      ReaderViewController rc, Script script, ShownBlock start) async {
+    String inScript(String roman) =>
+        PaliScript.getScriptOf(script: script, romanText: roman);
+    final paraId = start.paraId;
+    final trail = paraId == null
+        ? null
+        : await HeadingTrailRepository(DatabaseHelper())
+            .of(rc.book.id, start.pageNumber, paraId);
+    if (trail == null) return inScript(rc.book.name);
+    // The nikāya's own letters, "(DN)", are left in Roman.
+    final titles = trail.titles.map((t) => t.replaceAllMapped(
+        RegExp(r'\([A-Z]+\)|[^(]+'),
+        (m) => m[0]!.startsWith('(') ? m[0]! : inScript(m[0]!)));
+    final citation = trail.citation;
+    return '${titles.join(' › ')}${citation == null ? '' : ' ($citation)'}';
+  }
+
+  /// Copy in the reader: the selected text with its formatting. As HTML,
+  /// for a document or an email to paste formatted, and as Markdown, for a
+  /// forum or notes that take only text. Text that cannot be placed on the
+  /// page is copied as it is.
+  Future<void> _onCopyFormatted(String text, BuildContext context) async {
+    if (text.trim().isEmpty) return;
+    final rc = Provider.of<ReaderViewController>(context, listen: false);
+    final script = context.read<ScriptLanguageProvider>().currentScript;
+    final start = _formatSelection(text, CopyFormat.plain, rc);
+    if (start == null) {
+      await Clipboard.setData(ClipboardData(text: text));
+      return;
+    }
+    final source = await _sourceOf(rc, script, start.block);
+    final markdown =
+        _formatSelection(text, CopyFormat.markdown, rc, source: source);
+    final html = _formatSelection(text, CopyFormat.html, rc, source: source);
+    if (markdown == null || html == null) {
+      await Clipboard.setData(ClipboardData(text: text));
+    } else {
+      await RichClipboard.copy(html: html.text, text: markdown.text);
+    }
+  }
+
+  /// "Copy Plain Text": the text alone, in its lines and paragraphs, as the
+  /// reader shows them, without the page numbers drawn between pages.
+  void _onCopyPlain(String text, BuildContext context) {
+    if (text.trim().isEmpty) return;
+    final rc = Provider.of<ReaderViewController>(context, listen: false);
+    final plain = _formatSelection(text, CopyFormat.plain, rc)?.text;
+    Clipboard.setData(ClipboardData(text: plain ?? text));
   }
 
   void _onCopyLink(String selectedText, BuildContext context) {

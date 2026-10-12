@@ -9,6 +9,7 @@ import '../../../../business_logic/models/page_content.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
+import '../../../widgets/copy_formatted_menu.dart';
 import 'pali_page_widget.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
@@ -22,7 +23,9 @@ class HorizontalBookView extends StatefulWidget {
       this.onAiContextRightClick,
       this.onCopyLink,
       this.onShareLink,
-      this.onSelectionChanged});
+      this.onSelectionChanged,
+      this.onCopyFormatted,
+      this.onCopyPlain});
   final ValueChanged<String>? onSearchedSelectedText;
   final ValueChanged<String>? onSharedSelectedText;
   final ValueChanged<String>? onClickedWord;
@@ -31,6 +34,8 @@ class HorizontalBookView extends StatefulWidget {
   final ValueChanged<String>? onCopyLink;
   final ValueChanged<String>? onShareLink;
   final ValueChanged<String>? onSelectionChanged;
+  final ValueChanged<String>? onCopyFormatted;
+  final ValueChanged<String>? onCopyPlain;
 
   @override
   State<HorizontalBookView> createState() => _HorizontalBookViewState();
@@ -85,105 +90,119 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
             child: Padding(
               padding: const EdgeInsets.only(
                   bottom: 100.0), // estimated toolbar height
-              child: SelectionArea(
-                contextMenuBuilder: (context, selectableRegionState) {
-                  return AdaptiveTextSelectionToolbar.buttonItems(
-                    anchors: selectableRegionState.contextMenuAnchors,
-                    buttonItems: [
-                      ...selectableRegionState.contextMenuButtonItems,
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            final bookName = PaliScript.getScriptOf(
-                              script: context
-                                  .read<ScriptLanguageProvider>()
-                                  .currentScript,
-                              romanText: readerViewController.book.name,
-                            );
-                            Clipboard.setData(ClipboardData(text: bookName));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${AppLocalizations.of(context)!.copied}: $bookName'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          label: AppLocalizations.of(context)!.copyBookName),
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            widget.onCopyLink
-                                ?.call(_selectedContent?.plainText ?? '');
-                          },
-                          label: AppLocalizations.of(context)!.copyLink),
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            widget.onShareLink
-                                ?.call(_selectedContent?.plainText ?? '');
-                          },
-                          label: AppLocalizations.of(context)!.shareLink),
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            widget.onSearchedSelectedText
-                                ?.call(_selectedContent!.plainText);
-                            // onSearch(_selectedContent!.plainText);
-                          },
-                          label: AppLocalizations.of(context)!.searchSelected),
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            widget.onSearchedInCurrentBook
-                                ?.call(_selectedContent!.plainText);
-                          },
-                          label: AppLocalizations.of(context)!.searchInCurrent),
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            final fullText = _selectedContent?.plainText ?? '';
-                            //final trimmed = fullText.length > 1800
-                            //  ? fullText.substring(0, 1800)
-                            // : fullText;
-                            widget.onAiContextRightClick?.call(fullText);
-                          },
-                          label: AppLocalizations.of(context)!.aiContext),
-                      ContextMenuButtonItem(
-                          onPressed: () {
-                            ContextMenuController.removeAny();
-                            widget.onSharedSelectedText
-                                ?.call(_selectedContent!.plainText);
-                            // Share.share(_selectedContent!.plainText,
-                            //     subject: 'Pāḷi text from TPR');
-                          },
-                          label: AppLocalizations.of(context)!.share),
-                    ],
-                  );
-                },
-                onSelectionChanged: (value) {
-                  _selectedContent = value;
-                  widget.onSelectionChanged?.call(value?.plainText ?? '');
-                },
-                child: ValueListenableBuilder(
-                  valueListenable: readerViewController.foundState,
-                  builder: (_, foundState, __) {
-                    return PaliPageWidget(
-                      pageNumber: pageContent.pageNumber!,
-                      htmlContent: htmlContent,
-                      script: script,
-                      highlightedWord: readerViewController.textToHighlight,
-                      pageToHighlight: readerViewController.pageToHighlight,
-                      height: constraints.maxHeight,
-                      founds: _getFounds(pageContent.pageNumber!, foundState),
-                      currentOccurrence: _getCurrentOccurrence(
-                          pageContent.pageNumber!, foundState),
-                      onClick: widget.onClickedWord,
-                      book: readerViewController.book,
-                    );
-                  },
-                ),
-              ),
+              child: CopyFormattedShortcuts(
+                  onCopy: () => widget.onCopyFormatted
+                      ?.call(_selectedContent?.plainText ?? ''),
+                  child: SelectionArea(
+                    contextMenuBuilder: (context, selectableRegionState) {
+                      return AdaptiveTextSelectionToolbar.buttonItems(
+                        anchors: selectableRegionState.contextMenuAnchors,
+                        buttonItems: [
+                          ...copyButtons(
+                              context,
+                              selectableRegionState,
+                              () => _selectedContent?.plainText ?? '',
+                              widget.onCopyFormatted,
+                              widget.onCopyPlain),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                final bookName = PaliScript.getScriptOf(
+                                  script: context
+                                      .read<ScriptLanguageProvider>()
+                                      .currentScript,
+                                  romanText: readerViewController.book.name,
+                                );
+                                Clipboard.setData(
+                                    ClipboardData(text: bookName));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        '${AppLocalizations.of(context)!.copied}: $bookName'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              label:
+                                  AppLocalizations.of(context)!.copyBookName),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                widget.onCopyLink
+                                    ?.call(_selectedContent?.plainText ?? '');
+                              },
+                              label: AppLocalizations.of(context)!.copyLink),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                widget.onShareLink
+                                    ?.call(_selectedContent?.plainText ?? '');
+                              },
+                              label: AppLocalizations.of(context)!.shareLink),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                widget.onSearchedSelectedText
+                                    ?.call(_selectedContent!.plainText);
+                                // onSearch(_selectedContent!.plainText);
+                              },
+                              label:
+                                  AppLocalizations.of(context)!.searchSelected),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                widget.onSearchedInCurrentBook
+                                    ?.call(_selectedContent!.plainText);
+                              },
+                              label: AppLocalizations.of(context)!
+                                  .searchInCurrent),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                final fullText =
+                                    _selectedContent?.plainText ?? '';
+                                //final trimmed = fullText.length > 1800
+                                //  ? fullText.substring(0, 1800)
+                                // : fullText;
+                                widget.onAiContextRightClick?.call(fullText);
+                              },
+                              label: AppLocalizations.of(context)!.aiContext),
+                          ContextMenuButtonItem(
+                              onPressed: () {
+                                ContextMenuController.removeAny();
+                                widget.onSharedSelectedText
+                                    ?.call(_selectedContent!.plainText);
+                                // Share.share(_selectedContent!.plainText,
+                                //     subject: 'Pāḷi text from TPR');
+                              },
+                              label: AppLocalizations.of(context)!.share),
+                        ],
+                      );
+                    },
+                    onSelectionChanged: (value) {
+                      _selectedContent = value;
+                      widget.onSelectionChanged?.call(value?.plainText ?? '');
+                    },
+                    child: ValueListenableBuilder(
+                      valueListenable: readerViewController.foundState,
+                      builder: (_, foundState, __) {
+                        return PaliPageWidget(
+                          pageNumber: pageContent.pageNumber!,
+                          htmlContent: htmlContent,
+                          script: script,
+                          highlightedWord: readerViewController.textToHighlight,
+                          pageToHighlight: readerViewController.pageToHighlight,
+                          height: constraints.maxHeight,
+                          founds:
+                              _getFounds(pageContent.pageNumber!, foundState),
+                          currentOccurrence: _getCurrentOccurrence(
+                              pageContent.pageNumber!, foundState),
+                          onClick: widget.onClickedWord,
+                          book: readerViewController.book,
+                        );
+                      },
+                    ),
+                  )),
             ),
           );
         },

@@ -14,6 +14,10 @@ import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/utils/formatted_copy.dart';
+import 'package:tipitaka_pali/utils/search_highlight.dart';
+import 'package:tipitaka_pali/utils/side_by_side.dart';
 import 'package:tipitaka_pali/utils/tts_highlight.dart';
 
 import '../../../../business_logic/models/book.dart';
@@ -115,6 +119,15 @@ class ReaderViewController extends ChangeNotifier {
 
   final ValueNotifier<bool> _highlightEveryMatch = ValueNotifier(true);
   ValueListenable<bool> get highlightEveryMatch => _highlightEveryMatch;
+
+  /// The blocks drawn now, by their place in the book, as HTML before it
+  /// is styled: what the reader sees, with its classes still on it. A copy
+  /// of selected text in a format is laid out from these.
+  final Map<int, ShownBlock> shownBlocks = {};
+
+  /// [shownBlocks] in the order they are in the book.
+  List<ShownBlock> shownBlocksInOrder() =>
+      (shownBlocks.keys.toList()..sort()).map((k) => shownBlocks[k]!).toList();
 
   /// Whether the goto/search word highlight is painted in the text.
   /// Tapping a word clears the highlight for the whole book, not only for the
@@ -304,15 +317,18 @@ class ReaderViewController extends ChangeNotifier {
     }
 
     _searchText.value = text;
-    // Match literal text safely while allowing empty anchor tags between words.
-    final String regexPattern = RegExp.escape(text)
-        .replaceAll(' ', r'(?:\s*<a\s+name="[^"]*"></a>\s*|\s+)');
-    final RegExp regex = RegExp(regexPattern, caseSensitive: false);
+    // Counted as the page draws them, over the text it shows, so that the
+    // n-th match here is the n-th match marked on the page.
+    final hidden = SearchHighlight.hiddenIn(Prefs.textDisplayMode);
+    final beside = _sideBySideLanguage();
 
     int startIndex = 0;
     final List<FoundInfo> results = <FoundInfo>[];
     chunks.forEachIndexed((chunkIndex, chunk) {
-      final chunkMatches = regex.allMatches(chunk.htmlContent).length;
+      var html = chunk.htmlContent;
+      if (beside != null) html = SideBySide.keepOnly(html, beside);
+      final chunkMatches =
+          SearchHighlight.count(html, text, hiddenClasses: hidden);
       for (int i = 0; i < chunkMatches; i++) {
         results.add(FoundInfo(
           term: text,
@@ -331,6 +347,20 @@ class ReaderViewController extends ChangeNotifier {
       _foundState.value = FoundData(founds: results, current: 0);
       _searchResultCount.value = results.length;
       _currentSearchResult.value = 1;
+    }
+  }
+
+  /// The translation drawn beside the Pāḷi when the two are side by side,
+  /// the only one then shown; null otherwise.
+  String? _sideBySideLanguage() {
+    if (!Prefs.sideBySide ||
+        Prefs.textDisplayMode != TextDisplayMode.paliAndTranslation) {
+      return null;
+    }
+    try {
+      return context.read<ShownLanguagesProvider>().shownLanguages.firstOrNull;
+    } catch (_) {
+      return null;
     }
   }
 
