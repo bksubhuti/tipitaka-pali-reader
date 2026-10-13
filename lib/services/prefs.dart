@@ -117,6 +117,9 @@ const String translationTermsAcceptedPref = "translationTermsAccepted";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
 const String sideBySidePref = "sideBySide";
+const String xrayPref = "xray";
+const String copyFormattedPref = "copyFormatted";
+const String xrayNoticeShownPref = "xrayNoticeShown";
 const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
 const String hideAiSearchNagPref = "hideAiSearchNag";
@@ -771,6 +774,23 @@ class Prefs {
   /// the translation under each sentence.
   static bool get sideBySide => instance.getBool(sideBySidePref) ?? false;
   static set sideBySide(bool value) => instance.setBool(sideBySidePref, value);
+
+  /// Commentary links drawn under each Pali sentence they belong to.
+  static bool get xray => instance.getBool(xrayPref) ?? true;
+  static set xray(bool value) => instance.setBool(xrayPref, value);
+
+  /// Cmd+C (Ctrl+C off macOS) in the reader copies with formatting; off, it
+  /// copies the text alone.
+  static bool get copyFormatted =>
+      instance.getBool(copyFormattedPref) ?? true;
+  static set copyFormatted(bool value) =>
+      instance.setBool(copyFormattedPref, value);
+
+  /// The one-time notice that X-ray is on has been shown.
+  static bool get xrayNoticeShown =>
+      instance.getBool(xrayNoticeShownPref) ?? false;
+  static set xrayNoticeShown(bool value) =>
+      instance.setBool(xrayNoticeShownPref, value);
 
   static bool get sangahaFixed =>
       instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;

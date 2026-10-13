@@ -8,6 +8,7 @@ import 'package:tipitaka_pali/utils/html_text_map.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/page_composer.dart';
 import 'package:tipitaka_pali/utils/formatted_copy.dart';
+import 'package:tipitaka_pali/utils/search_cluster.dart';
 import 'package:tipitaka_pali/utils/search_highlight.dart';
 import 'package:tipitaka_pali/utils/side_by_side.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
@@ -32,6 +33,8 @@ import '../controller/reader_view_controller.dart';
 import '../../home/search_page/search_page.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/utils/script_detector.dart';
+import 'package:tipitaka_pali/business_logic/models/xray_link.dart';
+import 'xray_links_view.dart';
 
 class PaliPageWidget extends StatefulWidget {
   final int pageNumber;
@@ -137,6 +140,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   ShownBlock? _shown;
 
   static final _firstSentence = RegExp(r'<a name="s(\d+)_\d+"></a>');
+  static final _xrayThenBreak =
+      RegExp(r'(<xray data-x="\d+"></xray></span>)\s*<br>');
 
   void _forgetShown(int key) {
     if (identical(_readerViewController.shownBlocks[key], _shown)) {
@@ -198,6 +203,9 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       // scrolls. Without it every rebuilt chunk pulled the list towards its own
       // highlight, which is what dragged the reader back to the last match on
       // the page as soon as they tried to scroll.
+      if (!_readerViewController.mayScrollToHighlight(widget.blockIndex)) {
+        return;
+      }
       if (!_readerViewController.takePendingHighlightScroll()) return;
 
       Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
@@ -282,6 +290,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   @override
   Widget build(BuildContext context) {
     int fontSize = context.watch<ReaderFontProvider>().fontSize;
+    // Turning X-ray on or off redraws the page with or without the links.
+    context.watch<ThemeChangeNotifier>().xray;
     final fontName = FontUtils.getfontName(
         script: context.read<ScriptLanguageProvider>().currentScript);
     final readerViewController =
@@ -500,6 +510,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         return {'text-decoration': 'none'};
       },
       customWidgetBuilder: (element) {
+        if (element.localName == 'xray') {
+          final links = XrayIndex.linksOf(
+              int.tryParse(element.attributes['data-x'] ?? '') ?? -1);
+          if (links == null || links.isEmpty) return const SizedBox.shrink();
+          return XrayLinksView(links: links, fontSize: fontSize.toDouble());
+        }
+
         if (element.localName == 'span' && element.className == 'linebreak') {
           return const InlineCustomWidget(
               child: SizedBox(
@@ -641,6 +658,15 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     // the sentence markers are still there to show where sentences begin.
     if (sideBySide != null) content = SideBySide.mark(content);
     content = content.replaceAll(PageComposer.sentenceMarkers, '');
+    if (!Prefs.xray ||
+        Prefs.textDisplayMode == TextDisplayMode.translationOnly) {
+      content = content.replaceAll(PageComposer.xrayTags, '');
+    } else {
+      // The links are a block of their own, so the line break before the
+      // translation would leave a blank line under them, and the
+      // translation would sit nearer the next Pāḷi than its own.
+      content = content.replaceAllMapped(_xrayThenBreak, (m) => m.group(1)!);
+    }
 
     if (!Prefs.isShowAlternatePali) {
       content = _removeAlternatePali(content);
@@ -650,7 +676,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         widget.pageNumber,
         content
             .replaceAll(SideBySide.rowBreak, '')
-            .replaceAll(SideBySide.columnBreak, ''),
+            .replaceAll(SideBySide.columnBreak, '')
+            .replaceAll(PageComposer.xrayTags, ''),
         paraId: int.tryParse(
             _firstSentence.firstMatch(widget.htmlContent)?.group(1) ?? ''));
     content = _changeToInlineStyle(content);
@@ -976,7 +1003,6 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         words.insert(0, words.join(''));
       }
 
-      bool firstMatch = true;
       for (final word in words) {
         // Match the prefix word followed by any word characters (covers kamma -> kammassa, etc.)
         // Use lookahead/lookbehind for word boundaries: whitespace, quotes (including smart quotes), dashes, angle brackets, start/end
@@ -992,15 +1018,19 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         // which dropped the second of two adjacent search words.
         content = mapHtmlText(content, highlightClass, (text, insideHighlight) {
           if (insideHighlight) return text;
-          return text.replaceAllMapped(pattern, (match) {
-            final matched = match.group(0)!;
-            if (firstMatch && addId) {
-              firstMatch = false;
-              return '<span id="$kGotoID" class="$highlightClass">$matched</span>';
-            }
-            return '<span class="$highlightClass">$matched</span>';
-          });
+          return text.replaceAllMapped(pattern,
+              (match) => '<span class="$highlightClass">${match.group(0)}</span>');
         });
+      }
+      // Land where the words come together, not on the first stray one.
+      if (addId) {
+        final searchWords = words.length > 1 ? words.sublist(1) : words;
+        content = SearchCluster.markStart(
+            content,
+            highlightClass,
+            searchWords,
+            queryMode == QueryMode.distance ? Prefs.wordDistance : 0,
+            kGotoID);
       }
       return content;
     }

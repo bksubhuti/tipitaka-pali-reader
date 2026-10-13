@@ -1,7 +1,9 @@
 import 'package:tipitaka_pali/business_logic/models/page_content.dart';
+import 'package:tipitaka_pali/business_logic/models/xray_link.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/repositories/page_content_repo.dart';
+import 'package:tipitaka_pali/services/repositories/xray_repo.dart';
 import 'package:tipitaka_pali/utils/page_composer.dart';
 
 /// Serves reader pages out of ePitaka's sentences instead of the `pages` table.
@@ -100,7 +102,10 @@ class SentencePageContentRepository implements PageContentRepository {
     final marks = await _anchorsFor(db, start, end);
     final translations = await _translationsFor(db, start, end);
     final headings = await _headingsFor(db, start.bookId);
-    return _assemble(rows, start, end, marks, translations, headings);
+    final links = await XrayRepository(databaseProvider).linksFor(start.bookId,
+        fromPara: start.paraId,
+        toPara: end != null && end.bookId == start.bookId ? end.paraId : null);
+    return _assemble(rows, start, end, marks, translations, headings, links);
   }
 
   /// Turns rows into page sentences. Shared by the single-page path, which
@@ -113,6 +118,7 @@ class SentencePageContentRepository implements PageContentRepository {
     Map<String, List<PageAnchor>> marks,
     List<Map<String, String>> translations, [
     _Headings headings = const _Headings({}, null),
+    Map<String, List<XrayLink>> links = const {},
   ]) {
     final sentences = <PageSentence>[];
     for (var i = 0; i < rows.length; i++) {
@@ -133,13 +139,18 @@ class SentencePageContentRepository implements PageContentRepository {
       // a sentence the break falls inside can be cut at it. A break at the
       // first word cuts the whole sentence away: it belongs to the next page
       // alone, and keeping it showed it twice, either side of the break.
+      var cut = false;
       if (end != null &&
           i == rows.length - 1 &&
           paraId == end.paraId &&
           lineId == end.lineId) {
         pali = _keepWords(pali, end.wordIndex - dropped);
+        cut = true;
       }
       if (pali.isEmpty) continue;
+      // A sentence the page break cuts shows its links once, on the page
+      // where it ends.
+      final sentenceLinks = cut ? null : links[_key(paraId, lineId)];
 
       sentences.add(PageSentence(
         paraId: paraId,
@@ -154,6 +165,10 @@ class SentencePageContentRepository implements PageContentRepository {
                 for (final byLanguage in translations)
                   byLanguage[_key(paraId, lineId)] ?? ''
               ],
+        xrayId: sentenceLinks == null
+            ? null
+            : XrayIndex.idFor(
+                '${start.bookId}:${_key(paraId, lineId)}', sentenceLinks),
         anchors: dropped == 0
             ? anchors
             : anchors
@@ -319,8 +334,10 @@ class SentencePageContentRepository implements PageContentRepository {
       headings[book] = await _headingsFor(db, book);
     }
     final translations = <String, List<Map<String, String>>>{};
+    final links = <String, Map<String, List<XrayLink>>>{};
     for (final book in epiBooks) {
       translations[book] = await _allTranslationsFor(db, book);
+      links[book] = await XrayRepository(databaseProvider).linksFor(book);
     }
 
     final languages = _shownLanguages();
@@ -390,7 +407,8 @@ class SentencePageContentRepository implements PageContentRepository {
           end,
           marks[start.bookId] ?? const {},
           translations[start.bookId] ?? const [],
-          headings[start.bookId] ?? const _Headings({}, null));
+          headings[start.bookId] ?? const _Headings({}, null),
+          links[start.bookId] ?? const {});
       if (built.isEmpty) continue;
 
       // Not composed here. The list shows one page at a time, so each builds

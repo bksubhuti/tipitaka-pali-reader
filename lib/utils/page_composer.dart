@@ -26,7 +26,11 @@
 ///     and to start at the one the reader tapped. Being an empty anchor, it
 ///     passes through script conversion and the find-in-book pattern, which
 ///     already steps over anchors between words; the reader removes it
-///     before display.
+///     before display;
+///   * `<xray data-x="17"></xray>` closes the Pali of a sentence the
+///     commentary takes up. The number finds its links in `XrayIndex`; the
+///     reader draws them under the sentence in the X-ray view, and removes
+///     the tag when that is off.
 ///
 /// Nothing here touches Flutter or the database, so it can be tested on its
 /// own, which matters: a page that composes wrongly is hard to spot by eye and
@@ -92,6 +96,10 @@ class PageSentence {
   /// wrapper so it looks exactly as it does today.
   final List<String> translations;
 
+  /// The `XrayIndex` number of the commentary links out of this sentence,
+  /// or null when there are none.
+  final int? xrayId;
+
   const PageSentence({
     required this.paraId,
     required this.lineId,
@@ -101,6 +109,7 @@ class PageSentence {
     this.headingLevel,
     this.anchors = const [],
     this.translations = const [],
+    this.xrayId,
   });
 }
 
@@ -220,6 +229,9 @@ class PageComposer {
   /// Matches every sentence marker, for removing them before display.
   static final sentenceMarkers = RegExp(r'<a name="s\d+_\d+"></a>');
 
+  /// The X-ray tags [compose] writes.
+  static final xrayTags = RegExp(r'<xray data-x="\d+"></xray>');
+
   static String markVariantReadings(String html) => html.replaceAllMapped(
       _variantReading, (m) => '<span class="note">${m.group(0)}</span>');
 
@@ -276,7 +288,12 @@ class PageComposer {
   /// Order is the caller's: Pali first, then each translation in the order the
   /// reader has chosen in settings.
   static String _sentenceHtml(PageSentence sentence, List<String> languages) {
-    final pali = _withAnchors(sentence);
+    var pali = _withAnchors(sentence);
+    // Inside the Pali, so that it is hidden with it and stays on the Pali
+    // side when the two are drawn side by side.
+    if (sentence.xrayId != null) {
+      pali += '<xray data-x="${sentence.xrayId}"></xray>';
+    }
     if (sentence.translations.isEmpty) return pali;
 
     final buffer = StringBuffer()

@@ -193,6 +193,24 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
               ),
             ),
 
+          // The commentary under the Pali it explains.
+          if (shown.paliShown)
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0),
+              child: CheckboxListTile(
+                title: const Text('X-ray'),
+                subtitle: const Text('Commentary links under the Pāḷi'),
+                value: context.watch<ThemeChangeNotifier>().xray,
+                onChanged: (bool? value) {
+                  if (value != null) {
+                    context.read<ThemeChangeNotifier>().onChangeXray(value);
+                  }
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+
           // Only when the Pali is actually on screen.
           if (shown.paliShown)
             Padding(

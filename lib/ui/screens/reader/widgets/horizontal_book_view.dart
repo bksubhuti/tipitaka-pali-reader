@@ -66,6 +66,15 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
     super.dispose();
   }
 
+  void _copyPlain(String text) {
+    final onCopyPlain = widget.onCopyPlain;
+    if (onCopyPlain != null) {
+      onCopyPlain(text);
+    } else {
+      Clipboard.setData(ClipboardData(text: text));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final readerViewController =
@@ -93,6 +102,8 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
               child: CopyFormattedShortcuts(
                   onCopy: () => widget.onCopyFormatted
                       ?.call(_selectedContent?.plainText ?? ''),
+                  onCopyPlain: () =>
+                      _copyPlain(_selectedContent?.plainText ?? ''),
                   child: SelectionArea(
                     contextMenuBuilder: (context, selectableRegionState) {
                       return AdaptiveTextSelectionToolbar.buttonItems(

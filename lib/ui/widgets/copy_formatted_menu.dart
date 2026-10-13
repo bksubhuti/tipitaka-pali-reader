@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 
-/// Copy in the reader copies with formatting: from the menu of selected
-/// text, and with Cmd+C or Ctrl+C. "Copy Plain Text" is beside it in the
-/// menu for the text alone.
+/// Copying in the reader: the menu of selected text has "Copy Formatted"
+/// and "Copy Plain Text", and Cmd+C or Ctrl+C copies whichever the reader
+/// has chosen in Settings › General, formatted unless they say otherwise.
 
-/// The menu's own buttons, with Copy copying formatted and "Copy Plain
+/// The menu's own buttons, with Copy as "Copy Formatted" and "Copy Plain
 /// Text" after it.
 List<ContextMenuButtonItem> copyButtons(
   BuildContext context,
@@ -21,12 +22,14 @@ List<ContextMenuButtonItem> copyButtons(
       items.add(item);
       continue;
     }
-    items.add(item.copyWith(onPressed: () {
-      // Read before the menu closes, which can clear the selection.
-      final text = selectedText();
-      ContextMenuController.removeAny();
-      onCopyFormatted?.call(text);
-    }));
+    items.add(item.copyWith(
+        label: AppLocalizations.of(context)!.copyFormatted,
+        onPressed: () {
+          // Read before the menu closes, which can clear the selection.
+          final text = selectedText();
+          ContextMenuController.removeAny();
+          onCopyFormatted?.call(text);
+        }));
     items.add(ContextMenuButtonItem(
       label: AppLocalizations.of(context)!.copyPlainText,
       onPressed: () {
@@ -47,13 +50,16 @@ class _CopyFormattedIntent extends Intent {
   const _CopyFormattedIntent();
 }
 
-/// Cmd+C and Ctrl+C in [child] copy the selected text formatted. Closer to
-/// the selection than the app's own copy shortcut, so they are taken first.
+/// Cmd+C and Ctrl+C in [child] copy the selected text formatted, or as
+/// plain text when the reader has turned [Prefs.copyFormatted] off. Closer
+/// to the selection than the app's own copy shortcut, so they are taken
+/// first.
 class CopyFormattedShortcuts extends StatelessWidget {
   const CopyFormattedShortcuts(
-      {super.key, required this.onCopy, required this.child});
+      {super.key, required this.onCopy, this.onCopyPlain, required this.child});
 
   final VoidCallback onCopy;
+  final VoidCallback? onCopyPlain;
   final Widget child;
 
   @override
@@ -69,7 +75,12 @@ class CopyFormattedShortcuts extends StatelessWidget {
         actions: {
           _CopyFormattedIntent: CallbackAction<_CopyFormattedIntent>(
             onInvoke: (_) {
-              onCopy();
+              final plain = onCopyPlain;
+              if (plain != null && !Prefs.copyFormatted) {
+                plain();
+              } else {
+                onCopy();
+              }
               return null;
             },
           ),

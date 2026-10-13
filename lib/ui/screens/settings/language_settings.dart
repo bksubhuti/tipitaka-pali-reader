@@ -20,8 +20,142 @@ class LanguageSettings extends StatefulWidget {
   State<LanguageSettings> createState() => _LanguageSettingsState();
 }
 
+/// How an installed language compares with the copy on the server.
+enum _Freshness { checking, current, newer, unrecorded, offline }
+
 class _LanguageSettingsState extends State<LanguageSettings> {
   String? _busy;
+
+  /// Each installed language against the server, checked when this page
+  /// opens: a HEAD request each, nothing downloaded.
+  final Map<String, _Freshness> _freshness = {};
+
+  /// The date of the server's copy, where it is newer, and of the device's,
+  /// where it is current.
+  final Map<String, DateTime?> _dates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdates();
+  }
+
+  Future<void> _checkForUpdates() async {
+    final codes = [..._installed];
+    setState(() {
+      for (final code in codes) {
+        _freshness[code] = _Freshness.checking;
+      }
+    });
+    await Future.wait(codes.map((code) async {
+      final option = LanguageInstaller.available.firstWhere(
+          (o) => o.code == code,
+          orElse: () => LanguageOption(code, code));
+      final results = await Future.wait([
+        LanguageInstaller.deviceCopy(code),
+        LanguageInstaller.onlineCopy(option),
+      ]);
+      final device = results[0];
+      final online = results[1];
+      final _Freshness freshness;
+      DateTime? date;
+      if (online == null) {
+        freshness = _Freshness.offline;
+      } else if (device == null) {
+        // Installed before the source was recorded: it cannot be compared.
+        freshness = _Freshness.unrecorded;
+        date = online.date;
+      } else if (device.sameAs(online)) {
+        freshness = _Freshness.current;
+        date = device.date;
+      } else {
+        freshness = _Freshness.newer;
+        date = online.date;
+      }
+      if (!mounted) return;
+      setState(() {
+        _freshness[code] = freshness;
+        _dates[code] = date;
+      });
+    }));
+  }
+
+  static const _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec'
+  ];
+
+  static String _day(DateTime? date) =>
+      date == null ? '' : '${date.day} ${_months[date.month - 1]} ${date.year}';
+
+  /// What the page says about a language's copy, or null for nothing.
+  String? _freshnessText(String code) {
+    final date = _day(_dates[code]);
+    switch (_freshness[code]) {
+      case _Freshness.checking:
+        return 'Checking for updates…';
+      case _Freshness.current:
+        return 'Up to date';
+      case _Freshness.newer:
+        return date.isEmpty ? 'Update available' : 'Update available ($date)';
+      case _Freshness.unrecorded:
+        return 'Its version was not recorded. Update to get the latest.';
+      case _Freshness.offline:
+      case null:
+        return null;
+    }
+  }
+
+  bool _canUpdate(String code) =>
+      _freshness[code] == _Freshness.newer ||
+      _freshness[code] == _Freshness.unrecorded;
+
+  /// Downloads the server's copy over the one on the device. The old copy
+  /// keeps working until the new one is whole, and a language switched off
+  /// stays off.
+  Future<void> _update(String code) async {
+    final option =
+        LanguageInstaller.available.firstWhere((o) => o.code == code);
+    final wasShown = LanguageInstaller.isShown(code);
+    final steps = LanguageStepState(LanguageStep.install);
+    setState(() {
+      _busy = code;
+      _steps = steps;
+      _stepsTitle = 'Updating ${option.name}';
+    });
+    try {
+      await LanguageInstaller.install(option,
+          onStep: (step, fraction, message) {
+        if (mounted) setState(() => steps.update(step, fraction, message));
+      });
+      if (!wasShown) LanguageInstaller.setShown(code, false);
+      steps.finish();
+      if (mounted) {
+        context.read<ShownLanguagesProvider>().installedChanged();
+        final device = await LanguageInstaller.deviceCopy(code);
+        if (mounted) {
+          setState(() {
+            _freshness[code] = _Freshness.current;
+            _dates[code] = device?.date;
+          });
+        }
+      }
+    } catch (e) {
+      steps.fail(e);
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
 
   /// The install or removal under way, or the last one, until another starts.
   LanguageStepState? _steps;
@@ -69,6 +203,13 @@ class _LanguageSettingsState extends State<LanguageSettings> {
       });
       steps.finish();
       if (mounted) context.read<ShownLanguagesProvider>().installedChanged();
+      final device = await LanguageInstaller.deviceCopy(option.code);
+      if (mounted) {
+        setState(() {
+          _freshness[option.code] = _Freshness.current;
+          _dates[option.code] = device?.date;
+        });
+      }
     } catch (e) {
       steps.fail(e);
     } finally {
@@ -201,11 +342,31 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                             child: const Icon(Icons.drag_handle),
                           ),
                           title: Text(_nameOf(code)),
-                          subtitle: Text(context
-                                  .watch<ShownLanguagesProvider>()
-                                  .isShown(code)
-                              ? 'Shown beneath the Pali'
-                              : 'On the device, not shown'),
+                          // The switch says whether it is shown; this says
+                          // only whether there is a newer copy.
+                          subtitle: switch (_freshnessText(code)) {
+                            final text?
+                                when _freshness[code] == _Freshness.current =>
+                              Text.rich(TextSpan(children: [
+                                TextSpan(text: '$text '),
+                                const WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: Icon(Icons.check_circle,
+                                      size: 16, color: Colors.green),
+                                ),
+                              ])),
+                            final text? => Text(
+                                text,
+                                style: _canUpdate(code)
+                                    ? TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontWeight: FontWeight.w600)
+                                    : null,
+                              ),
+                            null => null,
+                          },
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -219,6 +380,14 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                                         .read<ShownLanguagesProvider>()
                                         .setLanguageShown(code, on)),
                               ),
+                              if (_busy != code && _canUpdate(code))
+                                IconButton(
+                                  icon: const Icon(Icons.system_update_alt),
+                                  tooltip: 'Update',
+                                  onPressed: _busy == null
+                                      ? () => _update(code)
+                                      : null,
+                                ),
                               if (_busy != code)
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline),

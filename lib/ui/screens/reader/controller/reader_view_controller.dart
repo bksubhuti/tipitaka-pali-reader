@@ -5,6 +5,8 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/search_cluster.dart';
+import 'package:tipitaka_pali/ui/dialogs/xray_notice.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/services/repositories/sentence_paragraph_mapping_repo.dart';
 import 'package:provider/provider.dart';
@@ -262,7 +264,7 @@ class ReaderViewController extends ChangeNotifier {
   }
 
   /// Ctrl+F (Cmd+F on macOS) from anywhere in the app searches the book in
-  /// the selected tab.
+  /// the selected tab, and Escape closes that search again.
   ///
   /// It used to be a shortcut on the reader itself, so it only worked once
   /// the reader had been clicked into: with the focus in the dictionary or
@@ -270,29 +272,43 @@ class ReaderViewController extends ChangeNotifier {
   /// it is taken globally. Every open reader listens; only the selected one
   /// answers.
   bool _onKey(KeyEvent event) {
-    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.keyF) {
-      return false;
+    if (event is! KeyDownEvent) return false;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      // Left alone while a dialog is open over the reader: Escape is that
+      // dialog's to close.
+      if (!_showSearch || !isSelectedTab()) return false;
+      try {
+        if (ModalRoute.of(context)?.isCurrent == false) return false;
+      } catch (_) {
+        return false;
+      }
+      showSearchWidget(false);
+      return true;
     }
+    if (event.logicalKey != LogicalKeyboardKey.keyF) return false;
     final keyboard = HardwareKeyboard.instance;
     final modifier =
         Platform.isMacOS ? keyboard.isMetaPressed : keyboard.isControlPressed;
     if (!modifier || keyboard.isShiftPressed || keyboard.isAltPressed) {
       return false;
     }
+    if (!isSelectedTab()) return false;
+    openSearch();
+    return true;
+  }
+
+  /// This reader is loaded and is the one in the selected tab.
+  bool isSelectedTab() {
     if (!_mounted || !isloadingFinished) return false;
     try {
       final tabs = context.read<OpenningBooksProvider>();
       final index = tabs.selectedBookIndex;
-      if (index < 0 ||
-          index >= tabs.books.length ||
-          tabs.books[index]['uuid'] != bookUuid) {
-        return false;
-      }
+      return index >= 0 &&
+          index < tabs.books.length &&
+          tabs.books[index]['uuid'] == bookUuid;
     } catch (_) {
       return false;
     }
-    openSearch();
-    return true;
   }
 
   /// Asks the search box to take the keyboard, when it opens and when it is
@@ -300,10 +316,17 @@ class ReaderViewController extends ChangeNotifier {
   ValueListenable<int> get searchFocusRequests => _searchFocusRequests;
   final ValueNotifier<int> _searchFocusRequests = ValueNotifier(0);
 
-  /// Opens find-in-book, keeping what was typed if it is already open, and
-  /// puts the cursor in it.
+  /// Opens find-in-book and puts the cursor in it. With text selected in the
+  /// book it searches for that; otherwise it keeps what was typed if it is
+  /// already open.
   void openSearch() {
-    showSearchWidget(true, searchText: _showSearch ? null : '');
+    final selected = (selection ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    showSearchWidget(true,
+        searchText: selected.isNotEmpty
+            ? selected
+            : _showSearch
+                ? null
+                : '');
     _searchFocusRequests.value++;
   }
 
@@ -511,6 +534,7 @@ class ReaderViewController extends ChangeNotifier {
     }
 
     notifyListeners();
+    XrayNotice.scheduleFor(context, () => _mounted);
 
     // update opened book list
     final openedBookController = context.read<OpenningBooksProvider>();
@@ -685,6 +709,40 @@ class ReaderViewController extends ChangeNotifier {
     openedBookController.update(
         newPageNumber: _currentPage.value, bookUuid: bookUuid);
   }
+
+  /// The block a search result on [page] is to open at: for a prefix or
+  /// distance search of several words, the first block where they all come
+  /// together, rather than the page's first block. Null when there is no
+  /// such block, or nothing of the kind to look for.
+  ///
+  /// Only that block may then scroll to its highlight. An earlier block with
+  /// a stray word of the search, built first, otherwise took the scroll and
+  /// stopped short of the real match.
+  int? highlightChunkFor(int page) {
+    _highlightChunk = null;
+    final text = textToHighlight?.trim() ?? '';
+    final mode = queryMode;
+    if (text.isEmpty ||
+        (mode != QueryMode.prefix && mode != QueryMode.distance)) {
+      return null;
+    }
+    final words = text.split(RegExp(r'\s+'));
+    if (words.length < 2) return null;
+    final gap = mode == QueryMode.distance ? Prefs.wordDistance : 0;
+    final first = getChunkIndexForPage(page);
+    for (var i = first; i < chunks.length && chunks[i].pageNumber == page; i++) {
+      if (SearchCluster.hasGroup(chunks[i].htmlContent, words, gap)) {
+        return _highlightChunk = i;
+      }
+    }
+    return null;
+  }
+
+  int? _highlightChunk;
+
+  /// Whether the block at [chunkIndex] may take the highlight scroll.
+  bool mayScrollToHighlight(int? chunkIndex) =>
+      _highlightChunk == null || chunkIndex == _highlightChunk;
 
   int getChunkIndexForPage(int pageNumber) {
     int index = chunks.indexWhere((chunk) => chunk.pageNumber == pageNumber);

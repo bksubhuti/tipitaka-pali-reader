@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -88,6 +89,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
     super.initState();
     readerViewController =
         Provider.of<ReaderViewController>(context, listen: false);
+    HardwareKeyboard.instance.addHandler(_onPageKey);
     itemPositionsListener = ItemPositionsListener.create();
     itemScrollController = ItemScrollController();
     scrollOffsetController = ScrollOffsetController();
@@ -227,6 +229,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onPageKey);
     _keepPlaceTimer?.cancel();
     _scrollOffsetSubscription?.cancel();
     itemPositionsListener.itemPositions.removeListener(_listenItemPosition);
@@ -239,6 +242,15 @@ class _VerticalBookViewState extends State<VerticalBookView>
 
   static final Map<String, Widget> cachedPages = {};
 
+  void _copyPlain(String text) {
+    final onCopyPlain = widget.onCopyPlain;
+    if (onCopyPlain != null) {
+      onCopyPlain(text);
+    } else {
+      Clipboard.setData(ClipboardData(text: text));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Use saved scroll position if available (preserves offset during layout changes),
@@ -249,8 +261,9 @@ class _VerticalBookViewState extends State<VerticalBookView>
       initialScrollChunkIndex = _savedChunkIndex;
       initialAlignment = _savedAlignment;
     } else {
-      initialScrollChunkIndex = readerViewController
-          .getChunkIndexForPage(readerViewController.currentPage.value);
+      final page = readerViewController.currentPage.value;
+      initialScrollChunkIndex = readerViewController.highlightChunkFor(page) ??
+          readerViewController.getChunkIndexForPage(page);
       initialAlignment = 0.0;
     }
 
@@ -286,6 +299,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
                     child: CopyFormattedShortcuts(
                       onCopy: () => widget.onCopyFormatted
                           ?.call(_selectedContent?.plainText ?? ''),
+                      onCopyPlain: () =>
+                          _copyPlain(_selectedContent?.plainText ?? ''),
                       child: SelectionArea(
                           contextMenuBuilder: (context, selectableRegionState) {
                             return AdaptiveTextSelectionToolbar.buttonItems(
@@ -595,7 +610,11 @@ class _VerticalBookViewState extends State<VerticalBookView>
     final textToHighlight = readerViewController.textToHighlight;
     bool foundHighlightChunk = false;
 
-    if (textToHighlight != null && textToHighlight.isNotEmpty) {
+    final group = readerViewController.highlightChunkFor(currenPage);
+    if (group != null) {
+      targetChunkIndex = group;
+      foundHighlightChunk = true;
+    } else if (textToHighlight != null && textToHighlight.isNotEmpty) {
       for (int i = targetChunkIndex;
           i < readerViewController.chunks.length;
           i++) {
@@ -719,6 +738,49 @@ class _VerticalBookViewState extends State<VerticalBookView>
       offset: viewportHeight,
       duration: const Duration(milliseconds: 300),
     );
+  }
+
+  /// Page Up and Page Down turn the page of the book in the selected tab
+  /// wherever the keyboard focus is, as Ctrl+F does. Through the reader's own
+  /// shortcuts they only worked once its text had been clicked into, and
+  /// after opening a book, or with the focus in a side pane, nothing moved.
+  /// On a Mac, Fn+↑/↓ sends the same keys, and Option+↑/↓, the Mac's own
+  /// way to page, does the same.
+  ///
+  /// Left alone while a text field has the keys, where they move the
+  /// cursor, and while a dialog is open over the reader.
+  bool _onPageKey(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+    final key = event.logicalKey;
+    final keyboard = HardwareKeyboard.instance;
+    final optionArrow = defaultTargetPlatform == TargetPlatform.macOS &&
+        keyboard.isAltPressed &&
+        !keyboard.isMetaPressed &&
+        !keyboard.isControlPressed;
+    final bool down;
+    if (key == LogicalKeyboardKey.pageDown ||
+        (optionArrow && key == LogicalKeyboardKey.arrowDown)) {
+      down = true;
+    } else if (key == LogicalKeyboardKey.pageUp ||
+        (optionArrow && key == LogicalKeyboardKey.arrowUp)) {
+      down = false;
+    } else {
+      return false;
+    }
+    if (!mounted || !readerViewController.isSelectedTab()) return false;
+    if (ModalRoute.of(context)?.isCurrent == false) return false;
+    final focused = FocusManager.instance.primaryFocus?.context;
+    if (focused != null &&
+        (focused.widget is EditableText ||
+            focused.findAncestorWidgetOfExactType<EditableText>() != null)) {
+      return false;
+    }
+    if (down) {
+      onPageDownRequested(context);
+    } else {
+      onPageUpRequested(context);
+    }
+    return true;
   }
 
   @override

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -15,6 +16,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
   bool _clipboard = Prefs.saveClickToClipboard;
   bool _disableVelthuis = Prefs.disableVelthuis;
   bool _persitentSearchFilter = Prefs.persitentSearchFilter;
+  bool _copyFormatted = Prefs.copyFormatted;
 
   @override
   void initState() {
@@ -30,6 +32,8 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
         title: Text(AppLocalizations.of(context)!.generalSettings,
             style: Theme.of(context).textTheme.titleLarge),
         children: [
+          _getCopyFormattedSwitch(),
+          const Divider(),
           _getAnimationsSwitch(),
           const SizedBox(
             height: 10,
@@ -48,6 +52,29 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           const Divider(),
           _getAlwaysShowSplitterSwitch(),
         ],
+      ),
+    );
+  }
+
+  /// What the copy shortcut copies in the reader. The menu of selected text
+  /// offers both whatever this says.
+  Widget _getCopyFormattedSwitch() {
+    final key = defaultTargetPlatform == TargetPlatform.macOS ? 'Cmd' : 'Ctrl';
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text('$key+C copies with formatting'),
+        subtitle: Text(_copyFormatted
+            ? 'Bold, headings and the source, as in Copy Formatted'
+            : 'The text alone, as in Copy Plain Text'),
+        trailing: Switch(
+          onChanged: (value) {
+            setState(() {
+              _copyFormatted = Prefs.copyFormatted = value;
+            });
+          },
+          value: _copyFormatted,
+        ),
       ),
     );
   }

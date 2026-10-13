@@ -38,6 +38,9 @@ class _DictionaryPageState extends State<DictionaryPage>
     super.dispose();
   }
 
+  bool _canGoBack(BuildContext context) =>
+      ModalRoute.of(context)?.canPop ?? false;
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -61,9 +64,15 @@ class _DictionaryPageState extends State<DictionaryPage>
             child: Scaffold(
               extendBody: true,
               appBar: AppBar(
-                leading: getVelthuisHelp(context),
+                // Opened over another screen, as from the drawer on a phone,
+                // it needs a way back: iOS has no back button of its own.
+                // The Velthuis help then moves to the right.
+                leading: _canGoBack(context)
+                    ? const BackButton()
+                    : getVelthuisHelp(context),
                 title: Text(AppLocalizations.of(context)!.dictionary),
                 actions: [
+                  if (_canGoBack(context)) getVelthuisHelp(context),
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios),
                     tooltip: AppLocalizations.of(context)!.dictionaryPrevious,

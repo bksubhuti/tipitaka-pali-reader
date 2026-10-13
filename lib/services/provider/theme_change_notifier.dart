@@ -115,6 +115,13 @@ class ThemeChangeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get xray => Prefs.xray;
+
+  void onChangeXray(bool on) {
+    Prefs.xray = on;
+    notifyListeners();
+  }
+
   // Returns dark ThemeData made by FlexColorScheme
   ThemeData get darkTheme => FlexThemeData.dark(
         colors: myFlexSchemes[Prefs.themeIndex].dark,
