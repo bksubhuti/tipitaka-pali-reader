@@ -2,14 +2,14 @@ flatpak run \
   --filesystem=$HOME \
   --share=network \
   --devel \
-  --env=FLATPAK_ENABLE_SDK_EXT=llvm20 \
+  --env=FLATPAK_ENABLE_SDK_EXT=llvm22 \
   --env=FLUTTER_ROOT=$HOME/flutter \
-  --env=PATH=$HOME/flutter/bin:/usr/lib/sdk/llvm20/bin:$PATH \
-  --env=CC=/usr/lib/sdk/llvm20/bin/clang \
-  --env=CXX=/usr/lib/sdk/llvm20/bin/clang++ \
+  --env=PATH=$HOME/flutter/bin:/usr/lib/sdk/llvm22/bin:$PATH \
+  --env=CC=/usr/lib/sdk/llvm22/bin/clang \
+  --env=CXX=/usr/lib/sdk/llvm22/bin/clang++ \
   --env=CMAKE_TOOLCHAIN_FILE=$HOME/git/tipitaka-pali-reader/clang_toolchain.cmake \
   --command=bash \
-  org.freedesktop.Sdk//25.08 <<'EOF'
+  org.freedesktop.Sdk//26.08 <<'EOF'
 
 cd ~/git/tipitaka-pali-reader
 

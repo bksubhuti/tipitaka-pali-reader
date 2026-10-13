@@ -1,4 +1,4 @@
-name: Build on Ubuntu 22.04
+name: Build for Linux (AppImage on Ubuntu 22.04, Flathub in the Freedesktop SDK)
 
 on:
   workflow_dispatch:
@@ -16,8 +16,19 @@ on:
 permissions:
   contents: write
 
+# The Flathub build is made inside the runtime it runs in, so it can only
+# use what that runtime has. Keep these in step with runtime-version in the
+# Flathub manifest (flathub/org.americanmonk.TipitakaPaliReader), and with
+# flatbuild.sh for local builds. Each runtime has its own LLVM extension:
+# llvm22 is the one published for 26.08.
+env:
+  FLATPAK_RUNTIME: '26.08'
+  FLATPAK_LLVM: llvm22
+
 jobs:
   build:
+    # The oldest Ubuntu GitHub offers. An AppImage brings no C library of its
+    # own, so building on the oldest system lets it run on the most systems.
     runs-on: ubuntu-22.04
 
     steps:
@@ -139,6 +150,41 @@ jobs:
       - name: Build AppImage via script
         run: ./build_appimage2.sh
 
+      # The Flathub app runs inside the Freedesktop runtime, not on Ubuntu,
+      # so it is built again inside that runtime's SDK: built on the host, it
+      # could ask for a newer C library than the runtime has. The AppImage
+      # above has already taken the host build.
+      - name: Install the Freedesktop SDK ${{ env.FLATPAK_RUNTIME }}
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y flatpak
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub \
+            "org.freedesktop.Sdk//${FLATPAK_RUNTIME}" \
+            "org.freedesktop.Sdk.Extension.${FLATPAK_LLVM}//${FLATPAK_RUNTIME}"
+
+      - name: Flutter build (Linux) inside the SDK, for Flathub
+        run: |
+          set -euo pipefail
+          rm -rf build/linux/x64/release
+          flatpak run --user \
+            --filesystem=home \
+            --filesystem="$FLUTTER_ROOT" \
+            --filesystem="$GITHUB_WORKSPACE" \
+            --share=network \
+            --devel \
+            --env=FLATPAK_ENABLE_SDK_EXT="$FLATPAK_LLVM" \
+            --env=FLUTTER_ROOT="$FLUTTER_ROOT" \
+            --env=PUB_CACHE="${PUB_CACHE:-$HOME/.pub-cache}" \
+            --env=PATH="$FLUTTER_ROOT/bin:/usr/lib/sdk/$FLATPAK_LLVM/bin:/usr/bin:/bin" \
+            --env=CC="/usr/lib/sdk/$FLATPAK_LLVM/bin/clang" \
+            --env=CXX="/usr/lib/sdk/$FLATPAK_LLVM/bin/clang++" \
+            --env=CMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/clang_toolchain.cmake" \
+            --command=bash \
+            "org.freedesktop.Sdk//${FLATPAK_RUNTIME}" \
+            -c "cd '$GITHUB_WORKSPACE' && flutter build linux --release"
+
       - name: Package AppImage in tipitaka-pali-reader-linux-pkg
         run: |
           cp tipitaka_pali_reader.AppImage tipitaka-pali-reader-linux-pkg/
@@ -167,7 +213,7 @@ jobs:
           echo "SHA256_TPR_TAR=${SHA256_TPR_TAR}" >> $GITHUB_ENV
           
           # Summary to Job Log
-          echo "### 📦 Flathub Package" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Flathub Package (built in org.freedesktop.Sdk//${FLATPAK_RUNTIME})" >> $GITHUB_STEP_SUMMARY
           echo "- **Archive:** \`tpr_${BUILD_NUM}.tar.gz\`" >> $GITHUB_STEP_SUMMARY
           echo "- **SHA256 Checksum:** \`${SHA256_TPR_TAR}\`" >> $GITHUB_STEP_SUMMARY
 
@@ -190,7 +236,7 @@ jobs:
           prerelease: false
           body: |
             ### Linux Release Assets
-            - **Flathub Package:** `tpr_${{ env.BUILD_NUM }}.tar.gz`
+            - **Flathub Package:** `tpr_${{ env.BUILD_NUM }}.tar.gz` (runtime ${{ env.FLATPAK_RUNTIME }})
             - **Flathub SHA256:** `${{ env.SHA256_TPR_TAR }}`
             - **AppImage Package:** `tipitaka-pali-reader-linux-pkg_${{ env.BUILD_NUM }}.zip`
             - **Standalone AppImage:** `tipitaka_pali_reader.AppImage`
