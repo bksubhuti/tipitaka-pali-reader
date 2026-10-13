@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
@@ -38,28 +39,7 @@ class XrayNotice {
       Prefs.xrayNoticeShown = true;
       final turnOff = await showDialog<bool>(
         context: readerContext,
-        builder: (context) => AlertDialog(
-          title: const Text('X-ray view'),
-          // Kept to a readable width; on a wide window it ran the full width.
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: const Text(
-                'X-ray view is turned on: the words the commentary explains '
-                'are listed under each Pāḷi sentence. You can turn it off in '
-                'View settings and in the quick view settings.\n\n'
-                'Would you like to keep it on?'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Yes, keep it'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('No, turn it off'),
-            ),
-          ],
-        ),
+        builder: (context) => const XrayNoticeDialog(),
       );
       if (turnOff == true && readerContext.mounted) {
         readerContext.read<ThemeChangeNotifier>().onChangeXray(false);
@@ -73,5 +53,33 @@ class XrayNotice {
     } catch (_) {
       return Prefs.textDisplayMode != TextDisplayMode.translationOnly;
     }
+  }
+}
+
+/// The notice itself. Pops true to turn X-ray off, false to keep it.
+class XrayNoticeDialog extends StatelessWidget {
+  const XrayNoticeDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l.xrayViewTitle),
+      // Kept to a readable width; on a wide window it ran the full width.
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Text(l.xrayNoticeMessage),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l.xrayKeepOn),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l.xrayTurnOff),
+        ),
+      ],
+    );
   }
 }

@@ -19,6 +19,23 @@ class BookmarkBackupInfo {
   BookmarkBackupInfo(this.created, this.folderCount, this.bookmarkCount);
 }
 
+/// Why a backup could not be made or read. The dialog shows each in the
+/// reader's language.
+enum BookmarkBackupFailure { encrypt, read }
+
+class BookmarkBackupException implements Exception {
+  final BookmarkBackupFailure failure;
+
+  BookmarkBackupException(this.failure);
+
+  @override
+  String toString() => switch (failure) {
+        BookmarkBackupFailure.encrypt => 'The backup could not be encrypted.',
+        BookmarkBackupFailure.read => 'The backup could not be read. '
+            'Was it made before a password change?',
+      };
+}
+
 /// One snapshot of every bookmark folder and bookmark, kept in the cloud at
 /// `users/<email>/backups`.
 ///
@@ -85,7 +102,7 @@ class BookmarkBackupRepository {
     final rows = {for (final table in _tables) table: await db.query(table)};
     final cipher = _crypto.encryptText(jsonEncode({'format': 1, ...rows}));
     if (cipher.isEmpty || cipher == '404') {
-      throw Exception('The backup could not be encrypted.');
+      throw BookmarkBackupException(BookmarkBackupFailure.encrypt);
     }
 
     final set = DateTime.now().millisecondsSinceEpoch.toString();
@@ -183,8 +200,7 @@ class BookmarkBackupRepository {
     try {
       return jsonDecode(_crypto.decryptText(cipher.toString()));
     } catch (_) {
-      throw Exception('The backup could not be read. '
-          'Was it made before a password change?');
+      throw BookmarkBackupException(BookmarkBackupFailure.read);
     }
   }
 }

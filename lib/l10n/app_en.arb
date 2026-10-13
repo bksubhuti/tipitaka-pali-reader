@@ -261,5 +261,390 @@
   "copied": "Copied",
   "copyFormatted": "Copy Formatted",
   "copyPlainText": "Copy Plain Text",
-  "installTranslationInstructions": "1. Open the epitaka folder\n2. Wait for the extension to finish\n3. Prevent the device from sleeping while it is running."
+  "installTranslationInstructions": "1. Open the epitaka folder\n2. Wait for the extension to finish\n3. Prevent the device from sleeping while it is running.",
+  "folderBookmarkCount": "{folders, plural, =1{1 folder} other{{folders} folders}}, {bookmarks, plural, =1{1 bookmark} other{{bookmarks} bookmarks}}",
+  "@folderBookmarkCount": {
+    "description": "How many folders and bookmarks a backup or this device holds; used inside other bookmark backup messages.",
+    "placeholders": {
+      "folders": {
+        "type": "int"
+      },
+      "bookmarks": {
+        "type": "int"
+      }
+    }
+  },
+  "backedUpSummary": "Backed up {summary}.",
+  "@backedUpSummary": {
+    "description": "Shown after a cloud backup. {summary} is folderBookmarkCount.",
+    "placeholders": {
+      "summary": {
+        "type": "String",
+        "example": "3 folders, 12 bookmarks"
+      }
+    }
+  },
+  "restoreFromCloudTitle": "Restore from the cloud?",
+  "@restoreFromCloudTitle": {
+    "description": "Title of the dialog confirming a restore of bookmarks from the cloud backup."
+  },
+  "restoreFromCloudMessage": "This replaces everything in Bookmarks on this device ({localSummary}) with the cloud backup of {date} ({backupSummary}).\n\nThis cannot be undone.",
+  "@restoreFromCloudMessage": {
+    "description": "Body of the restore confirmation. {localSummary} and {backupSummary} are folderBookmarkCount; {date} is the backup's date and time.",
+    "placeholders": {
+      "localSummary": {
+        "type": "String",
+        "example": "2 folders, 5 bookmarks"
+      },
+      "date": {
+        "type": "String",
+        "example": "2026-10-13 09:30"
+      },
+      "backupSummary": {
+        "type": "String",
+        "example": "3 folders, 12 bookmarks"
+      }
+    }
+  },
+  "replace": "Replace",
+  "@replace": {
+    "description": "Button that confirms replacing the bookmarks on this device with the cloud backup."
+  },
+  "restoredSummary": "Restored {summary}.",
+  "@restoredSummary": {
+    "description": "Shown after a restore. {summary} is folderBookmarkCount.",
+    "placeholders": {
+      "summary": {
+        "type": "String",
+        "example": "3 folders, 12 bookmarks"
+      }
+    }
+  },
+  "bookmarksAdded": "Added {count, plural, =1{1 bookmark} other{{count} bookmarks}}.",
+  "@bookmarksAdded": {
+    "description": "Shown after downloading all single cloud bookmarks.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bookmarksAddedSkipped": "Added {added, plural, =1{1 bookmark} other{{added} bookmarks}}, {skipped} already here.",
+  "@bookmarksAddedSkipped": {
+    "description": "Shown after downloading all single cloud bookmarks when some were already on this device.",
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "noCloudBackupYet": "No backup in the cloud yet.",
+  "@noCloudBackupYet": {
+    "description": "Shown in the bookmark transfer dialog when there is no cloud backup."
+  },
+  "cloudBackupSummary": "Cloud backup: {date}, {summary}",
+  "@cloudBackupSummary": {
+    "description": "Date and contents of the cloud backup. {summary} is folderBookmarkCount.",
+    "placeholders": {
+      "date": {
+        "type": "String",
+        "example": "2026-10-13 09:30"
+      },
+      "summary": {
+        "type": "String",
+        "example": "3 folders, 12 bookmarks"
+      }
+    }
+  },
+  "backUpAll": "Back up all",
+  "@backUpAll": {
+    "description": "Button that backs up every bookmark and folder to the cloud."
+  },
+  "restore": "Restore",
+  "@restore": {
+    "description": "Button that restores bookmarks and folders from the cloud backup."
+  },
+  "downloadAll": "Download all",
+  "@downloadAll": {
+    "description": "Button that downloads every single cloud bookmark to this device."
+  },
+  "cloudBackupNote": "Folders included. Restore replaces what is on this device. A backup made before a password change cannot be read.",
+  "@cloudBackupNote": {
+    "description": "Small note under the cloud backup buttons."
+  },
+  "singleUploadsNoFolders": "Single uploads (no folders)",
+  "@singleUploadsNoFolders": {
+    "description": "Heading over bookmarks uploaded to the cloud one at a time, without their folders."
+  },
+  "backupEncryptFailed": "The backup could not be encrypted.",
+  "@backupEncryptFailed": {
+    "description": "Error when the bookmark backup could not be encrypted."
+  },
+  "backupReadFailed": "The backup could not be read. Was it made before a password change?",
+  "@backupReadFailed": {
+    "description": "Error when the cloud bookmark backup could not be decrypted."
+  },
+  "deleteAll": "Delete all",
+  "@deleteAll": {
+    "description": "Tooltip of the button that deletes all bookmarks."
+  },
+  "xrayViewTitle": "X-ray view",
+  "@xrayViewTitle": {
+    "description": "Title of the one-time notice about the X-ray view (commentary links under the Pali)."
+  },
+  "xrayNoticeMessage": "X-ray view is turned on: the words the commentary explains are listed under each Pāḷi sentence. You can turn it off in View settings and in the quick view settings.\n\nWould you like to keep it on?",
+  "@xrayNoticeMessage": {
+    "description": "Body of the one-time X-ray notice."
+  },
+  "xrayKeepOn": "Yes, keep it",
+  "@xrayKeepOn": {
+    "description": "Answer to the X-ray notice that keeps X-ray on."
+  },
+  "xrayTurnOff": "No, turn it off",
+  "@xrayTurnOff": {
+    "description": "Answer to the X-ray notice that turns X-ray off."
+  },
+  "commentaryNotInLibrary": "This commentary is not in the library.",
+  "@commentaryNotInLibrary": {
+    "description": "Shown when an X-ray link points to a commentary book that is not installed."
+  },
+  "open": "Open",
+  "@open": {
+    "description": "Button that opens the linked commentary."
+  },
+  "xray": "X-ray",
+  "@xray": {
+    "description": "Name of the setting that shows commentary links under the Pali."
+  },
+  "xraySubtitle": "Commentary links under the Pāḷi",
+  "@xraySubtitle": {
+    "description": "Explanation under the X-ray setting."
+  },
+  "checkingForUpdates": "Checking for updates…",
+  "@checkingForUpdates": {
+    "description": "Shown under an installed translation while checking the server for a newer copy."
+  },
+  "upToDate": "Up to date",
+  "@upToDate": {
+    "description": "Shown under an installed translation that matches the server's copy."
+  },
+  "updateAvailable": "Update available",
+  "@updateAvailable": {
+    "description": "Shown under an installed translation when the server has a newer copy."
+  },
+  "updateAvailableOn": "Update available ({date})",
+  "@updateAvailableOn": {
+    "description": "Shown under an installed translation when the server has a newer copy; {date} is that copy's date.",
+    "placeholders": {
+      "date": {
+        "type": "String",
+        "example": "3 Oct 2026"
+      }
+    }
+  },
+  "versionNotRecorded": "Its version was not recorded. Update to get the latest.",
+  "@versionNotRecorded": {
+    "description": "Shown under a translation installed before its version was recorded."
+  },
+  "update": "Update",
+  "@update": {
+    "description": "Tooltip of the button that updates an installed translation."
+  },
+  "updatingLanguage": "Updating {language}",
+  "@updatingLanguage": {
+    "description": "Title while a translation is being updated.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "English"
+      }
+    }
+  },
+  "copyShortcutTitle": "{key}+C copies with formatting",
+  "@copyShortcutTitle": {
+    "description": "Setting title. {key} is Cmd on macOS and Ctrl elsewhere; keep it and +C as they are.",
+    "placeholders": {
+      "key": {
+        "type": "String",
+        "example": "Ctrl"
+      }
+    }
+  },
+  "copyShortcutFormatted": "Bold, headings and the source, as in {menuItem}",
+  "@copyShortcutFormatted": {
+    "description": "Subtitle when the copy shortcut copies with formatting. {menuItem} is copyFormatted.",
+    "placeholders": {
+      "menuItem": {
+        "type": "String",
+        "example": "Copy Formatted"
+      }
+    }
+  },
+  "copyShortcutPlain": "The text alone, as in {menuItem}",
+  "@copyShortcutPlain": {
+    "description": "Subtitle when the copy shortcut copies plain text. {menuItem} is copyPlainText.",
+    "placeholders": {
+      "menuItem": {
+        "type": "String",
+        "example": "Copy Plain Text"
+      }
+    }
+  },
+  "uiFont": "UI font",
+  "@uiFont": {
+    "description": "Setting for the font of menus, buttons, dialogs and settings."
+  },
+  "translations": "Translations",
+  "@translations": {
+    "description": "Name of the translations page: in the drawer, in settings, its title, and the tooltip of the button that opens it."
+  },
+  "noneInstalled": "None installed",
+  "@noneInstalled": {
+    "description": "Under Translations in settings when no translation is installed."
+  },
+  "installedHeading": "Installed",
+  "@installedHeading": {
+    "description": "Heading over the translations installed on the device."
+  },
+  "availableToInstall": "Available to install",
+  "@availableToInstall": {
+    "description": "Heading over the translations that can be downloaded."
+  },
+  "translationsSwitchHelp": "Switch a translation off to read the Pali alone. It stays on the device, so turning it back on costs nothing. Drag to change the order they appear in.",
+  "@translationsSwitchHelp": {
+    "description": "Help under the Installed heading of the translations page."
+  },
+  "translationsSourceNote": "Translations come from the ePitaka project. They are produced with machine assistance and each sentence carries a confidence rating, so they are a reading aid rather than a published translation.",
+  "@translationsSourceNote": {
+    "description": "Note at the foot of the translations page. Keep ePitaka as it is."
+  },
+  "installingLanguage": "Installing {language}",
+  "@installingLanguage": {
+    "description": "Title while a translation is being installed.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "English"
+      }
+    }
+  },
+  "removingLanguage": "Removing {language}",
+  "@removingLanguage": {
+    "description": "Title while a translation is being removed from the device.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "English"
+      }
+    }
+  },
+  "installInProgress": "Install in progress",
+  "@installInProgress": {
+    "description": "Title of the dialog asking whether to leave the translations page while an install or update runs."
+  },
+  "removalInProgress": "Removal in progress",
+  "@removalInProgress": {
+    "description": "Title of the dialog asking whether to leave the translations page while a removal runs."
+  },
+  "leaveInstallMessage": "{task} is still under way.\n\nIf you leave, it carries on without showing its progress. Quitting the app stops it; nothing is damaged, and it can be installed again afterwards.",
+  "@leaveInstallMessage": {
+    "description": "Body of the leave dialog during an install or update. {task} is installingLanguage or updatingLanguage, e.g. \"Installing English\".",
+    "placeholders": {
+      "task": {
+        "type": "String",
+        "example": "Installing English"
+      }
+    }
+  },
+  "leaveRemovalMessage": "{task} is still under way.\n\nIf you leave, it carries on without showing its progress. Quitting the app stops it; nothing is damaged, and it can be removed again afterwards.",
+  "@leaveRemovalMessage": {
+    "description": "Body of the leave dialog during a removal. {task} is removingLanguage, e.g. \"Removing English\".",
+    "placeholders": {
+      "task": {
+        "type": "String",
+        "example": "Removing English"
+      }
+    }
+  },
+  "stay": "Stay",
+  "@stay": {
+    "description": "Button in the leave dialog that stays on the translations page."
+  },
+  "leaveAnyway": "Leave anyway",
+  "@leaveAnyway": {
+    "description": "Button in the leave dialog that leaves the translations page while the work carries on."
+  },
+  "install": "Install",
+  "@install": {
+    "description": "Tooltip of the button that downloads and installs a translation."
+  },
+  "removeFromDevice": "Remove from the device",
+  "@removeFromDevice": {
+    "description": "Tooltip of the button that deletes an installed translation."
+  },
+  "stepDownload": "Download",
+  "@stepDownload": {
+    "description": "Step of installing or removing a translation, in the list of steps."
+  },
+  "stepUnpack": "Unpack",
+  "@stepUnpack": {
+    "description": "Step of installing or removing a translation, in the list of steps."
+  },
+  "stepPrepare": "Prepare",
+  "@stepPrepare": {
+    "description": "Step of installing or removing a translation, in the list of steps."
+  },
+  "stepOpen": "Open",
+  "@stepOpen": {
+    "description": "Step of installing or removing a translation, in the list of steps. Opening the installed translation for reading."
+  },
+  "stepClose": "Close",
+  "@stepClose": {
+    "description": "Step of installing or removing a translation, in the list of steps. Closing the translation before removing it."
+  },
+  "stepDelete": "Delete from the device",
+  "@stepDelete": {
+    "description": "Step of installing or removing a translation, in the list of steps."
+  },
+  "stepIndex": "Update the search index",
+  "@stepIndex": {
+    "description": "Step of installing or removing a translation, in the list of steps."
+  },
+  "stepSuggestions": "Update search suggestions",
+  "@stepSuggestions": {
+    "description": "Step of installing or removing a translation, in the list of steps."
+  },
+  "sideBySide": "Side by side",
+  "@sideBySide": {
+    "description": "View setting that sets the Pāḷi and the first translation in two columns."
+  },
+  "paliBeside": "Pāḷi beside {language}",
+  "@paliBeside": {
+    "description": "Under Side by side. {language} is the first translation shown, e.g. English.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "English"
+      }
+    }
+  },
+  "noTranslationsInstalled": "No translations installed. Add them with the button above.",
+  "@noTranslationsInstalled": {
+    "description": "In View settings when no translation is installed; the button above opens the translations page."
+  },
+  "translationTermsTitle": "ePitaka AI Translations",
+  "@translationTermsTitle": {
+    "description": "Title of the terms shown before the first translation is downloaded. Keep ePitaka as it is."
+  },
+  "translationTermsMessage": "These translations are from Epitaka.org. They were made by AI (2026), using Myanmar Nissaya data provided by Wikipali.org.\n\nThey can contain mistakes. Use them with discretion, and check the Pāḷi where it matters.",
+  "@translationTermsMessage": {
+    "description": "Terms shown before the first translation is downloaded. Keep Epitaka.org and Wikipali.org as they are."
+  },
+  "iAgree": "I Agree",
+  "@iAgree": {
+    "description": "Button that accepts the ePitaka translation terms."
+  }
 }

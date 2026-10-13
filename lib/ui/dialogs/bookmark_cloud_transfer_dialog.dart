@@ -56,14 +56,27 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
       backupBookmarks = bookmarks;
       backupError = null;
     } catch (e) {
-      backupError = e.toString().replaceFirst('Exception: ', '');
+      if (!mounted) return;
+      backupError = errorText(e);
     }
     if (mounted) setState(() {});
   }
 
   String describe(int folders, int bookmarks) =>
-      '$folders folder${folders == 1 ? '' : 's'}, '
-      '$bookmarks bookmark${bookmarks == 1 ? '' : 's'}';
+      AppLocalizations.of(context)!.folderBookmarkCount(folders, bookmarks);
+
+  /// What went wrong, for the reader: the backup's own failures in their
+  /// language, anything else (such as a network error) as it came.
+  String errorText(Object e) {
+    final l = AppLocalizations.of(context)!;
+    if (e is BookmarkBackupException) {
+      return switch (e.failure) {
+        BookmarkBackupFailure.encrypt => l.backupEncryptFailed,
+        BookmarkBackupFailure.read => l.backupReadFailed,
+      };
+    }
+    return e.toString().replaceFirst('Exception: ', '');
+  }
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context)
@@ -75,7 +88,7 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
     try {
       await task();
     } catch (e) {
-      if (mounted) showMessage(e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) showMessage(errorText(e));
     }
     if (mounted) setState(() => backupBusy = false);
   }
@@ -84,8 +97,8 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
         backupInfo = await backupRepo.backUp();
         await fetchBackupContents();
         if (mounted) {
-          showMessage('Backed up '
-              '${describe(backupInfo!.folderCount, backupInfo!.bookmarkCount)}.');
+          showMessage(AppLocalizations.of(context)!.backedUpSummary(
+              describe(backupInfo!.folderCount, backupInfo!.bookmarkCount)));
         }
       });
 
@@ -96,23 +109,10 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore from the cloud?'),
-        content: Text('This replaces everything in Bookmarks on this device '
-            '(${describe(folders, bookmarks)}) with the cloud backup of '
-            '${formatDate(info.created)} '
-            '(${describe(info.folderCount, info.bookmarkCount)}).\n\n'
-            'This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Replace'),
-          ),
-        ],
+      builder: (context) => RestoreConfirmDialog(
+        localSummary: describe(folders, bookmarks),
+        date: formatDate(info.created),
+        backupSummary: describe(info.folderCount, info.bookmarkCount),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -123,8 +123,8 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
           .setCurrentFolderAndFetchItems(-1);
       fetchBookmarks();
       if (mounted) {
-        showMessage('Restored '
-            '${describe(info.folderCount, info.bookmarkCount)}.');
+        showMessage(AppLocalizations.of(context)!
+            .restoredSummary(describe(info.folderCount, info.bookmarkCount)));
       }
     });
   }
@@ -175,8 +175,10 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
         fetchBookmarks();
         final skipped = cloudBookmarks.length - added;
         if (mounted) {
-          showMessage('Added $added bookmark${added == 1 ? '' : 's'}'
-              '${skipped > 0 ? ', $skipped already here' : ''}.');
+          final l = AppLocalizations.of(context)!;
+          showMessage(skipped > 0
+              ? l.bookmarksAddedSkipped(added, skipped)
+              : l.bookmarksAdded(added));
         }
       });
 
@@ -245,52 +247,16 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
 
   Widget buildBackupSection() {
     final info = backupInfo;
-    return Column(
-      children: [
-        Text(
-          info == null
-              ? 'No backup in the cloud yet.'
-              : 'Cloud backup: ${formatDate(info.created)}, '
-                  '${describe(info.folderCount, info.bookmarkCount)}',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        if (backupBusy)
-          const Padding(
-            padding: EdgeInsets.all(6),
-            child: CircularProgressIndicator(),
-          )
-        else
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.cloud_upload),
-                label: const Text('Back up all'),
-                onPressed: backUpAll,
-              ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.cloud_download),
-                label: const Text('Restore'),
-                onPressed: info == null ? null : restoreAll,
-              ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.download_for_offline),
-                label: const Text('Download all'),
-                onPressed: cloudBookmarks.isEmpty ? null : downloadAllBookmarks,
-              ),
-            ],
-          ),
-        const SizedBox(height: 4),
-        Text(
-          'Folders included. Restore replaces what is on this device. '
-          'A backup made before a password change cannot be read.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
+    return CloudBackupSection(
+      summary: info == null
+          ? null
+          : AppLocalizations.of(context)!.cloudBackupSummary(
+              formatDate(info.created),
+              describe(info.folderCount, info.bookmarkCount)),
+      busy: backupBusy,
+      onBackUp: backUpAll,
+      onRestore: info == null ? null : restoreAll,
+      onDownloadAll: cloudBookmarks.isEmpty ? null : downloadAllBookmarks,
     );
   }
 
@@ -325,7 +291,7 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
             ListTile(
               dense: true,
               title: Text(
-                'Single uploads (no folders)',
+                AppLocalizations.of(context)!.singleUploadsNoFolders,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
             ),
@@ -394,5 +360,110 @@ class TransferDialogState extends State<BookmarkCloudTransferDialog> {
           trailing: trailing?.call(bookmark),
         ),
     ];
+  }
+}
+
+/// The cloud backup at the top of the transfer dialog: what the backup holds
+/// ([summary], or null when there is none), its buttons, and a note.
+///
+/// A null callback disables its button. While [busy], a spinner stands in
+/// for the buttons.
+class CloudBackupSection extends StatelessWidget {
+  final String? summary;
+  final bool busy;
+  final VoidCallback onBackUp;
+  final VoidCallback? onRestore;
+  final VoidCallback? onDownloadAll;
+
+  const CloudBackupSection({
+    super.key,
+    required this.summary,
+    required this.busy,
+    required this.onBackUp,
+    required this.onRestore,
+    required this.onDownloadAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        Text(
+          summary ?? l.noCloudBackupYet,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        if (busy)
+          const Padding(
+            padding: EdgeInsets.all(6),
+            child: CircularProgressIndicator(),
+          )
+        else
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.cloud_upload),
+                label: Text(l.backUpAll),
+                onPressed: onBackUp,
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.cloud_download),
+                label: Text(l.restore),
+                onPressed: onRestore,
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.download_for_offline),
+                label: Text(l.downloadAll),
+                onPressed: onDownloadAll,
+              ),
+            ],
+          ),
+        const SizedBox(height: 4),
+        Text(
+          l.cloudBackupNote,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
+/// Asks before a restore replaces the bookmarks on this device. Pops true
+/// to replace them.
+class RestoreConfirmDialog extends StatelessWidget {
+  final String localSummary;
+  final String date;
+  final String backupSummary;
+
+  const RestoreConfirmDialog({
+    super.key,
+    required this.localSummary,
+    required this.date,
+    required this.backupSummary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l.restoreFromCloudTitle),
+      content:
+          Text(l.restoreFromCloudMessage(localSummary, date, backupSummary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l.replace),
+        ),
+      ],
+    );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -22,6 +24,9 @@ class LanguageSettings extends StatefulWidget {
 
 /// How an installed language compares with the copy on the server.
 enum _Freshness { checking, current, newer, unrecorded, offline }
+
+/// What the steps on the page are doing.
+enum _Task { install, update, removal }
 
 class _LanguageSettingsState extends State<LanguageSettings> {
   String? _busy;
@@ -80,36 +85,30 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     }));
   }
 
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
-  ];
-
-  static String _day(DateTime? date) =>
-      date == null ? '' : '${date.day} ${_months[date.month - 1]} ${date.year}';
+  /// The date as "3 Oct 2026", with the month named in the app's language.
+  String _day(DateTime? date) {
+    if (date == null) return '';
+    try {
+      return DateFormat('d MMM y', AppLocalizations.of(context)!.localeName)
+          .format(date);
+    } catch (_) {
+      return DateFormat('d MMM y', 'en').format(date);
+    }
+  }
 
   /// What the page says about a language's copy, or null for nothing.
   String? _freshnessText(String code) {
+    final l = AppLocalizations.of(context)!;
     final date = _day(_dates[code]);
     switch (_freshness[code]) {
       case _Freshness.checking:
-        return 'Checking for updates…';
+        return l.checkingForUpdates;
       case _Freshness.current:
-        return 'Up to date';
+        return l.upToDate;
       case _Freshness.newer:
-        return date.isEmpty ? 'Update available' : 'Update available ($date)';
+        return date.isEmpty ? l.updateAvailable : l.updateAvailableOn(date);
       case _Freshness.unrecorded:
-        return 'Its version was not recorded. Update to get the latest.';
+        return l.versionNotRecorded;
       case _Freshness.offline:
       case null:
         return null;
@@ -131,7 +130,8 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     setState(() {
       _busy = code;
       _steps = steps;
-      _stepsTitle = 'Updating ${option.name}';
+      _task = _Task.update;
+      _taskLanguage = option.name;
     });
     try {
       await LanguageInstaller.install(option,
@@ -159,7 +159,16 @@ class _LanguageSettingsState extends State<LanguageSettings> {
 
   /// The install or removal under way, or the last one, until another starts.
   LanguageStepState? _steps;
-  String? _stepsTitle;
+  _Task? _task;
+  String _taskLanguage = '';
+
+  /// "Installing English" and the like, over the steps.
+  String _stepsTitle(AppLocalizations l) => switch (_task) {
+        _Task.install => l.installingLanguage(_taskLanguage),
+        _Task.update => l.updatingLanguage(_taskLanguage),
+        _Task.removal => l.removingLanguage(_taskLanguage),
+        null => '',
+      };
 
   static const double _maxWidth = 640;
 
@@ -194,7 +203,8 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     setState(() {
       _busy = option.code;
       _steps = steps;
-      _stepsTitle = 'Installing ${option.name}';
+      _task = _Task.install;
+      _taskLanguage = option.name;
     });
     try {
       await LanguageInstaller.install(option,
@@ -222,7 +232,8 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     setState(() {
       _busy = code;
       _steps = steps;
-      _stepsTitle = 'Removing ${_nameOf(code)}';
+      _task = _Task.removal;
+      _taskLanguage = _nameOf(code);
     });
     try {
       await LanguageInstaller.remove(code, onStep: (step, fraction, message) {
@@ -238,31 +249,12 @@ class _LanguageSettingsState extends State<LanguageSettings> {
   }
 
   Future<bool> _confirmLeave() async {
-    final removing = _stepsTitle?.startsWith('Removing') ?? false;
     final leave = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.warning_amber_rounded,
-            color: Colors.orange, size: 48),
-        title: Text(removing ? 'Removal in progress' : 'Install in progress'),
-        content: Text(
-          '${_stepsTitle ?? 'A translation'} is still under way.\n\n'
-          'If you leave, it carries on without showing its progress. '
-          'Quitting the app stops it; nothing is damaged, and it can be '
-          '${removing ? 'removed' : 'installed'} again afterwards.',
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Stay'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Leave anyway'),
-          ),
-        ],
+      builder: (dialogContext) => LeaveInProgressDialog(
+        removing: _task == _Task.removal,
+        task: _stepsTitle(AppLocalizations.of(dialogContext)!),
       ),
     );
     return leave ?? false;
@@ -271,6 +263,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
   @override
   Widget build(BuildContext context) {
     final ordered = _ordered;
+    final l = AppLocalizations.of(context)!;
     // Leaving mid-install is safe, since nothing is given its real name
     // until it is whole, but the steps go out of sight and a second install
     // could be started over the first. So it asks, as the extension
@@ -282,7 +275,7 @@ class _LanguageSettingsState extends State<LanguageSettings> {
         if (await _confirmLeave() && mounted) Navigator.of(this.context).pop();
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Translations')),
+        appBar: AppBar(title: Text(l.translations)),
         // On a wide window the list keeps to a readable width, centred. Full
         // width put each language's name far across the window from its
         // switch and buttons. The padding, not a narrower list, does it, so
@@ -297,20 +290,16 @@ class _LanguageSettingsState extends State<LanguageSettings> {
               if (_steps != null) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(32, 16, 16, 0),
-                  child: Text(_stepsTitle ?? '',
+                  child: Text(_stepsTitle(l),
                       style: Theme.of(context).textTheme.titleMedium),
                 ),
                 LanguageSteps(state: _steps!),
               ],
               if (ordered.isNotEmpty) ...[
-                const _Heading('Installed'),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(
-                    'Switch a translation off to read the Pali alone. '
-                    'It stays on the device, so turning it back on costs nothing. '
-                    'Drag to change the order they appear in.',
-                  ),
+                _Heading(l.installedHeading),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(l.translationsSwitchHelp),
                 ),
                 ReorderableListView(
                   shrinkWrap: true,
@@ -336,72 +325,27 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                       _RowCard(
                         key: ValueKey(code),
                         index: index,
-                        child: ListTile(
-                          leading: ReorderableDragStartListener(
-                            index: index,
-                            child: const Icon(Icons.drag_handle),
-                          ),
-                          title: Text(_nameOf(code)),
-                          // The switch says whether it is shown; this says
-                          // only whether there is a newer copy.
-                          subtitle: switch (_freshnessText(code)) {
-                            final text?
-                                when _freshness[code] == _Freshness.current =>
-                              Text.rich(TextSpan(children: [
-                                TextSpan(text: '$text '),
-                                const WidgetSpan(
-                                  alignment: PlaceholderAlignment.middle,
-                                  child: Icon(Icons.check_circle,
-                                      size: 16, color: Colors.green),
-                                ),
-                              ])),
-                            final text? => Text(
-                                text,
-                                style: _canUpdate(code)
-                                    ? TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        fontWeight: FontWeight.w600)
-                                    : null,
-                              ),
-                            null => null,
-                          },
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Switch(
-                                value: context
-                                    .watch<ShownLanguagesProvider>()
-                                    .isShown(code),
-                                onChanged: _busy == code
-                                    ? null
-                                    : (on) => setState(() => context
-                                        .read<ShownLanguagesProvider>()
-                                        .setLanguageShown(code, on)),
-                              ),
-                              if (_busy != code && _canUpdate(code))
-                                IconButton(
-                                  icon: const Icon(Icons.system_update_alt),
-                                  tooltip: 'Update',
-                                  onPressed: _busy == null
-                                      ? () => _update(code)
-                                      : null,
-                                ),
-                              if (_busy != code)
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline),
-                                  tooltip: 'Remove from the device',
-                                  onPressed: () => _remove(code),
-                                ),
-                            ],
-                          ),
+                        child: LanguageRowTile(
+                          index: index,
+                          name: _nameOf(code),
+                          status: _freshnessText(code),
+                          current: _freshness[code] == _Freshness.current,
+                          canUpdate: _canUpdate(code),
+                          shown: context
+                              .watch<ShownLanguagesProvider>()
+                              .isShown(code),
+                          busy: _busy == code,
+                          onShownChanged: (on) => setState(() => context
+                              .read<ShownLanguagesProvider>()
+                              .setLanguageShown(code, on)),
+                          onUpdate: _busy == null ? () => _update(code) : null,
+                          onRemove: () => _remove(code),
                         ),
                       ),
                   ],
                 ),
               ],
-              const _Heading('Available to install'),
+              _Heading(l.availableToInstall),
               for (final option in LanguageInstaller.available)
                 if (!_installed.contains(option.code))
                   _RowCard(
@@ -414,20 +358,15 @@ class _LanguageSettingsState extends State<LanguageSettings> {
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : IconButton(
                               icon: const Icon(Icons.download_outlined),
-                              tooltip: 'Install',
+                              tooltip: l.install,
                               onPressed:
                                   _busy == null ? () => _install(option) : null,
                             ),
                     ),
                   ),
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Translations come from the ePitaka project. They are produced '
-                  'with machine assistance and each sentence carries a confidence '
-                  'rating, so they are a reading aid rather than a published '
-                  'translation.',
-                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(l.translationsSourceNote),
               ),
             ],
           ),
@@ -444,13 +383,14 @@ class TranslationSettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final installed = DatabaseHelper.installedLanguages;
+    final l = AppLocalizations.of(context)!;
     return Card(
       child: ListTile(
         leading: const Icon(Icons.translate_outlined),
         title:
-            Text('Translations', style: Theme.of(context).textTheme.titleLarge),
+            Text(l.translations, style: Theme.of(context).textTheme.titleLarge),
         subtitle: Text(installed.isEmpty
-            ? 'None installed'
+            ? l.noneInstalled
             : installed.map(_LanguageSettingsState._nameOf).join(', ')),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(
@@ -489,5 +429,134 @@ class _RowCard extends StatelessWidget {
     );
     if (index == null) return card;
     return ReorderableDelayedDragStartListener(index: index!, child: card);
+  }
+}
+
+/// One installed language: its name, whether there is a newer copy, the
+/// switch that shows it, and the buttons that update and remove it.
+///
+/// [index] is its place in the reorderable list, for the drag handle. While
+/// it is [busy] the switch is off limits and the buttons are hidden.
+class LanguageRowTile extends StatelessWidget {
+  final int index;
+  final String name;
+
+  /// What is known of the server's copy, or null for nothing.
+  final String? status;
+
+  /// The device's copy is the server's: the status gets a tick.
+  final bool current;
+
+  /// There is a newer copy: the status stands out and the update button shows.
+  final bool canUpdate;
+
+  final bool shown;
+  final bool busy;
+  final ValueChanged<bool> onShownChanged;
+
+  /// Null while something else is being installed or removed.
+  final VoidCallback? onUpdate;
+  final VoidCallback onRemove;
+
+  const LanguageRowTile({
+    super.key,
+    required this.index,
+    required this.name,
+    required this.status,
+    required this.current,
+    required this.canUpdate,
+    required this.shown,
+    required this.busy,
+    required this.onShownChanged,
+    required this.onUpdate,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return ListTile(
+      leading: ReorderableDragStartListener(
+        index: index,
+        child: const Icon(Icons.drag_handle),
+      ),
+      title: Text(name),
+      // The switch says whether it is shown; this says only whether there is
+      // a newer copy.
+      subtitle: switch (status) {
+        final text? when current => Text.rich(TextSpan(children: [
+            TextSpan(text: '$text '),
+            const WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Icon(Icons.check_circle, size: 16, color: Colors.green),
+            ),
+          ])),
+        final text? => Text(
+            text,
+            style: canUpdate
+                ? TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600)
+                : null,
+          ),
+        null => null,
+      },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Switch(
+            value: shown,
+            onChanged: busy ? null : onShownChanged,
+          ),
+          if (!busy && canUpdate)
+            IconButton(
+              icon: const Icon(Icons.system_update_alt),
+              tooltip: l.update,
+              onPressed: onUpdate,
+            ),
+          if (!busy)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: l.removeFromDevice,
+              onPressed: onRemove,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Asks whether to leave the page while [task] (an install, an update or,
+/// if [removing], a removal) is still running. Pops true to leave.
+class LeaveInProgressDialog extends StatelessWidget {
+  final bool removing;
+
+  /// "Installing English" and the like.
+  final String task;
+
+  const LeaveInProgressDialog(
+      {super.key, required this.removing, required this.task});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AlertDialog(
+      icon: const Icon(Icons.warning_amber_rounded,
+          color: Colors.orange, size: 48),
+      title: Text(removing ? l.removalInProgress : l.installInProgress),
+      content: Text(
+          removing ? l.leaveRemovalMessage(task) : l.leaveInstallMessage(task)),
+      actions: [
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l.stay),
+        ),
+        TextButton(
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l.leaveAnyway),
+        ),
+      ],
+    );
   }
 }

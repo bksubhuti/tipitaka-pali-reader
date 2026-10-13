@@ -139,7 +139,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.translate_outlined, size: 20),
-                  tooltip: 'Translations',
+                  tooltip: AppLocalizations.of(context)!.translations,
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const LanguageSettings()),
                   ),
@@ -166,7 +166,7 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'No translations installed. Add them with the button above.',
+                AppLocalizations.of(context)!.noTranslationsInstalled,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -177,9 +177,9 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: CheckboxListTile(
-                title: const Text('Side by side'),
-                subtitle: Text('Pāḷi beside '
-                    '${LanguageInstaller.nameOf(shown.shownLanguages.first)}'),
+                title: Text(AppLocalizations.of(context)!.sideBySide),
+                subtitle: Text(AppLocalizations.of(context)!.paliBeside(
+                    LanguageInstaller.nameOf(shown.shownLanguages.first))),
                 value: context.watch<ThemeChangeNotifier>().sideBySide,
                 onChanged: (bool? value) {
                   if (value != null) {
@@ -198,8 +198,8 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: CheckboxListTile(
-                title: const Text('X-ray'),
-                subtitle: const Text('Commentary links under the Pāḷi'),
+                title: Text(AppLocalizations.of(context)!.xray),
+                subtitle: Text(AppLocalizations.of(context)!.xraySubtitle),
                 value: context.watch<ThemeChangeNotifier>().xray,
                 onChanged: (bool? value) {
                   if (value != null) {

@@ -172,7 +172,8 @@ class BookListPage extends StatelessWidget {
             onTap: () => _openDictionaryPage(context),
           ),
           ListTile(
-            title: const ColoredText('Translations', style: TextStyle()),
+            title: ColoredText(AppLocalizations.of(context)!.translations,
+                style: const TextStyle()),
             onTap: () => _openTranslationsPage(context),
           ),
           ListTile(

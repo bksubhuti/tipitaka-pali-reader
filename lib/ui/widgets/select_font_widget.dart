@@ -144,7 +144,7 @@ class AppFontTile extends StatelessWidget {
     final chosen = theme.appFont;
     final own = FontUtils.defaultAppFontName(locale);
     return ListTile(
-      title: const Text('UI font'),
+      title: Text(AppLocalizations.of(context)!.uiFont),
       subtitle: Text(
         chosen ?? '${own ?? 'System Font'} (built in)',
         style: TextStyle(fontFamily: chosen ?? own),
@@ -153,7 +153,7 @@ class AppFontTile extends StatelessWidget {
       onTap: () => showDialog<void>(
         context: context,
         builder: (_) => _FontDialog(
-          title: 'UI font',
+          title: AppLocalizations.of(context)!.uiFont,
           sample: AppLocalizations.of(context)!.settings,
           builtIn: [_Option('${own ?? 'System Font'} (built in)', own, null)],
           needs: SystemFonts.lettersForLanguage(locale),

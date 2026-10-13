@@ -38,6 +38,8 @@ enum LanguageStep {
   indexing('Update the search index'),
   wordList('Update search suggestions');
 
+  /// The English name, for logs. The screen shows `languageStepTitle`,
+  /// in the reader's language.
   final String label;
   const LanguageStep(this.label);
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/ui/widgets/step_progress.dart';
 
@@ -46,7 +47,10 @@ class LanguageSteps extends StatelessWidget {
     final current =
         state.current == null ? 0 : state.steps.indexOf(state.current!);
     return StepProgress(
-      titles: [for (final step in state.steps) step.label],
+      titles: [
+        for (final step in state.steps)
+          languageStepTitle(AppLocalizations.of(context)!, step)
+      ],
       completed: current < 0 ? 0 : current,
       finished: state.finished,
       status: state.message,
@@ -55,3 +59,17 @@ class LanguageSteps extends StatelessWidget {
     );
   }
 }
+
+/// The name of [step] in the reader's language. The installer keeps no
+/// context, so its steps are named here, where they are shown.
+String languageStepTitle(AppLocalizations l, LanguageStep step) =>
+    switch (step) {
+      LanguageStep.download => l.stepDownload,
+      LanguageStep.unpack => l.stepUnpack,
+      LanguageStep.prepare => l.stepPrepare,
+      LanguageStep.attach => l.stepOpen,
+      LanguageStep.close => l.stepClose,
+      LanguageStep.delete => l.stepDelete,
+      LanguageStep.indexing => l.stepIndex,
+      LanguageStep.wordList => l.stepSuggestions,
+    };

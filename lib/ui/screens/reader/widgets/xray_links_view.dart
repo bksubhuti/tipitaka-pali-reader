@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
 import 'package:tipitaka_pali/business_logic/models/xray_link.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
@@ -58,8 +59,8 @@ class _XrayLinksViewState extends State<XrayLinksView> {
     final target = await _repo.targetOf(link);
     if (!mounted) return;
     if (target == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('This commentary is not in the library.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!.commentaryNotInLibrary)));
       return;
     }
     context.read<OpenningBooksProvider>().add(
@@ -109,9 +110,13 @@ class _XrayLinksViewState extends State<XrayLinksView> {
                       children: [
                         Icon(Icons.north_east, size: small * 0.9, color: muted),
                         SizedBox(width: small * 0.3),
-                        Text(
-                          inScript(word),
-                          style: TextStyle(fontSize: small, color: muted),
+                        // A phrase wider than the page wraps rather than
+                        // running off it.
+                        Flexible(
+                          child: Text(
+                            inScript(word),
+                            style: TextStyle(fontSize: small, color: muted),
+                          ),
                         ),
                       ],
                     ),
@@ -164,7 +169,7 @@ class _XrayLinksViewState extends State<XrayLinksView> {
                   if (paliShown || comments[i].isEmptyIn(languages))
                     HtmlWidget(
                       (comments[i].pali ?? '').isEmpty
-                          ? 'Not found.'
+                          ? AppLocalizations.of(context)!.notFound
                           : PaliScript.getScriptOf(
                               script: script,
                               romanText: comments[i].pali!,
@@ -187,19 +192,11 @@ class _XrayLinksViewState extends State<XrayLinksView> {
                         ),
                       ),
                 ],
-                Row(
-                  children: [
-                    Text(links[i].book,
-                        style:
-                            TextStyle(fontSize: small, color: theme.hintColor)),
-                    const Spacer(),
-                    TextButton.icon(
-                      icon: const Icon(Icons.open_in_new, size: 18),
-                      label: const Text('Open'),
-                      onPressed: () =>
-                          _openCommentary(links[i], inScript(links[i].word)),
-                    ),
-                  ],
+                XrayCommentFooter(
+                  book: links[i].book,
+                  fontSize: small,
+                  onOpen: () =>
+                      _openCommentary(links[i], inScript(links[i].word)),
                 ),
               ],
             ],
@@ -221,4 +218,38 @@ class _Comment {
   /// an empty panel.
   bool isEmptyIn(List<String> languages) =>
       !languages.any(translations.containsKey);
+}
+
+/// Under each commentary in the panel: which book it is from, and the
+/// button that opens it there.
+class XrayCommentFooter extends StatelessWidget {
+  final String book;
+  final double fontSize;
+  final VoidCallback onOpen;
+
+  const XrayCommentFooter(
+      {super.key,
+      required this.book,
+      required this.fontSize,
+      required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // Takes the room the button leaves, so a long name or a long word
+        // for "Open" wraps the name rather than pushing the button off.
+        Expanded(
+          child: Text(book,
+              style: TextStyle(
+                  fontSize: fontSize, color: Theme.of(context).hintColor)),
+        ),
+        TextButton.icon(
+          icon: const Icon(Icons.open_in_new, size: 18),
+          label: Text(AppLocalizations.of(context)!.open),
+          onPressed: onOpen,
+        ),
+      ],
+    );
+  }
 }

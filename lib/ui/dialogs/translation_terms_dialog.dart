@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
 import '../../services/prefs.dart';
 
@@ -14,30 +15,34 @@ Future<bool> ensureTranslationTermsAccepted(BuildContext context) async {
   final agreed = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('ePitaka AI Translations'),
-      content: const SingleChildScrollView(
-        child: Text(
-          'These translations are from Epitaka.org. They were made by AI '
-          '(2026), using Myanmar Nissaya data provided by Wikipali.org.\n\n'
-          'They can contain mistakes. Use them with discretion, and check '
-          'the Pāḷi where it matters.',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('I Agree'),
-        ),
-      ],
-    ),
+    builder: (_) => const TranslationTermsDialog(),
   );
 
   if (agreed != true) return false;
   Prefs.translationTermsAccepted = true;
   return true;
+}
+
+/// The terms themselves. Pops true when the reader agrees.
+class TranslationTermsDialog extends StatelessWidget {
+  const TranslationTermsDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l.translationTermsTitle),
+      content: SingleChildScrollView(child: Text(l.translationTermsMessage)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(l.iAgree),
+        ),
+      ],
+    );
+  }
 }

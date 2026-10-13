@@ -59,23 +59,13 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
   /// What the copy shortcut copies in the reader. The menu of selected text
   /// offers both whatever this says.
   Widget _getCopyFormattedSwitch() {
-    final key = defaultTargetPlatform == TargetPlatform.macOS ? 'Cmd' : 'Ctrl';
-    return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        title: Text('$key+C copies with formatting'),
-        subtitle: Text(_copyFormatted
-            ? 'Bold, headings and the source, as in Copy Formatted'
-            : 'The text alone, as in Copy Plain Text'),
-        trailing: Switch(
-          onChanged: (value) {
-            setState(() {
-              _copyFormatted = Prefs.copyFormatted = value;
-            });
-          },
-          value: _copyFormatted,
-        ),
-      ),
+    return CopyShortcutTile(
+      value: _copyFormatted,
+      onChanged: (value) {
+        setState(() {
+          _copyFormatted = Prefs.copyFormatted = value;
+        });
+      },
     );
   }
 
@@ -199,6 +189,35 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
             });
           },
           value: _persitentSearchFilter,
+        ),
+      ),
+    );
+  }
+}
+
+/// The setting for what Cmd+C or Ctrl+C copies: with formatting when
+/// [value] is true, the text alone when false.
+class CopyShortcutTile extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const CopyShortcutTile(
+      {super.key, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final key = defaultTargetPlatform == TargetPlatform.macOS ? 'Cmd' : 'Ctrl';
+    final l = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text(l.copyShortcutTitle(key)),
+        subtitle: Text(value
+            ? l.copyShortcutFormatted(l.copyFormatted)
+            : l.copyShortcutPlain(l.copyPlainText)),
+        trailing: Switch(
+          onChanged: onChanged,
+          value: value,
         ),
       ),
     );

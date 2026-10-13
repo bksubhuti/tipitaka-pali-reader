@@ -33,7 +33,7 @@ class BookmarkAppBar extends StatelessWidget implements PreferredSizeWidget {
         buildDropdownButton(context),
         getCloudButton(context),
         IconButton(
-          tooltip: 'Delete all',
+          tooltip: AppLocalizations.of(context)!.deleteAll,
           icon: const Icon(Icons.delete_sweep),
           onPressed: () async {
             final result = await _getConfirmataion(context);
