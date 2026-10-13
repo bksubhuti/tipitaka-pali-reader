@@ -567,14 +567,19 @@ class ReaderView extends StatelessWidget implements Searchable {
   /// book's name for a book without headings.
   Future<String> _sourceOf(
       ReaderViewController rc, Script script, ShownBlock start) async {
-    String inScript(String roman) =>
-        PaliScript.getScriptOf(script: script, romanText: roman);
+    // Converting lowers the case of Roman text, which the headings keep:
+    // "Paṭṭhānapāḷi", not "paṭṭhānapāḷi".
+    String inScript(String roman) => script == Script.roman
+        ? roman
+        : PaliScript.getScriptOf(script: script, romanText: roman);
     final paraId = start.paraId;
     final trail = paraId == null
         ? null
         : await HeadingTrailRepository(DatabaseHelper())
             .of(rc.book.id, start.pageNumber, paraId);
-    if (trail == null) return inScript(rc.book.name);
+    if (trail == null) {
+      return PaliScript.getScriptOf(script: script, romanText: rc.book.name);
+    }
     // The nikāya's own letters, "(DN)", are left in Roman.
     final titles = trail.titles.map((t) => t.replaceAllMapped(
         RegExp(r'\([A-Z]+\)|[^(]+'),
