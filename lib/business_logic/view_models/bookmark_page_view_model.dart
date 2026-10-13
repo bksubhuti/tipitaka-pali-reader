@@ -118,10 +118,11 @@ class BookmarkPageViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes every bookmark and folder, keeping only the hidden root.
   Future<void> deleteAll() async {
-    _bookmarks.clear();
     await _bookmarkRepository.deleteAll();
-    notifyListeners();
+    await _folderRepository.deleteAllFolders();
+    await setCurrentFolderAndFetchItems(-1);
   }
 
   /// The words of a bookmark's saved passage worth highlighting, or null.

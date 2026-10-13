@@ -3,27 +3,22 @@
 Work agreed but left out of the ePitaka release (#321). Roughly in order of
 how much it matters.
 
-## Cloud backup and restore of folders
+## Merging cloud bookmarks across devices
 
-The cloud dialog (`lib/ui/dialogs/bookmark_cloud_transfer_dialog.dart`,
-`lib/services/repositories/bookmark_fire_repo.dart`) moves bookmarks one at a
-time and sends no folders, no folder for each bookmark, and no order. A
-bookmark restored from the cloud lands outside any folder.
+Backup and restore with folders is done (2026-10-13,
+`lib/services/repositories/bookmark_backup_repo.dart`): **Back up all** sends
+the whole folder tree and every bookmark to `users/<email>/backups`, and
+**Restore** replaces what is on the device. Rows keep their ids, so no folder
+mapping is needed.
 
-Plan:
+Still open:
 
-- **Back up:** one snapshot of the folder tree and every bookmark with its
-  folder and position, to `users/<email>/backups`, encrypted with the existing
-  key. Split across documents if it passes Firestore's 1 MB limit.
-- **Restore:** replaces what is on the device, behind a confirmation giving
-  the number of folders and bookmarks. Folder IDs are local, so every parent
-  link and every bookmark's folder must be mapped from old to new. Test with
-  nested folders.
-- **Merge, later if wanted:** needs a permanent ID (UUID) on every folder and
-  bookmark to tell the same item apart from a duplicate. Matching on content
-  (same page, same folder name) breaks on renames and edited notes.
+- **Merge** instead of replace, for two devices with different bookmarks.
+  Needs a permanent ID (UUID) on every folder and bookmark to tell the same
+  item apart from a duplicate. Matching on content (same page, same folder
+  name) breaks on renames and edited notes.
 - The key is the account password, so a password change leaves older backups
-  unreadable. Say so in the interface.
+  unreadable.
 
 ## Side by side: Pali and one translation
 

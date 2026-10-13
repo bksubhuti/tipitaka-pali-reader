@@ -32,6 +32,16 @@ class BookmarkAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         buildDropdownButton(context),
         getCloudButton(context),
+        IconButton(
+          tooltip: 'Delete all',
+          icon: const Icon(Icons.delete_sweep),
+          onPressed: () async {
+            final result = await _getConfirmataion(context);
+            if (result == OkCancelAction.ok && context.mounted) {
+              await context.read<BookmarkPageViewModel>().deleteAll();
+            }
+          },
+        ),
 /*       //TODO need to make this work with folders and bookmarks
             IconButton(
             tooltip: AppLocalizations.of(context)!.shareAllNotes,

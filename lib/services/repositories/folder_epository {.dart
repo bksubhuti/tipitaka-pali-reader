@@ -98,6 +98,12 @@ class FolderDatabaseRepository extends FolderRepository {
     );
   }
 
+  /// Deletes every folder except the hidden root (id -1).
+  Future<int> deleteAllFolders() async {
+    final db = await _databaseHelper.database;
+    return await db.delete('folder', where: 'id != ?', whereArgs: [-1]);
+  }
+
   @override
   Future<int> updateFolderParentId(int itemId, int selectedFolderId) async {
     final db = await _databaseHelper.database;
