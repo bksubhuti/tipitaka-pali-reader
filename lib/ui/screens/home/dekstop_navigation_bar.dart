@@ -21,6 +21,13 @@ class DeskTopNavigationBar extends StatelessWidget {
     final currentNaviagtionItem = context
         .select<NavigationProvider, int>((value) => value.currentNavigation);
 
+    final navigation = context.read<NavigationProvider>();
+    // The rail shows the panels in this order; each place on it stands for a
+    // panel number, which is not always its position: AI search sits below
+    // Search but has the last number.
+    final order = [0, 1, 2, 3, navigation.indexOfAiSearchNavigation, 4, 5];
+    final selected = order.indexOf(currentNaviagtionItem);
+
     return NavigationRail(
       minWidth: navigationBarWidth,
       leading: Ink.image(
@@ -66,6 +73,14 @@ class DeskTopNavigationBar extends StatelessWidget {
         ),
         NavigationRailDestination(
           icon: Tooltip(
+              message: AppLocalizations.of(context)!.aiSearch,
+              child: const Icon(Icons.auto_awesome_outlined)),
+          selectedIcon: const Icon(Icons.auto_awesome),
+          label: Text(AppLocalizations.of(context)!.aiSearch),
+          padding: padding,
+        ),
+        NavigationRailDestination(
+          icon: Tooltip(
               message: AppLocalizations.of(context)!.dictionary,
               child: Image.asset("assets/icon/tpr_dictionary.png",
                   width: 24,
@@ -92,9 +107,9 @@ class DeskTopNavigationBar extends StatelessWidget {
         ),
       ],
       // labelType: NavigationRailLabelType.all,
-      selectedIndex: currentNaviagtionItem,
+      selectedIndex: selected < 0 ? null : selected,
       onDestinationSelected: (index) =>
-          context.read<NavigationProvider>().onClickedNavigationItem(index),
+          navigation.onClickedNavigationItem(order[index]),
     );
   }
 }

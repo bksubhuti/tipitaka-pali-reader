@@ -1,3 +1,4 @@
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -163,7 +164,7 @@ class _AiSearchPageState extends State<AiSearchPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Suggested API Terms of Use Disclaimer'),
+        title: Text(AppLocalizations.of(context)!.aiTermsTitle),
         content: SizedBox(
             width: Prefs.panelWidth,
             child: const SingleChildScrollView(
@@ -188,14 +189,38 @@ No App Liability: The developer of this application is not responsible for any a
                 Navigator.pop(this.context); // Close search window
               }
             },
-            child: const Text('Close'),
+            child: Text(AppLocalizations.of(context)!.close),
           ),
           FilledButton(
             onPressed: () {
               Prefs.aiTermsOfService = true;
               Navigator.pop(context); // Close dialog
             },
-            child: const Text('Agree'),
+            child: Text(AppLocalizations.of(context)!.agree),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// How AI Search differs from an AI chat: it finds real passages in the
+  /// Tipiṭaka on the device and works from those, rather than answering
+  /// from what the model remembers.
+  void _showWhatIsRag() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.whatIsRag),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            child: Text(AppLocalizations.of(context)!.ragExplanation),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context)!.close),
           ),
         ],
       ),
@@ -270,8 +295,8 @@ No App Liability: The developer of this application is not responsible for any a
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Copied thinking and results to clipboard')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!.aiCopiedToClipboard)),
       );
     }
   }
@@ -280,12 +305,17 @@ No App Liability: The developer of this application is not responsible for any a
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Search'),
+        title: Text(AppLocalizations.of(context)!.aiSearch),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: AppLocalizations.of(context)!.whatIsRag,
+            onPressed: _showWhatIsRag,
+          ),
           if (_isSearching)
             TextButton.icon(
               icon: const Icon(Icons.stop, size: 20),
-              label: const Text('Cancel'),
+              label: Text(AppLocalizations.of(context)!.cancel),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -300,7 +330,7 @@ No App Liability: The developer of this application is not responsible for any a
           if (!_isSearching)
             IconButton(
               icon: const Icon(Icons.speed),
-              tooltip: 'Check API Rate Limit',
+              tooltip: AppLocalizations.of(context)!.aiCheckRateLimit,
               onPressed: () async {
                 final url =
                     Uri.parse('https://aistudio.google.com/rate-limit/');
@@ -312,13 +342,13 @@ No App Liability: The developer of this application is not responsible for any a
           if (!_isSearching)
             IconButton(
               icon: const Icon(Icons.copy),
-              tooltip: 'Copy thinking and results',
+              tooltip: AppLocalizations.of(context)!.aiCopyResults,
               onPressed: _copyToClipboard,
             ),
           if (!_isSearching && _hasSearched)
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: 'Show History',
+              tooltip: AppLocalizations.of(context)!.showHistory,
               onPressed: () {
                 setState(() {
                   _hasSearched = false;
@@ -334,21 +364,22 @@ No App Liability: The developer of this application is not responsible for any a
               _historyManager.history.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
-              tooltip: 'Clear History',
+              tooltip: AppLocalizations.of(context)!.clearHistory,
               onPressed: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Clear AI History?'),
-                    content: const Text(
-                        'Are you sure you want to delete all saved AI searches?'),
+                    title:
+                        Text(AppLocalizations.of(context)!.aiClearHistoryTitle),
+                    content: Text(
+                        AppLocalizations.of(context)!.aiClearHistoryMessage),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel')),
+                          child: Text(AppLocalizations.of(context)!.cancel)),
                       TextButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Clear')),
+                          child: Text(AppLocalizations.of(context)!.clear)),
                     ],
                   ),
                 );
@@ -374,9 +405,9 @@ No App Liability: The developer of this application is not responsible for any a
                   if (Prefs.aiProviderMode == 2)
                     Builder(builder: (context) {
                       String message1 =
-                          'Sponsored Mode: ${Prefs.aiSponsoredTriesLeft} queries remaining today.\n';
+                          '${AppLocalizations.of(context)!.aiSponsoredRemaining(Prefs.aiSponsoredTriesLeft)}\n';
                       String message2 =
-                          'Setup a free Gemini API key to get faster and better results.  See the AI Settings panel in TPR Settings.';
+                          AppLocalizations.of(context)!.aiSponsoredHint;
                       if (Prefs.aiSponsoredIsBlacklistedCountry) {
                         message2 = "";
                       }
@@ -404,7 +435,7 @@ No App Liability: The developer of this application is not responsible for any a
                     Row(
                       children: [
                         Text(
-                          'Results to analyze:',
+                          AppLocalizations.of(context)!.aiResultsToAnalyze,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         Expanded(
@@ -443,8 +474,7 @@ No App Liability: The developer of this application is not responsible for any a
                           minLines: 1,
                           textInputAction: TextInputAction.search,
                           decoration: InputDecoration(
-                            hintText:
-                                'Ask in English (e.g. Find me the story of the lady who needed seeds to save her baby)',
+                            hintText: AppLocalizations.of(context)!.aiAskHint,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -463,7 +493,8 @@ No App Liability: The developer of this application is not responsible for any a
                           if (!_isSearching && _hasSearched)
                             IconButton(
                               icon: const Icon(Icons.clear),
-                              tooltip: 'Clear search',
+                              tooltip:
+                                  AppLocalizations.of(context)!.clearSearch,
                               onPressed: () {
                                 setState(() {
                                   _hasSearched = false;
@@ -603,7 +634,7 @@ No App Liability: The developer of this application is not responsible for any a
                         child: Padding(
                           padding: const EdgeInsets.all(32),
                           child: Text(
-                            'No results found.\nTry rephrasing your question.',
+                            AppLocalizations.of(context)!.aiNoResults,
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),

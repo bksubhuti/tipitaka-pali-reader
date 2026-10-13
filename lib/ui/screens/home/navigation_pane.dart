@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/providers/navigation_provider.dart';
 
 import '../../../routes.dart';
+import '../ai_search/ai_search_page.dart';
 import '../dictionary/dictionary_page.dart';
 import '../settings/settings.dart';
 import 'book_list_page.dart';
@@ -96,6 +97,14 @@ class _DetailNavigationPaneState extends State<DetailNavigationPane> {
           context: context,
           screen: const SettingPage(),
           key: settingNavigationKey,
+        );
+      // only in desktop: AI search as its own panel, as well as from the
+      // search panel's mode buttons
+      case 6:
+        return NestedNavigationHelper.buildPage(
+          context: context,
+          screen: const AiSearchPage(query: ''),
+          key: aiSearchNavigationKey,
         );
       default:
         throw Error();

@@ -28,6 +28,7 @@ const dictionaryRoute = '/dictionary';
 final GlobalKey<NavigatorState> searchNavigationKey = GlobalKey();
 final GlobalKey<NavigatorState> settingNavigationKey = GlobalKey();
 final GlobalKey<NavigatorState> dictionaryNavigationKey = GlobalKey();
+final GlobalKey<NavigatorState> aiSearchNavigationKey = GlobalKey();
 
 // Not supporting of web version of this app, using named route is not essentail.
 class RouteGenerator {

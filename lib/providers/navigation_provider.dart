@@ -11,6 +11,11 @@ class NavigationProvider extends ChangeNotifier {
   final int _indexOfSearchNavigation = 3;
   final int _indexOfDictionaryNavigation = 4;
   final int _indexOfSettingNavigation = 5;
+  // Desktop and tablet only, drawn on the rail just below Search. Given the
+  // next free number rather than slotted in after Search, so the phone's
+  // bottom bar, which has no AI tab, keeps its numbering.
+  final int _indexOfAiSearchNavigation = 6;
+  int get indexOfAiSearchNavigation => _indexOfAiSearchNavigation;
   int get indexOfSettingNavigation => _indexOfSettingNavigation;
   int get indexOfSearchNavigation => _indexOfSearchNavigation;
   int get indexOfDictionaryNavigation => _indexOfDictionaryNavigation;

@@ -317,6 +317,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         String html = _formatContent(
             widget.htmlContent, widget.script, context, spoken, beside);
         final rows = beside == null ? null : SideBySide.split(html);
+        // A block that could not be split is drawn whole, without the marks
+        // left for cutting it, which would show as boxes.
+        if (rows == null && beside != null) {
+          html = html
+              .replaceAll(SideBySide.rowBreak, '')
+              .replaceAll(SideBySide.columnBreak, '');
+        }
 
         return _withinReadingWidth(
             fontSize,
@@ -737,7 +744,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       attrs: {'class': highlightedWordScrollCssClass},
     );
     highlightedNode.parent?.insertBefore(anchor, highlightedNode);
-    return soup.toString();
+    // The block alone. Written out whole, the parser wraps it in
+    // <html><head></head><body>, and side by side then could not find the
+    // paragraph to split and drew its cut marks as boxes in the text.
+    return soup.body?.innerHtml ?? soup.toString();
   }
 
   String _toCssHex(int colorValue) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class SimpleInputDialog extends StatelessWidget {
   final String hintText;
@@ -13,6 +14,24 @@ class SimpleInputDialog extends StatelessWidget {
       required this.okLabel});
   @override
   Widget build(BuildContext context) {
+    // Escape closes it as Cancel does. The dialog takes the focus when it
+    // opens, so Escape reaches it before the note box has been clicked, and
+    // still does from inside the box.
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          Navigator.of(context).pop();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: _dialog(context),
+    );
+  }
+
+  Widget _dialog(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
           side: BorderSide.none, borderRadius: BorderRadius.circular(16.0)),
