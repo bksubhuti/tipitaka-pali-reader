@@ -50,7 +50,8 @@ class FontUtils {
 
   static String? defaultAppFontName(String locale) {
     return switch (locale) {
-      'en' => Prefs.romanFontName,
+      'en' =>
+        Prefs.romanFontName == 'System Font' ? null : Prefs.romanFontName,
       //'en' => 'Langar',
       'my' => 'PyidaungSu',
       'si' => 'NotoSansSinhala',

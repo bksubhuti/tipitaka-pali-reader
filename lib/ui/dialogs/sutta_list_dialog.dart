@@ -7,6 +7,7 @@ import '../../business_logic/models/sutta.dart';
 import '../../services/prefs.dart';
 import '../../services/provider/script_language_provider.dart';
 import '../../services/repositories/sutta_repository.dart';
+import '../../utils/font_utils.dart';
 import '../../utils/pali_script.dart';
 import '../../utils/pali_script_converter.dart';
 import 'sutta_list_dialog_view_controller.dart';
@@ -116,6 +117,9 @@ class _SuttaListDialogState extends State<SuttaListDialog> {
                           script: selectedScript,
                         );
 
+                        // Sutta and book names are Pāḷi: the Pāḷi font.
+                        final paliFont =
+                            FontUtils.getfontName(script: selectedScript);
                         return Card(
                           margin: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 2),
@@ -130,12 +134,15 @@ class _SuttaListDialogState extends State<SuttaListDialog> {
                             title: SubstringHighlight(
                               text: displayTitle,
                               term: displayFilter, // <-- crucial fix here
-                              textStyle:
-                                  Theme.of(context).textTheme.titleMedium!,
+                              textStyle: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium!
+                                  .copyWith(fontFamily: paliFont),
                               textStyleHighlight: Theme.of(context)
                                   .textTheme
                                   .titleMedium!
                                   .copyWith(
+                                    fontFamily: paliFont,
                                     color: Theme.of(context).primaryColor,
                                     //fontWeight: FontWeight.bold,
                                   ),
@@ -146,6 +153,7 @@ class _SuttaListDialogState extends State<SuttaListDialog> {
                                   .textTheme
                                   .bodyLarge
                                   ?.copyWith(
+                                    fontFamily: paliFont,
                                     color: Theme.of(context).hintColor,
                                   ),
                             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/font_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/screens/reader/reader.dart';
@@ -64,7 +65,13 @@ class _MobileReaderContainerState extends State<MobileReaderContainer> {
                             .currentScript,
                         romanText:
                             (openningBooks[selectedBookIndex]['book'] as Book)
-                                .name)),
+                                .name),
+                        // The book's name, in the Pāḷi font.
+                        style: TextStyle(
+                            fontFamily: FontUtils.getfontName(
+                                script: context
+                                    .read<ScriptLanguageProvider>()
+                                    .currentScript))),
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.text_format),

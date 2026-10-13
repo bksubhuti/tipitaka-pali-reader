@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.paauk" "\0"
-            VALUE "FileDescription", "tipitaka_pali_reader" "\0"
+            VALUE "FileDescription", "Tipitaka Pali Reader" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "tipitaka_pali_reader" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2023 com.paauk. All rights reserved." "\0"
             VALUE "OriginalFilename", "tipitaka_pali_reader.exe" "\0"
-            VALUE "ProductName", "tipitaka_pali_reader" "\0"
+            VALUE "ProductName", "Tipitaka Pali Reader" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -311,6 +311,7 @@ class _AppState extends State<App> with WindowListener {
                 context.watch<ScriptLanguageProvider>();
 
             return MaterialApp(
+              title: 'Tipitaka Pali Reader',
               navigatorKey: _navigatorKey,
               builder: (context, child) {
                 if (!WindowsTitleBar.isNeeded || child == null) return child!;

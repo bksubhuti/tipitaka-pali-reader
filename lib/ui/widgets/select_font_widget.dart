@@ -25,7 +25,7 @@ const String _paliSample = 'Evaṃ me sutaṃ — ekaṃ samayaṃ bhagavā';
 ///   * a translation font draws the translations in one language, and can
 ///     be chosen for each installed language; without one a translation is
 ///     drawn in the Pāḷi font;
-///   * the app font draws the menus, buttons and settings.
+///   * the UI font draws the menus, buttons, dialogs and settings.
 ///
 /// Each offers what comes with the app, then the fonts on the device that
 /// have every letter it needs.
@@ -144,7 +144,7 @@ class AppFontTile extends StatelessWidget {
     final chosen = theme.appFont;
     final own = FontUtils.defaultAppFontName(locale);
     return ListTile(
-      title: const Text('App font'),
+      title: const Text('UI font'),
       subtitle: Text(
         chosen ?? '${own ?? 'System Font'} (built in)',
         style: TextStyle(fontFamily: chosen ?? own),
@@ -153,7 +153,7 @@ class AppFontTile extends StatelessWidget {
       onTap: () => showDialog<void>(
         context: context,
         builder: (_) => _FontDialog(
-          title: 'App font',
+          title: 'UI font',
           sample: AppLocalizations.of(context)!.settings,
           builtIn: [_Option('${own ?? 'System Font'} (built in)', own, null)],
           needs: SystemFonts.lettersForLanguage(locale),

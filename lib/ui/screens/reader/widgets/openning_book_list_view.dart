@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/font_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 
@@ -47,6 +48,11 @@ class OpenningBookListView extends StatelessWidget {
                               .read<ScriptLanguageProvider>()
                               .currentScript,
                           romanText: book.name),
+                      style: TextStyle(
+                          fontFamily: FontUtils.getfontName(
+                              script: context
+                                  .read<ScriptLanguageProvider>()
+                                  .currentScript)),
                     ),
                     trailing: Text('page - ${pageNumber?.toString()}'),
                     selected: index == selectedBookIndex,

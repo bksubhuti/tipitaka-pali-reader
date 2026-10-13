@@ -29,8 +29,9 @@ bool SendAppLinkToInstance(const std::wstring& title) {
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
                       
-  // CHANGE "tipitaka_pali_reader" to your actual window title if it's different!
-  if (SendAppLinkToInstance(L"tipitaka_pali_reader")) {
+  // The title the window is created with below: a second launch finds the
+  // running app by it, to hand over a link.
+  if (SendAppLinkToInstance(L"Tipitaka Pali Reader")) {
     return EXIT_SUCCESS;
   }
   
@@ -54,7 +55,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"tipitaka_pali_reader", origin, size)) {
+  if (!window.Create(L"Tipitaka Pali Reader", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

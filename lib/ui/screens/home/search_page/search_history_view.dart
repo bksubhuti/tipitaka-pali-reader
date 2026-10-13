@@ -22,6 +22,9 @@ class SearchHistoryView extends StatelessWidget {
       itemBuilder: (context, index) {
         return ListTile(
           dense: true,
+          // The delete button's own 8 makes its icon 16 in from the right,
+          // as the word is from the left.
+          contentPadding: const EdgeInsets.only(left: 16, right: 8),
           title: PaliTextView(histories[index].word),
           onTap: () => onClick?.call(histories[index].word),
           trailing: IconButton(

@@ -110,15 +110,7 @@ class _DesktopHomeViewState extends State<DesktopHomeView>
                         panelWidth; // Optionally save the new width to preferences
                   });
                 },
-                child: Container(
-                  alignment: Alignment.centerRight,
-                  color: Colors.transparent, // Transparent outer container
-                  width: 15, // Larger area for easier mouse interaction
-                  child: Container(
-                    width: 3,
-                    color: Colors.grey, // Visible drag handle
-                  ),
-                ),
+                child: const _ResizeHandle(),
               ),
             ),
 
@@ -144,6 +136,55 @@ class _DesktopHomeViewState extends State<DesktopHomeView>
           ),
         )
       ],
+    );
+  }
+}
+
+/// The bar between the side panel and the reader, dragged to resize them:
+/// a thin line with a grip of three dots at its middle, as in VS Code.
+///
+/// The line is in the middle of the bar. It used to sit at the bar's right
+/// edge, which left a blank strip on the panel's side and made every page
+/// in the panel look wider on the right than on the left.
+class _ResizeHandle extends StatelessWidget {
+  const _ResizeHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Theme.of(context).dividerColor;
+    return Container(
+      // Wide enough to take hold of, with the same space either side.
+      width: 11,
+      color: Colors.transparent,
+      alignment: Alignment.center,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(width: 1, color: line),
+          Container(
+            width: 7,
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border.all(color: line),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  Container(
+                    width: 3,
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(vertical: 1.5),
+                    decoration: const BoxDecoration(
+                        color: Colors.grey, shape: BoxShape.circle),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

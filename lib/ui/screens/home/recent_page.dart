@@ -39,27 +39,22 @@ class RecentPage extends StatelessWidget {
                     final recent = recents[index];
                     return ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.all(0),
+                      // The text 16 in from the left, as the title above it
+                      // is; the trash button's own 8 makes its icon 16 in
+                      // from the right.
+                      contentPadding: const EdgeInsets.only(left: 16, right: 8),
                       visualDensity:
                           const VisualDensity(horizontal: 0, vertical: -4),
-                      title: Padding(
-                          padding: const EdgeInsets.only(left: 5),
-                          child:
-                              Text(localScript(context, "${recent.bookName}"),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: Prefs.uiFontSize - 1,
-                                    fontFamily:
-                                        FontUtils.getfontName(script: script),
-                                  ))),
-                      subtitle: Padding(
-                          padding: const EdgeInsets.only(left: 5),
-                          child: Text(
-                              "${AppLocalizations.of(context)!.page}: ${localScript(context, recent.pageNumber.toString())}",
-                              style: TextStyle(
-                                  fontSize: Prefs.uiFontSize - 3,
-                                  fontFamily:
-                                      FontUtils.getfontName(script: script)))),
+                      title: Text(localScript(context, "${recent.bookName}"),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: Prefs.uiFontSize - 1,
+                            fontFamily: FontUtils.getfontName(script: script),
+                          )),
+                      // "Page" is a word of the app's, so in the UI font.
+                      subtitle: Text(
+                          "${AppLocalizations.of(context)!.page}: ${localScript(context, recent.pageNumber.toString())}",
+                          style: TextStyle(fontSize: Prefs.uiFontSize - 3)),
                       onTap: () => vm.openBook(recent, context),
                       trailing: IconButton(
                         onPressed: () => vm.delete(recent),
@@ -92,6 +87,8 @@ class RecentAppBar extends StatelessWidget implements PreferredSizeWidget {
       // Rydmike: Consider not having implicit back, as it will give idea that
       //  user can go back, but back leads out of app in this case.
       automaticallyImplyLeading: false,
+      // The clear-all trash in line with the trash on each row below.
+      actionsPadding: const EdgeInsets.only(right: 4),
       actions: [
         IconButton(
             icon: const Icon(Icons.delete),

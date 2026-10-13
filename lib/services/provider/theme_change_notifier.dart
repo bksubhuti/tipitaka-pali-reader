@@ -162,6 +162,11 @@ class ThemeChangeNotifier extends ChangeNotifier {
         tones: FlexTones.candyPop(Brightness.dark),
         visualDensity: FlexColorScheme.comfortablePlatformDensity,
         textTheme: _textTheme,
+        // The UI font for every kind of text in the app's own interface:
+        // set on the text theme alone it missed buttons, menus, chips,
+        // dialog titles and navigation labels, which stayed in the system
+        // font.
+        fontFamily: _uiFont,
         useMaterial3: Prefs.useM3,
       ).copyWith(
         // Custom ExpansionTileTheme that removes the extra borders.
@@ -216,6 +221,11 @@ class ThemeChangeNotifier extends ChangeNotifier {
         tones: FlexTones.candyPop(Brightness.light),
         visualDensity: FlexColorScheme.comfortablePlatformDensity,
         textTheme: _textTheme,
+        // The UI font for every kind of text in the app's own interface:
+        // set on the text theme alone it missed buttons, menus, chips,
+        // dialog titles and navigation labels, which stayed in the system
+        // font.
+        fontFamily: _uiFont,
         useMaterial3: Prefs.useM3,
       ).copyWith(
         // Custom ExpansionTileTheme that removes the extra borders.
@@ -224,6 +234,11 @@ class ThemeChangeNotifier extends ChangeNotifier {
           collapsedShape: Border(),
         ),
       );
+
+  /// The font chosen as the UI font in Settings › Theme, or the one that
+  /// goes with the app's language.
+  String? get _uiFont =>
+      FontUtils.getfontNameByLocale(locale: LocaleChangeNotifier().localeString);
 
   TextTheme get _textTheme {
     // this was changed for getting the laos font to work in the UI section of the
@@ -234,8 +249,7 @@ class ThemeChangeNotifier extends ChangeNotifier {
     // has the fontFamily for TextStyle parameter.
 
     // TODO need to follow up on lao font and test.
-    final theFont = FontUtils.getfontNameByLocale(
-        locale: LocaleChangeNotifier().localeString);
+    final theFont = _uiFont;
 
     return TextTheme(
       bodyLarge: TextStyle(

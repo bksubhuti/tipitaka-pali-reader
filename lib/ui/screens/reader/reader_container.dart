@@ -323,7 +323,11 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
     themeData.tab
       ..margin = const EdgeInsets.only(top: 2)
-      ..textStyle = TextStyle(color: Theme.of(context).colorScheme.onBackground)
+      // A tab is the book's name, so in the Pāḷi font for the script shown.
+      ..textStyle = TextStyle(
+          color: Theme.of(context).colorScheme.onBackground,
+          fontFamily: FontUtils.getfontName(
+              script: context.read<ScriptLanguageProvider>().currentScript))
       ..padding = const EdgeInsets.fromLTRB(10, 4, 4, 4)
       ..buttonsOffset = 18
       ..normalButtonColor = Theme.of(context).colorScheme.onSurface
@@ -344,13 +348,20 @@ class _ReaderContainerState extends State<ReaderContainer> {
           border: Border.all(color: Colors.transparent),
           borderRadius: borderRadius);
 
-    if (!Prefs.darkThemeOn) {
+    // Tabs as in VS Code, in every theme: a line along the bottom of the tab
+    // strip, broken under the selected tab, which is the page's own colour
+    // so that it opens onto the page. Dark used to keep the line under the
+    // whole strip and a box round every tab, so the selected tab had a line
+    // under it too.
+    {
+      final dark = Prefs.darkThemeOn;
+      final line = dark ? Colors.grey.shade700 : Colors.grey;
       themeData.tabsArea
         ..border = null
-        ..color = const Color(0xFFf4f4f4)
+        ..color = dark ? Colors.grey.shade900 : const Color(0xFFf4f4f4)
         ..middleGap = isOrange2 ? 3 : 0
         ..initialGap = isOrange2 ? 5 : 0
-        ..gapBottomBorder = const BorderSide(color: Colors.grey);
+        ..gapBottomBorder = BorderSide(color: line);
 
       themeData.tab
         ..margin = EdgeInsets.zero
@@ -359,43 +370,43 @@ class _ReaderContainerState extends State<ReaderContainer> {
         ..disabledButtonColor = Colors.grey
         ..normalButtonColor = Theme.of(context).colorScheme.onSurface
         ..hoverButtonColor = primaryColor
-        ..decoration = const BoxDecoration(
+        ..decoration = BoxDecoration(
             shape: BoxShape.rectangle,
             border: Border(
-              left: BorderSide(color: Colors.transparent),
-              right: BorderSide(color: Colors.transparent),
-              top: BorderSide(color: Colors.transparent),
-              bottom: BorderSide(color: Colors.grey),
+              left: const BorderSide(color: Colors.transparent),
+              right: const BorderSide(color: Colors.transparent),
+              top: const BorderSide(color: Colors.transparent),
+              bottom: BorderSide(color: line),
             ))
         ..selectedStatus.normalButtonColor = primaryColor
         ..selectedStatus.decoration = BoxDecoration(
           shape: BoxShape.rectangle,
           color: Prefs.getChosenColor(context),
-          border: const Border(
-            left: BorderSide(color: Colors.grey),
-            right: BorderSide(color: Colors.grey),
-            top: BorderSide(color: Colors.grey),
-            bottom: BorderSide(color: Colors.transparent),
+          border: Border(
+            left: BorderSide(color: line),
+            right: BorderSide(color: line),
+            top: BorderSide(color: line),
+            bottom: const BorderSide(color: Colors.transparent),
           ),
         )
         ..selectedStatus.fontColor = primaryColor
-        ..highlightedStatus.decoration = const BoxDecoration(
-          color: Color(0xFFdadada),
+        ..highlightedStatus.decoration = BoxDecoration(
+          color: dark ? Colors.grey.shade800 : const Color(0xFFdadada),
           border: Border(
-            left: BorderSide(color: Colors.transparent),
-            right: BorderSide(color: Colors.transparent),
-            top: BorderSide(color: Colors.transparent),
-            bottom: BorderSide(color: Colors.grey),
+            left: const BorderSide(color: Colors.transparent),
+            right: const BorderSide(color: Colors.transparent),
+            top: const BorderSide(color: Colors.transparent),
+            bottom: BorderSide(color: line),
           ),
         );
 
-      themeData.contentArea.decoration = const BoxDecoration(
+      themeData.contentArea.decoration = BoxDecoration(
           shape: BoxShape.rectangle,
           border: Border(
-              left: BorderSide(color: Colors.grey),
-              bottom: BorderSide(color: Colors.transparent),
-              right: BorderSide(color: Colors.transparent),
-              top: BorderSide(color: Colors.transparent)));
+              left: BorderSide(color: line),
+              bottom: const BorderSide(color: Colors.transparent),
+              right: const BorderSide(color: Colors.transparent),
+              top: const BorderSide(color: Colors.transparent)));
     }
 
     // With books side by side, the selected tab is the pane clicked in last.

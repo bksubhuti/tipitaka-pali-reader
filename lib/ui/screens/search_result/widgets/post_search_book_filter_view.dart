@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../controller/search_filter_provider.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import '../../../../services/provider/script_language_provider.dart';
+import '../../../../utils/font_utils.dart';
 import '../../../../utils/pali_script.dart';
 
 class PostSearchBookFilterView extends StatelessWidget {
@@ -77,7 +78,9 @@ class PostSearchBookFilterView extends StatelessWidget {
             final bookName = PaliScript.getScriptOf(
                 script: script, romanText: book.name);
             return CheckboxListTile(
-              title: Text(bookName),
+              title: Text(bookName,
+                  style: TextStyle(
+                      fontFamily: FontUtils.getfontName(script: script))),
               value: selectedBooks.contains(book.id),
               onChanged: (bool? isSelected) {
                 if (isSelected != null) {

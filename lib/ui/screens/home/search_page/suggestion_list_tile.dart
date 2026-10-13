@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../services/provider/script_language_provider.dart';
+import '../../../../utils/font_utils.dart';
 import '../../../../utils/pali_script.dart';
 
 class SuggestionListTile extends StatelessWidget {
@@ -41,7 +42,15 @@ class SuggestionListTile extends StatelessWidget {
       minVerticalPadding: 0,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       // suggested word
-      title: Text(scriptWord, style: Theme.of(context).textTheme.bodyLarge),
+      // A Pāḷi word in the Pāḷi font; a translation's word as it is.
+      title: Text(scriptWord,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontFamily: asTyped
+                  ? null
+                  : FontUtils.getfontName(
+                      script: context
+                          .read<ScriptLanguageProvider>()
+                          .currentScript))),
       leading: IconButton(
         onPressed: onClickedAddButton,
         icon: const Icon(Icons.library_add),

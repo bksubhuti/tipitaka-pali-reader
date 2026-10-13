@@ -45,6 +45,7 @@ class _BookSliderState extends State<VerticalBookSlider> {
       child: SliderTheme(
         data: SliderThemeData(
           trackHeight: 16,
+          trackShape: const _EvenTrackShape(),
           activeTrackColor: Colors.grey[100],
           inactiveTrackColor: Colors.grey[100],
           thumbShape: const RoundSliderThumbShape(
@@ -84,5 +85,38 @@ class _BookSliderState extends State<VerticalBookSlider> {
         currentPage = readerViewController.currentPage.value;
       });
     }
+  }
+}
+
+/// The slider's track, as thick before the thumb as after it. Flutter's own
+/// draws the part before the thumb 2 px thicker, which on this scrollbar,
+/// turned on its side, made it wider above the thumb than below.
+class _EvenTrackShape extends RoundedRectSliderTrackShape {
+  const _EvenTrackShape();
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required Animation<double> enableAnimation,
+    required TextDirection textDirection,
+    required Offset thumbCenter,
+    Offset? secondaryOffset,
+    bool isDiscrete = false,
+    bool isEnabled = false,
+    double additionalActiveTrackHeight = 2,
+  }) {
+    super.paint(context, offset,
+        parentBox: parentBox,
+        sliderTheme: sliderTheme,
+        enableAnimation: enableAnimation,
+        textDirection: textDirection,
+        thumbCenter: thumbCenter,
+        secondaryOffset: secondaryOffset,
+        isDiscrete: isDiscrete,
+        isEnabled: isEnabled,
+        additionalActiveTrackHeight: 0);
   }
 }

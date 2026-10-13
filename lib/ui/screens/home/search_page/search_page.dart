@@ -136,22 +136,16 @@ class _SearchPageState extends State<SearchPage>
                           vm.onWordDistanceChanged(value);
                         },
                       ),
-                      // search bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TprSearchBar(
-                              hint: _getHint(vm.queryMode),
-                              controller: controller,
-                              focusNode: _searchFocus,
-                              onSubmitted: (value) {
-                                _onSubmitted(value, vm);
-                              },
-                              onTextChanged: vm.onTextChanged,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
+                      // search bar: its own padding is the same on both
+                      // sides; a gap after it made the right twice the left.
+                      TprSearchBar(
+                        hint: _getHint(vm.queryMode),
+                        controller: controller,
+                        focusNode: _searchFocus,
+                        onSubmitted: (value) {
+                          _onSubmitted(value, vm);
+                        },
+                        onTextChanged: vm.onTextChanged,
                       ),
                       _getMakeWordListButton(vm, context),
                       // search mode chooser view

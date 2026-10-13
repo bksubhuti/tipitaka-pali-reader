@@ -7,6 +7,7 @@ import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import '../../../../business_logic/models/search_result.dart';
 import '../../../../services/prefs.dart';
 import '../../../../services/provider/script_language_provider.dart';
+import '../../../../utils/font_utils.dart';
 import '../../../../utils/pali_script.dart';
 
 class SearchResultListTile extends StatelessWidget {
@@ -20,6 +21,9 @@ class SearchResultListTile extends StatelessWidget {
     // print('text: ${result.description}');
     final bool isDarkMode = context.read<ThemeChangeNotifier>().isDarkMode;
     final style = TextStyle(fontSize: Prefs.uiFontSize);
+    // The book, the sutta and a Pāḷi passage are Pāḷi, so in the Pāḷi font.
+    final paliFont = FontUtils.getfontName(
+        script: context.read<ScriptLanguageProvider>().currentScript);
     final styles = {
       highlightTagName: StyledTextTag(
           style: TextStyle(
@@ -43,11 +47,13 @@ class SearchResultListTile extends StatelessWidget {
         : '(p. $pageNumber)';
 
     final styelForBookName = TextStyle(
+        fontFamily: paliFont,
         fontSize: Prefs.uiFontSize,
         fontWeight: FontWeight.bold,
         color: Theme.of(context).primaryColor);
 
     final styleForSuttaName = TextStyle(
+      fontFamily: paliFont,
       fontWeight: FontWeight.bold,
       fontSize: Prefs.uiFontSize,
       color: Theme.of(context).colorScheme.primary,
@@ -89,7 +95,9 @@ class SearchResultListTile extends StatelessWidget {
                           isHtmlText: true),
                   // overflow: TextOverflow.ellipsis,
                   // maxLines: 4,
-                  style: style,
+                  style: result.isTranslation
+                      ? style
+                      : style.copyWith(fontFamily: paliFont),
                   tags: styles,
                 ),
                 if (result.translation != null &&
