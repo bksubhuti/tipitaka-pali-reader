@@ -119,6 +119,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         Provider.of<ReaderViewController>(context, listen: false);
     _readerViewController.isHighlightShown
         .addListener(_onHighlightVisibilityChanged);
+    _readerViewController.tappedWordOwner.addListener(_onWordTappedElsewhere);
     bookmarks = _readerViewController.bookmarks
         .where((bm) => bm.pageNumber == widget.pageNumber)
         .toList();
@@ -154,11 +155,23 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     _forgetShown(_blockKey);
     _readerViewController.isHighlightShown
         .removeListener(_onHighlightVisibilityChanged);
+    _readerViewController.tappedWordOwner
+        .removeListener(_onWordTappedElsewhere);
     super.dispose();
   }
 
   void _onHighlightVisibilityChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// A word tapped in another block takes the mark from this one.
+  void _onWordTappedElsewhere() {
+    if (!mounted || lookupWord == null) return;
+    if (identical(_readerViewController.tappedWordOwner.value, this)) return;
+    setState(() {
+      lookupWord = null;
+      highlightedWordIndex = null;
+    });
   }
 
   @override
@@ -262,29 +275,68 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     }
   }
 
+  /// Tags what is drawn in a block but is not its text.
+  static const _notText = Object();
+
   int findOccurrencesBefore(String word, RenderParagraph target) {
-    List<Element> richTexts = [];
-    void pickRichTexts(Element element) {
-      if (element.widget is RichText) {
-        richTexts.add(element);
-      }
-      element.visitChildren(pickRichTexts);
-    }
-
-    _textKey.currentContext?.visitChildElements((element) {
-      pickRichTexts(element);
-    });
-
+    final root = _textKey.currentContext?.findRenderObject();
+    if (root == null) return 0;
     int occurrencesBefore = 0;
-    for (final rte in richTexts) {
-      if (rte.renderObject == target) {
-        break;
-      }
-      final paragraphText = (rte.widget as RichText).text.toPlainText();
-      final matchesInParagraph = word.allMatches(paragraphText).length;
-      occurrencesBefore += matchesInParagraph;
+    for (final paragraph in _paragraphsIn(root)) {
+      if (paragraph == target) break;
+      occurrencesBefore += word.allMatches(_fullText(paragraph)).length;
     }
     return occurrencesBefore;
+  }
+
+  /// The outermost paragraphs in [root], in reading order.
+  ///
+  /// Not the X-ray links: they are drawn between the lines but are no part
+  /// of the text the marks are placed in.
+  List<RenderParagraph> _paragraphsIn(RenderObject root) {
+    final found = <RenderParagraph>[];
+    void visit(RenderObject o) {
+      if (o is RenderMetaData && identical(o.metaData, _notText)) return;
+      if (o is RenderParagraph) {
+        found.add(o);
+      } else {
+        o.visitChildren(visit);
+      }
+    }
+
+    visit(root);
+    return found;
+  }
+
+  /// The text of [paragraph] with the text of each widget in its lines in
+  /// that widget's place. A boxed word is such a widget, with a paragraph of
+  /// its own, and the line around it has only a placeholder for it; read
+  /// alone, the word was missing from the line and the words after it were
+  /// counted one short. [offsets] is given, for each paragraph read, where
+  /// each of its own characters falls in the whole.
+  String _fullText(RenderParagraph paragraph,
+      [Map<RenderParagraph, List<int>>? offsets]) {
+    final out = StringBuffer();
+    void read(RenderParagraph paragraph) {
+      final own = paragraph.text.toPlainText();
+      final children = <RenderObject>[];
+      paragraph.visitChildren(children.add);
+      final at = <int>[];
+      var child = 0;
+      for (var i = 0; i < own.length; i++) {
+        at.add(out.length);
+        if (own.codeUnitAt(i) == 0xFFFC && child < children.length) {
+          _paragraphsIn(children[child++]).forEach(read);
+        } else {
+          out.writeCharCode(own.codeUnitAt(i));
+        }
+      }
+      at.add(out.length);
+      offsets?[paragraph] = at;
+    }
+
+    read(paragraph);
+    return out.toString();
   }
 
   @override
@@ -353,14 +405,30 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                         continue;
                       }
 
+                      // A boxed word has a paragraph of its own inside the
+                      // line's; the word is read in the line around it.
+                      var line = target;
+                      var inText = true;
+                      for (var o = target.parent;
+                          o != null && o != box;
+                          o = o.parent) {
+                        if (o is RenderParagraph) line = o;
+                        if (o is RenderMetaData &&
+                            identical(o.metaData, _notText)) {
+                          inText = false;
+                        }
+                      }
+                      // An X-ray link takes its own tap.
+                      if (!inText) break;
+                      final offsets = <RenderParagraph, List<int>>{};
+                      final text = _fullText(line, offsets);
+                      final own = offsets[target]!;
                       final p =
                           target.getPositionForOffset(entry.localPosition);
-                      final text = target.text
-                          .toPlainText(); //.replaceAll('\ufffc', '');
+                      if (p.offset >= own.length - 1) break;
+                      final int offset = own[p.offset];
 
-                      if (text.isNotEmpty && p.offset < text.length) {
-                        final int offset = p.offset;
-
+                      if (offset < text.length) {
                         final leftSentence = getLeftSentence(text, offset);
                         final rightSentence = getRightSentence(text, offset);
                         final sentence = leftSentence + rightSentence;
@@ -374,10 +442,10 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
                             word, sentence, widget.pageNumber, widget.book!.id);
 
                         final textBefore =
-                            text.substring(0, p.offset - leftChars.length);
+                            text.substring(0, offset - leftChars.length);
                         final occurrencesInTextBefore =
                             word.allMatches(textBefore).length;
-                        final wordIndex = findOccurrencesBefore(word, target) +
+                        final wordIndex = findOccurrencesBefore(word, line) +
                             occurrencesInTextBefore;
 
                         // Reading aloud starts from the sentence tapped.
@@ -410,8 +478,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
                             _pageToHighlight = widget.pageNumber;
                           });
+                          _readerViewController.tappedWordOwner.value = this;
                         }
                       }
+                      // The line around a boxed word is in the path too, and
+                      // would take the tap a second time.
+                      break;
                     }
                   },
                   child: Container(
@@ -497,21 +569,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         }
 
         if (element.className == 'highlighted') {
-          String styleColor = (Prefs.darkThemeOn) ? "white" : "black";
-          Color c = Theme.of(context).primaryColorLight;
-
-          // Converting the Flutter Color object to a CSS hex string for the text color
-          String colorHex =
-              '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-
-          return {
-            'color': 'inherit', // Uses the default text color
-            'background-color': colorHex, // Highlights the text with colorHex
-            //'font-weight': '500', // Sets the font weight to 500
-            'text-decoration': 'underline', // Underlines the text
-            'text-decoration-color':
-                colorHex, // Sets underline color to match colorHex
-          };
+          // A phrase in a box could not wrap at the end of a line.
+          return _markStyle(boxed: !element.text.trim().contains(' '));
         }
         // no style
         return {'text-decoration': 'none'};
@@ -521,7 +580,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           final links = XrayIndex.linksOf(
               int.tryParse(element.attributes['data-x'] ?? '') ?? -1);
           if (links == null || links.isEmpty) return const SizedBox.shrink();
-          return XrayLinksView(links: links, fontSize: fontSize.toDouble());
+          // Marked as not the text: its labels are drawn on the page but
+          // are not in the block's HTML, and counted as words they put a
+          // tapped word's mark on the wrong one, or on none.
+          return MetaData(
+              metaData: _notText,
+              child:
+                  XrayLinksView(links: links, fontSize: fontSize.toDouble()));
         }
 
         if (element.localName == 'span' && element.className == 'linebreak') {
@@ -704,12 +769,32 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     return content.replaceAll('</p>', '<span class="linebreak"></span><p>');
   }
 
+  static final _tagPattern = RegExp(r'<[^>]*>');
+
+  /// Where [word] is in the text of [html], not in its tags. The tapped word
+  /// is found by counting it in the text on screen; counted in the tags too,
+  /// a short word such as "te" or "ti" (in `palitext`, `translation`) was
+  /// marked somewhere else, or nowhere.
+  static List<Match> _inText(String word, String html) {
+    final tags = _tagPattern.allMatches(html).toList();
+    var t = 0;
+    final out = <Match>[];
+    for (final m in word.allMatches(html)) {
+      while (t < tags.length && tags[t].end <= m.start) {
+        t++;
+      }
+      if (t < tags.length && tags[t].start < m.end) continue; // in a tag
+      out.add(m);
+    }
+    return out;
+  }
+
   String _addUnderline(String content, String lookupWord) {
     if (lookupWord.isEmpty) return content;
     final hwi = highlightedWordIndex;
     final underlinedHighlight =
         '<span class = "underlined_highlight">$lookupWord</span>';
-    final matches = lookupWord.allMatches(content);
+    final matches = _inText(lookupWord, content);
     if (hwi != null && matches.length > hwi) {
       final match = matches.elementAt(hwi);
       return content.replaceRange(match.start, match.end, underlinedHighlight);
@@ -750,16 +835,40 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     return soup.body?.innerHtml ?? soup.toString();
   }
 
+  /// A word picked out on the page, by a tap or by a search, tinted and
+  /// boxed in the theme's colour. [boxed] false gives the tint alone,
+  /// [strong] a deeper one.
+  Map<String, String> _markStyle({bool boxed = true, bool strong = false}) {
+    final accent = Theme.of(context).colorScheme.primary;
+    final argb = accent.toARGB32();
+    final alpha = (Prefs.darkThemeOn ? 0.28 : 0.14) * (strong ? 2 : 1);
+    return {
+      'color': 'inherit',
+      'background-color': 'rgba(${(argb >> 16) & 0xFF}, ${(argb >> 8) & 0xFF}, '
+          '${argb & 0xFF}, $alpha)',
+      // A block in the line, so the tint fills the rounded box with a
+      // little room either side of the word.
+      if (boxed) ...{
+        'display': 'inline-block',
+        'border': '1px solid ${_toCssHex(argb)}',
+        'border-radius': '4px',
+        'padding': '0 2px',
+      },
+    };
+  }
+
+  String _markCss({bool boxed = true, bool strong = false}) =>
+      _markStyle(boxed: boxed, strong: strong)
+          .entries
+          .map((e) => '${e.key}: ${e.value};')
+          .join(' ');
+
   String _toCssHex(int colorValue) {
     return '#${(colorValue & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
   }
 
   String _changeToInlineStyle(String content) {
     // 1. SETUP VARIABLES (Same as your original code)
-    Color c = Theme.of(context).primaryColorLight;
-    String colorHex =
-        '#${c.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-
     int paliTextColorInt = Prefs.paliTextColor;
     if (paliTextColorInt == 0xFF000000 && Prefs.darkThemeOn) {
       paliTextColorInt = 0xFFFFFFFF;
@@ -872,11 +981,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       'highlightedSearch': 'background: #FFE959; color: #000;',
 
       // Variables from your class
-      searchTermCssClass: 'background: yellow; color: black;',
-      currentSearchTermCssClass: 'background: orange; color: black;',
+      // A match can be part of a word, or cut in pieces by a tag, so these
+      // are tinted only: a box could break the word at the end of a line.
+      searchTermCssClass: _markCss(boxed: false),
+      currentSearchTermCssClass: _markCss(boxed: false, strong: true),
       'tts_highlighted': 'background: yellow; color: black;',
-      'underlined_highlight':
-          'font-weight: 500; color: $colorHex; text-decoration: underline; text-decoration-color: $colorHex;',
+      'underlined_highlight': _markCss(),
     };
 
     // 3. SINGLE PASS REPLACEMENT (The Fix)
@@ -984,7 +1094,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     if (!Prefs.multiHighlight && hwi != null) {
       final highlighted =
           '<span id="$kGotoID" class = "$highlightClass">$textToHighlight</span>';
-      final matches = textToHighlight.allMatches(content);
+      final matches = _inText(textToHighlight, content);
       if (matches.length > hwi) {
         final match = matches.elementAt(hwi);
         return content.replaceRange(match.start, match.end, highlighted);
@@ -1028,19 +1138,17 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         // which dropped the second of two adjacent search words.
         content = mapHtmlText(content, highlightClass, (text, insideHighlight) {
           if (insideHighlight) return text;
-          return text.replaceAllMapped(pattern,
-              (match) => '<span class="$highlightClass">${match.group(0)}</span>');
+          return text.replaceAllMapped(
+              pattern,
+              (match) =>
+                  '<span class="$highlightClass">${match.group(0)}</span>');
         });
       }
       // Land where the words come together, not on the first stray one.
       if (addId) {
         final searchWords = words.length > 1 ? words.sublist(1) : words;
-        content = SearchCluster.markStart(
-            content,
-            highlightClass,
-            searchWords,
-            queryMode == QueryMode.distance ? Prefs.wordDistance : 0,
-            kGotoID);
+        content = SearchCluster.markStart(content, highlightClass, searchWords,
+            queryMode == QueryMode.distance ? Prefs.wordDistance : 0, kGotoID);
       }
       return content;
     }

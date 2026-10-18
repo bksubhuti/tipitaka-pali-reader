@@ -140,6 +140,11 @@ class ReaderViewController extends ChangeNotifier {
   /// Removes the goto/search word highlight everywhere in this book.
   void clearHighlights() => _isHighlightShown.value = false;
 
+  /// The block holding the word the reader last tapped. One word is marked
+  /// at a time: each block keeps its own, so without this a tap in a new
+  /// block left the last one marked too, and the page filled with boxes.
+  final ValueNotifier<Object?> tappedWordOwner = ValueNotifier(null);
+
   /// The sentence the reader last tapped, where reading aloud starts if it
   /// is still on screen.
   ({int page, String sentence})? _tappedSentence;
