@@ -11,6 +11,9 @@ import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/mat_button.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/tts_controls.dart';
 import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
+import 'package:tipitaka_pali/ui/widgets/xray_icon.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
+import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 
@@ -133,6 +136,7 @@ class LowerRow extends StatelessWidget {
                   },
                 )
               : const SizedBox.shrink(),
+          const _XrayButton(),
           IconButton(
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined),
@@ -683,6 +687,32 @@ class LowerRow extends StatelessWidget {
           onTap: () => _onMulaButtonClicked(context),
         ),
       ],
+    );
+  }
+}
+
+/// Turns X-ray on and off: the commentary words under the Pāḷi they
+/// explain. Coloured while it is on. Only there while the Pāḷi is shown,
+/// as X-ray has nothing to hang from without it.
+class _XrayButton extends StatelessWidget {
+  const _XrayButton();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.watch<ShownLanguagesProvider>().paliShown) {
+      return const SizedBox.shrink();
+    }
+    final theme = context.watch<ThemeChangeNotifier>();
+    final on = theme.xray;
+    return IconButton(
+      onPressed: () => theme.onChangeXray(!on),
+      isSelected: on,
+      icon: XrayIcon(
+          screen: on,
+          color: on
+              ? Theme.of(context).colorScheme.primary
+              : IconTheme.of(context).color),
+      tooltip: AppLocalizations.of(context)!.xray,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/widgets/xray_icon.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -193,13 +194,15 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
               ),
             ),
 
-          // The commentary under the Pali it explains.
-          if (shown.paliShown)
+          // The commentary under the Pali it explains. In the popup the
+          // control bar opens it is left out: the bar has its own button.
+          if (shown.paliShown && !widget.isMobilePopup)
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: CheckboxListTile(
                 title: Text(AppLocalizations.of(context)!.xray),
                 subtitle: Text(AppLocalizations.of(context)!.xraySubtitle),
+                secondary: const XrayIcon(),
                 value: context.watch<ThemeChangeNotifier>().xray,
                 onChanged: (bool? value) {
                   if (value != null) {
