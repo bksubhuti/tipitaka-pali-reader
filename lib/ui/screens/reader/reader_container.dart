@@ -14,7 +14,6 @@ import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/utils/font_utils.dart';
 
 import '../../../business_logic/models/book.dart';
-import '../../../data/flex_theme_data.dart';
 import '../../../services/provider/script_language_provider.dart';
 import '../../../services/provider/theme_change_notifier.dart';
 import '../../../utils/pali_script.dart';
@@ -302,8 +301,6 @@ class _ReaderContainerState extends State<ReaderContainer> {
       );
     }
 
-    final isOrange2 = Prefs.themeName == MyThemes.orange2Name;
-
     final primaryColor = Theme.of(context).colorScheme.primary;
     final surface = Theme.of(context).colorScheme.surfaceTint;
     final materialColor = MsMaterialColor(primaryColor.value);
@@ -359,8 +356,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
       themeData.tabsArea
         ..border = null
         ..color = dark ? Colors.grey.shade900 : const Color(0xFFf4f4f4)
-        ..middleGap = isOrange2 ? 3 : 0
-        ..initialGap = isOrange2 ? 5 : 0
+        ..middleGap = 0
+        ..initialGap = 0
         ..gapBottomBorder = BorderSide(color: line);
 
       themeData.tab
