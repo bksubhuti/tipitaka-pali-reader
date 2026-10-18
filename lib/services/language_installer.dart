@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'dart:isolate';
 
-import 'package:archive/archive.dart';
-import 'package:archive/archive_io.dart';
+import 'package:archive/archive_io.dart' hide ZLibDecoder;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -391,37 +389,66 @@ class LanguageInstaller {
     return source;
   }
 
-  /// Unpacks the database out of the archive, in a background isolate and a
-  /// piece at a time.
+  /// Unpacks the database out of the archive, streamed from file to file
+  /// through the platform's own zlib.
   ///
-  /// Decoded whole on the main isolate, the English archive became 600 MB in
-  /// memory and the screen stopped answering until it was done, which on a
-  /// phone looks the same as a crash.
+  /// The archive package only finds where the database sits. Left to inflate
+  /// it too, it held the whole database in memory and took minutes in pure
+  /// Dart, long enough that the install looked stuck; zlib takes seconds.
   static Future<void> _unpack(File archive, File target) async {
-    final source = archive.path;
-    final destination = target.path;
-    final found = await Isolate.run(() {
-      final input = InputFileStream(source);
-      try {
-        final entries = ZipDecoder().decodeBuffer(input);
-        for (final entry in entries) {
-          if (!entry.isFile || entry.name.contains('__MACOSX')) continue;
-          if (!entry.name.endsWith('.db')) continue;
-          final output = OutputFileStream(destination);
-          try {
-            entry.writeContent(output);
-          } finally {
-            output.closeSync();
-          }
-          return true;
-        }
-        return false;
-      } finally {
-        input.closeSync();
-      }
-    });
-    if (!found) {
+    final input = InputFileStream(archive.path);
+    final ZipFileHeader? entry;
+    try {
+      entry = ZipDirectory.read(input)
+          .fileHeaders
+          .where((h) =>
+              h.filename.endsWith('.db') && !h.filename.contains('__MACOSX'))
+          .firstOrNull;
+    } finally {
+      input.closeSync();
+    }
+    final offset = entry?.localHeaderOffset;
+    final length = entry?.compressedSize;
+    if (entry == null || offset == null || length == null) {
       throw Exception('no database inside ${basename(archive.path)}');
+    }
+
+    // The data starts after the entry's own header, whose name and extra
+    // field can differ in length from those in the index.
+    final file = await archive.open();
+    final int start;
+    try {
+      await file.setPosition(offset);
+      final header = ByteData.sublistView(await file.read(30));
+      if (header.lengthInBytes < 30 ||
+          header.getUint32(0, Endian.little) != 0x04034b50) {
+        throw Exception('${basename(archive.path)} is damaged');
+      }
+      start = offset +
+          30 +
+          header.getUint16(26, Endian.little) +
+          header.getUint16(28, Endian.little);
+    } finally {
+      await file.close();
+    }
+
+    final stored = archive.openRead(start, start + length);
+    final Stream<List<int>> data = switch (entry.compressionMethod) {
+      0 => stored,
+      8 => stored.transform(ZLibDecoder(raw: true)),
+      final method => throw Exception('unsupported zip method $method'),
+    };
+    final output = target.openWrite();
+    try {
+      await output.addStream(data);
+    } finally {
+      await output.close();
+    }
+
+    final expected = entry.uncompressedSize;
+    final written = await target.length();
+    if (expected != null && written != expected) {
+      throw Exception('unpacked $written of $expected bytes');
     }
   }
 
