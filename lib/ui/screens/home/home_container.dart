@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../../providers/font_provider.dart';
 import '../../../services/database/database_helper.dart';
+import '../../../services/extensions/extension_packages.dart';
 import '../../../services/prefs.dart';
 import '../../../utils/platform_info.dart';
 import '../language_choice.dart';
@@ -33,7 +34,8 @@ class _HomeState extends State<Home> {
     // Offer a translation once, on the first start that has the sentence data
     // to use one. First-run setup covers a fresh install; this covers an
     // existing one, which never runs that.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _offerTranslation());
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _offerTranslation().then((_) => _offerShippedBooks()));
     HardwareKeyboard.instance.addHandler(_onFontSizeKey);
   }
 
@@ -85,6 +87,93 @@ class _HomeState extends State<Home> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const LanguageChoiceScreen()),
     );
+  }
+
+  /// Offers the books that came with an app update, as packages.
+  ///
+  /// Setup, fresh or after a database update, adds them without asking.
+  /// An app update that keeps the database never runs setup, so the reader
+  /// is asked here, once: Later asks again at the next start, Don't ask
+  /// again does not.
+  Future<void> _offerShippedBooks() async {
+    List<PackageInfo> offered;
+    try {
+      await DatabaseHelper().database;
+      offered = await ExtensionPackages.offered();
+    } catch (_) {
+      return;
+    }
+    for (final package in offered) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      final answer = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.newBooksTitle),
+          content: SingleChildScrollView(
+              child: Text(l10n.newBooksBody(package.title))),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop('never'),
+                child: Text(l10n.dontAskAgain)),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop('later'),
+                child: Text(l10n.later)),
+            FilledButton(
+                onPressed: () => Navigator.of(ctx).pop('add'),
+                child: Text(l10n.addBooks)),
+          ],
+        ),
+      );
+      if (answer == 'never') ExtensionPackages.decline(package.id);
+      if (answer != 'add' || !mounted) continue;
+      await _addBooks(package);
+    }
+  }
+
+  /// Adds a package's books behind a dialog that stays until they are in.
+  Future<void> _addBooks(PackageInfo package) async {
+    final l10n = AppLocalizations.of(context)!;
+    final error = ValueNotifier<String?>(null);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: ValueListenableBuilder<String?>(
+          valueListenable: error,
+          builder: (ctx, failed, _) => AlertDialog(
+            title: Text(l10n.newBooksTitle),
+            content: Row(children: [
+              if (failed == null) ...[
+                const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 3)),
+                const SizedBox(width: 16),
+              ],
+              Expanded(
+                  child: Text(failed == null
+                      ? l10n.addingBooks
+                      : l10n.booksNotAdded(failed))),
+            ]),
+            actions: [
+              if (failed != null)
+                TextButton(
+                    onPressed: () => navigator.pop(),
+                    child: Text(l10n.close)),
+            ],
+          ),
+        ),
+      ),
+    );
+    try {
+      await ExtensionPackages.apply(package);
+      navigator.pop();
+    } catch (e) {
+      error.value = '$e';
+    }
   }
 
   @override

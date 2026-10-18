@@ -9,6 +9,8 @@
 .history
 .svn/
 *.db
+# Extension packages that ship with the app.
+!assets/packages/*.pkg.db
 *.7z
 tipitaka_pali_part*
 .env
@@ -147,3 +149,6 @@ assets/database
 
 # Ignore Gradle build output directory
 build
+
+# Built packages; the shipped copy is in assets/packages.
+tools/extension_packages/*.zip

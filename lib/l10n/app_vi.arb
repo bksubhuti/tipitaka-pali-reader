@@ -347,5 +347,11 @@
   "clearSearch": "Xóa tìm kiếm",
   "aiNoResults": "Không tìm thấy kết quả.\nHãy thử diễn đạt lại câu hỏi.",
   "whatIsRag": "RAG là gì?",
-  "ragExplanation": "Tìm kiếm AI dùng RAG (retrieval-augmented generation). Nó không trả lời từ trí nhớ của AI.\n\n1. AI chuyển câu hỏi của bạn thành từ khóa tìm kiếm bằng tiếng Pāḷi.\n2. TPR dùng các từ đó để tìm trong Tam Tạng trên thiết bị của bạn.\n3. AI đọc các đoạn tìm được, giữ lại những đoạn trả lời câu hỏi và tóm tắt chúng.\n\nMỗi kết quả là một đoạn kinh thật mà bạn có thể mở và kiểm tra.\n\nChat AI trả lời từ những gì nó nhớ. Nó có thể nghe rất chắc chắn mà vẫn sai, và hiếm khi cho biết câu trả lời lấy từ đâu. Hãy dùng Tìm kiếm AI để tìm các đoạn kinh, và đọc chúng để biết kinh điển nói gì."
+  "ragExplanation": "Tìm kiếm AI dùng RAG (retrieval-augmented generation). Nó không trả lời từ trí nhớ của AI.\n\n1. AI chuyển câu hỏi của bạn thành từ khóa tìm kiếm bằng tiếng Pāḷi.\n2. TPR dùng các từ đó để tìm trong Tam Tạng trên thiết bị của bạn.\n3. AI đọc các đoạn tìm được, giữ lại những đoạn trả lời câu hỏi và tóm tắt chúng.\n\nMỗi kết quả là một đoạn kinh thật mà bạn có thể mở và kiểm tra.\n\nChat AI trả lời từ những gì nó nhớ. Nó có thể nghe rất chắc chắn mà vẫn sai, và hiếm khi cho biết câu trả lời lấy từ đâu. Hãy dùng Tìm kiếm AI để tìm các đoạn kinh, và đọc chúng để biết kinh điển nói gì.",
+  "newBooksTitle": "Sách mới",
+  "newBooksBody": "{title}\n\nThêm những sách này vào thư viện? Chỉ mất một lát và không cần tải xuống.",
+  "addBooks": "Thêm",
+  "dontAskAgain": "Không hỏi lại",
+  "addingBooks": "Đang thêm sách và cập nhật tìm kiếm…",
+  "booksNotAdded": "Không thể thêm sách: {error}"
 }

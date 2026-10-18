@@ -461,192 +461,26 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.execute(_createTranslationUnit);
     await db.execute(_createMeta);
 
-    // Where each page begins, so a result can open in the reader. The reader
-    // is addressed by book and page, and that numbering is unchanged by the
-    // migration, so every unit records the page it starts on.
-    final breaks = await db.rawQuery(
-      'SELECT book_id, para_id, line_id, word_index, tpr_book, tpr_page '
-      'FROM ext.page_break ORDER BY book_id, para_id, line_id, word_index',
-    );
-    final pageStarts = <String, List<_PageStart>>{};
-    for (final row in breaks) {
-      pageStarts
-          .putIfAbsent(row['book_id'] as String, () => <_PageStart>[])
-          .add(_PageStart(
-            row['para_id'] as int,
-            row['line_id'] as int,
-            row['word_index'] as int? ?? 0,
-            row['tpr_book'] as String,
-            row['tpr_page'] as int,
-          ));
-    }
-
+    final pageStarts = await _pageStarts(db);
     final books = await db.rawQuery(
         'SELECT DISTINCT book_id FROM epi.sentences ORDER BY book_id');
 
-    var unitId = 0;
-    // The translation index has its own row numbering: one unit yields a row
-    // per language, so its rowids cannot be the unit's.
-    var translationId = 0;
+    final ids = _Ids();
     var indexed = 0;
     var done = 0;
     for (final bookRow in books) {
       final book = bookRow['book_id'] as String;
-      final starts = pageStarts[book];
       done++;
-      if (starts == null || starts.isEmpty) {
-        // ePitaka carries books TPR has no pages for. A result in one could
-        // not be opened, so it is left out rather than returned as a dead end.
-        continue;
-      }
-
-      final paragraphs = <int, String>{};
-      final lineStarts = <int, List<(int, int)>>{};
-      final order = <int>[];
-      for (final (para, text, lines)
-          in await _readParagraphLines(db, 'epi.sentences', 'pali', book)) {
-        paragraphs[para] = text;
-        lineStarts[para] = lines;
-        order.add(para);
-      }
-      if (order.isEmpty) continue;
-
-      // Translations for this book, per language, grouped the same way. Built
-      // from the same paragraph boundaries as the Pali rather than from the
-      // translation's own lengths, so a unit means the same passage in every
-      // language and a hit in one can be shown against the other.
-      final byLanguage = <String, Map<int, String>>{};
-      for (final code in languages) {
-        final map = <int, String>{};
-        try {
-          for (final (para, text) in await readParagraphs(
-              db, 'lang_$code.sentences', 'translation', book)) {
-            map[para] = text;
-          }
-        } catch (_) {
-          // A language that will not answer is left out of the index.
-        }
-        if (map.isNotEmpty) byLanguage[code] = map;
-      }
-
-      // A committed batch is not emptied, so it must be replaced after every
-      // commit. Reusing it re-applies everything already written and quietly
-      // multiplies the index.
-      var batch = db.batch();
-      var pending = 0;
-      var i = 0;
-      while (i < order.length) {
-        var words = 0;
-        var j = i;
-        final content = StringBuffer();
-        while (j < order.length && (j == i || words < targetWords)) {
-          final text = paragraphs[order[j]]!;
-          if (content.isNotEmpty) content.write(' ');
-          content.write(text);
-          words += _countWords(text);
-          j++;
-        }
-
-        // Where each page begins inside this unit, as "wordOffset:page".
-        // A unit is about a page long and overlaps its neighbour, so a match
-        // often falls past the page the unit started on. Without this the
-        // result opens on the wrong page and the reader cannot find the
-        // phrase to highlight.
-        //
-        // Placed at the line and word each page starts on, not by paragraph:
-        // a paragraph can run across several pages, and placed by paragraph
-        // it was filed under the last of them.
-        final firstPara = order[i];
-        final firstLine = lineStarts[firstPara]!.first.$1;
-        final at = _lastAtOrBefore(starts, firstPara, firstLine, 0);
-        final page = at >= 0 ? starts[at] : starts.first;
-        final map = StringBuffer('0:${page.tprPage}');
-        var offset = 0;
-        var lastPage = page.tprPage;
-        var next = at + 1;
-        for (var k = i; k < j; k++) {
-          final para = order[k];
-          final paraWords = _countWords(paragraphs[para]!);
-          while (next < starts.length && starts[next].paraId <= para) {
-            final start = starts[next++];
-            // A page starting in a paragraph with no text, between this one
-            // and the last, starts where this one does.
-            final within = start.paraId < para
-                ? 0
-                : (_lineOffset(lineStarts[para]!, start.lineId, paraWords) +
-                        start.wordIndex)
-                    .clamp(0, paraWords);
-            if (start.tprPage != lastPage) {
-              map.write(',${offset + within}:${start.tprPage}');
-              lastPage = start.tprPage;
-            }
-          }
-          offset += paraWords;
-        }
-
-        final text = content.toString();
-        ++unitId;
-        batch.insert('fts_unit', {
-          'rowid': unitId,
-          'content': text,
-          'sutta_name': '',
-        });
-        batch.insert('search_unit', {
-          'id': unitId,
-          'bookid': page.tprBook,
-          'page': page.tprPage,
-          'page_map': map.toString(),
-          'paranum': '${order[i]}-${order[j - 1]}',
-          'sutta_name': '',
-          'epi_book': book,
-          'start_para': order[i],
-          'end_para': order[j - 1],
-        });
-        for (final entry in byLanguage.entries) {
-          final translated = StringBuffer();
-          for (var k = i; k < j; k++) {
-            final text = entry.value[order[k]];
-            if (text == null || text.isEmpty) continue;
-            if (translated.isNotEmpty) translated.write(' ');
-            translated.write(text);
-          }
-          if (translated.isEmpty) continue;
-          final translatedText = translated.toString();
-          final translationRowId = ++translationId;
-          batch.insert('fts_translation_unit', {
-            'rowid': translationRowId,
-            'content': translatedText,
-            'sutta_name': '',
-          });
-          batch.insert('search_translation_unit', {
-            'rowid_': translationRowId,
-            'unit_id': unitId,
-            'lang': entry.key,
-          });
-          pending++;
-        }
-
-        indexed++;
-        if (++pending >= writesPerCommit) {
-          await batch.commit(noResult: true);
-          // Let a frame through between batches, as the old download
-          // service did, so the screen keeps moving during a long build.
-          await Future.delayed(Duration.zero);
-          batch = db.batch();
-          pending = 0;
-        }
-
-        if (j >= order.length) break;
-        // step back one paragraph so nothing falls between two units
-        i = (i + 1) > (j - overlapParagraphs) ? i + 1 : j - overlapParagraphs;
-      }
-      if (pending > 0) await batch.commit(noResult: true);
+      final units = await _unitsOf(db, book, pageStarts[book], languages);
+      await _write(db, units, ids);
+      indexed += units.length;
 
       if (onProgress != null && done % 2 == 0) {
         onProgress('Building search index: '
             '${(done / books.length * 100).round()}%');
       }
     }
+    final unitId = ids.unit;
 
     // Written last, so it is only there if everything before it finished.
     await db.rawInsert(
@@ -661,6 +495,281 @@ CREATE TABLE IF NOT EXISTS search_meta (
     onProgress?.call('Search index built');
     return indexed;
   }
+
+  /// Where each page begins, by ePitaka book, so a result can open in the
+  /// reader. The reader is addressed by book and page, and that numbering is
+  /// unchanged by the migration, so every unit records the page it starts on.
+  static Future<Map<String, List<_PageStart>>> _pageStarts(Database db,
+      [List<String>? books]) async {
+    final where = books == null
+        ? ''
+        : 'WHERE book_id IN (${List.filled(books.length, '?').join(',')}) ';
+    final breaks = await db.rawQuery(
+      'SELECT book_id, para_id, line_id, word_index, tpr_book, tpr_page '
+      'FROM ext.page_break $where'
+      'ORDER BY book_id, para_id, line_id, word_index',
+      books ?? const [],
+    );
+    final pageStarts = <String, List<_PageStart>>{};
+    for (final row in breaks) {
+      pageStarts
+          .putIfAbsent(row['book_id'] as String, () => <_PageStart>[])
+          .add(_PageStart(
+            row['para_id'] as int,
+            row['line_id'] as int,
+            row['word_index'] as int? ?? 0,
+            row['tpr_book'] as String,
+            row['tpr_page'] as int,
+          ));
+    }
+    return pageStarts;
+  }
+
+  /// One book cut into units, with the page each starts on and its
+  /// translations, ready to write. Empty for a book TPR has no pages for: a
+  /// result in one could not be opened, so it is left out rather than
+  /// returned as a dead end.
+  static Future<List<_Unit>> _unitsOf(Database db, String book,
+      List<_PageStart>? starts, List<String> languages) async {
+    if (starts == null || starts.isEmpty) return const [];
+
+    final paragraphs = <int, String>{};
+    final lineStarts = <int, List<(int, int)>>{};
+    final order = <int>[];
+    for (final (para, text, lines)
+        in await _readParagraphLines(db, 'epi.sentences', 'pali', book)) {
+      paragraphs[para] = text;
+      lineStarts[para] = lines;
+      order.add(para);
+    }
+    if (order.isEmpty) return const [];
+
+    // Translations for this book, per language, grouped the same way. Built
+    // from the same paragraph boundaries as the Pali rather than from the
+    // translation's own lengths, so a unit means the same passage in every
+    // language and a hit in one can be shown against the other.
+    final byLanguage = <String, Map<int, String>>{};
+    for (final code in languages) {
+      final map = <int, String>{};
+      try {
+        for (final (para, text) in await readParagraphs(
+            db, 'lang_$code.sentences', 'translation', book)) {
+          map[para] = text;
+        }
+      } catch (_) {
+        // A language that will not answer is left out of the index.
+      }
+      if (map.isNotEmpty) byLanguage[code] = map;
+    }
+
+    final units = <_Unit>[];
+    var i = 0;
+    while (i < order.length) {
+      var words = 0;
+      var j = i;
+      final content = StringBuffer();
+      while (j < order.length && (j == i || words < targetWords)) {
+        final text = paragraphs[order[j]]!;
+        if (content.isNotEmpty) content.write(' ');
+        content.write(text);
+        words += _countWords(text);
+        j++;
+      }
+
+      // Where each page begins inside this unit, as "wordOffset:page".
+      // A unit is about a page long and overlaps its neighbour, so a match
+      // often falls past the page the unit started on. Without this the
+      // result opens on the wrong page and the reader cannot find the
+      // phrase to highlight.
+      //
+      // Placed at the line and word each page starts on, not by paragraph:
+      // a paragraph can run across several pages, and placed by paragraph
+      // it was filed under the last of them.
+      final firstPara = order[i];
+      final firstLine = lineStarts[firstPara]!.first.$1;
+      final at = _lastAtOrBefore(starts, firstPara, firstLine, 0);
+      final page = at >= 0 ? starts[at] : starts.first;
+      final map = StringBuffer('0:${page.tprPage}');
+      var offset = 0;
+      var lastPage = page.tprPage;
+      var next = at + 1;
+      for (var k = i; k < j; k++) {
+        final para = order[k];
+        final paraWords = _countWords(paragraphs[para]!);
+        while (next < starts.length && starts[next].paraId <= para) {
+          final start = starts[next++];
+          // A page starting in a paragraph with no text, between this one
+          // and the last, starts where this one does.
+          final within = start.paraId < para
+              ? 0
+              : (_lineOffset(lineStarts[para]!, start.lineId, paraWords) +
+                      start.wordIndex)
+                  .clamp(0, paraWords);
+          if (start.tprPage != lastPage) {
+            map.write(',${offset + within}:${start.tprPage}');
+            lastPage = start.tprPage;
+          }
+        }
+        offset += paraWords;
+      }
+
+      final translations = <String, String>{};
+      for (final entry in byLanguage.entries) {
+        final translated = StringBuffer();
+        for (var k = i; k < j; k++) {
+          final text = entry.value[order[k]];
+          if (text == null || text.isEmpty) continue;
+          if (translated.isNotEmpty) translated.write(' ');
+          translated.write(text);
+        }
+        if (translated.isNotEmpty) {
+          translations[entry.key] = translated.toString();
+        }
+      }
+
+      units.add(_Unit(
+        text: content.toString(),
+        tprBook: page.tprBook,
+        page: page.tprPage,
+        pageMap: map.toString(),
+        epiBook: book,
+        startPara: order[i],
+        endPara: order[j - 1],
+        translations: translations,
+      ));
+
+      if (j >= order.length) break;
+      // step back one paragraph so nothing falls between two units
+      i = (i + 1) > (j - overlapParagraphs) ? i + 1 : j - overlapParagraphs;
+    }
+    return units;
+  }
+
+  /// Writes [units] to the index, numbering them on from [ids].
+  static Future<void> _write(Database db, List<_Unit> units, _Ids ids) async {
+    // A committed batch is not emptied, so it must be replaced after every
+    // commit. Reusing it re-applies everything already written and quietly
+    // multiplies the index.
+    var batch = db.batch();
+    var pending = 0;
+    for (final unit in units) {
+      final unitId = ++ids.unit;
+      batch.insert('fts_unit', {
+        'rowid': unitId,
+        'content': unit.text,
+        'sutta_name': '',
+      });
+      batch.insert('search_unit', {
+        'id': unitId,
+        ...unit.placement,
+        'paranum': '${unit.startPara}-${unit.endPara}',
+        'sutta_name': '',
+        'epi_book': unit.epiBook,
+        'start_para': unit.startPara,
+        'end_para': unit.endPara,
+      });
+      for (final entry in unit.translations.entries) {
+        // The translation index has its own row numbering: one unit yields
+        // a row per language, so its rowids cannot be the unit's.
+        final translationRowId = ++ids.translation;
+        batch.insert('fts_translation_unit', {
+          'rowid': translationRowId,
+          'content': entry.value,
+          'sutta_name': '',
+        });
+        batch.insert('search_translation_unit', {
+          'rowid_': translationRowId,
+          'unit_id': unitId,
+          'lang': entry.key,
+        });
+        pending++;
+      }
+      if (++pending >= writesPerCommit) {
+        await batch.commit(noResult: true);
+        // Let a frame through between batches, as the old download
+        // service did, so the screen keeps moving during a long build.
+        await Future.delayed(Duration.zero);
+        batch = db.batch();
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit(noResult: true);
+  }
+
+  /// Brings the index up to date for [books] alone, after an extension
+  /// package has added, changed or removed their pages.
+  ///
+  /// Where a book is indexed already and its text cuts into the same units,
+  /// only the pages are rewritten: the units are cut from the sentences,
+  /// which a package does not change, so the indexed text is still right.
+  /// Otherwise its units are taken out of `search_unit` and written again.
+  ///
+  /// The text index keeps no copy of what it indexed, so its rows cannot be
+  /// deleted. Units taken out are left there unreferenced; every search
+  /// reaches the index through `search_unit`, so they are never returned,
+  /// and new units are numbered past them.
+  ///
+  /// Does nothing when there is no finished index: the full build, when it
+  /// runs, reads the pages as they are then.
+  static Future<int> reindexBooks(Database db, List<String> books,
+      {List<String> languages = const []}) async {
+    if (books.isEmpty || !await isBuilt(db)) return 0;
+    final pageStarts = await _pageStarts(db, books);
+    final ids = _Ids(
+      unit: await _maxOf(db, 'SELECT max(rowid) AS n FROM fts_unit'),
+      translation:
+          await _maxOf(db, 'SELECT max(rowid) AS n FROM fts_translation_unit'),
+    );
+    var changed = 0;
+    for (final book in books) {
+      final units = await _unitsOf(db, book, pageStarts[book], languages);
+      final existing = await db.rawQuery(
+          'SELECT id, start_para, end_para FROM search_unit '
+          'WHERE epi_book = ? ORDER BY id',
+          [book]);
+      final sameCut = existing.length == units.length &&
+          [
+            for (var k = 0; k < units.length; k++)
+              existing[k]['start_para'] == units[k].startPara &&
+                  existing[k]['end_para'] == units[k].endPara
+          ].every((same) => same);
+
+      if (sameCut && units.isNotEmpty) {
+        var batch = db.batch();
+        for (var k = 0; k < units.length; k++) {
+          batch.update('search_unit', units[k].placement,
+              where: 'id = ?', whereArgs: [existing[k]['id']]);
+          if ((k + 1) % writesPerCommit == 0) {
+            await batch.commit(noResult: true);
+            await Future.delayed(Duration.zero);
+            batch = db.batch();
+          }
+        }
+        await batch.commit(noResult: true);
+      } else {
+        if (existing.isNotEmpty) {
+          await db.execute(
+              'DELETE FROM search_translation_unit WHERE unit_id IN '
+              '(SELECT id FROM search_unit WHERE epi_book = ?)',
+              [book]);
+          await db.execute('DELETE FROM search_unit WHERE epi_book = ?', [book]);
+        }
+        await _write(db, units, ids);
+      }
+      changed += units.length;
+    }
+
+    // The count a finished build is checked against. Units taken out leave
+    // gaps in the numbering, so it is the number of rows, not the last id.
+    final count = await _maxOf(db, 'SELECT count(*) AS n FROM search_unit');
+    await db.rawInsert(
+        "INSERT OR REPLACE INTO search_meta (key, value) VALUES ('units', ?)",
+        ['$count']);
+    return changed;
+  }
+
+  static Future<int> _maxOf(Database db, String sql) async =>
+      ((await db.rawQuery(sql)).first['n'] as int?) ?? 0;
 
   /// Removes a half-written index.
   ///
@@ -810,6 +919,40 @@ CREATE TABLE IF NOT EXISTS search_meta (
     if (text.isEmpty) return 0;
     return _space.allMatches(text).length + 1;
   }
+}
+
+/// Ids handed out while writing units, carried on from book to book.
+class _Ids {
+  int unit;
+  int translation;
+  _Ids({this.unit = 0, this.translation = 0});
+}
+
+/// One unit of the index, before it is written.
+class _Unit {
+  final String text;
+  final String tprBook;
+  final int page;
+  final String pageMap;
+  final String epiBook;
+  final int startPara;
+  final int endPara;
+  final Map<String, String> translations;
+
+  const _Unit({
+    required this.text,
+    required this.tprBook,
+    required this.page,
+    required this.pageMap,
+    required this.epiBook,
+    required this.startPara,
+    required this.endPara,
+    required this.translations,
+  });
+
+  /// Where the unit opens in the reader: the columns that follow the pages.
+  Map<String, Object?> get placement =>
+      {'bookid': tprBook, 'page': page, 'page_map': pageMap};
 }
 
 class _PageStart {

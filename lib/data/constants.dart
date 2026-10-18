@@ -42,6 +42,15 @@ class AssetsFile {
     'tpr_extension_part.aa',
   ];
 
+  /// Extension packages that come with the app, in assets/packages, named
+  /// `<id>.v<version>.pkg.db` so a start can tell whether the copy on the
+  /// device is current without opening either. Each must also be listed in
+  /// pubspec.yaml. See ExtensionPackages.
+  static const String packagesFolderPath = 'packages';
+  static const List<String> shippedPackages = <String>[
+    'missing_books.v1.pkg.db',
+  ];
+
   /// What each set of parts is called once joined.
   static const String epitakaFileName = 'epitaka.db';
   static const String extensionFileName = 'tpr_extension.db';

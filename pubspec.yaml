@@ -148,6 +148,7 @@ flutter:
     - assets/database/epitaka_part.ac
     - assets/database/epitaka_part.ad
     - assets/database/tpr_extension_part.aa
+    - assets/packages/missing_books.v1.pkg.db
     - assets/web/
     - assets/icon/icon.png
     - assets/icon/tpr_dictionary.png

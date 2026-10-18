@@ -1,4 +1,8 @@
 # Database Preparing for project
+
+The files to build with are the assets of the GitHub release
+[`sentence-data-2026-09-28`](https://github.com/bksubhuti/tipitaka-pali-reader/releases/tag/sentence-data-2026-09-28);
+see the project README. The Drive link below is the original, older database.
 Because of Copyright.. the Database has been removed from the GIT
 You may find it here: https://drive.google.com/drive/folders/1UI5kI4RdDnGNouPEwEVqu-xOPkrmFuRh?usp=sharing
 

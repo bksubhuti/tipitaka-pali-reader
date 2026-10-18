@@ -371,6 +371,14 @@ class _DownloadViewState extends State<DownloadView> {
 
     dn.downloading = true;
 
+    // A package: a database that carries its own install steps.
+    if (downloadListItem.type.toLowerCase().contains('package') ||
+        (!downloadListItem.url.startsWith('http') &&
+            await downloadService.isPackage(File(downloadListItem.url)))) {
+      await downloadService.installPackage();
+      return;
+    }
+
     // Check if selecting ePitaka English / Vietnamese DB extension or test DB zip
     final nameLower = downloadListItem.name.toLowerCase();
     final filenameLower = downloadListItem.filename.toLowerCase();

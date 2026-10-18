@@ -11,6 +11,7 @@ import '../../../business_logic/models/download_list_item.dart';
 import 'download_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
+import 'package:tipitaka_pali/services/extensions/extension_packages.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:dio/dio.dart';
 import 'package:tipitaka_pali/business_logic/models/page_content.dart';
@@ -921,6 +922,66 @@ class DownloadService {
       extractedFiles.add(outFile);
     }
     return extractedFiles;
+  }
+
+  /// Whether [file], a `.db` or a `.zip` holding one, is an extension
+  /// package rather than an old-style extension.
+  Future<bool> isPackage(File file) async {
+    if (!file.existsSync()) return false;
+    final name = file.path.toLowerCase();
+    try {
+      if (name.endsWith('.db')) {
+        await ExtensionPackages.read(file);
+        return true;
+      }
+      if (name.endsWith('.zip')) {
+        // Only the archive's listing is read here, not the file itself.
+        final stream = InputFileStream(file.path);
+        try {
+          final archive = ZipDecoder().decodeBuffer(stream);
+          return archive.files.any((f) =>
+              f.isFile && f.name.toLowerCase().endsWith('.pkg.db'));
+        } finally {
+          await stream.close();
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// Downloads (or takes from the device) an extension package and installs
+  /// it. See [ExtensionPackages].
+  Future<void> installPackage() async {
+    await initDir();
+    downloadNotifier.connectionChecking = false;
+    downloadNotifier.downloading = true;
+    downloadNotifier.totalSteps = 2;
+    downloadNotifier.stepsCompleted = 0;
+
+    File source;
+    try {
+      if (downloadListItem.url.startsWith('http')) {
+        downloadNotifier.message = "Downloading ${downloadListItem.name}...";
+        source = await downloadFile(downloadListItem.url, _localZipFileName);
+      } else {
+        source = File(downloadListItem.url);
+      }
+      if (_cancelled) return;
+      downloadNotifier.stepsCompleted = 1;
+
+      final info = await ExtensionPackages.install(source,
+          onProgress: (message) => downloadNotifier.message = message);
+      if (source.path.startsWith(_dir) &&
+          downloadListItem.url.startsWith('http') &&
+          source.existsSync()) {
+        source.deleteSync(); // kept as the installed package instead
+      }
+      downloadNotifier.stepsCompleted = 2;
+      downloadNotifier.message = '${info.title} installed';
+    } catch (e) {
+      downloadNotifier.message = 'Not installed: $e';
+    }
+    downloadNotifier.downloading = false;
   }
 
   Future<void> installDbExtensionFromDesktopZip() async {

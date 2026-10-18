@@ -10,6 +10,7 @@ import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
+import 'package:tipitaka_pali/services/extensions/extension_packages.dart';
 import 'package:tipitaka_pali/services/get_database_status.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -77,9 +78,13 @@ class DatabaseHelper {
       onProgress?.call(msg);
     }
 
-    _setupChain = helper.buildSentenceFtsIfNeeded(
+    // Packages first: an update that replaced the databases took their rows
+    // with it, and the index built next should have them in.
+    _setupChain = ExtensionPackages.reapplyIfNeeded(onProgress: report)
+        .catchError((Object e) => myLogger.e('packages not applied: $e'))
+        .then((_) => helper.buildSentenceFtsIfNeeded(
           onProgress: report,
-    ).then((_) => helper.retireLegacyDataIfReady(
+    )).then((_) => helper.retireLegacyDataIfReady(
           onProgress: report,
         )).then((_) => helper.updateTranslationWordLists(
           onProgress: report,
@@ -428,6 +433,20 @@ class DatabaseHelper {
     _indexQueue = next.then((_) {}, onError: (_) {});
     return next;
   }
+
+  /// Runs [task] in the index queue, so it neither starts while an index
+  /// build is reading the tables it writes, nor lets one start while it
+  /// writes them. Not to be called from inside a task already queued.
+  static Future<T> runExclusive<T>(Future<T> Function() task) => _serial(task);
+
+  /// Brings the search index up to date for the ePitaka [books], after an
+  /// extension package has added, changed or removed their pages.
+  Future<int> reindexBooks(List<String> books) => _serial(() async {
+        final db = await database;
+        final languages = [...installedLanguages]..sort();
+        return SentenceFtsBuilder.reindexBooks(db, books,
+            languages: languages);
+      });
 
   /// What the index work is doing right now, for a screen that wants to show
   /// it. Null when nothing is running.

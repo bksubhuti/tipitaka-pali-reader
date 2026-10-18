@@ -33,7 +33,7 @@ class SentenceTocRepository implements TocRepository {
   Future<List<Toc>> getTocs(String bookID) async {
     final db = await databaseProvider.database;
     final rows = await db.rawQuery('''
-      SELECT h.title, h.level,
+      SELECT h.title, h.level, h.book_id, h.para_id,
         (SELECT b.tpr_page FROM ext.page_break b
           WHERE b.tpr_book = ? AND b.book_id = h.book_id
             AND b.para_id <= h.para_id
@@ -46,12 +46,33 @@ class SentenceTocRepository implements TocRepository {
       ORDER BY h.book_id, h.para_id
     ''', [bookID, bookID]);
 
+    // Where a later volume of the same ePitaka book begins: another TPR book
+    // lying wholly after this one's last page. Its headings are its own, and
+    // without this they were listed here too, all on this book's last page.
+    final ends = <String, int>{};
+    for (final row in await db.rawQuery('''
+      SELECT b.book_id, min(b.para_id) AS para
+      FROM ext.page_break b
+      JOIN (SELECT book_id, max(para_id) AS last FROM ext.page_break
+            WHERE tpr_book = ? GROUP BY book_id) mine
+        ON mine.book_id = b.book_id
+      WHERE b.tpr_book <> ?
+      GROUP BY b.book_id, b.tpr_book
+      HAVING min(b.para_id) > max(mine.last)
+    ''', [bookID, bookID])) {
+      final book = row['book_id'] as String;
+      final para = row['para'] as int;
+      if (para < (ends[book] ?? para + 1)) ends[book] = para;
+    }
+
     final tocs = <Toc>[];
     for (final row in rows) {
       final page = row['page'] as int?;
       // A heading whose paragraph falls outside this book's pages belongs to
       // another volume sharing the same ePitaka book.
       if (page == null) continue;
+      final end = ends[row['book_id']];
+      if (end != null && (row['para_id'] as int) >= end) continue;
       tocs.add(Toc(
         row['title'] as String,
         _typeForLevel(row['level'] as int? ?? 4),

@@ -60,6 +60,7 @@ class SentencePageContentRepository implements PageContentRepository {
         break;
       }
     }
+    end ??= await _nextVolumeStart(db, bookID, start);
 
     final sentences = await _sentencesBetween(db, start, end);
     if (sentences.isEmpty) return null;
@@ -79,6 +80,38 @@ class SentencePageContentRepository implements PageContentRepository {
       sentences: sentences,
       languages: languages,
     );
+  }
+
+  /// Where the next printed volume begins, for the last page of a TPR book
+  /// that is one volume of a longer ePitaka book.
+  ///
+  /// Such a book has no break after its last page, so the page ran on to the
+  /// end of the ePitaka book, taking in every later volume. It ends instead
+  /// where another TPR book begins, if one lies wholly after it in the same
+  /// ePitaka book. Wholly after, so that a book whose breaks are muddled with
+  /// this one's is left as it was rather than cut somewhere wrong.
+  Future<_Bound?> _nextVolumeStart(
+      dynamic db, String bookID, _Bound start) async {
+    final rows = await db.rawQuery('''
+      SELECT b.book_id, b.para_id, b.line_id, b.word_index
+      FROM ext.page_break b
+      WHERE b.book_id = ? AND b.tpr_book <> ?
+        AND NOT EXISTS (
+          SELECT 1 FROM ext.page_break o
+          WHERE o.tpr_book = b.tpr_book AND o.book_id = b.book_id
+            AND (o.para_id < ? OR (o.para_id = ? AND (o.line_id < ?
+                 OR (o.line_id = ? AND o.word_index <= ?)))))
+      ORDER BY b.para_id, b.line_id, b.word_index
+      LIMIT 1''', [
+      start.bookId,
+      bookID,
+      start.paraId,
+      start.paraId,
+      start.lineId,
+      start.lineId,
+      start.wordIndex,
+    ]);
+    return rows.isEmpty ? null : _Bound.from(rows.first);
   }
 
   Future<List<PageSentence>> _sentencesBetween(
@@ -356,6 +389,9 @@ class SentencePageContentRepository implements PageContentRepository {
           end = candidate;
           break;
         }
+      }
+      if (end == null && i == breaks.length - 1) {
+        end = await _nextVolumeStart(db, bookID, start);
       }
 
       // Both the boundaries and the sentences are in reading order, so the

@@ -113,6 +113,8 @@ const String ttsPaliSpeedPref = "ttsPaliSpeed";
 const String ttsPaliVoicePref = "ttsPaliVoice";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
+const String acceptedPackagesPref = "acceptedPackages";
+const String declinedPackagesPref = "declinedPackages";
 const String translationTermsAcceptedPref = "translationTermsAccepted";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
@@ -691,6 +693,21 @@ class Prefs {
       instance.getBool(languageChoiceMadePref) ?? false;
   static set languageChoiceMade(bool value) =>
       instance.setBool(languageChoiceMadePref, value);
+
+  /// Extension packages the reader has taken: downloaded, or said yes to
+  /// when offered. These are applied again, without asking, whenever an
+  /// update replaces the databases.
+  static List<String> get acceptedPackages =>
+      instance.getStringList(acceptedPackagesPref) ?? const [];
+  static set acceptedPackages(List<String> value) =>
+      instance.setStringList(acceptedPackagesPref, value.toSet().toList());
+
+  /// Packages that come with the app which the reader asked not to be
+  /// offered again.
+  static List<String> get declinedPackages =>
+      instance.getStringList(declinedPackagesPref) ?? const [];
+  static set declinedPackages(List<String> value) =>
+      instance.setStringList(declinedPackagesPref, value.toSet().toList());
 
   /// Whether the reader has agreed to the terms of the ePitaka translations,
   /// which is asked before the first one is downloaded.

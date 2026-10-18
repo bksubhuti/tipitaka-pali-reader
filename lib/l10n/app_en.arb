@@ -686,5 +686,17 @@
   "whatIsRag": "What is RAG?",
   "@whatIsRag": {"description": "Title of the explanation of how AI Search works, and the tooltip of its button."},
   "ragExplanation": "AI Search uses RAG (retrieval-augmented generation). It does not answer from the AI's memory.\n\n1. The AI turns your question into Pāḷi search terms.\n2. TPR searches the Tipiṭaka on your device with them.\n3. The AI reads the passages found, keeps the ones that answer your question, and sums them up.\n\nEvery result is a real passage you can open and check.\n\nAn AI chat answers from what it remembers. It can sound certain and still be wrong, and it seldom shows where an answer comes from. Use AI Search to find the passages, and read them to know what the texts say.",
-  "@ragExplanation": {"description": "How AI Search (RAG) differs from an AI chat."}
+  "@ragExplanation": {"description": "How AI Search (RAG) differs from an AI chat."},
+  "newBooksTitle": "New books",
+  "@newBooksTitle": {"description": "Title of the offer, after an app update, to add books that came with the app."},
+  "newBooksBody": "{title}\n\nAdd these books to the library? It takes a moment, with no download.",
+  "@newBooksBody": {"description": "Body of the new-books offer. {title} is the package's title, a list of Pāḷi book names.", "placeholders": {"title": {"type": "String"}}},
+  "addBooks": "Add",
+  "@addBooks": {"description": "Button that adds the offered books."},
+  "dontAskAgain": "Don't ask again",
+  "@dontAskAgain": {"description": "Button that turns the offer down for good."},
+  "addingBooks": "Adding the books and updating search…",
+  "@addingBooks": {"description": "Shown while the offered books are added."},
+  "booksNotAdded": "The books could not be added: {error}",
+  "@booksNotAdded": {"description": "Shown when adding the offered books failed.", "placeholders": {"error": {"type": "String"}}}
 }

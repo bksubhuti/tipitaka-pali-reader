@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common/sqflite.dart';
+import 'package:tipitaka_pali/services/extensions/extension_packages.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/providers/initial_setup_notifier.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
@@ -180,6 +181,12 @@ class InitialSetupService {
     // Now the database is settled: retire the page data the sentences have
     // taken over, and give back the space. The index itself was built during
     // the copy, so this usually has only the tidying left to do.
+    //
+    // The books that come with the app as packages go in here too, without
+    // asking: this is setup, fresh or after a database update, and the
+    // reader is waiting on it anyway. Only an app update that keeps the
+    // database asks first; see Home.
+    ExtensionPackages.acceptShipped();
     try {
       await DatabaseHelper.runBackgroundSetupNow(
           onProgress: updateMessageCallback);

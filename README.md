@@ -1,10 +1,34 @@
 # Tipitaka Pali Reader
 
-To get this working, you need to **download the database** from https://drive.google.com/file/d/1lOaErcnh5IvtSJPqiXHjG9mN8JxizBT5/view?usp=sharing
+## Getting the databases
 
+The databases are too big for git. Download them from the GitHub release
+[`sentence-data-2026-09-28`](https://github.com/bksubhuti/tipitaka-pali-reader/releases/tag/sentence-data-2026-09-28)
+into `assets/database/`:
 
-**Extract into the assets database folder, and then run the script to break it up.  The database will be deleted.  Make sure the zip file or complete unzipped db are not in the assets folder when making for release.. (it is big).**
+| file | what it is |
+| --- | --- |
+| `tipitaka_pali.db.tar.bz2` | the main database: dictionaries, word lists, contents, user tables |
+| `epitaka_part.aa` … `epitaka_part.ad` | ePitaka's sentences, headings and links, where the text comes from |
+| `tpr_extension_part.aa` | TPR's page breaks and page markers for those sentences |
 
+Then unpack and split the main database:
+
+```
+cd assets/database
+tar -xjf tipitaka_pali.db.tar.bz2 && rm tipitaka_pali.db.tar.bz2
+./split.sh
+sha256sum -c SHA256SUMS      # on macOS: shasum -a 256 -c SHA256SUMS
+```
+
+The parts on disk must be exactly those listed in `pubspec.yaml`, and the
+hashes must match `SHA256SUMS`. Do not leave the `.tar.bz2` or the joined
+`.db` in the folder when building a release: everything there is bundled.
+`assets/database/read.md` explains how each database is built.
+
+Books added since that release come as extension packages in
+`assets/packages/`, which are in git, so there is nothing to download for
+them. See `tools/extension_packages/README.md`.
 
 A new Flutter project forked from Tipitaka Pali
 
