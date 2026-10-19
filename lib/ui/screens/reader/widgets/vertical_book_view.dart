@@ -19,6 +19,7 @@ import '../../../../business_logic/models/found_state.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
+import '../reader_motion.dart';
 import '../../../widgets/keep_while_selecting.dart';
 import '../../../widgets/copy_formatted_menu.dart';
 import 'pali_page_widget.dart';
@@ -135,6 +136,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
     readerViewController.foundState.addListener(_listenSearchIndexChanged);
     _readingPosition = Provider.of<TtsService>(context, listen: false).position
       ..addListener(_followReading);
+    readerViewController.revealMark = _revealMark;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _glideInIfStuck());
   }
 
   ValueNotifier<TtsPosition?>? _readingPosition;
@@ -262,9 +265,16 @@ class _VerticalBookViewState extends State<VerticalBookView>
       initialAlignment = _savedAlignment;
     } else {
       final page = readerViewController.currentPage.value;
-      initialScrollChunkIndex = readerViewController.highlightChunkFor(page) ??
+      initialScrollChunkIndex = _chunkHolding(page) ??
           readerViewController.getChunkIndexForPage(page);
-      initialAlignment = 0.0;
+      // Opened on a word, from a search result or a link, the block starts
+      // low on the screen and the word glides up into place, so the reader
+      // sees where it came in. See [_glideInIfStuck].
+      final word = readerViewController.textToHighlight?.trim() ?? '';
+      initialAlignment =
+          word.isNotEmpty && ReaderMotion.glides(context) ? _openLow : 0.0;
+      _openingChunk ??= initialScrollChunkIndex;
+      _openingGlide ??= initialAlignment > 0;
     }
 
     debugPrint(
@@ -403,6 +413,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
                               behavior: ScrollConfiguration.of(context)
                                   .copyWith(scrollbars: false),
                               child: ScrollablePositionedList.builder(
+                                key: _listKey,
                                 initialScrollIndex: initialScrollChunkIndex,
                                 initialAlignment: initialAlignment,
                                 itemScrollController: itemScrollController,
@@ -593,6 +604,142 @@ class _VerticalBookViewState extends State<VerticalBookView>
     }
   }
 
+  /// Where a block opened on a search result starts, as a fraction of the
+  /// screen from the top. Low enough for the glide up to be seen, high
+  /// enough that the block is built and can find its word.
+  static const _openLow = 0.7;
+
+  int? _openingChunk;
+  bool? _openingGlide;
+
+  /// The word normally brings itself into view once its block is built. If
+  /// it has not by now (the word was not found in the text, or lies in a
+  /// block further down), the block it opened on glides to the top instead
+  /// of being left low on the screen.
+  void _glideInIfStuck() {
+    if (_openingGlide != true) return;
+    Future.delayed(ReaderMotion.duration * 1.5, () {
+      if (!mounted || !readerViewController.highlightScrollPending) return;
+      final chunk = _openingChunk;
+      if (chunk != null) _glideTo(chunk, alignment: ReaderMotion.landAt);
+    });
+  }
+
+  /// See [ReaderViewController.revealMark]. A mark already comfortably in
+  /// view, between a twentieth and half way down, is left where it is.
+  bool _revealMark(int block, double offset, double at) {
+    final height = _listKey.currentContext?.size?.height;
+    if (!mounted || height == null || height <= 0) return false;
+    if (!itemScrollController.isAttached) return false;
+    final into = offset / height;
+    for (final p in itemPositionsListener.itemPositions.value) {
+      if (p.index != block) continue;
+      final now = p.itemLeadingEdge + into;
+      if (now >= 0.05 && now <= 0.5) return true;
+    }
+    _glideTo(block, alignment: at - into);
+    return true;
+  }
+
+  /// How far the text runs in, in screen heights. Not the whole way from
+  /// where it was: scrolling past text means laying it out, and every page
+  /// between, with its translations and links, would hold the app for
+  /// seconds. Three screens reads as the text running in.
+  static const _runIn = 3.0;
+
+  /// The list itself, for its height on screen.
+  final GlobalKey _listKey = GlobalKey();
+
+  /// Moves the list to [index], at [alignment] (0 for the top).
+  ///
+  /// A block already on screen is scrolled to. A block further off is first
+  /// jumped to from a little over a screen short of it, on the side it is
+  /// coming from, and the text then scrolls that last stretch, so the reader
+  /// sees it run in, as the contents list runs to its heading. The list's
+  /// own animated move fades across instead of scrolling once the target is
+  /// off screen, which showed nothing of where the text went.
+  ///
+  /// Both steps are in exact pixels, so the block lands where a jump would
+  /// have put it, however tall the blocks between.
+  void _glideTo(int index, {double alignment = 0}) {
+    if (!itemScrollController.isAttached) return;
+    final duration = ReaderMotion.of(context);
+    final height = _listKey.currentContext?.size?.height;
+    if (duration == Duration.zero || height == null || height <= 0) {
+      itemScrollController.jumpTo(index: index, alignment: alignment);
+      return;
+    }
+    final shown = itemPositionsListener.itemPositions.value
+        .where((p) => p.itemTrailingEdge > 0 && p.itemLeadingEdge < 1)
+        .map((p) => p.index)
+        .toList();
+    readerViewController.noteGlide(duration + const Duration(milliseconds: 50));
+    if (shown.contains(index)) {
+      itemScrollController.scrollTo(
+          index: index,
+          alignment: alignment,
+          duration: duration,
+          curve: ReaderMotion.curve);
+      return;
+    }
+    // Going forward, the text comes up from below; going back, down from
+    // above.
+    final forward =
+        shown.isEmpty || index > shown.reduce((a, b) => a > b ? a : b);
+    final run = forward ? _runIn : -_runIn;
+    // A longer way than a scroll on screen, so a little more time for it.
+    final runTime = duration * 1.5;
+    readerViewController.noteGlide(runTime + const Duration(milliseconds: 50));
+    itemScrollController.jumpTo(index: index, alignment: alignment + run);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      scrollOffsetController.animateScroll(
+          offset: run * height, duration: runTime, curve: ReaderMotion.curve);
+    });
+  }
+
+  /// The block on [page] holding the place asked for: the search group, or
+  /// the heading or word to mark. Null when nothing is to be marked or it is
+  /// not found.
+  ///
+  /// That block alone may then scroll to its mark. Any block with one of the
+  /// words could take it before: a heading such as "4. okkantasaṃyuttaṃ" was
+  /// marked word by word, and the first "4." on the page won, leaving the
+  /// heading itself near the bottom of the screen.
+  int? _chunkHolding(int page) {
+    final rc = readerViewController;
+    final group = rc.highlightChunkFor(page);
+    if (group != null) return group;
+    final textToHighlight = rc.textToHighlight;
+    if (textToHighlight == null || textToHighlight.isEmpty) return null;
+    for (int i = rc.getChunkIndexForPage(page); i < rc.chunks.length; i++) {
+      final chunk = rc.chunks[i];
+      if (chunk.pageNumber != page) break;
+
+      // Match exact anchor or literal word
+      if (chunk.htmlContent.contains('name="$textToHighlight"') ||
+          chunk.htmlContent.contains('id="$textToHighlight"') ||
+          chunk.htmlContent.contains(textToHighlight)) {
+        return rc.pinHighlightChunk(i);
+      }
+
+      // Match space-separated fallback
+      final words = textToHighlight.trim().split(' ');
+      bool containsAllWords = true;
+      for (final word in words) {
+        if (!chunk.htmlContent.contains(word)) {
+          String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
+          if (!chunk.htmlContent.contains(trimmedWord)) {
+            containsAllWords = false;
+            break;
+          }
+        }
+      }
+      if (containsAllWords) return rc.pinHighlightChunk(i);
+    }
+    return null;
+  }
+
   void _listenPageChange() {
     // A page change has two origins: an explicit navigation ( goto, toc,
     // search result, slider, opening a book ) and ordinary scrolling, which
@@ -602,54 +749,10 @@ class _VerticalBookViewState extends State<VerticalBookView>
     if (!readerViewController.takePendingNavigation()) return;
 
     final currenPage = readerViewController.currentPage.value;
-    int targetChunkIndex =
-        readerViewController.getChunkIndexForPage(currenPage);
-
-    // If there's a specific word or commentary anchor to jump to
-    // and this jump hasn't already been consumed
-    final textToHighlight = readerViewController.textToHighlight;
-    bool foundHighlightChunk = false;
-
-    final group = readerViewController.highlightChunkFor(currenPage);
-    if (group != null) {
-      targetChunkIndex = group;
-      foundHighlightChunk = true;
-    } else if (textToHighlight != null && textToHighlight.isNotEmpty) {
-      for (int i = targetChunkIndex;
-          i < readerViewController.chunks.length;
-          i++) {
-        final chunk = readerViewController.chunks[i];
-        if (chunk.pageNumber != currenPage) break;
-
-        // Match exact anchor or literal word
-        if (chunk.htmlContent.contains('name="$textToHighlight"') ||
-            chunk.htmlContent.contains('id="$textToHighlight"') ||
-            chunk.htmlContent.contains(textToHighlight)) {
-          targetChunkIndex = i;
-          foundHighlightChunk = true;
-          break;
-        }
-
-        // Match space-separated fallback
-        final words = textToHighlight.trim().split(' ');
-        bool containsAllWords = true;
-        for (final word in words) {
-          if (!chunk.htmlContent.contains(word)) {
-            String trimmedWord = word.replaceAll(RegExp(r'(nti|ti)$'), '');
-            if (!chunk.htmlContent.contains(trimmedWord)) {
-              containsAllWords = false;
-              break;
-            }
-          }
-        }
-
-        if (containsAllWords) {
-          targetChunkIndex = i;
-          foundHighlightChunk = true;
-          break;
-        }
-      }
-    }
+    final holding = _chunkHolding(currenPage);
+    final bool foundHighlightChunk = holding != null;
+    final int targetChunkIndex =
+        holding ?? readerViewController.getChunkIndexForPage(currenPage);
 
     final chunksInView = itemPositionsListener.itemPositions.value
         .map((itemPosition) => itemPosition.index)
@@ -658,7 +761,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
     if (foundHighlightChunk) {
       // Highlighting explicitly requests we look precisely at this chunk
       if (!chunksInView.contains(targetChunkIndex)) {
-        itemScrollController.jumpTo(index: targetChunkIndex);
+        _glideTo(targetChunkIndex, alignment: ReaderMotion.landAt);
       }
     } else {
       // Natural scroll page tracking - prevent snapbacks
@@ -672,7 +775,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
       }
 
       if (!isPageCurrentlyInView) {
-        itemScrollController.jumpTo(index: targetChunkIndex);
+        _glideTo(targetChunkIndex, alignment: ReaderMotion.landAt);
       }
     }
   }
@@ -698,12 +801,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
       }
     }
     myLogger.i('current found: $currentFound');
-    if (mounted) {
-      itemScrollController.scrollTo(
-        index: currentFound.pageIndex,
-        duration: const Duration(milliseconds: 200),
-      );
-    }
+    if (mounted) _glideTo(currentFound.pageIndex);
   }
 
   List<FoundInfo>? _getFounds(int pageNumber, FoundState state) {

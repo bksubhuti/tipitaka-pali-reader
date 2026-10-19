@@ -9,6 +9,7 @@ import '../../../../business_logic/models/page_content.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../utils/pali_script.dart';
 import '../controller/reader_view_controller.dart';
+import '../reader_motion.dart';
 import '../../../widgets/copy_formatted_menu.dart';
 import 'pali_page_widget.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
@@ -240,7 +241,18 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
   void _listenPageChange() {
     int pageIndex = readerViewController.currentPage.value -
         readerViewController.book.firstPage;
-    pageController.jumpToPage(pageIndex);
+    // A page or two away slides in; further, it would flick through every
+    // page between, so it jumps.
+    final from = pageController.hasClients ? pageController.page : null;
+    final duration = ReaderMotion.of(context);
+    if (from != null &&
+        duration > Duration.zero &&
+        (from - pageIndex).abs() <= 2) {
+      pageController.animateToPage(pageIndex,
+          duration: duration, curve: ReaderMotion.curve);
+    } else {
+      pageController.jumpToPage(pageIndex);
+    }
   }
 
   List<FoundInfo>? _getFounds(int pageNumber, FoundState state) {

@@ -49,6 +49,7 @@ class ReaderViewController extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (identical(open[bookUuid], this)) open.remove(bookUuid);
     HardwareKeyboard.instance.removeHandler(_onKey);
     _shownLanguages?.removeListener(_onShownLanguagesChanged);
     // Closing the book stops it being read, but not from in here. This runs
@@ -266,7 +267,12 @@ class ReaderViewController extends ChangeNotifier {
       // Not provided, as in a test of the controller alone.
     }
     if (PlatformInfo.isDesktop) HardwareKeyboard.instance.addHandler(_onKey);
+    open[bookUuid] = this;
   }
+
+  /// The readers open now, by their tab's id, so that the library can send
+  /// an open book to a heading rather than open it a second time.
+  static final Map<String, ReaderViewController> open = {};
 
   /// Ctrl+F (Cmd+F on macOS) from anywhere in the app searches the book in
   /// the selected tab, and Escape closes that search again.
@@ -745,6 +751,10 @@ class ReaderViewController extends ChangeNotifier {
 
   int? _highlightChunk;
 
+  /// Makes the block at [index] the only one that may scroll to the mark,
+  /// and returns it.
+  int pinHighlightChunk(int index) => _highlightChunk = index;
+
   /// Whether the block at [chunkIndex] may take the highlight scroll.
   bool mayScrollToHighlight(int? chunkIndex) =>
       _highlightChunk == null || chunkIndex == _highlightChunk;
@@ -798,6 +808,39 @@ class ReaderViewController extends ChangeNotifier {
     _pendingHighlightScroll = arm;
     _highlightScrollArmedAt = arm ? DateTime.now() : null;
   }
+
+  /// Brings a mark into view by moving its block: [block] is the block's
+  /// index, [offset] how far down inside it the mark is, in pixels, and
+  /// [at] where on the screen it is to land, as a fraction from the top.
+  /// Returns false when it cannot, as in the page-by-page view, and the
+  /// block then does it itself.
+  ///
+  /// Set by the vertical reader. Flutter's own ensureVisible measured marks
+  /// wrongly in its list, which is anchored at the block last jumped to, and
+  /// sent a heading that was already in place a few screens off: the text
+  /// went up and down like a window shade.
+  bool Function(int block, double offset, double at)? revealMark;
+
+  /// When the glide to the last place asked for ends. The highlighted word
+  /// is brought into view only after it: started during the glide, its own
+  /// scroll cut the glide short and the text lurched.
+  DateTime _glideEndsAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void noteGlide(Duration duration) =>
+      _glideEndsAt = DateTime.now().add(duration);
+
+  /// How long until the current glide ends; zero when none is running.
+  Duration get untilGlideEnds {
+    final left = _glideEndsAt.difference(DateTime.now());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  /// Whether a highlight scroll is still on offer, without taking it.
+  bool get highlightScrollPending =>
+      _pendingHighlightScroll &&
+      _highlightScrollArmedAt != null &&
+      DateTime.now().difference(_highlightScrollArmedAt!) <=
+          _highlightScrollLifetime;
 
   /// Takes the pending highlight scroll. Returns true only once per request,
   /// and only while the request is still fresh.

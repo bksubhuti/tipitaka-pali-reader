@@ -13,6 +13,7 @@ import 'package:tipitaka_pali/utils/search_highlight.dart';
 import 'package:tipitaka_pali/utils/side_by_side.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/utils/tts_highlight.dart';
+import 'package:tipitaka_pali/ui/screens/reader/reader_motion.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/book.dart';
@@ -79,7 +80,6 @@ final nonPali = RegExp(r'[.,:;?!\"{}\[\]<>\/\(\)\s]+', caseSensitive: false);
 
 // Scroll configuration constants
 const _kScrollDelayDuration = Duration(milliseconds: 50);
-const _kScrollAnimationDuration = Duration(milliseconds: 100);
 const _kScrollVisibilityMargin = 20.0;
 const _kScrollAlignment = 0.5; // Center alignment
 
@@ -200,11 +200,17 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   }
 
   void _scrollToCurrentSearchResult() {
-    _scrollToResultContext(_scrollKey.currentContext);
+    // Waits out a glide to another page, as the highlight scroll does.
+    Future.delayed(_readerViewController.untilGlideEnds, () {
+      if (mounted) _scrollToResultContext(_scrollKey.currentContext);
+    });
   }
 
   void _scrollToHighlightedWordResult() {
-    Future.delayed(_kScrollDelayDuration, () {
+    // After the glide that brought the block here, if one is running: a
+    // scroll started during it cut it short.
+    Future.delayed(_kScrollDelayDuration + _readerViewController.untilGlideEnds,
+        () {
       if (!mounted) return;
 
       final context = _highlightedWordScrollKey.currentContext;
@@ -219,9 +225,16 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (!_readerViewController.mayScrollToHighlight(widget.blockIndex)) {
         return;
       }
-      if (!_readerViewController.takePendingHighlightScroll()) return;
+      if (!_readerViewController.takePendingHighlightScroll()) {
+        return;
+      }
 
-      Scrollable.ensureVisible(context, alignment: _kScrollAlignment);
+      if (_revealInList(context, ReaderMotion.landAt)) return;
+
+      Scrollable.ensureVisible(context,
+          alignment: ReaderMotion.landAt,
+          duration: ReaderMotion.of(context),
+          curve: ReaderMotion.curve);
     });
   }
 
@@ -252,6 +265,26 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
     });
   }
 
+  /// Brings the mark at [markContext] to [at] by moving this whole block in
+  /// the reader's list; see [ReaderViewController.revealMark]. False where
+  /// that cannot be done, and the caller scrolls the old way.
+  bool _revealInList(BuildContext markContext, double at) {
+    final block = widget.blockIndex;
+    final reveal = _readerViewController.revealMark;
+    final mark = markContext.findRenderObject();
+    final self = context.findRenderObject();
+    if (block == null ||
+        reveal == null ||
+        mark is! RenderBox ||
+        self is! RenderBox ||
+        !mark.attached ||
+        !self.attached) {
+      return false;
+    }
+    final offset = mark.localToGlobal(Offset.zero, ancestor: self).dy;
+    return reveal(block, offset, at);
+  }
+
   void _scrollToResultContext(BuildContext? currentContext,
       {double alignment = _kScrollAlignment}) {
     if (currentContext != null) {
@@ -265,10 +298,12 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             yPosition <= (effectiveHeight - _kScrollVisibilityMargin);
 
         if (!isVisible) {
+          if (_revealInList(currentContext, alignment)) return;
           Scrollable.ensureVisible(
             currentContext,
             alignment: alignment,
-            duration: _kScrollAnimationDuration,
+            duration: ReaderMotion.of(context),
+            curve: ReaderMotion.curve,
           );
         }
       }
