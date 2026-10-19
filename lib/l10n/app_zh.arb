@@ -353,5 +353,7 @@
   "addBooks": "添加",
   "dontAskAgain": "不再询问",
   "addingBooks": "正在添加书籍并更新搜索…",
-  "booksNotAdded": "无法添加书籍：{error}"
+  "booksNotAdded": "无法添加书籍：{error}",
+  "treeView": "树状视图",
+  "cardView": "卡片视图"
 }

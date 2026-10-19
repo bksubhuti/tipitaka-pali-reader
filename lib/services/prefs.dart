@@ -57,6 +57,7 @@ const String numberWordsLookedUpPref = "numberWordsLookedUp";
 const String okToRatePref = "okToRate";
 const String multiHighlightPref = "singleHighlight";
 const String expandedBookListPref = "expandedBookList";
+const String bookListAsTreePref = "bookListAsTree";
 const String messagePref = "message";
 const String messageDatePref = "messageDate";
 const String lastDateCheckedMessagePref = "lastDateCheckedMessage";
@@ -420,6 +421,12 @@ class Prefs {
       instance.getBool(expandedBookListPref) ?? defaultExpandedBookList;
   static set expandedBookList(bool value) =>
       instance.setBool(expandedBookListPref, value);
+
+  /// Whether the library is shown as a compact tree rather than as cards.
+  static bool get bookListAsTree =>
+      instance.getBool(bookListAsTreePref) ?? false;
+  static set bookListAsTree(bool value) =>
+      instance.setBool(bookListAsTreePref, value);
 
   static String get message =>
       instance.getString(messagePref) ?? defaultMessage;

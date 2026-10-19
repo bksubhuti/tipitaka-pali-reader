@@ -353,5 +353,7 @@
   "addBooks": "Aggiungi",
   "dontAskAgain": "Non chiedere più",
   "addingBooks": "Aggiunta dei libri e aggiornamento della ricerca…",
-  "booksNotAdded": "Impossibile aggiungere i libri: {error}"
+  "booksNotAdded": "Impossibile aggiungere i libri: {error}",
+  "treeView": "Vista ad albero",
+  "cardView": "Vista a schede"
 }

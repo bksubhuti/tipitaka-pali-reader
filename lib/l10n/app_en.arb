@@ -698,5 +698,9 @@
   "addingBooks": "Adding the books and updating search…",
   "@addingBooks": {"description": "Shown while the offered books are added."},
   "booksNotAdded": "The books could not be added: {error}",
-  "@booksNotAdded": {"description": "Shown when adding the offered books failed.", "placeholders": {"error": {"type": "String"}}}
+  "@booksNotAdded": {"description": "Shown when adding the offered books failed.", "placeholders": {"error": {"type": "String"}}},
+  "treeView": "Tree view",
+  "@treeView": {"description": "Tooltip of the library button that lists the books as a compact tree."},
+  "cardView": "Card view",
+  "@cardView": {"description": "Tooltip of the library button that lists the books in cards (the usual view)."}
 }

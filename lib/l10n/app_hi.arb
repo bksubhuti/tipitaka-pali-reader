@@ -353,5 +353,7 @@
   "addBooks": "जोड़ें",
   "dontAskAgain": "फिर न पूछें",
   "addingBooks": "पुस्तकें जोड़ी जा रही हैं और खोज अद्यतन हो रही है…",
-  "booksNotAdded": "पुस्तकें नहीं जोड़ी जा सकीं: {error}"
+  "booksNotAdded": "पुस्तकें नहीं जोड़ी जा सकीं: {error}",
+  "treeView": "ट्री व्यू",
+  "cardView": "कार्ड व्यू"
 }

@@ -353,5 +353,7 @@
   "addBooks": "เพิ่ม",
   "dontAskAgain": "ไม่ต้องถามอีก",
   "addingBooks": "กำลังเพิ่มหนังสือและปรับปรุงการค้นหา…",
-  "booksNotAdded": "เพิ่มหนังสือไม่ได้: {error}"
+  "booksNotAdded": "เพิ่มหนังสือไม่ได้: {error}",
+  "treeView": "มุมมองแบบต้นไม้",
+  "cardView": "มุมมองแบบการ์ด"
 }

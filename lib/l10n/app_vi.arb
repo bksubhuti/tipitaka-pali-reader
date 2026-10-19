@@ -353,5 +353,7 @@
   "addBooks": "Thêm",
   "dontAskAgain": "Không hỏi lại",
   "addingBooks": "Đang thêm sách và cập nhật tìm kiếm…",
-  "booksNotAdded": "Không thể thêm sách: {error}"
+  "booksNotAdded": "Không thể thêm sách: {error}",
+  "treeView": "Dạng cây",
+  "cardView": "Dạng thẻ"
 }

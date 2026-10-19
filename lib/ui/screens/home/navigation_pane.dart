@@ -63,7 +63,7 @@ class _DetailNavigationPaneState extends State<DetailNavigationPane> {
   Widget _getPage(BuildContext context, int index) {
     switch (index) {
       case 0:
-        return BookListPage();
+        return const BookListPage();
       case 1:
         return const RecentPage();
       case 2:

@@ -353,5 +353,7 @@
   "addBooks": "যোগ করুন",
   "dontAskAgain": "আর জিজ্ঞাসা করবেন না",
   "addingBooks": "বইগুলো যোগ করা হচ্ছে এবং অনুসন্ধান হালনাগাদ হচ্ছে…",
-  "booksNotAdded": "বইগুলো যোগ করা যায়নি: {error}"
+  "booksNotAdded": "বইগুলো যোগ করা যায়নি: {error}",
+  "treeView": "ট্রি ভিউ",
+  "cardView": "কার্ড ভিউ"
 }

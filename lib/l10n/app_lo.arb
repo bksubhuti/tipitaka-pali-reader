@@ -353,5 +353,7 @@
   "addBooks": "ເພີ່ມ",
   "dontAskAgain": "ບໍ່ຕ້ອງຖາມອີກ",
   "addingBooks": "ກຳລັງເພີ່ມປຶ້ມ ແລະ ອັບເດດການຊອກຫາ…",
-  "booksNotAdded": "ເພີ່ມປຶ້ມບໍ່ໄດ້: {error}"
+  "booksNotAdded": "ເພີ່ມປຶ້ມບໍ່ໄດ້: {error}",
+  "treeView": "ມຸມມອງແບບຕົ້ນໄມ້",
+  "cardView": "ມຸມມອງແບບບັດ"
 }

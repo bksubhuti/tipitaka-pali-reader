@@ -14,6 +14,11 @@ class OpenningBooksProvider extends ChangeNotifier {
   int _selectedBookIndex = 0;
   int get selectedBookIndex => _selectedBookIndex;
 
+  /// Counts every change of the selected book. The tab bar selects quietly,
+  /// so that a click does not redraw every reader; this tells only those
+  /// who follow the selection, such as the library's tree.
+  final ValueNotifier<int> selectionChanges = ValueNotifier(0);
+
   void add(
       {required Book book,
       int? currentPage,
@@ -75,6 +80,7 @@ class OpenningBooksProvider extends ChangeNotifier {
 
   void updateSelectedBookIndex(int index, {bool forceNotify = false}) {
     _selectedBookIndex = index;
+    selectionChanges.value++;
     if (forceNotify) {
       notifyListeners();
     }

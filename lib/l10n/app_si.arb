@@ -355,5 +355,7 @@
   "addBooks": "එක් කරන්න",
   "dontAskAgain": "නැවත අසන්න එපා",
   "addingBooks": "පොත් එක් කරමින් සෙවීම යාවත්කාලීන කරමින්…",
-  "booksNotAdded": "පොත් එක් කළ නොහැකි විය: {error}"
+  "booksNotAdded": "පොත් එක් කළ නොහැකි විය: {error}",
+  "treeView": "ගස් දසුන",
+  "cardView": "කාඩ් දසුන"
 }

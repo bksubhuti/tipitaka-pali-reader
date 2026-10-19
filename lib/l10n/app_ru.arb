@@ -353,5 +353,7 @@
   "addBooks": "Добавить",
   "dontAskAgain": "Больше не спрашивать",
   "addingBooks": "Добавление книг и обновление поиска…",
-  "booksNotAdded": "Не удалось добавить книги: {error}"
+  "booksNotAdded": "Не удалось добавить книги: {error}",
+  "treeView": "Дерево",
+  "cardView": "Карточки"
 }
