@@ -27,14 +27,26 @@ class UnitText {
     required String epiBook,
     required int startPara,
     required int endPara,
+  }) async =>
+      (await paliWithParagraphs(db,
+              epiBook: epiBook, startPara: startPara, endPara: endPara))
+          .text;
+
+  /// The Pali of one unit, and where in it each paragraph begins, so that a
+  /// place in the text can be traced back to its paragraph.
+  static Future<UnitWithParagraphs> paliWithParagraphs(
+    DatabaseExecutor db, {
+    required String epiBook,
+    required int startPara,
+    required int endPara,
   }) async {
     final rows = await db.rawQuery(
-      'SELECT pali FROM epi.sentences '
+      'SELECT para_id, pali FROM epi.sentences '
       'WHERE book_id = ? AND para_id BETWEEN ? AND ? '
       'ORDER BY para_id, line_id',
       [epiBook, startPara, endPara],
     );
-    return _join(rows, 'pali');
+    return _joinWithParagraphs(rows, 'pali');
   }
 
   /// One unit in one installed language.
@@ -44,19 +56,34 @@ class UnitText {
     required String epiBook,
     required int startPara,
     required int endPara,
+  }) async =>
+      (await translationWithParagraphs(db,
+              lang: lang,
+              epiBook: epiBook,
+              startPara: startPara,
+              endPara: endPara))
+          .text;
+
+  /// One unit in one installed language, with where each paragraph begins.
+  static Future<UnitWithParagraphs> translationWithParagraphs(
+    DatabaseExecutor db, {
+    required String lang,
+    required String epiBook,
+    required int startPara,
+    required int endPara,
   }) async {
     try {
       final rows = await db.rawQuery(
-        'SELECT translation FROM lang_$lang.sentences '
+        'SELECT para_id, translation FROM lang_$lang.sentences '
         'WHERE book_id = ? AND para_id BETWEEN ? AND ? '
         'ORDER BY para_id, line_id',
         [epiBook, startPara, endPara],
       );
-      return _join(rows, 'translation');
+      return _joinWithParagraphs(rows, 'translation');
     } catch (_) {
       // A language removed since the index was built. The result still has a
       // page to open; only its snippet is lost.
-      return '';
+      return const UnitWithParagraphs('', [], []);
     }
   }
 
@@ -76,6 +103,25 @@ class UnitText {
     return out;
   }
 
+  static UnitWithParagraphs _joinWithParagraphs(
+      List<Map<String, Object?>> rows, String column) {
+    final buffer = StringBuffer();
+    final starts = <int>[];
+    final paras = <int>[];
+    for (final row in rows) {
+      final text = _clean(row[column] as String? ?? '');
+      if (text.isEmpty) continue;
+      if (buffer.isNotEmpty) buffer.write(' ');
+      final para = row['para_id'] as int;
+      if (paras.isEmpty || paras.last != para) {
+        paras.add(para);
+        starts.add(buffer.length);
+      }
+      buffer.write(text);
+    }
+    return UnitWithParagraphs(buffer.toString(), starts, paras);
+  }
+
   static String _join(List<Map<String, Object?>> rows, String column) {
     final buffer = StringBuffer();
     for (final row in rows) {
@@ -85,5 +131,26 @@ class UnitText {
       buffer.write(text);
     }
     return buffer.toString();
+  }
+}
+
+/// A unit's text and where each of its paragraphs begins in it.
+class UnitWithParagraphs {
+  const UnitWithParagraphs(this.text, this.starts, this.paragraphs);
+
+  final String text;
+
+  /// Offsets into [text], one for each of [paragraphs].
+  final List<int> starts;
+  final List<int> paragraphs;
+
+  /// The paragraph holding offset [at], or null for an empty unit.
+  int? paragraphAt(int at) {
+    int? found;
+    for (var i = 0; i < starts.length; i++) {
+      if (starts[i] > at) break;
+      found = paragraphs[i];
+    }
+    return found ?? (paragraphs.isEmpty ? null : paragraphs.first);
   }
 }

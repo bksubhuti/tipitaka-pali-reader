@@ -7,6 +7,7 @@ import '../../ui/screens/home/search_page/search_page.dart';
 import '../database/database_helper.dart';
 import '../database/sentence_fts_builder.dart';
 import '../database/unit_text.dart';
+import 'heading_trail_repo.dart';
 import '../prefs.dart';
 
 abstract class FtsRespository {
@@ -159,7 +160,7 @@ class FtsDatabaseRepository implements FtsRespository {
       // FIX: Prefix now uses SNIPPET to get the long description from SQLite
       sql = '''
       SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.sutta_name,
-        SNIPPET($ftsTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+        SNIPPET($ftsTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', ${Prefs.searchSnippetWords}) AS content
       FROM $ftsTable INNER JOIN books ON $ftsTable.bookid = books.id
         LEFT JOIN sutta_page_shortcut
             ON $ftsTable.bookid = sutta_page_shortcut.book_id
@@ -176,7 +177,7 @@ class FtsDatabaseRepository implements FtsRespository {
 
       sql = '''
       SELECT $ftsTable.id, $ftsTable.bookid, books.name, $ftsTable.page, $ftsTable.sutta_name,
-        SNIPPET($ftsTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+        SNIPPET($ftsTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', ${Prefs.searchSnippetWords}) AS content
       FROM $ftsTable 
       INNER JOIN books ON $ftsTable.bookid = books.id
       LEFT JOIN sutta_page_shortcut
@@ -266,7 +267,7 @@ class FtsDatabaseRepository implements FtsRespository {
           id: id,
           book: Book(id: bookId, name: bookName),
           pageNumber: pageNumber,
-          description: _getRightHandSideWords(content, 25),
+          description: _getRightHandSideWords(content, Prefs.searchSnippetWords),
           suttaName: suttaName,
           isTranslation: isTranslation,
         ));
@@ -385,9 +386,8 @@ class FtsDatabaseRepository implements FtsRespository {
   /// the phrase, which is stricter and tolerates the punctuation that sits
   /// between words in the text. Keeping it in SQL as well meant storing a
   /// second, stripped copy of the whole canon for no gain.
-  String _exactFilter(String ftsTable, String phrase) => sentenceIndex
-      ? ''
-      : " AND $ftsTable.content LIKE '%$phrase%'";
+  String _exactFilter(String ftsTable, String phrase) =>
+      sentenceIndex ? '' : " AND $ftsTable.content LIKE '%$phrase%'";
 
   /// Finds passages holding every word of the query, in either language.
   ///
@@ -420,7 +420,9 @@ class FtsDatabaseRepository implements FtsRespository {
           '  JOIN search_translation_unit t ON t.rowid_ = f.rowid '
           '  WHERE $translationTable MATCH ?)');
       final safe = word.replaceAll('"', '');
-      args..add('"$safe"')..add('"$safe"');
+      args
+        ..add('"$safe"')
+        ..add('"$safe"');
     }
 
     final db = await databaseHelper.database;
@@ -435,12 +437,15 @@ class FtsDatabaseRepository implements FtsRespository {
 
     final results = <SearchResult>[];
     final seen = <String>{};
+    final headings = HeadingCache(db);
     for (final row in rows) {
-      final content = await UnitText.pali(db,
+      final unit = await UnitText.paliWithParagraphs(db,
           epiBook: row['epi_book'] as String,
           startPara: row['start_para'] as int,
           endPara: row['end_para'] as int);
+      final content = unit.text;
       if (content.isEmpty) continue;
+      var hitAt = 0;
       final bookId = row['bookid'] as String;
       final unitPage = row['page'] as int;
 
@@ -451,6 +456,7 @@ class FtsDatabaseRepository implements FtsRespository {
         final at = RegExp(RegExp.escape(word), caseSensitive: false)
             .firstMatch(content);
         if (at == null) continue;
+        hitAt = at.start;
         page = pageForMatch(row['page_map'] as String?, unitPage,
             content.substring(0, at.start).split(RegExp(r'\s+')).length - 1);
         break;
@@ -462,7 +468,10 @@ class FtsDatabaseRepository implements FtsRespository {
         book: Book(id: bookId, name: row['name'] as String),
         pageNumber: page,
         description: _buildHighlight(content, words.first),
-        suttaName: 'n/a',
+        suttaName: (await headings.trailAt(row['epi_book'] as String,
+                    unit.paragraphAt(hitAt) ?? row['start_para'] as int))
+                ?.shortLine ??
+            'n/a',
       ));
     }
     return results;
@@ -547,7 +556,7 @@ class FtsDatabaseRepository implements FtsRespository {
     final sql = '''
       SELECT $paliTable.id, $paliTable.bookid, name, $paliTable.page, $paliTable.sutta_name,
         $paliTable.content AS raw_content,
-        SNIPPET($paliTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', 25) AS content
+        SNIPPET($paliTable, -1, '<$highlightTagName>', '</$highlightTagName>', '...', ${Prefs.searchSnippetWords}) AS content
         ${_pageMapColumn(paliTable)}
       FROM $paliTable 
       INNER JOIN books ON $paliTable.bookid = books.id
@@ -591,6 +600,7 @@ class FtsDatabaseRepository implements FtsRespository {
     }
     return results;
   }
+
   /// Search against the contentless indexes.
   ///
   /// The index knows which units match; it no longer holds their text. So the
@@ -610,11 +620,8 @@ class FtsDatabaseRepository implements FtsRespository {
     final db = await databaseHelper.database;
     final ftsTable = isTranslation ? translationTable : paliTable;
     final safePhrase = phrase.replaceAll("'", "''");
-    final words = phrase
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
+    final words =
+        phrase.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.isEmpty) return const [];
 
     // "kāyagatāsati sutta" is one word in the text and two in the query. The
@@ -703,6 +710,7 @@ class FtsDatabaseRepository implements FtsRespository {
 
     final exactPattern = RegExp(_phrasePattern(phrase), caseSensitive: false);
     final results = <SearchResult>[];
+    final headings = HeadingCache(db);
 
     for (final row in rows) {
       final id = row['id'] as int;
@@ -711,14 +719,15 @@ class FtsDatabaseRepository implements FtsRespository {
       final startPara = row['start_para'] as int;
       final endPara = row['end_para'] as int;
 
-      final content = isTranslation && lang != null
-          ? await UnitText.translation(db,
+      final unit = isTranslation && lang != null
+          ? await UnitText.translationWithParagraphs(db,
               lang: lang,
               epiBook: epiBook,
               startPara: startPara,
               endPara: endPara)
-          : await UnitText.pali(db,
+          : await UnitText.paliWithParagraphs(db,
               epiBook: epiBook, startPara: startPara, endPara: endPara);
+      final content = unit.text;
       if (content.isEmpty) continue;
 
       // The tokenizer is stemmed, so an exact search has to be re-checked
@@ -746,9 +755,13 @@ class FtsDatabaseRepository implements FtsRespository {
           : pageForMatch(row['page_map'] as String?, unitPage,
               content.substring(0, hitAt).split(RegExp(r'\s+')).length - 1);
 
+      // The headings the hit sits under, so the result says which sutta or
+      // section it is in, not only the page.
+      final trail = await headings.trailAt(
+          epiBook, unit.paragraphAt(hitAt < 0 ? 0 : hitAt) ?? startPara);
       final suttaName = (row['sutta_name'] as String?)?.isNotEmpty == true
           ? row['sutta_name'] as String
-          : 'n/a';
+          : trail?.shortLine ?? 'n/a';
 
       final description = _snippetAround(content, hitAt, words);
 
@@ -871,10 +884,12 @@ class FtsDatabaseRepository implements FtsRespository {
   /// phrase pattern needs the words next to each other, and in those two
   /// modes they are not.
   String _snippetAround(String content, int offset, List<String> words) {
-    const around = 20;
+    // The length set on the search page, split either side of the hit.
+    final length = Prefs.searchSnippetWords;
     final from = offset < 0 ? 0 : offset;
-    final left = _geLeftHandSideWords(content.substring(0, from), around);
-    final right = _getRightHandSideWords(content.substring(from), around);
+    final left = _geLeftHandSideWords(content.substring(0, from), length ~/ 2);
+    final right = _getRightHandSideWords(
+        content.substring(from), length - length ~/ 2);
     final window = left.isEmpty ? right : '$left $right';
 
     var marked = window;
@@ -927,7 +942,9 @@ class FtsDatabaseRepository implements FtsRespository {
           startPara: row['start_para'] as int,
           endPara: row['end_para'] as int);
       if (text.isEmpty) continue;
-      if (text.length > 250) text = '${text.substring(0, 250)}...';
+      // About as long as the Pali above it.
+      final most = Prefs.searchSnippetWords * 10;
+      if (text.length > most) text = '${text.substring(0, most)}...';
       byUnit[row['unit_id'] as int] = text;
     }
 
@@ -954,5 +971,4 @@ class FtsDatabaseRepository implements FtsRespository {
   List<String> get _shownLanguages => Prefs.activeLanguages
       .where(DatabaseHelper.installedLanguages.contains)
       .toList();
-
 }

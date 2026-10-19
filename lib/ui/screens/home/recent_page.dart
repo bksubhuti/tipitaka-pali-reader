@@ -11,6 +11,7 @@ import '../../../services/dao/recent_dao.dart';
 import '../../../services/database/database_helper.dart';
 import '../../../services/prefs.dart';
 import '../../../services/repositories/recent_repo.dart';
+import '../../../services/repositories/heading_trail_repo.dart';
 import '../../dialogs/confirm_dialog.dart';
 
 class RecentPage extends StatelessWidget {
@@ -51,10 +52,29 @@ class RecentPage extends StatelessWidget {
                             fontSize: Prefs.uiFontSize - 1,
                             fontFamily: FontUtils.getfontName(script: script),
                           )),
-                      // "Page" is a word of the app's, so in the UI font.
-                      subtitle: Text(
-                          "${AppLocalizations.of(context)!.page}: ${localScript(context, recent.pageNumber.toString())}",
-                          style: TextStyle(fontSize: Prefs.uiFontSize - 3)),
+                      // "Page" is a word of the app's, so in the UI font;
+                      // the heading it is under is Pāḷi, in the Pāḷi font.
+                      subtitle: FutureBuilder<String?>(
+                        future: HeadingTrailRepository(DatabaseHelper())
+                            .lineAtPage(recent.bookID, recent.pageNumber),
+                        builder: (context, heading) => Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                                text:
+                                    "${AppLocalizations.of(context)!.page}: ${localScript(context, recent.pageNumber.toString())}"),
+                            if (heading.data != null)
+                              TextSpan(
+                                  text:
+                                      ' · ${localScript(context, heading.data!)}',
+                                  style: TextStyle(
+                                      fontFamily: FontUtils.getfontName(
+                                          script: script))),
+                          ]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: Prefs.uiFontSize - 3),
+                        ),
+                      ),
                       onTap: () => vm.openBook(recent, context),
                       trailing: IconButton(
                         onPressed: () => vm.delete(recent),

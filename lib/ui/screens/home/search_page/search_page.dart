@@ -136,6 +136,7 @@ class _SearchPageState extends State<SearchPage>
                           vm.onWordDistanceChanged(value);
                         },
                       ),
+                      _resultLengthSlider(context),
                       // search bar: its own padding is the same on both
                       // sides; a gap after it made the right twice the left.
                       TprSearchBar(
@@ -262,6 +263,36 @@ class _SearchPageState extends State<SearchPage>
     );
     NestedNavigationHelper.goto(
         context: context, route: route, navkey: searchNavigationKey);
+  }
+
+  /// How many words each result shows, 15 to 50; kept for the next start
+  /// and used from the next search.
+  Widget _resultLengthSlider(BuildContext context) {
+    final words = Prefs.searchSnippetWords;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 12, 0),
+      child: Row(children: [
+        Text(AppLocalizations.of(context)!.resultLength,
+            style: Theme.of(context).textTheme.bodySmall),
+        Expanded(
+          child: Slider(
+            value: words.toDouble(),
+            min: 15,
+            max: 50,
+            divisions: 35,
+            label: '$words',
+            onChanged: (value) =>
+                setState(() => Prefs.searchSnippetWords = value.round()),
+          ),
+        ),
+        SizedBox(
+          width: 24,
+          child: Text('$words',
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.bodySmall),
+        ),
+      ]),
+    );
   }
 
   void _onSubmitted(String searchWord, SearchPageViewModel vm) {

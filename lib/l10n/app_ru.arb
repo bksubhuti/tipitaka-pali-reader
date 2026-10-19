@@ -355,5 +355,6 @@
   "addingBooks": "Добавление книг и обновление поиска…",
   "booksNotAdded": "Не удалось добавить книги: {error}",
   "treeView": "Дерево",
-  "cardView": "Карточки"
+  "cardView": "Карточки",
+  "resultLength": "Длина результата"
 }

@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 
 /// The headings a place in the text sits under, from the book down: for a
@@ -37,6 +38,15 @@ class HeadingTrail {
     return titles.isEmpty ? null : HeadingTrail(titles, scId);
   }
 
+  /// The nearest two headings under the book's own title, for a line under
+  /// the book's name: "1. Brahmajālasuttaṃ › Paribbājakakathā". Null when
+  /// there is nothing under the title.
+  String? get shortLine {
+    final under = titles.length > 1 ? titles.sublist(1) : titles;
+    final shown = under.length > 2 ? under.sublist(under.length - 2) : under;
+    return shown.isEmpty ? null : shown.join(' › ');
+  }
+
   /// [suttaCentralId] as it is cited: "DN 7", "SN 6.14", "Dhp 1". Null
   /// for references not cited this way, such as the Vinaya's
   /// "pli-tv-bu-vb-pj3".
@@ -52,9 +62,51 @@ class HeadingTrail {
   }
 }
 
+/// The headings of ePitaka books, read once each, to trail many places in
+/// the same books cheaply, as a page of search results does.
+class HeadingCache {
+  HeadingCache(this.db);
+  final DatabaseExecutor db;
+  final Map<String, List<Map<String, Object?>>> _byBook = {};
+
+  /// The trail over paragraph [paraId] of the ePitaka book [epiBook].
+  Future<HeadingTrail?> trailAt(String epiBook, int paraId) async {
+    final rows = _byBook[epiBook] ??= await db.rawQuery(
+        'SELECT para_id, level, title, sc_id FROM epi.headings '
+        'WHERE book_id = ? AND level < 10 '
+        "AND title IS NOT NULL AND title <> '' "
+        'ORDER BY para_id',
+        [epiBook]);
+    return HeadingTrail.fromRows(
+        rows.reversed.where((r) => (r['para_id'] as int) <= paraId));
+  }
+}
+
 class HeadingTrailRepository {
   HeadingTrailRepository(this.databaseProvider);
   final DatabaseHelper databaseProvider;
+
+  static final Map<String, Future<String?>> _pageLines = {};
+
+  /// [HeadingTrail.shortLine] for the top of [page] of TPR's [tprBook]: the
+  /// section the page opens in. Remembered, for lists such as History that
+  /// ask again at every redraw.
+  Future<String?> lineAtPage(String tprBook, int page) =>
+      _pageLines.putIfAbsent('$tprBook:$page', () async {
+        try {
+          final db = await databaseProvider.database;
+          final start = await db.rawQuery(
+              'SELECT book_id, para_id FROM ext.page_break '
+              'WHERE tpr_book = ? AND tpr_page = ? LIMIT 1',
+              [tprBook, page]);
+          if (start.isEmpty) return null;
+          final trail = await HeadingCache(db).trailAt(
+              start.first['book_id'] as String, start.first['para_id'] as int);
+          return trail?.shortLine;
+        } catch (_) {
+          return null; // no sentence data: the page number alone
+        }
+      });
 
   /// The headings over paragraph [paraId] of TPR's [tprBook], on [page].
   /// The page says which of ePitaka's books it is, as one TPR book can hold

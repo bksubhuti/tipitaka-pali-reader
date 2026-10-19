@@ -21,6 +21,7 @@ import '../../../../utils/pali_script.dart';
 import '../../../business_logic/models/bookmark.dart';
 import '../../../business_logic/view_models/bookmark_page_view_model.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/services/repositories/heading_trail_repo.dart';
 
 class BookmarkPage extends StatefulWidget {
   const BookmarkPage({super.key});
@@ -160,7 +161,21 @@ class _BookmarkPageState extends State<BookmarkPage>
                 isFolder ? folderColor : null), // Apply color to icon as well
         title:
             Text(title, style: TextStyle(color: isFolder ? folderColor : null)),
-        subtitle: Text(subtitle),
+        // The heading the page opens in, after the page number, as in
+        // History and the search results.
+        subtitle: isFolder
+            ? Text(subtitle)
+            : FutureBuilder<String?>(
+                future: HeadingTrailRepository(DatabaseHelper())
+                    .lineAtPage(item.bookID, item.pageNumber),
+                builder: (context, heading) => Text(
+                  heading.data == null
+                      ? subtitle
+                      : '$subtitle · ${PaliScript.getScriptOf(script: context.read<ScriptLanguageProvider>().currentScript, romanText: heading.data!)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
         onTap: () {
           if (isFolder) {
             viewModel.setCurrentFolderAndFetchItems(item.id,

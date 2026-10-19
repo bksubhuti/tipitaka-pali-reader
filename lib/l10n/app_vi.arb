@@ -355,5 +355,6 @@
   "addingBooks": "Đang thêm sách và cập nhật tìm kiếm…",
   "booksNotAdded": "Không thể thêm sách: {error}",
   "treeView": "Dạng cây",
-  "cardView": "Dạng thẻ"
+  "cardView": "Dạng thẻ",
+  "resultLength": "Độ dài kết quả"
 }

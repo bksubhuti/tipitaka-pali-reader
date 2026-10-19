@@ -355,5 +355,6 @@
   "addingBooks": "正在添加书籍并更新搜索…",
   "booksNotAdded": "无法添加书籍：{error}",
   "treeView": "树状视图",
-  "cardView": "卡片视图"
+  "cardView": "卡片视图",
+  "resultLength": "结果长度"
 }

@@ -702,5 +702,7 @@
   "treeView": "Tree view",
   "@treeView": {"description": "Tooltip of the library button that lists the books as a compact tree."},
   "cardView": "Card view",
-  "@cardView": {"description": "Tooltip of the library button that lists the books in cards (the usual view)."}
+  "@cardView": {"description": "Tooltip of the library button that lists the books in cards (the usual view)."},
+  "resultLength": "Result length",
+  "@resultLength": {"description": "Label of the slider on the search page that sets how many words of text each search result shows."}
 }

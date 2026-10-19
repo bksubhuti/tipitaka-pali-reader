@@ -58,6 +58,7 @@ const String okToRatePref = "okToRate";
 const String multiHighlightPref = "singleHighlight";
 const String expandedBookListPref = "expandedBookList";
 const String bookListAsTreePref = "bookListAsTree";
+const String searchSnippetWordsPref = "searchSnippetWords";
 const String messagePref = "message";
 const String messageDatePref = "messageDate";
 const String lastDateCheckedMessagePref = "lastDateCheckedMessage";
@@ -421,6 +422,12 @@ class Prefs {
       instance.getBool(expandedBookListPref) ?? defaultExpandedBookList;
   static set expandedBookList(bool value) =>
       instance.setBool(expandedBookListPref, value);
+
+  /// How many words of text a search result shows around its hit, 15 to 50.
+  static int get searchSnippetWords =>
+      (instance.getInt(searchSnippetWordsPref) ?? 25).clamp(15, 50);
+  static set searchSnippetWords(int value) =>
+      instance.setInt(searchSnippetWordsPref, value.clamp(15, 50));
 
   /// Whether the library is shown as a compact tree rather than as cards.
   static bool get bookListAsTree =>
