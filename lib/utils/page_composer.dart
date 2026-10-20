@@ -311,8 +311,7 @@ class PageComposer {
       // housewife". A reader looks for the same word in both, so there it
       // is bold as well. Italics elsewhere are left as they are.
       if (boldsTerm) {
-        translation =
-            translation.replaceAll('<i>', '<b>').replaceAll('</i>', '</b>');
+        translation = _boldTerms(translation, sentence.pali);
       }
       buffer.write('<br><span class="translation_text"');
       if (i < languages.length) buffer.write(' lang="${languages[i]}"');
@@ -322,6 +321,58 @@ class PageComposer {
         ..write('</span>');
     }
     return buffer.toString();
+  }
+
+  /// A quoted phrase: ‘…’ or “…”. A ’ inside a word (Elephant’s) does not
+  /// end it.
+  static final _quoted =
+      RegExp(r'‘(?:[^’]|’(?=\p{L}))+’|“[^”]+”', unicode: true);
+
+  /// In the Pali, a quotation (‘‘…’’ or ‘…’) or a bold term, whichever
+  /// comes first, in order.
+  static final _paliMark = RegExp(r'‘‘.*?’’|‘[^‘’]*’|<b>.*?</b>');
+
+  /// [translation] with the term the Pali bolds made bold.
+  ///
+  /// The translations mark that term three ways: bold already (<b>‘Thus
+  /// have I heard’</b>), in italics (<i>Gahapatānī</i>), or only in quotes
+  /// (‘the root of all phenomena’ means …). Italics become bold.
+  ///
+  /// Quotes are matched to the Pali in order. The Pali's quotations and its
+  /// bold terms are listed as they come, and the translation's quotes keep
+  /// the same order, so where the two lists are as long, the quote standing
+  /// where the Pali has its bold term is made bold. "Thought: ‘They are
+  /// incapable …’ … began the discourse ‘The Root of All Phenomena’" bolds
+  /// the second. With no quotation in the Pali, the first quotes are taken,
+  /// one for each bold term. When they do not line up, nothing is bolded
+  /// rather than the wrong phrase.
+  static String _boldTerms(String translation, String pali) {
+    if (translation.contains('<i>')) {
+      return translation.replaceAll('<i>', '<b>').replaceAll('</i>', '</b>');
+    }
+    if (translation.contains('<b>')) return translation;
+
+    final marks = [
+      for (final m in _paliMark.allMatches(pali)) m[0]!.contains('<b>')
+    ];
+    final bolds = marks.where((b) => b).length;
+    if (bolds == 0) return translation;
+    final quotes = _quoted.allMatches(translation).length;
+
+    final List<bool> bold;
+    if (quotes == marks.length) {
+      bold = marks;
+    } else if (!marks.contains(false)) {
+      bold = [for (var i = 0; i < quotes; i++) i < bolds];
+    } else {
+      return translation;
+    }
+    var i = 0;
+    return translation.replaceAllMapped(_quoted, (m) {
+      final make = i < bold.length && bold[i];
+      i++;
+      return make ? '<b>${m[0]}</b>' : m[0]!;
+    });
   }
 
   /// Puts each anchor at its word, leaving the words themselves untouched.
