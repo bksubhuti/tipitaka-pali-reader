@@ -386,11 +386,21 @@ class _Indented extends StatelessWidget {
 
 /// Scrolls the tree to the row at [key], once it is laid out. The tree is an
 /// ordinary list, so Flutter's own ensureVisible measures it rightly.
+///
+/// Only the tree's own list is scrolled. `Scrollable.ensureVisible` scrolls
+/// every scrollable around the row as well, and one of those is the side
+/// panel, a page view holding Library, Search, Dictionary, AI and the rest.
+/// Run on its own timers (a book's contents loading, a tab change, the
+/// reader pausing), it slid that panel part way to another pane, which then
+/// showed blank until a rail button snapped it back.
 void _reveal(GlobalKey key) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final c = key.currentContext;
     if (c == null || !c.mounted) return;
-    Scrollable.ensureVisible(c,
+    final row = c.findRenderObject();
+    final list = Scrollable.maybeOf(c);
+    if (row == null || list == null) return;
+    list.position.ensureVisible(row,
         alignment: 0.3,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic);
