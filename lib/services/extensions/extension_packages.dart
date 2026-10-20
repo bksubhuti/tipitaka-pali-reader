@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -106,9 +105,10 @@ class ExtensionPackages {
               await txn.execute(arg);
             case 'copy':
               final (schema, table) = _split(c['target'] as String?, c['seq']);
-              final into = (await txn.rawQuery('PRAGMA $schema.table_info($table)'))
-                  .map((r) => r['name'] as String)
-                  .toSet();
+              final into =
+                  (await txn.rawQuery('PRAGMA $schema.table_info($table)'))
+                      .map((r) => r['name'] as String)
+                      .toSet();
               if (into.isEmpty) {
                 throw PackageException(
                     'step ${c['seq']}: there is no table $schema.$table');
@@ -135,8 +135,8 @@ class ExtensionPackages {
               'INSERT OR REPLACE INTO main.applied_package VALUES (?, ?, ?)',
               [info.id, info.version, stamp]);
         } else {
-          await txn.delete('applied_package',
-              where: 'id = ?', whereArgs: [info.id]);
+          await txn
+              .delete('applied_package', where: 'id = ?', whereArgs: [info.id]);
         }
       });
       return books;
@@ -148,8 +148,8 @@ class ExtensionPackages {
   /// What a package says about itself. Opened read-only and closed again.
   static Future<PackageInfo> read(File file) async {
     if (!file.existsSync()) throw PackageException('${file.path} is missing');
-    final db = await openDatabase(file.path, readOnly: true,
-        singleInstance: false);
+    final db =
+        await openDatabase(file.path, readOnly: true, singleInstance: false);
     try {
       final rows = await db.rawQuery('SELECT key, value FROM meta');
       final meta = {
@@ -207,7 +207,8 @@ class ExtensionPackages {
   /// The sentence extension's release, as recorded beside it when it was
   /// put in place. Changes when an update replaces the file.
   static String currentStamp([String? dbDir]) {
-    final stamp = File(join(dbDir ?? _dbDir, '${AssetsFile.extensionFileName}.version'));
+    final stamp =
+        File(join(dbDir ?? _dbDir, '${AssetsFile.extensionFileName}.version'));
     try {
       return stamp.existsSync() ? stamp.readAsStringSync().trim() : '';
     } catch (_) {
@@ -277,17 +278,13 @@ class ExtensionPackages {
     return info;
   }
 
-  /// Applies a kept package and indexes its books, and records that the
-  /// reader has taken it, so it is applied again after an update.
+  /// Applies a kept package and indexes its books.
   static Future<void> apply(PackageInfo info,
       {void Function(String message)? onProgress}) async {
     final db = await DatabaseHelper().database;
     onProgress?.call('Installing ${info.title}…');
     final books = await DatabaseHelper.runExclusive(
         () => run(db, info.file, stamp: currentStamp()));
-    Prefs.acceptedPackages = [...Prefs.acceptedPackages, info.id];
-    Prefs.declinedPackages =
-        Prefs.declinedPackages.where((id) => id != info.id).toList();
     if (books.isNotEmpty) {
       onProgress?.call('Updating the search index…');
       await DatabaseHelper().reindexBooks(books);
@@ -304,131 +301,27 @@ class ExtensionPackages {
     final books =
         await DatabaseHelper.runExclusive(() => run(db, kept, phase: 'remove'));
     kept.deleteSync();
-    Prefs.acceptedPackages =
-        Prefs.acceptedPackages.where((p) => p != id).toList();
-    // One that comes with the app would otherwise be offered again.
-    Prefs.declinedPackages = [...Prefs.declinedPackages, id];
     if (books.isNotEmpty) {
       onProgress?.call('Updating the search index…');
       await DatabaseHelper().reindexBooks(books);
     }
   }
 
-  static final _shippedName = RegExp(r'^([A-Za-z_][A-Za-z0-9_]*)\.v(\d+)\.pkg\.db$');
-
-  /// Puts the packages that come with the app in [folderName], where a copy
-  /// is missing or older. Applying them is then [reapplyIfNeeded]'s work,
-  /// the same as for one downloaded.
-  ///
-  /// This is how books reach every reader without a new database: the
-  /// shipped databases stay as they are, and nothing is copied again but the
-  /// package itself.
-  static Future<void> placeShipped() => _placing ??= _placeShipped();
-  static Future<void>? _placing;
-
-  static Future<void> _placeShipped() async {
-    final dir = folder(_dbDir);
-    for (final name in AssetsFile.shippedPackages) {
-      final m = _shippedName.firstMatch(name);
-      if (m == null) {
-        myLogger.e('shipped package $name is not named <id>.v<version>.pkg.db');
-        continue;
-      }
-      final id = m.group(1)!;
-      final version = int.parse(m.group(2)!);
-      final kept = File(join(dir.path, '$id.db'));
-      if (kept.existsSync()) {
-        try {
-          if ((await read(kept)).version >= version) continue;
-        } catch (_) {
-          // Unreadable: replaced below.
-        }
-      }
-      try {
-        dir.createSync(recursive: true);
-        final data = await rootBundle.load(
-            '${AssetsFile.baseAssetsFolderPath}/${AssetsFile.packagesFolderPath}/$name');
-        final incoming = File(join(dir.path, '$id.part'));
-        await incoming.writeAsBytes(
-            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-            flush: true);
-        final info = await read(incoming);
-        if (info.id != id || info.version != version) {
-          incoming.deleteSync();
-          myLogger.e('shipped package $name says it is '
-              '${info.id} ${info.version}');
-          continue;
-        }
-        await DatabaseHelper.runExclusive(() async {
-          if (kept.existsSync()) kept.deleteSync();
-          await incoming.rename(kept.path);
-        });
-        myLogger.i('shipped package $id $version put in place');
-      } catch (e) {
-        myLogger.e('shipped package $name not put in place: $e');
-      }
-    }
-  }
-
-  /// Packages that come with the app and are to be offered to the reader:
-  /// not taken, not turned down, and not already in the database.
-  static Future<List<PackageInfo>> offered() async {
-    if (!DatabaseHelper.sentenceDataAvailable) return const [];
-    await placeShipped();
-    final shipped = {
-      for (final name in AssetsFile.shippedPackages)
-        _shippedName.firstMatch(name)?.group(1)
-    };
-    final db = await DatabaseHelper().database;
-    final applied = <String>{};
-    try {
-      for (final r in await db.rawQuery('SELECT id FROM applied_package')) {
-        applied.add(r['id'] as String);
-      }
-    } catch (_) {}
-    return [
-      for (final p in await installed())
-        if (shipped.contains(p.id) &&
-            !applied.contains(p.id) &&
-            !Prefs.acceptedPackages.contains(p.id) &&
-            !Prefs.declinedPackages.contains(p.id))
-          p
-    ];
-  }
-
-  /// Takes every package that comes with the app, unless the reader turned
-  /// it down, so the next [reapplyIfNeeded] applies it without asking. For
-  /// setup, which the reader is already waiting on.
-  static void acceptShipped() {
-    final ids = [
-      for (final name in AssetsFile.shippedPackages)
-        if (_shippedName.firstMatch(name)?.group(1) case final id?)
-          if (!Prefs.declinedPackages.contains(id)) id
-    ];
-    Prefs.acceptedPackages = [...Prefs.acceptedPackages, ...ids];
-  }
-
-  /// The reader asked not to be offered [id] again.
-  static void decline(String id) =>
-      Prefs.declinedPackages = [...Prefs.declinedPackages, id];
-
-  /// Applies again every kept package the databases no longer carry, after
-  /// putting in place those that come with the app.
+  /// Applies again every kept package the databases no longer carry.
   ///
   /// Runs before the search index is built, so a database replaced by an
   /// update is indexed with its packages in it.
   static Future<void> reapplyIfNeeded(
       {void Function(String message)? onProgress}) async {
     if (!DatabaseHelper.sentenceDataAvailable) return;
-    await placeShipped();
     final packages = await installed();
     if (packages.isEmpty) return;
     final db = await DatabaseHelper().database;
     final stamp = currentStamp();
     final applied = <String, (int, String)>{};
     try {
-      for (final r in await db.rawQuery(
-          'SELECT id, version, stamp FROM applied_package')) {
+      for (final r in await db
+          .rawQuery('SELECT id, version, stamp FROM applied_package')) {
         applied[r['id'] as String] =
             ((r['version'] as int?) ?? 0, r['stamp'] as String? ?? '');
       }
@@ -439,13 +332,6 @@ class ExtensionPackages {
     final books = <String>[];
     for (final p in packages) {
       if (applied[p.id] == (p.version, stamp)) continue;
-      // One that came with the app and was never taken waits to be offered;
-      // see [offered]. Applied before (from before this was recorded)
-      // counts as taken.
-      if (!Prefs.acceptedPackages.contains(p.id)) {
-        if (!applied.containsKey(p.id)) continue;
-        Prefs.acceptedPackages = [...Prefs.acceptedPackages, p.id];
-      }
       onProgress?.call('Applying ${p.title}…');
       try {
         books.addAll(await DatabaseHelper.runExclusive(

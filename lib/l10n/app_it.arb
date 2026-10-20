@@ -348,12 +348,6 @@
   "aiNoResults": "Nessun risultato.\nProva a riformulare la domanda.",
   "whatIsRag": "Che cos’è la RAG?",
   "ragExplanation": "La ricerca IA usa la RAG (retrieval-augmented generation): non risponde dalla memoria dell’IA.\n\n1. L’IA trasforma la tua domanda in termini di ricerca in pāḷi.\n2. TPR cerca con quei termini nel Tipiṭaka sul tuo dispositivo.\n3. L’IA legge i passi trovati, tiene quelli che rispondono alla domanda e li riassume.\n\nOgni risultato è un passo reale che puoi aprire e verificare.\n\nUna chat IA risponde da ciò che ricorda: può sembrare sicura ed essere comunque in errore, e raramente mostra da dove viene la risposta. Usa la ricerca IA per trovare i passi, e leggili per sapere che cosa dicono i testi.",
-  "newBooksTitle": "Nuovi libri",
-  "newBooksBody": "{title}\n\nAggiungere questi libri alla biblioteca? Ci vuole un momento e non serve scaricare nulla.",
-  "addBooks": "Aggiungi",
-  "dontAskAgain": "Non chiedere più",
-  "addingBooks": "Aggiunta dei libri e aggiornamento della ricerca…",
-  "booksNotAdded": "Impossibile aggiungere i libri: {error}",
   "treeView": "Vista ad albero",
   "cardView": "Vista a schede",
   "resultLength": "Lunghezza dei risultati"

@@ -7,7 +7,10 @@ class DatabaseInfo {
   /// database: the text is read from ePitaka's sentences now, and carrying it
   /// twice cost 204 MB. A change to the shipped file has to move this, or an
   /// existing install never copies the new one.
-  static const int version = 61;
+  ///
+  /// 62: the Abhidhamma handbooks (tika_bi_06 … tika_bi_13) are in the
+  /// shipped tipitaka_pali.db and tpr_extension.db, no longer a package.
+  static const int version = 62;
   static const String fileName = 'tipitaka_pali.db';
 }
 
@@ -40,15 +43,6 @@ class AssetsFile {
   /// keyed the way ePitaka keys its sentences.
   static const List<String> partsOfExtension = <String>[
     'tpr_extension_part.aa',
-  ];
-
-  /// Extension packages that come with the app, in assets/packages, named
-  /// `<id>.v<version>.pkg.db` so a start can tell whether the copy on the
-  /// device is current without opening either. Each must also be listed in
-  /// pubspec.yaml. See ExtensionPackages.
-  static const String packagesFolderPath = 'packages';
-  static const List<String> shippedPackages = <String>[
-    'missing_books.v1.pkg.db',
   ];
 
   /// What each set of parts is called once joined.

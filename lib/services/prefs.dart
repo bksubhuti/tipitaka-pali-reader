@@ -115,8 +115,6 @@ const String ttsPaliSpeedPref = "ttsPaliSpeed";
 const String ttsPaliVoicePref = "ttsPaliVoice";
 const String knownLanguagesPref = "knownLanguages";
 const String languageChoiceMadePref = "languageChoiceMade";
-const String acceptedPackagesPref = "acceptedPackages";
-const String declinedPackagesPref = "declinedPackages";
 const String translationTermsAcceptedPref = "translationTermsAccepted";
 const String textDisplayModePref = "textDisplayMode";
 const String isPaliBoldPref = "isPaliBold";
@@ -708,21 +706,6 @@ class Prefs {
   static set languageChoiceMade(bool value) =>
       instance.setBool(languageChoiceMadePref, value);
 
-  /// Extension packages the reader has taken: downloaded, or said yes to
-  /// when offered. These are applied again, without asking, whenever an
-  /// update replaces the databases.
-  static List<String> get acceptedPackages =>
-      instance.getStringList(acceptedPackagesPref) ?? const [];
-  static set acceptedPackages(List<String> value) =>
-      instance.setStringList(acceptedPackagesPref, value.toSet().toList());
-
-  /// Packages that come with the app which the reader asked not to be
-  /// offered again.
-  static List<String> get declinedPackages =>
-      instance.getStringList(declinedPackagesPref) ?? const [];
-  static set declinedPackages(List<String> value) =>
-      instance.setStringList(declinedPackagesPref, value.toSet().toList());
-
   /// Whether the reader has agreed to the terms of the ePitaka translations,
   /// which is asked before the first one is downloaded.
   static bool get translationTermsAccepted =>
@@ -743,8 +726,7 @@ class Prefs {
   static set activeLanguages(List<String> value) =>
       instance.setStringList(activeLanguagesPref, _distinct(value));
 
-  static List<String> _distinct(List<String> codes) =>
-      codes.toSet().toList();
+  static List<String> _distinct(List<String> codes) => codes.toSet().toList();
 
   /// The languages read aloud: 'pali' and translation codes. Empty until
   /// the reader first chooses, which means everything shown.
@@ -759,8 +741,7 @@ class Prefs {
 
   /// Reading speed for the Pali, which has a voice of its own, faster or
   /// slower than the translations' voices.
-  static double get ttsPaliSpeed =>
-      instance.getDouble(ttsPaliSpeedPref) ?? 1.0;
+  static double get ttsPaliSpeed => instance.getDouble(ttsPaliSpeedPref) ?? 1.0;
   static set ttsPaliSpeed(double value) =>
       instance.setDouble(ttsPaliSpeedPref, value);
 
@@ -812,8 +793,7 @@ class Prefs {
 
   /// Cmd+C (Ctrl+C off macOS) in the reader copies with formatting; off, it
   /// copies the text alone.
-  static bool get copyFormatted =>
-      instance.getBool(copyFormattedPref) ?? true;
+  static bool get copyFormatted => instance.getBool(copyFormattedPref) ?? true;
   static set copyFormatted(bool value) =>
       instance.setBool(copyFormattedPref, value);
 

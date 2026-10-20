@@ -62,6 +62,16 @@ sqlite3 tipitaka_pali.db "DELETE FROM pages; VACUUM;"
 The table itself is kept. Books imported from HTML, and books installed from
 an extension zip, are not in ePitaka and live there and nowhere else.
 
+Since version 62 the Abhidhamma handbooks (`tika_bi_06` … `tika_bi_13`) are
+built into both this file and `tpr_extension.db`, by applying the install
+steps of `missing_books.pkg.db` (from `tools/extension_packages/`) to the two
+files before they are split.
+
+Do not VACUUM a shipped database after changing it. VACUUM rewrites every
+page, so every part changes and an Android update downloads the whole
+database again. Left alone, new rows go at the end and most parts stay
+byte for byte the same: adding those books changed 3 of the 14 parts.
+
 Everything else is unchanged: the dictionaries, the word list, the contents,
 the paragraph mapping and the sutta shortcuts all still ship.
 
