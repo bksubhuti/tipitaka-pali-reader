@@ -116,7 +116,12 @@ class SentencePageContentRepository implements PageContentRepository {
 
   Future<List<PageSentence>> _sentencesBetween(
       dynamic db, _Bound start, _Bound? end) async {
-    final args = <Object?>[start.bookId, start.paraId, start.paraId, start.lineId];
+    final args = <Object?>[
+      start.bookId,
+      start.paraId,
+      start.paraId,
+      start.lineId
+    ];
     var range = '(s.para_id > ? OR (s.para_id = ? AND s.line_id >= ?))';
     if (end != null && end.bookId == start.bookId) {
       range += ' AND (s.para_id < ? OR (s.para_id = ? AND s.line_id <= ?))';
@@ -127,8 +132,8 @@ class SentencePageContentRepository implements PageContentRepository {
     // from TPR's own text and live in the extension, so fall through to them.
     var rows = await db.rawQuery(_sentenceQuery('epi.sentences', range), args);
     if (rows.isEmpty) {
-      rows = await db.rawQuery(
-          _sentenceQuery('ext.extra_sentence', range), args);
+      rows =
+          await db.rawQuery(_sentenceQuery('ext.extra_sentence', range), args);
     }
     if (rows.isEmpty) return const [];
 
@@ -180,7 +185,8 @@ class SentencePageContentRepository implements PageContentRepository {
         pali = _keepWords(pali, end.wordIndex - dropped);
         cut = true;
       }
-      if (pali.isEmpty) continue;
+      if (_blank(pali)) continue;
+      pali = balanceBold(pali);
       // A sentence the page break cuts shows its links once, on the page
       // where it ends.
       final sentenceLinks = cut ? null : links[_key(paraId, lineId)];
@@ -241,11 +247,15 @@ class SentencePageContentRepository implements PageContentRepository {
     // Switched off means switched off. An empty list used to mean "show
     // everything installed", which was right while there was no way to turn
     // one off and wrong as soon as there was.
-    final codes =
-        Prefs.activeLanguages.where(installed.contains).toList();
+    final codes = Prefs.activeLanguages.where(installed.contains).toList();
     if (codes.isEmpty) return const [];
 
-    final args = <Object?>[start.bookId, start.paraId, start.paraId, start.lineId];
+    final args = <Object?>[
+      start.bookId,
+      start.paraId,
+      start.paraId,
+      start.lineId
+    ];
     var range = '(para_id > ? OR (para_id = ? AND line_id >= ?))';
     if (end != null && end.bookId == start.bookId) {
       range += ' AND (para_id < ? OR (para_id = ? AND line_id <= ?))';
@@ -281,7 +291,12 @@ class SentencePageContentRepository implements PageContentRepository {
   /// page number, not as a marker inside the text.
   Future<Map<String, List<PageAnchor>>> _anchorsFor(
       dynamic db, _Bound start, _Bound? end) async {
-    final args = <Object?>[start.bookId, start.paraId, start.paraId, start.lineId];
+    final args = <Object?>[
+      start.bookId,
+      start.paraId,
+      start.paraId,
+      start.lineId
+    ];
     var range = '(para_id > ? OR (para_id = ? AND line_id >= ?))';
     if (end != null && end.bookId == start.bookId) {
       range += ' AND (para_id < ? OR (para_id = ? AND line_id <= ?))';
@@ -310,6 +325,7 @@ class SentencePageContentRepository implements PageContentRepository {
   }
 
   @override
+
   /// Every page of a book, which is what the reader asks for when it opens
   /// one.
   ///
@@ -331,9 +347,8 @@ class SentencePageContentRepository implements PageContentRepository {
 
     // A TPR book can span more than one ePitaka book, so read by the books
     // the boundaries actually name.
-    final epiBooks = <String>{
-      for (final row in breaks) row['book_id'] as String
-    }.toList();
+    final epiBooks =
+        <String>{for (final row in breaks) row['book_id'] as String}.toList();
 
     final sentences = <String, List<Map<String, Object?>>>{};
     for (final book in epiBooks) {
@@ -428,8 +443,7 @@ class SentencePageContentRepository implements PageContentRepository {
         final para = row['para_id'] as int;
         final line = row['line_id'] as int;
         if (end != null && end.bookId == start.bookId) {
-          if (para > end.paraId ||
-              (para == end.paraId && line > end.lineId)) {
+          if (para > end.paraId || (para == end.paraId && line > end.lineId)) {
             break;
           }
         }
@@ -480,8 +494,7 @@ class SentencePageContentRepository implements PageContentRepository {
     final out = <String, List<PageAnchor>>{};
     for (final row in rows) {
       out
-          .putIfAbsent(
-              _key(row['para_id'] as int, row['line_id'] as int),
+          .putIfAbsent(_key(row['para_id'] as int, row['line_id'] as int),
               () => <PageAnchor>[])
           .add(PageAnchor(
             edition: row['edition'] as String,
@@ -538,9 +551,8 @@ class SentencePageContentRepository implements PageContentRepository {
       final levels = <int, int>{
         for (final row in rows) row['para_id'] as int: row['level'] as int
       };
-      final first = levels.isEmpty
-          ? null
-          : levels.keys.reduce((a, b) => a < b ? a : b);
+      final first =
+          levels.isEmpty ? null : levels.keys.reduce((a, b) => a < b ? a : b);
       return _Headings(levels, first);
     } catch (_) {
       return const _Headings({}, null);
@@ -578,8 +590,49 @@ class SentencePageContentRepository implements PageContentRepository {
   /// ePitaka keeps `<b>`, `<sup>` and `<i>` inside the Pali itself, on about a
   /// quarter of its sentences. They are dropped here so that a word offset
   /// means the same thing as it did when it was measured.
-  static String _stripInlineMarkup(String pali) =>
-      pali.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+  ///
+  /// All but the bold. A commentary bolds the word it explains,
+  /// `<b>Gahapatānī</b>ti`, and dropping it lost every one of them from the
+  /// reader. A bold tag holds no space, so keeping it leaves the words, and
+  /// the offsets counted in them, as they were: checked on every tagged
+  /// sentence of the canon. Only a tag at either end is moved past the space
+  /// beside it, which trimming would otherwise have taken.
+  static String _stripInlineMarkup(String pali) => pali
+      .replaceAll(_notBold, '')
+      .trim()
+      .replaceFirstMapped(_leadingBold, (m) => m[1]!)
+      .replaceFirstMapped(_trailingBold, (m) => m[1]!);
+
+  static final _notBold = RegExp(r'<(?!/?b>)[^>]*>');
+  static final _leadingBold = RegExp(r'^((?:</?b>)+)\s+');
+  static final _trailingBold = RegExp(r'\s+((?:</?b>)+)$');
+  static final _bold = RegExp(r'</?b>');
+
+  /// [text] with every bold closed inside it.
+  ///
+  /// Bold runs over sentence ends, opened in one and closed in the next, and
+  /// a page break cuts a sentence anywhere. Each piece is drawn on its own,
+  /// so one left open would run on over the rest of the page. A close with
+  /// nothing open is given its opening at the start of the piece, and an
+  /// opening left open is closed at its end.
+  static String balanceBold(String text) {
+    var depth = 0;
+    var missingOpens = 0;
+    for (final m in _bold.allMatches(text)) {
+      if (m[0] == '<b>') {
+        depth++;
+      } else if (depth > 0) {
+        depth--;
+      } else {
+        missingOpens++;
+      }
+    }
+    if (depth == 0 && missingOpens == 0) return text;
+    return '${'<b>' * missingOpens}$text${'</b>' * depth}';
+  }
+
+  /// Whether [text] holds nothing but bold tags and space.
+  static bool _blank(String text) => text.replaceAll(_bold, '').trim().isEmpty;
 
   static String _dropWords(String text, int count) {
     final words = text.split(' ');

@@ -56,8 +56,7 @@ class PageAnchor {
   });
 
   /// The anchor spelling the reader already recognises, e.g. `V1.0023`.
-  String get name =>
-      '$edition$volume.${page.toString().padLeft(4, '0')}';
+  String get name => '$edition$volume.${page.toString().padLeft(4, '0')}';
 }
 
 /// How a sentence joins what comes before it.
@@ -183,8 +182,7 @@ class PageComposer {
         ..write('<a name="${sentenceMarker(sentence.paraId, sentence.lineId)}">'
             '</a>')
         ..write(_sentenceHtml(sentence, languages));
-      previousHadTranslation =
-          sentence.translations.any((t) => t.isNotEmpty);
+      previousHadTranslation = sentence.translations.any((t) => t.isNotEmpty);
       first = false;
     }
 
@@ -202,8 +200,7 @@ class PageComposer {
   /// with a parenthesised source are wrapped. Other brackets in the text are
   /// cross-references and editorial remarks, not variants, and hiding those
   /// would take away content the reader never asked to lose.
-  static final _variantReading =
-      RegExp(r'\[[^\[\]]*\([^()]*\)\s*\]');
+  static final _variantReading = RegExp(r'\[[^\[\]]*\([^()]*\)\s*\]');
 
   /// The credit and caution for the ePitaka translations, written at the top
   /// of a book's first page when a translation is shown.
@@ -288,21 +285,35 @@ class PageComposer {
   /// Order is the caller's: Pali first, then each translation in the order the
   /// reader has chosen in settings.
   static String _sentenceHtml(PageSentence sentence, List<String> languages) {
-    var pali = _withAnchors(sentence);
+    // ePitaka's bold drawn as the old pages drew theirs, so the reader's
+    // style, the night theme and formatted copy all treat it as they did.
+    // After the anchors, which are placed by counting words between spaces.
+    var pali = _withAnchors(sentence)
+        .replaceAll('<b>', '<span class="bld">')
+        .replaceAll('</b>', '</span>');
     // Inside the Pali, so that it is hidden with it and stays on the Pali
     // side when the two are drawn side by side.
     if (sentence.xrayId != null) {
       pali += '<xray data-x="${sentence.xrayId}"></xray>';
     }
     if (sentence.translations.isEmpty) return pali;
+    final boldsTerm = sentence.pali.contains('<b>');
 
     final buffer = StringBuffer()
       ..write('<span class="palitext">')
       ..write(pali)
       ..write('</span>');
     for (var i = 0; i < sentence.translations.length; i++) {
-      final translation = sentence.translations[i];
+      var translation = sentence.translations[i];
       if (translation.isEmpty) continue;
+      // Where the Pali bolds the word it explains, the translation shows it
+      // in italics, as English sets a Pali word: "<i>Gahapatānī</i> is a
+      // housewife". A reader looks for the same word in both, so there it
+      // is bold as well. Italics elsewhere are left as they are.
+      if (boldsTerm) {
+        translation =
+            translation.replaceAll('<i>', '<b>').replaceAll('</i>', '</b>');
+      }
       buffer.write('<br><span class="translation_text"');
       if (i < languages.length) buffer.write(' lang="${languages[i]}"');
       buffer

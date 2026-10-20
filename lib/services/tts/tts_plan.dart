@@ -133,6 +133,7 @@ class TtsPlan {
   }
 
   static final _tag = RegExp(r'<[^>]*>');
+  static final _bold = RegExp(r'</?b>');
   static final _space = RegExp(r'\s+');
 
   /// A variant reading, `[anubaddhā (ka. sī. pī.)]`: an alternative and the
@@ -148,7 +149,9 @@ class TtsPlan {
 
   /// The Pali as it should be spoken, in the script of its voice.
   static String speakablePali(String pali) {
-    final roman = _clean(pali)
+    // Bold sits inside words (`<b>Gahapatānī</b>ti`); taken out whole, not
+    // turned into a space, so the word is read as one.
+    final roman = _clean(pali.replaceAll(_bold, ''))
         .replaceAll(_variant, ' ')
         .replaceFirst(_paragraphNumber, '')
         .replaceAll(_space, ' ')
