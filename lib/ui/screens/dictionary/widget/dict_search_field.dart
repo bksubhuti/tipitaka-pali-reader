@@ -1,3 +1,4 @@
+import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:provider/provider.dart';
@@ -84,6 +85,15 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
             .read<DictionaryController>()
             .getSuggestions(romanText);
       },
+      // Nothing to say before a word is begun: on focus the box is empty, and
+      // "No items found!" showed at once. From two letters on, a search that
+      // finds nothing says so.
+      emptyBuilder: (context) => textEditingController.text.trim().length < 2
+          ? const SizedBox()
+          : Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(AppLocalizations.of(context)!.notFound),
+            ),
       itemBuilder: (context, String suggestion) {
         return ListTile(
           title: Text(PaliScript.getScriptOf(
