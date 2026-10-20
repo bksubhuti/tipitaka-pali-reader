@@ -328,6 +328,9 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      // A click leaves no focus behind on the line, which showed as a tint
+      // beside the reader's real place in the tree.
+      canRequestFocus: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 2),

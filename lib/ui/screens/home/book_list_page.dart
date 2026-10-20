@@ -100,7 +100,7 @@ class _BookListPageState extends State<BookListPage> {
   }
 
   /// Follows the book in the selected tab, and its page.
-  void _bindFocus({bool retried = false}) {
+  void _bindFocus({int tries = 0}) {
     final books = _books;
     if (!mounted || books == null) return;
     if (books.books.isEmpty) {
@@ -121,10 +121,20 @@ class _BookListPageState extends State<BookListPage> {
     } catch (_) {
       source = null; // not loaded yet
     }
-    if (source == null && !retried) {
+    if (source == null && tries < 20) {
       // A book just opened has no reader yet; it is there a moment later.
-      Future.delayed(
-          const Duration(milliseconds: 300), () => _bindFocus(retried: true));
+      // Asked again for up to six seconds, not once: a book that took longer
+      // than 300 ms to open, as in a debug run, was never followed at all,
+      // and the tree stayed where it was however far the reader went.
+      final uuid = entry['uuid'];
+      Future.delayed(const Duration(milliseconds: 300), () {
+        // Only while that tab is still the one shown.
+        final now = _books?.books;
+        final at = _books?.selectedBookIndex ?? -1;
+        if (now == null || at < 0 || at >= now.length) return;
+        if (now[at]['uuid'] != uuid) return;
+        _bindFocus(tries: tries + 1);
+      });
     }
     if (!identical(source, _pageSource)) {
       _pageSource?.removeListener(_onPage);
@@ -178,11 +188,12 @@ class _BookListPageState extends State<BookListPage> {
       return;
     }
     if (!_tree) return;
-    final data = _treeData[_tabOf(f.bookId)];
+    final tab = _tabOf(f.bookId);
+    final data = _treeData[tab];
     if (data == null) return;
     for (final c in await data) {
       if (c.books.any((b) => b.book.id == f.bookId)) {
-        final fold = _folds[c.category.category.id];
+        final fold = _folds[_tabFoldKey(tab, c.category.category.id)];
         if (fold != null && !fold.isExpanded) fold.expand();
       }
     }
@@ -205,6 +216,13 @@ class _BookListPageState extends State<BookListPage> {
       controller.animateTo(index);
     }
   }
+
+  /// The key of a category's fold in the tabbed tree. Each tab has its own:
+  /// the tabs share category ids, Majjhima being `ma` in all four, and one
+  /// controller shared by two folds tied them together, and to whichever
+  /// tab the tree had just switched to while following the reader.
+  static String _tabFoldKey(String tab, String category) =>
+      'tab:$tab:$category';
 
   // key will be use for load book list from database
   // value will be use for TabBar Title
@@ -557,7 +575,8 @@ class _BookListPageState extends State<BookListPage> {
                   for (final categoryWithBooks in snapshot.data!)
                     ExpansionTile(
                       controller: _folds.putIfAbsent(
-                          categoryWithBooks.category.category.id,
+                          _tabFoldKey(mainCategory,
+                              categoryWithBooks.category.category.id),
                           ExpansibleController.new),
                       initiallyExpanded: Prefs.expandedBookList ||
                           categoryWithBooks.books
@@ -698,7 +717,9 @@ class _BookListPageState extends State<BookListPage> {
       BuildContext context, Book book, int? page, String? highlight) async {
     final books = context.read<OpenningBooksProvider>();
     // Already open: go there in its own tab, gliding as the contents panel
-    // does. Opening it again reloaded the book and lost the glide.
+    // does. Opening it again reloaded the book and lost the glide. The
+    // book's own line, which asks for no page, opens it anew in a tab of its
+    // own, so the same book can be open twice.
     if (page != null) {
       final at = books.books.indexWhere((b) =>
           (b['book'] as Book).id == book.id &&
