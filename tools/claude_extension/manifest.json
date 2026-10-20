@@ -1,0 +1,117 @@
+{
+  "manifest_version": "0.3",
+  "name": "tpr-research",
+  "display_name": "TPR Research",
+  "version": "1.0.0",
+  "description": "Research the Pāḷi Tipiṭaka, commentaries and translations in your Tipitaka Pali Reader, and write papers with quotes and links that open TPR.",
+  "long_description": "TPR Research lets Claude read the books in your Tipitaka Pali Reader (TPR): the Pāḷi canon, the Aṭṭhakathā and Ṭīkā, later handbooks, and the translations you have installed.\n\nAsk a question such as *\"Where do the suttas mention the heart-base? Show me with quotes\"* and Claude searches TPR's own index, counts occurrences, reads each passage in context with its commentary, and writes a paper: Pāḷi quotes in grey boxes, the English under each, and a link that opens TPR on the right page. Papers are saved as Markdown, HTML and PDF in Documents/TPR Research.\n\nTPR's files are only read, never changed. You need Tipitaka Pali Reader, opened once so it finishes setting up, with at least one search run so its index is built. Install the English translation in TPR (Settings → Download) for English under the quotes.\n\nOn a Mac, the first time Claude reads TPR's data macOS asks whether Claude may access another app's data. Allow it: the extension opens every database read-only.",
+  "author": {
+    "name": "Tipitaka Pali Reader",
+    "url": "https://americanmonk.org/tipitaka-pali-reader"
+  },
+  "homepage": "https://americanmonk.org/tipitaka-pali-reader",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bksubhuti/tipitaka-pali-reader"
+  },
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {
+        "TPR_DB_DIR": "${user_config.tpr_data_dir}",
+        "TPR_PAPERS_DIR": "${user_config.papers_dir}"
+      }
+    }
+  },
+  "user_config": {
+    "papers_dir": {
+      "type": "directory",
+      "title": "Folder for papers",
+      "description": "Where finished papers are saved.",
+      "required": false,
+      "default": "${DOCUMENTS}/TPR Research"
+    },
+    "tpr_data_dir": {
+      "type": "directory",
+      "title": "TPR data folder (optional)",
+      "description": "Leave empty: it is found automatically. Set it only if TPR is installed somewhere unusual. It is the folder holding tipitaka_pali.db.",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "tpr_research_guide",
+      "description": "How to research with these tools, and the paper format"
+    },
+    {
+      "name": "tpr_status",
+      "description": "Check the TPR data folder, search index and translations"
+    },
+    {
+      "name": "tpr_books",
+      "description": "List book ids, layers and names"
+    },
+    {
+      "name": "tpr_search",
+      "description": "Search the Pāḷi or a translation with TPR's own index"
+    },
+    {
+      "name": "tpr_count",
+      "description": "Count occurrences per book and layer, to prove presence or absence"
+    },
+    {
+      "name": "tpr_show",
+      "description": "Show a passage with its translation, line by line"
+    },
+    {
+      "name": "tpr_quote",
+      "description": "A ready quote: bold Pāḷi, translation and TPR link"
+    },
+    {
+      "name": "tpr_link",
+      "description": "The TPR link and page for a line"
+    },
+    {
+      "name": "tpr_commentary",
+      "description": "Commentary passages TPR links to a paragraph"
+    },
+    {
+      "name": "tpr_save_paper",
+      "description": "Save a paper as Markdown, HTML and PDF, and open it"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "research_paper",
+      "description": "Research a question in your TPR library and write a paper with Pāḷi quotes and TPR links",
+      "arguments": [
+        "question"
+      ],
+      "text": "Research this in my Tipitaka Pali Reader and write a paper with Pāḷi quotes and TPR links, following tpr_research_guide, then save it with tpr_save_paper: ${arguments.question}"
+    }
+  ],
+  "keywords": [
+    "tipitaka",
+    "pali",
+    "buddhism",
+    "theravada",
+    "research",
+    "tpr"
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=22.13.0"
+    }
+  }
+}
