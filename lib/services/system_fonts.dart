@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
@@ -121,13 +122,74 @@ class SystemFonts {
     for (final path in files) {
       final file = File(path);
       if (!file.existsSync()) continue;
-      loader.addFont(
-          file.readAsBytes().then((bytes) => ByteData.sublistView(bytes)));
+      final bytes = await file.readAsBytes();
+      for (final face in facesOf(bytes)) {
+        loader.addFont(Future.value(face));
+      }
       any = true;
     }
     if (!any) return;
     await loader.load();
     _loaded.add(family);
+  }
+
+  /// Each font in [bytes], as a file of its own.
+  ///
+  /// A collection (.ttc) holds several faces in one file: Palatino's regular,
+  /// italic, bold and bold italic are all in Palatino.ttc. Flutter takes only
+  /// the first face of a collection, so with Palatino chosen there was no
+  /// bold at all, and the commentaries' bold words were drawn by thickening
+  /// the regular letters, faintly. Each face is copied out with the tables it
+  /// points to, which is all a font file is.
+  @visibleForTesting
+  static List<ByteData> facesOf(Uint8List bytes) {
+    final data = ByteData.sublistView(bytes);
+    if (bytes.length < 12 || data.getUint32(0) != 0x74746366) {
+      // not 'ttcf': one font already
+      return [data];
+    }
+    final faces = <ByteData>[];
+    try {
+      final count = data.getUint32(8);
+      for (var f = 0; f < count; f++) {
+        final at = data.getUint32(12 + f * 4);
+        final numTables = data.getUint16(at + 4);
+        final tables = <(int tag, int sum, int offset, int length)>[
+          for (var i = 0; i < numTables; i++)
+            (
+              data.getUint32(at + 12 + i * 16),
+              data.getUint32(at + 12 + i * 16 + 4),
+              data.getUint32(at + 12 + i * 16 + 8),
+              data.getUint32(at + 12 + i * 16 + 12),
+            )
+        ];
+        var size = 12 + numTables * 16;
+        for (final t in tables) {
+          size += (t.$4 + 3) & ~3;
+        }
+        final out = Uint8List(size);
+        final view = ByteData.sublistView(out);
+        // The face's own header: version and the table count and search
+        // fields, which do not change.
+        out.setRange(0, 12, bytes, at);
+        var next = 12 + numTables * 16;
+        for (var i = 0; i < tables.length; i++) {
+          final (tag, sum, offset, length) = tables[i];
+          view
+            ..setUint32(12 + i * 16, tag)
+            ..setUint32(12 + i * 16 + 4, sum)
+            ..setUint32(12 + i * 16 + 8, next)
+            ..setUint32(12 + i * 16 + 12, length);
+          out.setRange(next, next + length, bytes, offset);
+          next += (length + 3) & ~3;
+        }
+        faces.add(view);
+      }
+    } catch (_) {
+      // Not laid out as a collection should be: load it as it is.
+      return [data];
+    }
+    return faces.isEmpty ? [data] : faces;
   }
 
   static List<String> _fontFolders() {
@@ -201,7 +263,8 @@ class SystemFonts {
     final fonts = files.entries
         .map((e) => SystemFont(e.key, e.value..sort(), letters[e.key]!))
         .toList()
-      ..sort((a, b) => a.family.toLowerCase().compareTo(b.family.toLowerCase()));
+      ..sort(
+          (a, b) => a.family.toLowerCase().compareTo(b.family.toLowerCase()));
     return fonts;
   }
 
@@ -312,7 +375,10 @@ class SystemFonts {
       if (format == 4) format4 ??= offset;
     }
     if (format12 != null) {
-      return {for (final c in codes) if (_inFormat12(table, format12, c)) c};
+      return {
+        for (final c in codes)
+          if (_inFormat12(table, format12, c)) c
+      };
     }
     if (format4 != null) {
       return {
