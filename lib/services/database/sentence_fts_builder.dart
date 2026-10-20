@@ -46,7 +46,10 @@ class SentenceFtsBuilder {
   /// they were placed by paragraph, so a paragraph running across several
   /// pages was filed under the last of them, and a hit in it opened on the
   /// wrong page.
-  static const format = '3';
+  ///
+  /// '4': the three books converted from TPR's own text are indexed too,
+  /// from [extraTable]. Before, they could be read but not searched.
+  static const format = '4';
 
   /// Paragraphs of overlap between consecutive units.
   static const overlapParagraphs = 1;
@@ -169,12 +172,10 @@ CREATE TABLE IF NOT EXISTS search_meta (
 
   /// True when the index already exists and holds rows.
   static Future<bool> isBuilt(Database db) async {
-    final tables = await db.rawQuery(
-        "SELECT count(*) AS n FROM sqlite_master "
+    final tables = await db.rawQuery("SELECT count(*) AS n FROM sqlite_master "
         "WHERE type='table' AND name='fts_unit'");
     if ((tables.first['n'] as int) == 0) return false;
-    final side = await db.rawQuery(
-        "SELECT count(*) AS n FROM sqlite_master "
+    final side = await db.rawQuery("SELECT count(*) AS n FROM sqlite_master "
         "WHERE type='table' AND name IN ('search_unit', 'search_meta')");
     // An index from before the text was dropped has no side tables, and
     // cannot be searched by the current queries. Treat it as not built so it
@@ -182,8 +183,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
     if ((side.first['n'] as int) < 2) return false;
 
     // Finished, not merely started.
-    final done = await db.rawQuery(
-        "SELECT value FROM search_meta WHERE key = 'units'");
+    final done =
+        await db.rawQuery("SELECT value FROM search_meta WHERE key = 'units'");
     if (done.isEmpty) return false;
     final expected = int.tryParse(done.first['value'] as String? ?? '') ?? 0;
     if (expected <= 0) return false;
@@ -192,8 +193,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
     if ((rows.first['n'] as int) < expected) return false;
 
     // Built the current way, not merely finished.
-    final built = await db.rawQuery(
-        "SELECT value FROM search_meta WHERE key = 'format'");
+    final built =
+        await db.rawQuery("SELECT value FROM search_meta WHERE key = 'format'");
     return built.isNotEmpty && built.first['value'] == format;
   }
 
@@ -205,8 +206,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
   /// languages its rows name.
   static Future<List<String>> indexedLanguages(Database db) async {
     try {
-      final meta = await db.rawQuery(
-          "SELECT value FROM search_meta WHERE key = 'languages'");
+      final meta = await db
+          .rawQuery("SELECT value FROM search_meta WHERE key = 'languages'");
       if (meta.isNotEmpty) {
         final value = meta.first['value'] as String? ?? '';
         return value.isEmpty ? const [] : (value.split(',')..sort());
@@ -247,9 +248,9 @@ CREATE TABLE IF NOT EXISTS search_meta (
     String code, {
     void Function(String message)? onProgress,
   }) async {
-    final units = await db.rawQuery(
-        'SELECT id, epi_book, start_para, end_para FROM search_unit '
-        'ORDER BY epi_book, id');
+    final units = await db
+        .rawQuery('SELECT id, epi_book, start_para, end_para FROM search_unit '
+            'ORDER BY epi_book, id');
     final byBook = <String, List<Map<String, Object?>>>{};
     for (final unit in units) {
       byBook.putIfAbsent(unit['epi_book'] as String, () => []).add(unit);
@@ -260,8 +261,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
     // Row numbers carry on from the highest ever used, including rows left
     // behind in the index by an earlier run, which a contentless table will
     // not let go of.
-    final lastIndexed = Sqflite.firstIntValue(await db
-            .rawQuery('SELECT max(rowid) FROM fts_translation_unit')) ??
+    final lastIndexed = Sqflite.firstIntValue(
+            await db.rawQuery('SELECT max(rowid) FROM fts_translation_unit')) ??
         0;
     final lastMapped = Sqflite.firstIntValue(await db
             .rawQuery('SELECT max(rowid_) FROM search_translation_unit')) ??
@@ -397,13 +398,36 @@ CREATE TABLE IF NOT EXISTS search_meta (
   /// as (line, words before it). A page can begin part-way through a
   /// paragraph, and placing it needs the line it begins on turned into a word
   /// offset. Lines that come out empty are left out, as their words are.
+  /// The few books ePitaka does not carry, converted from TPR's own text:
+  /// Saddanīti (suttamālā), Kaccāyanasāra and Saddatthabhedacintā. Their
+  /// sentences are in the extension under TPR's book ids. The reader shows
+  /// them from there, and the index left them out because it only read
+  /// ePitaka's sentences, so they opened but no search could find them.
+  static const extraTable = 'ext.extra_sentence';
+
+  static Future<List<Map<String, Object?>>> _extraBooks(Database db) async {
+    try {
+      return await db.rawQuery(
+          'SELECT DISTINCT book_id FROM $extraTable ORDER BY book_id');
+    } catch (_) {
+      // An extension from before the table existed.
+      return const [];
+    }
+  }
+
   static Future<List<(int, String, List<(int, int)>)>> _readParagraphLines(
       Database db, String table, String column, String book) async {
-    final rows = await db.rawQuery(
-      'SELECT para_id, line_id, $column AS text FROM $table '
-      'WHERE book_id = ? ORDER BY para_id, line_id',
-      [book],
-    );
+    List<Map<String, Object?>> rows;
+    try {
+      rows = await db.rawQuery(
+        'SELECT para_id, line_id, $column AS text FROM $table '
+        'WHERE book_id = ? ORDER BY para_id, line_id',
+        [book],
+      );
+    } catch (_) {
+      if (table != extraTable) rethrow;
+      return const [];
+    }
     final result = <(int, String, List<(int, int)>)>[];
     var words = 0;
     for (final row in rows) {
@@ -462,8 +486,11 @@ CREATE TABLE IF NOT EXISTS search_meta (
     await db.execute(_createMeta);
 
     final pageStarts = await _pageStarts(db);
-    final books = await db.rawQuery(
-        'SELECT DISTINCT book_id FROM epi.sentences ORDER BY book_id');
+    final books = [
+      ...await db.rawQuery(
+          'SELECT DISTINCT book_id FROM epi.sentences ORDER BY book_id'),
+      ...await _extraBooks(db),
+    ];
 
     final ids = _Ids();
     var indexed = 0;
@@ -536,8 +563,11 @@ CREATE TABLE IF NOT EXISTS search_meta (
     final paragraphs = <int, String>{};
     final lineStarts = <int, List<(int, int)>>{};
     final order = <int>[];
-    for (final (para, text, lines)
-        in await _readParagraphLines(db, 'epi.sentences', 'pali', book)) {
+    var read = await _readParagraphLines(db, 'epi.sentences', 'pali', book);
+    if (read.isEmpty) {
+      read = await _readParagraphLines(db, extraTable, 'pali', book);
+    }
+    for (final (para, text, lines) in read) {
       paragraphs[para] = text;
       lineStarts[para] = lines;
       order.add(para);
@@ -752,7 +782,8 @@ CREATE TABLE IF NOT EXISTS search_meta (
               'DELETE FROM search_translation_unit WHERE unit_id IN '
               '(SELECT id FROM search_unit WHERE epi_book = ?)',
               [book]);
-          await db.execute('DELETE FROM search_unit WHERE epi_book = ?', [book]);
+          await db
+              .execute('DELETE FROM search_unit WHERE epi_book = ?', [book]);
         }
         await _write(db, units, ids);
       }

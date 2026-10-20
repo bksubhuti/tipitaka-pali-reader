@@ -40,12 +40,22 @@ class UnitText {
     required int startPara,
     required int endPara,
   }) async {
-    final rows = await db.rawQuery(
-      'SELECT para_id, pali FROM epi.sentences '
-      'WHERE book_id = ? AND para_id BETWEEN ? AND ? '
-      'ORDER BY para_id, line_id',
-      [epiBook, startPara, endPara],
-    );
+    Future<List<Map<String, Object?>>> from(String table) => db.rawQuery(
+          'SELECT para_id, pali FROM $table '
+          'WHERE book_id = ? AND para_id BETWEEN ? AND ? '
+          'ORDER BY para_id, line_id',
+          [epiBook, startPara, endPara],
+        );
+    var rows = await from('epi.sentences');
+    // The books ePitaka does not carry are in the extension; see
+    // SentenceFtsBuilder.extraTable.
+    if (rows.isEmpty) {
+      try {
+        rows = await from('ext.extra_sentence');
+      } catch (_) {
+        // An extension from before the table existed.
+      }
+    }
     return _joinWithParagraphs(rows, 'pali');
   }
 

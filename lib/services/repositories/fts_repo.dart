@@ -83,7 +83,12 @@ class FtsDatabaseRepository implements FtsRespository {
     // Neither language holds the whole phrase. It may still be a query that
     // mixes them, which no single index can answer because a phrase match
     // cannot span two tables. Those are worth one more attempt.
+    // Not for an exact search, though. Its words in any order is not what was
+    // asked for, and short ones like "vā" and "no" are in nearly every
+    // passage, so a phrase that is nowhere came back as hundreds of loose
+    // matches (#325). Nothing found is the honest answer.
     if (paliResults.isEmpty && translationResults.isEmpty) {
+      if (queryMode == QueryMode.exact) return const [];
       return await _mixedLanguageSearch(phrase);
     }
     if (translationResults.isEmpty) return paliResults;
@@ -267,7 +272,8 @@ class FtsDatabaseRepository implements FtsRespository {
           id: id,
           book: Book(id: bookId, name: bookName),
           pageNumber: pageNumber,
-          description: _getRightHandSideWords(content, Prefs.searchSnippetWords),
+          description:
+              _getRightHandSideWords(content, Prefs.searchSnippetWords),
           suttaName: suttaName,
           isTranslation: isTranslation,
         ));
@@ -521,6 +527,51 @@ class FtsDatabaseRepository implements FtsRespository {
     return words.join(r'[^0-9a-zāīūṭḍṇṅñṃḷṛ]+');
   }
 
+  /// [phrasePattern] held to whole words: what an exact search asks for.
+  ///
+  /// The index cannot tell "assā" from "assa", since it drops the marks over
+  /// vowels, so exact search re-checks every passage it returns. Without
+  /// word edges that check passed any passage with "assā" inside a longer
+  /// word: pārājikassā, apassāya, vassāni (#314).
+  static String wholeWordPattern(String phrase) => '(?<![0-9a-zāīūṭḍṇṅñṃḷṛ])'
+      '(?:${phrasePattern(phrase, tolerant: true)})'
+      '(?![0-9a-zāīūṭḍṇṅñṃḷṛ])';
+
+  /// [phrase] and the same with "ti" split off any word ending in it.
+  ///
+  /// ePitaka bolds the word a commentary explains and ends the bold before
+  /// its "ti": `<b>tādisan</b>ti`. The index turns each tag into a space, so
+  /// it holds "tādisan ti", and a search for "tādisanti" missed every such
+  /// passage (#326). Over 230,000 words in the canon are written this way.
+  /// The page breaks are counted in those same words, so the index is left
+  /// as it is and the split form is searched for as well. It also finds
+  /// "pārājikassā ’’ ti" for "pārājikassāti".
+  ///
+  /// Only words of five letters or more, so "sati", "hoti" and "pīti" are not
+  /// also looked for as "sa ti", "ho ti" and "pī ti". Capped at three such
+  /// words, eight forms, for a long phrase full of them.
+  static List<String> tiForms(String phrase) {
+    var forms = <List<String>>[[]];
+    var split = 0;
+    for (final word in phrase.trim().split(RegExp(r'\s+'))) {
+      if (word.isEmpty) continue;
+      final splits =
+          split < 3 && word.length >= 5 && word.toLowerCase().endsWith('ti');
+      if (splits) split++;
+      forms = [
+        for (final form in forms) ...[
+          [...form, word],
+          if (splits) [...form, word.substring(0, word.length - 2), 'ti'],
+        ]
+      ];
+    }
+    return [for (final form in forms) form.join(' ')];
+  }
+
+  /// Any of [forms] as a whole-word pattern.
+  static String anyWholeWord(List<String> forms) =>
+      forms.map(wholeWordPattern).join('|');
+
   RegExp _createExactMatch(String phrase) {
     return RegExp(
       '<$highlightTagName>${_phrasePattern(phrase)}</$highlightTagName>',
@@ -672,7 +723,9 @@ class FtsDatabaseRepository implements FtsRespository {
       final source = isTranslation
           ? '(SELECT book_id, para_id, translation AS text '
               'FROM lang_$lang.sentences)'
-          : '(SELECT book_id, para_id, pali AS text FROM epi.sentences)';
+          : '(SELECT book_id, para_id, pali AS text FROM epi.sentences '
+              'UNION ALL '
+              'SELECT book_id, para_id, pali AS text FROM ext.extra_sentence)';
       sql = '''
       SELECT DISTINCT u.id, u.bookid, books.name, u.page, u.page_map,
              u.epi_book, u.start_para, u.end_para, u.sutta_name,
@@ -688,7 +741,9 @@ class FtsDatabaseRepository implements FtsRespository {
     } else {
       late String match;
       if (queryMode == QueryMode.exact) {
-        match = '"$safePhrase"';
+        match = tiForms(safePhrase)
+            .map((form) => '"${form.replaceAll('"', '')}"')
+            .join(' OR ');
       } else if (queryMode == QueryMode.prefix) {
         match = words.map((w) => '"${w.replaceAll('"', '')}"*').join(' ');
       } else {
@@ -705,74 +760,93 @@ class FtsDatabaseRepository implements FtsRespository {
       ''';
     }
 
-    final rows = await db.rawQuery(sql);
-    if (rows.isEmpty) return const [];
-
-    final exactPattern = RegExp(_phrasePattern(phrase), caseSensitive: false);
+    final exact = queryMode == QueryMode.exact;
+    final exactPattern = RegExp(
+        exact ? anyWholeWord(tiForms(phrase)) : _phrasePattern(phrase),
+        caseSensitive: false);
     final results = <SearchResult>[];
     final headings = HeadingCache(db);
 
-    for (final row in rows) {
-      final id = row['id'] as int;
-      final lang = row['lang'] as String?;
-      final epiBook = row['epi_book'] as String;
-      final startPara = row['start_para'] as int;
-      final endPara = row['end_para'] as int;
+    // An exact search goes on past the first batch of candidates. The index
+    // takes "assā" for "assa", so it hands back thousands of passages, and
+    // the real ones in later books were never looked at: "Found 274 in 34
+    // books", of 163 books that hold the word. The other modes keep every
+    // candidate they are given, so for them one batch is the whole answer.
+    var offset = 0;
+    while (true) {
+      final rows = await db.rawQuery('$sql OFFSET $offset');
+      if (rows.isEmpty && offset == 0) return const [];
 
-      final unit = isTranslation && lang != null
-          ? await UnitText.translationWithParagraphs(db,
-              lang: lang,
-              epiBook: epiBook,
-              startPara: startPara,
-              endPara: endPara)
-          : await UnitText.paliWithParagraphs(db,
-              epiBook: epiBook, startPara: startPara, endPara: endPara);
-      final content = unit.text;
-      if (content.isEmpty) continue;
+      for (final row in rows) {
+        final id = row['id'] as int;
+        final lang = row['lang'] as String?;
+        final epiBook = row['epi_book'] as String;
+        final startPara = row['start_para'] as int;
+        final endPara = row['end_para'] as int;
 
-      // The tokenizer is stemmed, so an exact search has to be re-checked
-      // against the words themselves. That used to be a LIKE in SQL; it is
-      // the same test, on the same string, in the one place that can still
-      // see it.
-      final at = exactPattern.firstMatch(content);
-      if (queryMode == QueryMode.exact && at == null) continue;
+        final unit = isTranslation && lang != null
+            ? await UnitText.translationWithParagraphs(db,
+                lang: lang,
+                epiBook: epiBook,
+                startPara: startPara,
+                endPara: endPara)
+            : await UnitText.paliWithParagraphs(db,
+                epiBook: epiBook, startPara: startPara, endPara: endPara);
+        final content = unit.text;
+        if (content.isEmpty) continue;
 
-      // Where the hit actually is. For a phrase that is the phrase; for a
-      // prefix or distance search the words are scattered and the place worth
-      // showing is where they come together.
-      var hitAt = at?.start ??
-          locateHit(content, words, wordDistance > 0 ? wordDistance : 20);
-      // locateHit reads words as Pali letters, so in Myanmar, Thai or
-      // Chinese it finds none. The first word as written still says where
-      // the passage matched.
-      if (hitAt < 0) {
-        hitAt = content.toLowerCase().indexOf(words.first.toLowerCase());
+        // The tokenizer is stemmed, so an exact search has to be re-checked
+        // against the words themselves. That used to be a LIKE in SQL; it is
+        // the same test, on the same string, in the one place that can still
+        // see it.
+        final at = exactPattern.firstMatch(content);
+        if (queryMode == QueryMode.exact && at == null) continue;
+
+        // Where the hit actually is. For a phrase that is the phrase; for a
+        // prefix or distance search the words are scattered and the place worth
+        // showing is where they come together.
+        var hitAt = at?.start ??
+            locateHit(content, words, wordDistance > 0 ? wordDistance : 20);
+        // locateHit reads words as Pali letters, so in Myanmar, Thai or
+        // Chinese it finds none. The first word as written still says where
+        // the passage matched.
+        if (hitAt < 0) {
+          hitAt = content.toLowerCase().indexOf(words.first.toLowerCase());
+        }
+
+        final unitPage = row['page'] as int;
+        final pageNumber = hitAt < 0
+            ? unitPage
+            : pageForMatch(row['page_map'] as String?, unitPage,
+                content.substring(0, hitAt).split(RegExp(r'\s+')).length - 1);
+
+        // The headings the hit sits under, so the result says which sutta or
+        // section it is in, not only the page.
+        final trail = await headings.trailAt(
+            epiBook, unit.paragraphAt(hitAt < 0 ? 0 : hitAt) ?? startPara);
+        final suttaName = (row['sutta_name'] as String?)?.isNotEmpty == true
+            ? row['sutta_name'] as String
+            : trail?.shortLine ?? 'n/a';
+
+        final description = _snippetAround(content, hitAt, words,
+            phrase: exact ? exactPattern : null);
+
+        results.add(SearchResult(
+          id: id,
+          book: Book(id: row['bookid'] as String, name: row['name'] as String),
+          pageNumber: pageNumber,
+          description: description,
+          suttaName: suttaName,
+          isTranslation: isTranslation,
+        ));
       }
 
-      final unitPage = row['page'] as int;
-      final pageNumber = hitAt < 0
-          ? unitPage
-          : pageForMatch(row['page_map'] as String?, unitPage,
-              content.substring(0, hitAt).split(RegExp(r'\s+')).length - 1);
-
-      // The headings the hit sits under, so the result says which sutta or
-      // section it is in, not only the page.
-      final trail = await headings.trailAt(
-          epiBook, unit.paragraphAt(hitAt < 0 ? 0 : hitAt) ?? startPara);
-      final suttaName = (row['sutta_name'] as String?)?.isNotEmpty == true
-          ? row['sutta_name'] as String
-          : trail?.shortLine ?? 'n/a';
-
-      final description = _snippetAround(content, hitAt, words);
-
-      results.add(SearchResult(
-        id: id,
-        book: Book(id: row['bookid'] as String, name: row['name'] as String),
-        pageNumber: pageNumber,
-        description: description,
-        suttaName: suttaName,
-        isTranslation: isTranslation,
-      ));
+      if (!exact ||
+          rows.length < _candidateLimit ||
+          results.length >= _candidateLimit) {
+        break;
+      }
+      offset += _candidateLimit;
     }
 
     if (!isTranslation && results.isNotEmpty) {
@@ -883,14 +957,26 @@ class FtsDatabaseRepository implements FtsRespository {
   /// showed nothing highlighted for prefix and distance searches because the
   /// phrase pattern needs the words next to each other, and in those two
   /// modes they are not.
-  String _snippetAround(String content, int offset, List<String> words) {
+  ///
+  /// An exact search gives [phrase] instead, and only whole matches of it are
+  /// marked: marking each word as the start of a longer one lit up "assāya"
+  /// in a search for "assā".
+  String _snippetAround(String content, int offset, List<String> words,
+      {RegExp? phrase}) {
     // The length set on the search page, split either side of the hit.
     final length = Prefs.searchSnippetWords;
     final from = offset < 0 ? 0 : offset;
     final left = _geLeftHandSideWords(content.substring(0, from), length ~/ 2);
-    final right = _getRightHandSideWords(
-        content.substring(from), length - length ~/ 2);
+    final right =
+        _getRightHandSideWords(content.substring(from), length - length ~/ 2);
     final window = left.isEmpty ? right : '$left $right';
+
+    if (phrase != null) {
+      return window.replaceAllMapped(
+          phrase,
+          (m) => '<$highlightTagName>${m.group(0)}'
+              '</$highlightTagName>');
+    }
 
     var marked = window;
     for (final word in words) {
