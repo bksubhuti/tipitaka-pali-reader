@@ -58,6 +58,7 @@ const String okToRatePref = "okToRate";
 const String multiHighlightPref = "singleHighlight";
 const String expandedBookListPref = "expandedBookList";
 const String bookListAsTreePref = "bookListAsTree";
+const String bookListViewPref = "bookListView";
 const String searchSnippetWordsPref = "searchSnippetWords";
 const String messagePref = "message";
 const String messageDatePref = "messageDate";
@@ -428,10 +429,18 @@ class Prefs {
       instance.setInt(searchSnippetWordsPref, value.clamp(15, 50));
 
   /// Whether the library is shown as a compact tree rather than as cards.
+  /// Kept only to start [bookListView] where the reader left it.
   static bool get bookListAsTree =>
       instance.getBool(bookListAsTreePref) ?? false;
-  static set bookListAsTree(bool value) =>
-      instance.setBool(bookListAsTreePref, value);
+
+  /// How the library lists the books: `cards`, `tree`, `baskets` (a tree by
+  /// piṭaka, each with its Mūla, Aṭṭhakathā and Ṭīkā) or `layers` (the Mūla
+  /// view: Mūla, Aṭṭhakathā, Ṭīkā and Añña). The last two have no tabs.
+  static String get bookListView =>
+      instance.getString(bookListViewPref) ??
+      (bookListAsTree ? 'tree' : 'cards');
+  static set bookListView(String value) =>
+      instance.setString(bookListViewPref, value);
 
   static String get message =>
       instance.getString(messagePref) ?? defaultMessage;

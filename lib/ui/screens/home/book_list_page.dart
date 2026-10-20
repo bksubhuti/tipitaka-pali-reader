@@ -13,6 +13,7 @@ import 'package:tipitaka_pali/ui/widgets/pali_text_view.dart';
 import 'package:tipitaka_pali/utils/font_utils.dart';
 
 import '../../../business_logic/models/book.dart';
+import '../../../business_logic/models/category.dart' as models;
 import '../../../business_logic/models/list_item.dart';
 import '../../../business_logic/models/sutta.dart';
 import '../../../business_logic/view_models/home_page_view_model.dart';
@@ -23,6 +24,7 @@ import '../../../services/repositories/sutta_repository.dart';
 import '../../../utils/platform_info.dart';
 import '../../dialogs/about_tpr_dialog.dart';
 import '../../dialogs/sutta_list_dialog.dart';
+import '../../widgets/basket_icon.dart';
 import '../../widgets/colored_text.dart';
 import 'openning_books_provider.dart';
 import 'widgets/book_toc_tree.dart';
@@ -36,8 +38,17 @@ class BookListPage extends StatefulWidget {
 }
 
 class _BookListPageState extends State<BookListPage> {
-  /// Tree or cards, as the reader last chose.
-  bool _tree = Prefs.bookListAsTree;
+  /// Cards, tree, or the tree by basket, as the reader last chose; see
+  /// [Prefs.bookListView].
+  String _view = Prefs.bookListView;
+  bool get _tree => _view == 'tree';
+
+  /// The basket view and the Mūla view, the two trees without tabs.
+  bool get _baskets => _view == 'baskets' || _view == 'layers';
+
+  /// Their books, read once for each.
+  final Map<String, Future<List<_Basket>>> _basketTrees = {};
+  Future<List<_Basket>>? get _basketData => _basketTrees[_view];
 
   // ---- The tree follows the reader -------------------------------------
   //
@@ -151,7 +162,22 @@ class _BookListPageState extends State<BookListPage> {
   /// Opens the category holding the book, in a tree that is showing.
   Future<void> _onFocus() async {
     final f = _focus.value;
-    if (f == null || !_tree) return;
+    if (f == null) return;
+    if (_baskets) {
+      // Each fold on the way to the book: Mūla, its piṭaka, the nikāya. A
+      // fold not built yet opens by itself when it is, since it holds the
+      // book; see [_buildBasketTree].
+      final baskets = _basketData;
+      if (baskets == null) return;
+      for (final basket in await baskets) {
+        for (final key in basket.keysTo(f.bookId)) {
+          final fold = _folds[key];
+          if (fold != null && !fold.isExpanded) fold.expand();
+        }
+      }
+      return;
+    }
+    if (!_tree) return;
     final data = _treeData[_tabOf(f.bookId)];
     if (data == null) return;
     for (final c in await data) {
@@ -211,7 +237,16 @@ class _BookListPageState extends State<BookListPage> {
                       },
                     ),
                   ],
-                  bottom: _buildTabBar(context),
+                  // The view choice on top, then the tabs, which the basket
+                  // tree does without.
+                  bottom: PreferredSize(
+                    preferredSize: Size.fromHeight(
+                        _viewToggleHeight + (_baskets ? 0 : kTextTabBarHeight)),
+                    child: Column(children: [
+                      _viewToggleRow(context),
+                      if (!_baskets) _buildTabBar(context),
+                    ]),
+                  ),
                 )
               : null,
           // Rydmike proposal: Consider converting the Drawer on this Home screen
@@ -220,21 +255,24 @@ class _BookListPageState extends State<BookListPage> {
           drawer: Mobile.isPhone(context) ? _buildDrawer(context) : null,
           body: Column(
             children: [
-              if (!Mobile.isPhone(context))
-                Material(
-                  color: Theme.of(context).appBarTheme.backgroundColor,
-                  child: _buildTabBar(context),
-                ),
-              // Its own row under the tabs, so the tabs keep their full width.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
-                child: _viewToggle(context),
-              ),
+              // The view choice at the very top, in its own row so the tabs
+              // under it keep their full width.
+              if (!Mobile.isPhone(context)) ...[
+                _viewToggleRow(context),
+                if (!_baskets)
+                  Material(
+                    color: Theme.of(context).appBarTheme.backgroundColor,
+                    child: _buildTabBar(context),
+                  ),
+              ],
               Expanded(
-                child: TabBarView(
-                    children: _mainCategories.entries
-                        .map((mainCategory) => _buildBookList(mainCategory.key))
-                        .toList()),
+                child: _baskets
+                    ? _buildBasketTree()
+                    : TabBarView(
+                        children: _mainCategories.entries
+                            .map((mainCategory) =>
+                                _buildBookList(mainCategory.key))
+                            .toList()),
               ),
             ],
           ),
@@ -360,30 +398,44 @@ class _BookListPageState extends State<BookListPage> {
         : _buildCondensedBookListWithExpansionTiles(mainCategory);
   }
 
-  /// Cards or tree, as two labelled choices across the row; the one in use
-  /// is filled. The choice is kept for the next start.
+  static const double _viewToggleHeight = 48;
+
+  Widget _viewToggleRow(BuildContext context) => SizedBox(
+        height: _viewToggleHeight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+          child: _viewToggle(context),
+        ),
+      );
+
+  /// Cards, tree, baskets or Mūla, as four icons across the row, each
+  /// named in its tooltip: four labels did not fit the panel. The one in
+  /// use is filled. The choice is kept for the next start.
   Widget _viewToggle(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    ButtonSegment<String> segment(String value, Object icon, String name) =>
+        ButtonSegment(
+            value: value,
+            icon: icon is IconData
+                ? Icon(icon, size: 20, semanticLabel: name)
+                : BasketIcon(size: 20, semanticLabel: name),
+            tooltip: name);
     return SizedBox(
       width: double.infinity,
-      child: SegmentedButton<bool>(
+      child: SegmentedButton<String>(
         showSelectedIcon: false,
         style: const ButtonStyle(visualDensity: VisualDensity.compact),
         segments: [
-          ButtonSegment(
-              value: false,
-              icon: const Icon(Icons.view_agenda_outlined, size: 18),
-              label: Text(l10n.cardView)),
-          ButtonSegment(
-              value: true,
-              icon: const Icon(Icons.account_tree_outlined, size: 18),
-              label: Text(l10n.treeView)),
+          segment('cards', Icons.view_agenda_outlined, l10n.cardView),
+          segment('tree', Icons.account_tree_outlined, l10n.treeView),
+          segment('baskets', const BasketIcon(), l10n.basketView),
+          segment('layers', Icons.layers_outlined, l10n.mulaView),
         ],
-        selected: {_tree},
+        selected: {_view},
         onSelectionChanged: (choice) {
-          Prefs.bookListAsTree = choice.first;
-          setState(() => _tree = choice.first);
-          if (_tree) {
+          Prefs.bookListView = choice.first;
+          setState(() => _view = choice.first);
+          if (_view != 'cards') {
             // Shown now: go to the open book's place in it.
             final book = _focusBook;
             if (book != null) _showTabOf(book);
@@ -392,6 +444,90 @@ class _BookListPageState extends State<BookListPage> {
         },
       ),
     );
+  }
+
+  /// A fold of the tree: its arrow on the left, its rows indented under it
+  /// along a thin guide line.
+  Widget _fold({
+    required String key,
+    required Widget title,
+    required bool open,
+    required List<Widget> children,
+  }) {
+    return ExpansionTile(
+      controller: _folds.putIfAbsent(key, ExpansibleController.new),
+      initiallyExpanded: Prefs.expandedBookList || open,
+      controlAffinity: ListTileControlAffinity.leading,
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+      title: title,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(left: 19, bottom: 4),
+          decoration: BoxDecoration(
+              border: Border(
+                  left: BorderSide(color: Theme.of(context).dividerColor))),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children),
+        ),
+      ],
+    );
+  }
+
+  /// The basket view or the Mūla view, trees with no tabs; see
+  /// [_loadBaskets] for how each is laid out. A basket with one nikāya
+  /// lists its books directly.
+  Widget _buildBasketTree() {
+    return FutureBuilder(
+        future: _basketTrees.putIfAbsent(_view, () => _loadBaskets(_view)),
+        builder: (context, AsyncSnapshot<List<_Basket>> snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final focusBook = _focus.value?.bookId;
+          Widget book(BookItem item) => BookTocNode(
+                item: item,
+                focus: _focus,
+                open: (book, page, highlight) =>
+                    _openBookAt(context, book, page, highlight),
+              );
+          Widget fold(_Basket basket) => _fold(
+                key: basket.key,
+                title: CategoryItem(models.Category(basket.id, basket.name))
+                    .build(context),
+                open: focusBook != null && basket.holds(focusBook),
+                children: [
+                  for (final inner in basket.children) fold(inner),
+                  if (basket.children.isEmpty && basket.groups.length == 1)
+                    for (final b in basket.groups.single.books) book(b)
+                  else
+                    for (final group in basket.groups)
+                      _fold(
+                        key: basket.groupKey(group),
+                        title: group.category.build(context),
+                        open: group.books.any((b) => b.book.id == focusBook),
+                        children: [for (final b in group.books) book(b)],
+                      ),
+                ],
+              );
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: media.copyWith(
+                textScaler: TextScaler.linear(media.textScaler.scale(1) * 0.8)),
+            child: SingleChildScrollView(
+              // Built in full, as the tree is, to open at the book being read.
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [for (final basket in snapshot.data!) fold(basket)],
+              ),
+            ),
+          );
+        });
   }
 
   /// The books as a compact tree: a line per category with its arrow on the
@@ -703,6 +839,186 @@ class _BookListPageState extends State<BookListPage> {
 
     return categoriesWithBooks;
   }
+}
+
+/// One basket of the basket tree: the nikāyas in it, or, for Mūla, the
+/// piṭakas.
+class _Basket {
+  final String id;
+  final String name;
+  final List<CategoryWithBooks> groups;
+  final List<_Basket> children;
+
+  /// Where it sits, as the key of its fold: `basket:mula:sutta`. Apart from
+  /// the tabbed tree's folds, whose categories share these ids.
+  final String key;
+
+  _Basket(this.id, this.name, this.groups,
+      {this.children = const [], String? parent})
+      : key = '${parent ?? 'basket'}:$id';
+
+  /// The same, placed inside [parent].
+  _Basket inside(_Basket parent) => _within(parent.key);
+
+  _Basket _within(String parentKey) {
+    final placed = _Basket(id, name, groups, parent: parentKey);
+    return _Basket(id, name, groups,
+        children: [for (final c in children) c._within(placed.key)],
+        parent: parentKey);
+  }
+
+  String groupKey(CategoryWithBooks group) =>
+      '$key:${group.category.category.id}';
+
+  bool holds(String bookId) =>
+      children.any((c) => c.holds(bookId)) ||
+      groups.any((g) => g.books.any((b) => b.book.id == bookId));
+
+  /// The keys of the folds to open, outermost first, to show [bookId].
+  List<String> keysTo(String bookId) {
+    if (!holds(bookId)) return const [];
+    for (final c in children) {
+      if (c.holds(bookId)) return [key, ...c.keysTo(bookId)];
+    }
+    return [
+      key,
+      for (final g in groups)
+        if (g.books.any((b) => b.book.id == bookId)) groupKey(g),
+    ];
+  }
+}
+
+/// The basket a book goes in, from its layer (`books.basket`: mula, attha,
+/// tika, annya) and its category. The Pāḷi of the canon by piṭaka; the
+/// commentaries, the sub-commentaries and Añña each in a basket of their
+/// own, as Añña already was. Any category an extension adds, under Añña.
+String _basketOf(String layer, String category) {
+  if (category.startsWith('annya') || layer == 'annya') return 'annya';
+  if (layer == 'attha') return 'attha';
+  if (layer == 'tika') return 'tika';
+  return switch (category) {
+    'vi' => 'vinaya',
+    'di' || 'ma' || 'sa' || 'an' || 'ku' => 'sutta',
+    'bi' => 'abhidhamma',
+    _ => 'annya',
+  };
+}
+
+/// The piṭakas, gathered under Mūla in the tree.
+const _mulaBaskets = {'vinaya', 'sutta', 'abhidhamma'};
+
+const _basketNames = {
+  'vinaya': 'Vinayapiṭaka',
+  'sutta': 'Suttantapiṭaka',
+  'abhidhamma': 'Abhidhammapiṭaka',
+  'attha': 'Aṭṭhakathā',
+  'tika': 'Ṭīkā',
+  'annya': 'Añña',
+};
+
+/// A category's name inside a basket. "suttantapiṭaka (dīghanikāya)" is
+/// "dīghanikāya"; Vinaya and Abhidhamma, whose names carry "khuddakanikāya"
+/// in the same place, by their piṭaka.
+String _groupName(String id, String name) => switch (id) {
+      'vi' => 'vinayapiṭaka',
+      'bi' => 'abhidhammapiṭaka',
+      _ when id.startsWith('annya') => name,
+      _ => RegExp(r'\(([^)]+)\)\s*$').firstMatch(name)?[1] ?? name,
+    };
+
+/// The layers of a piṭaka in the piṭaka view.
+const _layerNames = {'mula': 'Mūla', 'attha': 'Aṭṭhakathā', 'tika': 'Ṭīkā'};
+
+/// Every book, by basket and then by nikāya, in the books' own order.
+///
+/// For [view] `baskets`, the basket view: each piṭaka holding its own Mūla,
+/// Aṭṭhakathā and Ṭīkā, then Añña on its own. For `layers`, the Mūla view:
+/// Mūla (holding the three piṭakas), Aṭṭhakathā, Ṭīkā and Añña.
+Future<List<_Basket>> _loadBaskets(String view) async {
+  final db = await DatabaseHelper().database;
+  final categories =
+      await db.rawQuery('SELECT id, name FROM category ORDER BY sort_order');
+  final books = await db.rawQuery(
+      'SELECT id, name, basket, category FROM books ORDER BY sort_order');
+
+  final order = [for (final row in categories) row['id'] as String];
+  final names = {
+    for (final row in categories)
+      row['id'] as String: row['name'] as String? ?? row['id'] as String
+  };
+
+  // Each book under a path of baskets, then its category.
+  final byPath = <String, Map<String, List<BookItem>>>{};
+  for (final row in books) {
+    final category = row['category'] as String? ?? '';
+    final layer = row['basket'] as String? ?? '';
+    final basket = _basketOf(layer, category);
+    final String path;
+    if (view == 'baskets') {
+      // The piṭaka a commentary belongs to is its category's.
+      final pitaka = basket == 'annya' ? 'annya' : _basketOf('mula', category);
+      path = pitaka == 'annya' || !_layerNames.containsKey(layer)
+          ? 'annya'
+          : '$pitaka/$layer';
+    } else {
+      path = basket;
+    }
+    byPath.putIfAbsent(path, () => {}).putIfAbsent(category, () => []).add(
+        BookItem(
+            Book(id: row['id'] as String, name: row['name'] as String? ?? '')));
+  }
+
+  // A path's categories, in the categories' order, then any the list does
+  // not name, as an extension may leave.
+  List<CategoryWithBooks> groupsOf(String path) {
+    final groups = byPath[path] ?? const {};
+    return [
+      for (final category in [
+        ...order.where(groups.containsKey),
+        ...groups.keys.where((c) => !order.contains(c)),
+      ])
+        CategoryWithBooks(
+            category: CategoryItem(models.Category(
+                category, _groupName(category, names[category] ?? category))),
+            books: groups[category]!),
+    ];
+  }
+
+  if (view == 'baskets') {
+    _Basket pitaka(String id) {
+      final placed = _Basket(id, _basketNames[id]!, const [], parent: 'pitaka');
+      return _Basket(id, _basketNames[id]!, const [],
+          parent: 'pitaka',
+          children: [
+            for (final MapEntry(key: layer, value: name) in _layerNames.entries)
+              if (byPath.containsKey('$id/$layer'))
+                _Basket(layer, name, groupsOf('$id/$layer')).inside(placed)
+          ]);
+    }
+
+    return [
+      for (final id in _mulaBaskets)
+        if (_layerNames.keys.any((l) => byPath.containsKey('$id/$l')))
+          pitaka(id),
+      if (byPath.containsKey('annya'))
+        _Basket('annya', _basketNames['annya']!, groupsOf('annya'),
+            parent: 'pitaka'),
+    ];
+  }
+
+  final baskets = [
+    for (final id in _basketNames.keys)
+      if (byPath.containsKey(id)) _Basket(id, _basketNames[id]!, groupsOf(id))
+  ];
+  // The three piṭakas' Pāḷi under one Mūla, beside the commentaries.
+  final mula = _Basket('mula', 'Mūla', const []);
+  final pitakas = baskets.where((b) => _mulaBaskets.contains(b.id)).toList();
+  return [
+    if (pitakas.isNotEmpty)
+      _Basket(mula.id, mula.name, const [],
+          children: [for (final p in pitakas) p.inside(mula)]),
+    ...baskets.where((b) => !_mulaBaskets.contains(b.id)),
+  ];
 }
 
 class CategoryWithBooks {

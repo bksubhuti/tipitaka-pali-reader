@@ -65,50 +65,26 @@ class _SearchTypeSegmentedControlState
             borderRadius: BorderRadius.circular(8.0),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _segmentValues.entries.map((entry) {
-                return Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      if (entry.key == 4) {
-                        widget.onModeChanged(QueryMode.ai);
-                        return; // Prevent updating UI selectedIndex for AI
-                      }
-
-                      setState(() {
-                        _selectedIndex = entry.key;
-
-                        isDistanceMoe = _selectedIndex == 2;
-
-                        widget.onModeChanged(
-                            getQueryModeFromSelection(entry.key));
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      decoration: BoxDecoration(
-                        color: _selectedIndex == entry.key
-                            ? Theme.of(context).colorScheme.secondary
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            // A thin line between the choices, so where one ends and the next
+            // begins shows without one being selected: "distance any part"
+            // read as one run of words.
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  for (final (i, entry) in _segmentValues.entries.indexed) ...[
+                    if (i > 0)
+                      VerticalDivider(
+                        width: 9,
+                        thickness: 1,
+                        indent: 8,
+                        endIndent: 8,
+                        color: Theme.of(context).dividerColor,
                       ),
-                      child: Center(
-                        child: Text(
-                          entry.value,
-                          style: TextStyle(
-                            color: _selectedIndex == entry.key
-                                ? Colors.white
-                                : Theme.of(context).textTheme.bodyLarge?.color,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+                    _segment(context, entry),
+                  ]
+                ],
+              ),
             ),
           ),
         ),
@@ -141,6 +117,72 @@ class _SearchTypeSegmentedControlState
               : const SizedBox.shrink(),
         ),
       ],
+    );
+  }
+
+  /// One choice. Its label keeps clear of the lines either side, and is
+  /// made smaller rather than run into its neighbour when space is short.
+  Widget _segment(BuildContext context, MapEntry<int, String> entry) {
+    final selected = _selectedIndex == entry.key;
+    return Expanded(
+      // The icon needs less room than a word, and the words get it.
+      flex: entry.key == 4 ? 2 : 3,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8.0),
+          onTap: () {
+            if (entry.key == 4) {
+              widget.onModeChanged(QueryMode.ai);
+              return; // Prevent updating UI selectedIndex for AI
+            }
+
+            setState(() {
+              _selectedIndex = entry.key;
+
+              isDistanceMoe = _selectedIndex == 2;
+
+              widget.onModeChanged(getQueryModeFromSelection(entry.key));
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4),
+            decoration: BoxDecoration(
+              color: selected
+                  ? Theme.of(context).colorScheme.secondary
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: Center(
+              // AI as the rail's sparkle, named in its tooltip, so the four
+              // ways of matching words have the room.
+              child: entry.key == 4
+                  ? Tooltip(
+                      message: AppLocalizations.of(context)!.aiSearch,
+                      child: Icon(Icons.auto_awesome_outlined,
+                          size: 20,
+                          semanticLabel: AppLocalizations.of(context)!.aiSearch,
+                          color: selected
+                              ? Colors.white
+                              : Theme.of(context).textTheme.bodyLarge?.color),
+                    )
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        entry.value,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: selected
+                              ? Colors.white
+                              : Theme.of(context).textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
