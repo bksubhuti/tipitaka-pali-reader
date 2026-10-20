@@ -1,3 +1,4 @@
+import 'widgets/home_shortcuts.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -182,19 +183,39 @@ class _ReaderContainerState extends State<ReaderContainer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                PaliScript.getScriptOf(
-                    script:
-                        context.watch<ScriptLanguageProvider>().currentScript,
-                    romanText:
-                        "Sabbapāpassa akaraṇaṃ\nKusalassa upasampadā\nSacittapariyodāpanaṃ\nEtaṃ buddhānasāsanaṃ"),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontFamily: fontName,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
+              // The verse is a card: a tap opens it in the Dhammapada, verse
+              // 183, where it is from.
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => openBookAt(context,
+                      Book(id: 'mula_ku_02', name: 'dhammapadapāḷi'), 41,
+                      highlight: 'Sabbapāpassa akaraṇaṃ'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 18),
+                    child: Text(
+                      PaliScript.getScriptOf(
+                          script: context
+                              .watch<ScriptLanguageProvider>()
+                              .currentScript,
+                          romanText:
+                              "Sabbapāpassa akaraṇaṃ\nKusalassa upasampadā\nSacittapariyodāpanaṃ\nEtaṃ buddhānasāsanaṃ"),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontFamily: fontName,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
+              ),
+              // Where the reader last was, and the last of Recent.
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: HomeShortcuts(),
               ),
               FutureBuilder<bool>(
                 future: _hasTranslationExtension(),

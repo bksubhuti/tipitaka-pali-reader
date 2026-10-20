@@ -59,6 +59,9 @@ const String multiHighlightPref = "singleHighlight";
 const String expandedBookListPref = "expandedBookList";
 const String bookListAsTreePref = "bookListAsTree";
 const String bookListViewPref = "bookListView";
+const String readingPlaceBookPref = "readingPlaceBook";
+const String readingPlaceBookNamePref = "readingPlaceBookName";
+const String readingPlacePagePref = "readingPlacePage";
 const String searchSnippetWordsPref = "searchSnippetWords";
 const String messagePref = "message";
 const String messageDatePref = "messageDate";
@@ -441,6 +444,19 @@ class Prefs {
       (bookListAsTree ? 'tree' : 'cards');
   static set bookListView(String value) =>
       instance.setString(bookListViewPref, value);
+
+  /// The book and page the reader was last at; see ReadingPlace.
+  static String get readingPlaceBook =>
+      instance.getString(readingPlaceBookPref) ?? '';
+  static set readingPlaceBook(String value) =>
+      instance.setString(readingPlaceBookPref, value);
+  static String get readingPlaceBookName =>
+      instance.getString(readingPlaceBookNamePref) ?? '';
+  static set readingPlaceBookName(String value) =>
+      instance.setString(readingPlaceBookNamePref, value);
+  static int get readingPlacePage => instance.getInt(readingPlacePagePref) ?? 1;
+  static set readingPlacePage(int value) =>
+      instance.setInt(readingPlacePagePref, value);
 
   static String get message =>
       instance.getString(messagePref) ?? defaultMessage;

@@ -17,6 +17,7 @@ import 'package:tipitaka_pali/services/repositories/bookmark_repo.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/reading_place.dart';
 import 'package:tipitaka_pali/utils/formatted_copy.dart';
 import 'package:tipitaka_pali/utils/search_highlight.dart';
 import 'package:tipitaka_pali/utils/side_by_side.dart';
@@ -551,6 +552,7 @@ class ReaderViewController extends ChangeNotifier {
     final openedBookController = context.read<OpenningBooksProvider>();
     openedBookController.update(
         newPageNumber: _currentPage.value, bookUuid: bookUuid);
+    ReadingPlace.note(book, _currentPage.value);
     // save to recent table on load of the book.
     // from general book opening and also tapping a search result tile..
     await _saveToRecent();
@@ -719,6 +721,7 @@ class ReaderViewController extends ChangeNotifier {
     final openedBookController = context.read<OpenningBooksProvider>();
     openedBookController.update(
         newPageNumber: _currentPage.value, bookUuid: bookUuid);
+    ReadingPlace.note(book, pageNumber);
   }
 
   /// The block a search result on [page] is to open at: for a prefix or

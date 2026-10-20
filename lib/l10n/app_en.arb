@@ -3,6 +3,8 @@
   "home": "Home",
   "bookmark": "Bookmark",
   "recent": "Recent",
+  "lastRead": "Last read",
+  "@lastRead": {"description": "In Recent, the pinned first row: the book and page the reader was last at, kept up as they read."},
   "search": "Search",
   "settings": "Settings",
   "dictionary": "Dictionary",

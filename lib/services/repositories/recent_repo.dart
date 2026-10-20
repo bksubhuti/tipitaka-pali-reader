@@ -1,7 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tipitaka_pali/business_logic/models/recent.dart';
 import 'package:tipitaka_pali/services/dao/recent_dao.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+
+/// Rises with every entry saved, so a Recent list already on screen reads
+/// itself again. It read once, when first shown, and the side panel keeps it
+/// alive, so a heading opened from the tree or the contents never appeared.
+final ValueNotifier<int> recentChanges = ValueNotifier(0);
 
 abstract class RecentRepository {
   Future<int> insertOrReplace(Recent recent);
@@ -32,6 +38,7 @@ class RecentDatabaseRepository implements RecentRepository {
         where: '${dao.columnBookId} = ?', whereArgs: [recent.bookID]);
     result = await db.insert(dao.tableRecent, dao.toMap(recent),
         conflictAlgorithm: ConflictAlgorithm.ignore);
+    recentChanges.value++;
 
     return result;
   }
