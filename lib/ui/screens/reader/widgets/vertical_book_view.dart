@@ -641,12 +641,6 @@ class _VerticalBookViewState extends State<VerticalBookView>
     return true;
   }
 
-  /// How far the text runs in, in screen heights. Not the whole way from
-  /// where it was: scrolling past text means laying it out, and every page
-  /// between, with its translations and links, would hold the app for
-  /// seconds. Three screens reads as the text running in.
-  static const _runIn = 3.0;
-
   /// The list itself, for its height on screen.
   final GlobalKey _listKey = GlobalKey();
 
@@ -686,17 +680,71 @@ class _VerticalBookViewState extends State<VerticalBookView>
     // above.
     final forward =
         shown.isEmpty || index > shown.reduce((a, b) => a > b ? a : b);
-    final run = forward ? _runIn : -_runIn;
-    // A longer way than a scroll on screen, so a little more time for it.
-    final runTime = duration * 1.5;
-    readerViewController.noteGlide(runTime + const Duration(milliseconds: 50));
-    itemScrollController.jumpTo(index: index, alignment: alignment + run);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      scrollOffsetController.animateScroll(
-          offset: run * height, duration: runTime, curve: ReaderMotion.curve);
-    });
+    // A longer way than a scroll on screen, so a little more time for it:
+    // the text on screen slides out, then the new text slides in.
+    final outTime = duration * 0.6;
+    final inTime = duration * 1.2;
+    readerViewController
+        .noteGlide(outTime + inTime + const Duration(milliseconds: 100));
+    final glide = ++_glides;
+
+    // Every move stays within a screen of what is laid out, alignment 0 to
+    // 1, as the list supports. The run used to be made by jumping to screens
+    // beyond the target (alignment 3.2), or by stepping screens away in one
+    // frame; after a fast trackpad scroll the list could then not settle on
+    // an offset ("RenderViewport exceeded its maximum number of layout
+    // cycles"), the reader stopped, and the selection code tripped over text
+    // that was never laid out. The far run is shown instead as two short
+    // ones: what is on screen slides on and away, and the new place slides
+    // in from the same side.
+    final a = alignment.clamp(0.0, 1.0);
+    void slideIn() {
+      if (!mounted || glide != _glides || !itemScrollController.isAttached) {
+        return;
+      }
+      if (forward) {
+        // In at the foot of the screen, then up into place.
+        itemScrollController.jumpTo(index: index, alignment: 1);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || glide != _glides) return;
+          scrollOffsetController.animateScroll(
+              offset: (1 - a) * height,
+              duration: inTime,
+              curve: Curves.easeOutCubic);
+        });
+      } else if (index + 1 < readerViewController.chunks.length) {
+        // From the block after it, already laid out, back to it.
+        itemScrollController.jumpTo(index: index + 1, alignment: 0);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted ||
+              glide != _glides ||
+              !itemScrollController.isAttached) {
+            return;
+          }
+          itemScrollController.scrollTo(
+              index: index,
+              alignment: alignment,
+              duration: inTime,
+              curve: Curves.easeOutCubic);
+        });
+      } else {
+        itemScrollController.jumpTo(index: index, alignment: alignment);
+      }
+    }
+
+    // Out: the text on screen moves on, a screen's length the way the
+    // reader is going, gathering speed.
+    scrollOffsetController
+        .animateScroll(
+            offset: forward ? height : -height,
+            duration: outTime,
+            curve: Curves.easeInCubic)
+        .then((_) => slideIn());
   }
+
+  /// Counts glides, so one begun while another runs takes over from it
+  /// rather than the two pulling the list each its own way.
+  int _glides = 0;
 
   /// The block on [page] holding the place asked for: the search group, or
   /// the heading or word to mark. Null when nothing is to be marked or it is
