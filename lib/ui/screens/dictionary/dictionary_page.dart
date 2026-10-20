@@ -154,8 +154,7 @@ class _DictionaryPageState extends State<DictionaryPage>
                               //title: ColoredText(" $sFormattedDate"),
                               onTap: () {
                                 // cause a lookup
-                                globalLookupWord.value =
-                                    snapshot.data![index].word;
+                                lookUpWord(snapshot.data![index].word);
                                 Navigator.of(context).pop();
                               },
                             ),

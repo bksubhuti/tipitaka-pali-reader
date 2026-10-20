@@ -22,6 +22,20 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
 // global variable
 final ValueNotifier<String?> globalLookupWord = ValueNotifier<String?>(null);
+DateTime? _lookupAskedAt;
+
+/// Asks the dictionary to look up [word].
+///
+/// Asked for twice, the same word is looked up twice: a value notifier says
+/// nothing when it is given the value it already holds, so a second tap on
+/// a word whose lookup had been missed or had failed did nothing at all.
+/// The time is kept so a dictionary built just after the tap still takes
+/// the word; see [DictionaryController.onLoad].
+void lookUpWord(String word) {
+  _lookupAskedAt = DateTime.now();
+  globalLookupWord.value = null;
+  globalLookupWord.value = word;
+}
 
 enum DictAlgorithm { Auto, TPR, DPD }
 
@@ -68,10 +82,29 @@ class DictionaryController with ChangeNotifier {
       _histories.value = [...values];
     });
 
+    // A word tapped while this dictionary was still being built. The reader
+    // gives it a moment to start listening and then sets the word; when it
+    // takes longer, the word was set before anyone listened, and the panel
+    // stayed on its history as if nothing had been tapped. Only a word asked
+    // for just now: opening the dictionary later still shows the history.
+    final asked = _lookupAskedAt;
+    final pending = globalLookupWord.value;
+    if (_currentlookupWord.isEmpty &&
+        pending != null &&
+        pending.isNotEmpty &&
+        asked != null &&
+        DateTime.now().difference(asked) < const Duration(seconds: 3)) {
+      _currentlookupWord = pending;
+    }
+
     if (_currentlookupWord.isNotEmpty) {
       _lookupDefinition();
     }
   }
+
+  /// Counts lookups, so an older one that finishes late does not replace
+  /// the answer to a newer one.
+  int _lookups = 0;
 
   @override
   void dispose() {
@@ -96,6 +129,7 @@ class DictionaryController with ChangeNotifier {
     if (_currentlookupWord.isEmpty) {
       return;
     }
+    final lookup = ++_lookups;
     // loading definitions
     String romanWord = _currentlookupWord;
     Script inputScript = ScriptDetector.getLanguage(romanWord);
@@ -104,7 +138,17 @@ class DictionaryController with ChangeNotifier {
           PaliScript.getRomanScriptFrom(script: inputScript, text: romanWord);
     }
 
-    final definition = await loadDefinition(romanWord);
+    // A lookup that throws, the database busy with an update for instance,
+    // left the spinner turning for good. It says not found instead, and the
+    // word can be tapped again.
+    String definition;
+    try {
+      definition = await loadDefinition(romanWord);
+    } catch (e) {
+      debugPrint('dictionary lookup of $romanWord failed: $e');
+      definition = '';
+    }
+    if (lookup != _lookups) return;
     debugPrint(
         '==================> $romanWord, is empty: ${definition.isEmpty}');
     if (definition.isEmpty) {

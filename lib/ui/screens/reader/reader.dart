@@ -152,104 +152,115 @@ class ReaderView extends StatelessWidget implements Searchable {
                       padding: EdgeInsets.only(
                           bottom: barOpen.data! ? _controlBarSize : 0),
                       child: Column(
-                    children: [
-                      if (context.watch<ReaderViewController>().showSearch)
-                        SearchWidget(
-                          word: context
-                              .watch<ReaderViewController>()
-                              .searchText
-                              .value,
-                        ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            // While the keyboard is up, the reader keeps a
-                            // usable height and scrolls rather than being
-                            // squeezed. Otherwise it fills exactly the room it
-                            // has: a fixed 80% of the screen ran past that room
-                            // on short windows and pushed the scrollbar under
-                            // the control bar.
-                            final keyboardUp =
-                                MediaQuery.of(context).viewInsets.bottom > 0;
-                            return SingleChildScrollView(
-                            padding: EdgeInsets.only(
-                                bottom: keyboardUp ? 24 : 0),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                  minHeight: constraints.maxHeight),
-                              child: IntrinsicHeight(
-                                child: SizedBox(
-                                  height: keyboardUp
-                                      ? MediaQuery.of(context).size.height * 0.8
-                                      : constraints.maxHeight,
-                                  child: bookViewMode == BookViewMode.horizontal
-                                      ? VerticalBookView(
-                                          onSearchedSelectedText: (text) =>
-                                              _onSearchSelectedText(
-                                                  text, context),
-                                          onSharedSelectedText:
-                                              _onShareSelectedText,
-                                          onClickedWord: (word) =>
-                                              _onClickedWord(word, context),
-                                          onSearchedInCurrentBook: (text) =>
-                                              _onClickedSearchInCurrent(
-                                                  context, text),
-                                          onAiContextRightClick: (text) =>
-                                              _onAiContextRightClick(
-                                                  text, context),
-                                          onCopyLink: (text) =>
-                                              _onCopyLink(text, context),
-                                          onShareLink: (text) =>
-                                              _onShareLink(text, context),
-                                          onCopyFormatted: (text) =>
-                                              _onCopyFormatted(text, context),
-                                          onCopyPlain: (text) =>
-                                              _onCopyPlain(text, context),
-                                          onSelectionChanged: (text) {
-                                            Provider.of<ReaderViewController>(
-                                                    context,
-                                                    listen: false)
-                                                .selection = text;
-                                          },
-                                        )
-                                      : HorizontalBookView(
-                                          onSearchedSelectedText: (text) =>
-                                              _onSearchSelectedText(
-                                                  text, context),
-                                          onSharedSelectedText:
-                                              _onShareSelectedText,
-                                          onClickedWord: (word) =>
-                                              _onClickedWord(word, context),
-                                          onSearchedInCurrentBook: (text) =>
-                                              _onClickedSearchInCurrent(
-                                                  context, text),
-                                          onAiContextRightClick: (text) =>
-                                              _onAiContextRightClick(
-                                                  text, context),
-                                          onCopyLink: (text) =>
-                                              _onCopyLink(text, context),
-                                          onShareLink: (text) =>
-                                              _onShareLink(text, context),
-                                          onCopyFormatted: (text) =>
-                                              _onCopyFormatted(text, context),
-                                          onCopyPlain: (text) =>
-                                              _onCopyPlain(text, context),
-                                          onSelectionChanged: (text) {
-                                            Provider.of<ReaderViewController>(
-                                                    context,
-                                                    listen: false)
-                                                .selection = text;
-                                          },
-                                        ),
-                                ),
-                              ),
+                        children: [
+                          if (context.watch<ReaderViewController>().showSearch)
+                            SearchWidget(
+                              word: context
+                                  .watch<ReaderViewController>()
+                                  .searchText
+                                  .value,
                             ),
-                          );
-                          },
-                        ),
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // While the keyboard is up, the reader keeps a
+                                // usable height and scrolls rather than being
+                                // squeezed. Otherwise it fills exactly the room it
+                                // has: a fixed 80% of the screen ran past that room
+                                // on short windows and pushed the scrollbar under
+                                // the control bar.
+                                final keyboardUp =
+                                    MediaQuery.of(context).viewInsets.bottom >
+                                        0;
+                                return SingleChildScrollView(
+                                  padding: EdgeInsets.only(
+                                      bottom: keyboardUp ? 24 : 0),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                        minHeight: constraints.maxHeight),
+                                    child: IntrinsicHeight(
+                                      child: SizedBox(
+                                        height: keyboardUp
+                                            ? MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                0.8
+                                            : constraints.maxHeight,
+                                        child: bookViewMode ==
+                                                BookViewMode.horizontal
+                                            ? VerticalBookView(
+                                                onSearchedSelectedText:
+                                                    (text) =>
+                                                        _onSearchSelectedText(
+                                                            text, context),
+                                                onSharedSelectedText:
+                                                    _onShareSelectedText,
+                                                onClickedWord: (word) =>
+                                                    _onClickedWord(
+                                                        word, context),
+                                                onSearchedInCurrentBook: (text) =>
+                                                    _onClickedSearchInCurrent(
+                                                        context, text),
+                                                onAiContextRightClick: (text) =>
+                                                    _onAiContextRightClick(
+                                                        text, context),
+                                                onCopyLink: (text) =>
+                                                    _onCopyLink(text, context),
+                                                onShareLink: (text) =>
+                                                    _onShareLink(text, context),
+                                                onCopyFormatted: (text) =>
+                                                    _onCopyFormatted(
+                                                        text, context),
+                                                onCopyPlain: (text) =>
+                                                    _onCopyPlain(text, context),
+                                                onSelectionChanged: (text) {
+                                                  Provider.of<ReaderViewController>(
+                                                          context,
+                                                          listen: false)
+                                                      .selection = text;
+                                                },
+                                              )
+                                            : HorizontalBookView(
+                                                onSearchedSelectedText:
+                                                    (text) =>
+                                                        _onSearchSelectedText(
+                                                            text, context),
+                                                onSharedSelectedText:
+                                                    _onShareSelectedText,
+                                                onClickedWord: (word) =>
+                                                    _onClickedWord(
+                                                        word, context),
+                                                onSearchedInCurrentBook: (text) =>
+                                                    _onClickedSearchInCurrent(
+                                                        context, text),
+                                                onAiContextRightClick: (text) =>
+                                                    _onAiContextRightClick(
+                                                        text, context),
+                                                onCopyLink: (text) =>
+                                                    _onCopyLink(text, context),
+                                                onShareLink: (text) =>
+                                                    _onShareLink(text, context),
+                                                onCopyFormatted: (text) =>
+                                                    _onCopyFormatted(
+                                                        text, context),
+                                                onCopyPlain: (text) =>
+                                                    _onCopyPlain(text, context),
+                                                onSelectionChanged: (text) {
+                                                  Provider.of<ReaderViewController>(
+                                                          context,
+                                                          listen: false)
+                                                      .selection = text;
+                                                },
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
                     ),
                   ),
 
@@ -520,7 +531,6 @@ class ReaderView extends StatelessWidget implements Searchable {
   /// marked.
   String _deepLink(
       ReaderViewController rc, String selectedText, int pageNumber) {
-
     String safeEncode(String? text) {
       if (text == null || text.trim().isEmpty) return '';
       return base64Encode(utf8.encode(text));
@@ -653,9 +663,10 @@ class ReaderView extends StatelessWidget implements Searchable {
     if ((PlatformInfo.isDesktop || Mobile.isTablet(context))) {
       if (context.read<NavigationProvider>().isNavigationPaneOpened) {
         context.read<NavigationProvider>().moveToDictionaryPage();
-        // delay a little milliseconds to wait for DictionaryPage initialization
-        await Future.delayed(const Duration(milliseconds: 50),
-            () => globalLookupWord.value = word);
+        // delay a little milliseconds to wait for DictionaryPage initialization;
+        // one built later than that still takes the word when it starts
+        await Future.delayed(
+            const Duration(milliseconds: 50), () => lookUpWord(word));
         return;
       }
 
