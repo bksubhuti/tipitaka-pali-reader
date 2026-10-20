@@ -773,6 +773,7 @@ class FtsDatabaseRepository implements FtsRespository {
     // books", of 163 books that hold the word. The other modes keep every
     // candidate they are given, so for them one batch is the whole answer.
     var offset = 0;
+    final places = <String>{};
     while (true) {
       final rows = await db.rawQuery('$sql OFFSET $offset');
       if (rows.isEmpty && offset == 0) return const [];
@@ -812,6 +813,16 @@ class FtsDatabaseRepository implements FtsRespository {
         // the passage matched.
         if (hitAt < 0) {
           hitAt = content.toLowerCase().indexOf(words.first.toLowerCase());
+        }
+
+        // Consecutive units overlap by a paragraph, so a hit in it was listed
+        // twice, one result after the other: 136 of the 508 for "assā". Each
+        // place is listed once.
+        final place = hitAt < 0 ? null : unit.placeOf(hitAt);
+        if (place != null &&
+            !places.add('${lang ?? ''}|$epiBook|'
+                '${place.paragraph}|${place.offset}')) {
+          continue;
         }
 
         final unitPage = row['page'] as int;

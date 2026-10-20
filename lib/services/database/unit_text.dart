@@ -163,4 +163,17 @@ class UnitWithParagraphs {
     }
     return found ?? (paragraphs.isEmpty ? null : paragraphs.first);
   }
+
+  /// Where offset [at] is in the book rather than in this unit: its
+  /// paragraph, and how far into that paragraph. Consecutive units share a
+  /// paragraph, so the same hit can turn up in two units at different
+  /// offsets; this is the same for both.
+  ({int paragraph, int offset})? placeOf(int at) {
+    for (var i = starts.length - 1; i >= 0; i--) {
+      if (starts[i] <= at) {
+        return (paragraph: paragraphs[i], offset: at - starts[i]);
+      }
+    }
+    return null;
+  }
 }
