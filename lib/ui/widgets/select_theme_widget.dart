@@ -26,6 +26,13 @@ class SelectThemeWidget extends StatelessWidget {
     // open it too, not just the arrow.
     return PopupMenuButton<int>(
       padding: EdgeInsets.zero,
+      // Over the whole window, so a click anywhere outside the menu, on the
+      // reader too, closes it; narrow, so it still fits the Settings panel.
+      useRootNavigator: true,
+      constraints: const BoxConstraints(maxWidth: 240),
+      // Just under its row, not over it: over it, a long list is pushed up
+      // to the top of the window, away from the row.
+      position: PopupMenuPosition.under,
       onSelected: (val) {
         Prefs.themeIndex = val;
         Prefs.themeName = myFlexSchemes[val].name;
@@ -35,24 +42,24 @@ class SelectThemeWidget extends StatelessWidget {
         for (int i = 0; i < myFlexSchemes.length; i++)
           PopupMenuItem<int>(
             value: i,
-            child: ListTile(
-              leading: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lens,
-                      color: isLight
-                          ? myFlexSchemes[i].light.primary
-                          : myFlexSchemes[i].dark.primary,
-                      size: 35),
-                  const SizedBox(width: 8),
-                  Icon(Icons.circle,
-                      color: isLight
-                          ? myFlexSchemes[i].light.secondary
-                          : myFlexSchemes[i].dark.secondary,
-                      size: 20),
-                ],
-              ),
-              title: ColoredText(myFlexSchemes[i].name),
+            // A plain row, narrower than a ListTile, so the menu stays
+            // inside the Settings panel.
+            child: Row(
+              children: [
+                Icon(Icons.lens,
+                    color: isLight
+                        ? myFlexSchemes[i].light.primary
+                        : myFlexSchemes[i].dark.primary,
+                    size: 28),
+                const SizedBox(width: 4),
+                Icon(Icons.circle,
+                    color: isLight
+                        ? myFlexSchemes[i].light.secondary
+                        : myFlexSchemes[i].dark.secondary,
+                    size: 18),
+                const SizedBox(width: 12),
+                ColoredText(myFlexSchemes[i].name),
+              ],
             ),
           )
       ],

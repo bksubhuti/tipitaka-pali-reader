@@ -17,6 +17,13 @@ class SelectPaperWidget extends StatelessWidget {
     // The name and the swatch open the menu too, not just the arrow.
     return PopupMenuButton<int>(
       padding: EdgeInsets.zero,
+      // Over the whole window, so a click anywhere outside the menu, on the
+      // reader too, closes it; narrow, so it still fits the Settings panel.
+      useRootNavigator: true,
+      constraints: const BoxConstraints(maxWidth: 200),
+      // Just under its row, not over it: over it, a long list is pushed up
+      // to the top of the window, away from the row.
+      position: PopupMenuPosition.under,
       // No initialValue: the menu would scroll to it, and the scroll can
       // move the side panels' PageView, showing the next panel.
       onSelected: notifier.onChangePagePaper,
@@ -24,9 +31,16 @@ class SelectPaperWidget extends StatelessWidget {
         for (int i = 0; i < pagePapers.length; i++)
           PopupMenuItem<int>(
             value: i,
-            child: ListTile(
-              leading: _Swatch(paper: pagePapers[i], size: 35),
-              title: ColoredText(pagePapers[i].name(context)),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            // A plain row, narrower than a ListTile, so the menu stays
+            // inside the Settings panel.
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Swatch(paper: pagePapers[i], size: 28),
+                const SizedBox(width: 10),
+                Flexible(child: ColoredText(pagePapers[i].name(context))),
+              ],
             ),
           )
       ],
