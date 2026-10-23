@@ -16,6 +16,12 @@ class PaliTools {
   static String velthuisToUni({required String velthiusInput}) {
     if (velthiusInput.isEmpty) return velthiusInput;
     if (Prefs.disableVelthuis) return velthiusInput;
+    // Off by itself when the Pāḷi is shown in a script other than Roman:
+    // those readers type in their own script, and aa, ii and the like
+    // turning into ā and ī would get in their way.
+    if (Prefs.currentScriptLanguage != defaultScriptLanguage) {
+      return velthiusInput;
+    }
 
     const nigahita = 'ṃ';
     const capitalNigahita = 'Ṃ';
