@@ -1454,8 +1454,10 @@ String unCapitalize(String text) => text.toLowerCase();
 // for thai text - this can also be done in the convert stage
 
 String swap_e_o(String text, {Script? script, String rendType = ''}) {
+  // e and o go before the consonant, and before the whole of a cluster
+  // joined by the phinthu (ฺ): สฺวเ is written เสฺว.
   if (script == Script.thai) {
-    return text.replaceAllMapped(RegExp('([ก-ฮ])([เโ])'),
+    return text.replaceAllMapped(RegExp('((?:[ก-ฮ]\u0E3A)*[ก-ฮ])([เโ])'),
         (match) => '${match.group(2)}${match.group(1)}');
   }
   if (script == Script.laos) {
@@ -1468,8 +1470,9 @@ String swap_e_o(String text, {Script? script, String rendType = ''}) {
 
 // to be used when converting from
 String un_swap_e_o(String text, {Script? script}) {
+  // The vowel back after the consonant, or after the whole cluster.
   if (script == Script.thai) {
-    return text.replaceAllMapped(RegExp('([เโ])([ก-ฮ])'),
+    return text.replaceAllMapped(RegExp('([เโ])((?:[ก-ฮ]\u0E3A)*[ก-ฮ])'),
         (match) => '${match.group(2)}${match.group(1)}');
   }
   if (script == Script.laos) {
@@ -1598,10 +1601,15 @@ List<Function> unbeautifyFucn(Script script) {
       return [cleanupZWJ];
     case Script.roman:
       return [unCapitalize];
+    // The script is passed on: called as func(text) alone, un_swap_e_o did
+    // nothing, so a tapped or typed เตน was read as etana, not tena (#334).
     case Script.thai:
-      return [unbeautifyThai, un_swap_e_o];
+      return [
+        unbeautifyThai,
+        (String text) => un_swap_e_o(text, script: Script.thai),
+      ];
     case Script.laos:
-      return [un_swap_e_o];
+      return [(String text) => un_swap_e_o(text, script: Script.laos)];
     case Script.khmer:
       return [unbeautifykhmer];
     case Script.myanmar:
