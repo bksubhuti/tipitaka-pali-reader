@@ -354,5 +354,15 @@
   "basketView": "ပိဋကပုံစံ",
   "mulaView": "မူလပုံစံ",
   "cardView": "ကတ်ပုံစံ",
-  "resultLength": "ရလဒ် အရှည်"
+  "resultLength": "ရလဒ် အရှည်",
+  "paper": "စက္ကူ",
+  "paperCream": "ခရင်မ်ရောင်",
+  "paperIvory": "ဆင်စွယ်ရောင်",
+  "paperSepia": "ဆီပီယာရောင်",
+  "paperSage": "စိမ်းနုရောင်",
+  "paperParchment": "သားရေစက္ကူ",
+  "paperAgedParchment": "သားရေစက္ကူဟောင်း",
+  "paperRicePaper": "ဆန်စက္ကူ",
+  "paperPalmLeaf": "ပေရွက်",
+  "paperLinen": "လင်နင်ပိတ်"
 }

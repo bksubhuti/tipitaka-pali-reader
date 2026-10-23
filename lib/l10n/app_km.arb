@@ -353,5 +353,15 @@
   "basketView": "ទិដ្ឋភាពបិដក",
   "mulaView": "ទិដ្ឋភាពមូល",
   "cardView": "ទិដ្ឋភាពកាត",
-  "resultLength": "ប្រវែងលទ្ធផល"
+  "resultLength": "ប្រវែងលទ្ធផល",
+  "paper": "ក្រដាស",
+  "paperCream": "ពណ៌ក្រែម",
+  "paperIvory": "ពណ៌ភ្លុក",
+  "paperSepia": "ពណ៌សេពៀ",
+  "paperSage": "ពណ៌បៃតងខ្ចី",
+  "paperParchment": "ក្រដាសស្បែក",
+  "paperAgedParchment": "ក្រដាសស្បែកចាស់",
+  "paperRicePaper": "ក្រដាសអង្ករ",
+  "paperPalmLeaf": "ស្លឹករឹត",
+  "paperLinen": "ក្រណាត់លីនិន"
 }

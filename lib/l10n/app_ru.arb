@@ -353,5 +353,15 @@
   "basketView": "Питаки",
   "mulaView": "Мула",
   "cardView": "Карточки",
-  "resultLength": "Длина результата"
+  "resultLength": "Длина результата",
+  "paper": "Бумага",
+  "paperCream": "Кремовый",
+  "paperIvory": "Слоновая кость",
+  "paperSepia": "Сепия",
+  "paperSage": "Шалфей",
+  "paperParchment": "Пергамент",
+  "paperAgedParchment": "Старый пергамент",
+  "paperRicePaper": "Рисовая бумага",
+  "paperPalmLeaf": "Пальмовый лист",
+  "paperLinen": "Лён"
 }

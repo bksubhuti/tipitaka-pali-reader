@@ -353,5 +353,15 @@
   "basketView": "三藏视图",
   "mulaView": "根本视图",
   "cardView": "卡片视图",
-  "resultLength": "结果长度"
+  "resultLength": "结果长度",
+  "paper": "纸张",
+  "paperCream": "奶油色",
+  "paperIvory": "象牙色",
+  "paperSepia": "棕褐色",
+  "paperSage": "鼠尾草绿",
+  "paperParchment": "羊皮纸",
+  "paperAgedParchment": "旧羊皮纸",
+  "paperRicePaper": "宣纸",
+  "paperPalmLeaf": "贝叶",
+  "paperLinen": "亚麻"
 }

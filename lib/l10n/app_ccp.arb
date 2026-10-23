@@ -355,5 +355,15 @@
   "basketView": "𑄛𑄨𑄑𑄇𑄴 𑄘𑄬𑄉𑄧",
   "mulaView": "𑄟𑄪𑄣𑄴 𑄘𑄬𑄉𑄧",
   "cardView": "𑄇𑄢𑄴𑄓𑄴 𑄘𑄬𑄉𑄧",
-  "resultLength": "𑄜𑄧𑄣𑄬𑄢𑄴 𑄣𑄧𑄟𑄴𑄝"
+  "resultLength": "𑄜𑄧𑄣𑄬𑄢𑄴 𑄣𑄧𑄟𑄴𑄝",
+  "paper": "Paper",
+  "paperCream": "Cream",
+  "paperIvory": "Ivory",
+  "paperSepia": "Sepia",
+  "paperSage": "Sage",
+  "paperParchment": "Parchment",
+  "paperAgedParchment": "Aged parchment",
+  "paperRicePaper": "Rice paper",
+  "paperPalmLeaf": "Palm leaf",
+  "paperLinen": "Linen"
 }

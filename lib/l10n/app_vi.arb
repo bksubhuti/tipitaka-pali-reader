@@ -353,5 +353,15 @@
   "basketView": "Dạng Tạng",
   "mulaView": "Dạng Mūla",
   "cardView": "Dạng thẻ",
-  "resultLength": "Độ dài kết quả"
+  "resultLength": "Độ dài kết quả",
+  "paper": "Giấy",
+  "paperCream": "Kem",
+  "paperIvory": "Ngà",
+  "paperSepia": "Nâu sepia",
+  "paperSage": "Xanh lá nhạt",
+  "paperParchment": "Giấy da",
+  "paperAgedParchment": "Giấy da cũ",
+  "paperRicePaper": "Giấy dó",
+  "paperPalmLeaf": "Lá buông",
+  "paperLinen": "Vải lanh"
 }

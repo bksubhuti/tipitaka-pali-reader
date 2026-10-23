@@ -698,5 +698,16 @@
   "cardView": "Card view",
   "@cardView": {"description": "Tooltip of the library button that lists the books in cards (the usual view)."},
   "resultLength": "Result length",
-  "@resultLength": {"description": "Label of the slider on the search page that sets how many words of text each search result shows."}
+  "@resultLength": {"description": "Label of the slider on the search page that sets how many words of text each search result shows."},
+  "paper": "Paper",
+  "@paper": {"description": "Settings › Theme, shown when the middle Page button is on: the paper behind the text (a plain tint or a texture)."},
+  "paperCream": "Cream",
+  "paperIvory": "Ivory",
+  "paperSepia": "Sepia",
+  "paperSage": "Sage",
+  "paperParchment": "Parchment",
+  "paperAgedParchment": "Aged parchment",
+  "paperRicePaper": "Rice paper",
+  "paperPalmLeaf": "Palm leaf",
+  "paperLinen": "Linen"
 }

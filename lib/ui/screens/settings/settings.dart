@@ -11,6 +11,7 @@ import 'package:tipitaka_pali/ui/screens/settings/tools_settings.dart';
 import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
 import 'package:tipitaka_pali/ui/widgets/select_dictionary_widget.dart';
 import 'package:tipitaka_pali/ui/widgets/select_language_widget.dart';
+import 'package:tipitaka_pali/ui/widgets/select_paper_widget.dart';
 import 'package:tipitaka_pali/ui/screens/settings/dpd_settings_view.dart';
 import 'package:tipitaka_pali/ui/screens/settings/ai_settings_view.dart';
 
@@ -63,24 +64,47 @@ class DarkModeSettingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      trailing: Consumer<ThemeChangeNotifier>(
-          builder: ((context, themeChangeNotifier, child) => ToggleButtons(
-                onPressed: (int index) {
-                  final themeNotifier =
-                      Provider.of<ThemeChangeNotifier>(context, listen: false);
-                  themeNotifier.toggleTheme(PageTheme.values[index]);
-                },
-                isSelected: context.read<ThemeChangeNotifier>().isSelected,
-                children: const <Widget>[
-                  Icon(Icons.wb_sunny),
-                  Icon(Icons.color_lens),
-                  Icon(Icons.bedtime),
-                ],
-              ))),
-      title: Text(
-        AppLocalizations.of(context)!.darkMode,
-      ),
+    final isMedium = context.watch<ThemeChangeNotifier>().isSelected[1];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          trailing: Consumer<ThemeChangeNotifier>(
+              builder: ((context, themeChangeNotifier, child) => ToggleButtons(
+                    onPressed: (int index) {
+                      final themeNotifier = Provider.of<ThemeChangeNotifier>(
+                          context,
+                          listen: false);
+                      themeNotifier.toggleTheme(PageTheme.values[index]);
+                    },
+                    isSelected:
+                        context.read<ThemeChangeNotifier>().isSelected,
+                    children: const <Widget>[
+                      Icon(Icons.wb_sunny),
+                      Icon(Icons.color_lens),
+                      Icon(Icons.bedtime),
+                    ],
+                  ))),
+          title: Text(
+            AppLocalizations.of(context)!.darkMode,
+          ),
+        ),
+        // The paper, only for the medium page.
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          transitionBuilder: (child, animation) => SizeTransition(
+            sizeFactor: animation,
+            axis: Axis.vertical,
+            child: child,
+          ),
+          child: isMedium
+              ? ListTile(
+                  title: Text(AppLocalizations.of(context)!.paper),
+                  trailing: const SelectPaperWidget(),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }

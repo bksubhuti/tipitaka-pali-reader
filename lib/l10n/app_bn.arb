@@ -353,5 +353,15 @@
   "basketView": "পিটক ভিউ",
   "mulaView": "মূল ভিউ",
   "cardView": "কার্ড ভিউ",
-  "resultLength": "ফলাফলের দৈর্ঘ্য"
+  "resultLength": "ফলাফলের দৈর্ঘ্য",
+  "paper": "কাগজ",
+  "paperCream": "ক্রিম",
+  "paperIvory": "হাতির দাঁত",
+  "paperSepia": "সেপিয়া",
+  "paperSage": "হালকা সবুজ",
+  "paperParchment": "চর্মপত্র",
+  "paperAgedParchment": "পুরনো চর্মপত্র",
+  "paperRicePaper": "চালের কাগজ",
+  "paperPalmLeaf": "তালপাতা",
+  "paperLinen": "লিনেন"
 }

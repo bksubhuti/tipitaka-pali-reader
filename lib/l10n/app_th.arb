@@ -353,5 +353,15 @@
   "basketView": "มุมมองแบบปิฎก",
   "mulaView": "มุมมองแบบมูล",
   "cardView": "มุมมองแบบการ์ด",
-  "resultLength": "ความยาวผลลัพธ์"
+  "resultLength": "ความยาวผลลัพธ์",
+  "paper": "กระดาษ",
+  "paperCream": "สีครีม",
+  "paperIvory": "สีงาช้าง",
+  "paperSepia": "สีซีเปีย",
+  "paperSage": "สีเขียวเสจ",
+  "paperParchment": "กระดาษหนัง",
+  "paperAgedParchment": "กระดาษหนังเก่า",
+  "paperRicePaper": "กระดาษสา",
+  "paperPalmLeaf": "ใบลาน",
+  "paperLinen": "ผ้าลินิน"
 }

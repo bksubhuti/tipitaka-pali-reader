@@ -23,6 +23,7 @@ import '../home/openning_books_provider.dart';
 import '../home/search_page/search_page.dart';
 import 'reader.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/ui/widgets/paper_background.dart';
 
 class ReaderContainer extends StatefulWidget {
   const ReaderContainer({super.key});
@@ -177,8 +178,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
       final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
-      return Container(
-        color: Prefs.getChosenColor(context),
+      return PaperBackground(
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

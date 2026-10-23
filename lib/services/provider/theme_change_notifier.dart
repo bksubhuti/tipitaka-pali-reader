@@ -34,6 +34,13 @@ class ThemeChangeNotifier extends ChangeNotifier {
 
   bool get isDarkMode => themeMode == ThemeMode.dark;
 
+  int get pagePaper => Prefs.pagePaper;
+
+  void onChangePagePaper(int index) {
+    Prefs.pagePaper = index;
+    notifyListeners();
+  }
+
   void toggleTheme(PageTheme theme) {
     Prefs.selectedPageTheme = theme;
 

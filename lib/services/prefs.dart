@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tipitaka_pali/utils/simple_encryptor.dart';
 
 import '../data/constants.dart';
+import '../data/page_papers.dart';
 import 'package:tipitaka_pali/services/country_service.dart';
 
 enum PageTheme {
@@ -40,6 +41,7 @@ const String wordDistancePref = 'wordDistance';
 const String isPeuPref = "isPeuOn";
 const String isDpdPref = "isDpdOn";
 const String selectedPageColorPref = "selectedPageColor";
+const String pagePaperPref = "pagePaper";
 const String databaseDirPathPref = "databaseDirPath";
 const String saveClickToClipboardPref = "saveClickToClipbard";
 const String multiTabModePref = "multiTabMode";
@@ -337,6 +339,14 @@ class Prefs {
 
   static set selectedPageTheme(PageTheme theme) =>
       instance.setInt(selectedPageColorPref, theme.index);
+
+  /// The paper of the medium page, by its place in [pagePapers].
+  static int get pagePaper {
+    final i = instance.getInt(pagePaperPref) ?? 0;
+    return i < pagePapers.length ? i : 0;
+  }
+
+  static set pagePaper(int value) => instance.setInt(pagePaperPref, value);
 
   static String get databaseDirPath =>
       instance.getString(databaseDirPathPref) ?? defaultDatabaseDirPath;
@@ -861,10 +871,32 @@ class Prefs {
       case PageTheme.light:
         return Colors.white;
       case PageTheme.medium:
-        return Theme.of(context).colorScheme.surfaceContainer;
+        return pagePapers[pagePaper].color ??
+            Theme.of(context).colorScheme.surfaceContainer;
       case PageTheme.dark:
         return Colors.black;
     }
+  }
+
+  /// The page behind the text: [getChosenColor], with the paper's texture
+  /// over it when the medium page has a textured paper.
+  static BoxDecoration getPageDecoration(BuildContext context) {
+    final asset = selectedPageTheme == PageTheme.medium
+        ? pagePapers[pagePaper].asset
+        : null;
+    return BoxDecoration(
+      color: getChosenColor(context),
+      image: asset == null
+          ? null
+          : DecorationImage(
+              image: AssetImage(asset),
+              repeat: ImageRepeat.repeat,
+              alignment: Alignment.topLeft,
+              // One pixel of the texture to one of the screen, so its grain
+              // stays sharp.
+              scale: MediaQuery.devicePixelRatioOf(context),
+            ),
+    );
   }
 
   static bool isUsageAttained() {

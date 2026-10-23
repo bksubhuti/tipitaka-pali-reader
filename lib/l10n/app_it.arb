@@ -353,5 +353,15 @@
   "basketView": "Vista per piṭaka",
   "mulaView": "Vista Mūla",
   "cardView": "Vista a schede",
-  "resultLength": "Lunghezza dei risultati"
+  "resultLength": "Lunghezza dei risultati",
+  "paper": "Carta",
+  "paperCream": "Crema",
+  "paperIvory": "Avorio",
+  "paperSepia": "Seppia",
+  "paperSage": "Salvia",
+  "paperParchment": "Pergamena",
+  "paperAgedParchment": "Pergamena antica",
+  "paperRicePaper": "Carta di riso",
+  "paperPalmLeaf": "Foglia di palma",
+  "paperLinen": "Lino"
 }

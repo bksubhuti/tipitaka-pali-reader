@@ -353,5 +353,15 @@
   "basketView": "पिटक व्यू",
   "mulaView": "मूल व्यू",
   "cardView": "कार्ड व्यू",
-  "resultLength": "परिणाम की लंबाई"
+  "resultLength": "परिणाम की लंबाई",
+  "paper": "कागज़",
+  "paperCream": "क्रीम",
+  "paperIvory": "हाथीदांत",
+  "paperSepia": "सीपिया",
+  "paperSage": "हल्का हरा",
+  "paperParchment": "चर्मपत्र",
+  "paperAgedParchment": "पुराना चर्मपत्र",
+  "paperRicePaper": "चावल का कागज़",
+  "paperPalmLeaf": "ताड़पत्र",
+  "paperLinen": "लिनन"
 }

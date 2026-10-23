@@ -8,7 +8,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:slidable_bar/slidable_bar.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/data/page_papers.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/ui/widgets/paper_background.dart';
 import 'package:tipitaka_pali/services/repositories/page_content_repo.dart';
 import 'package:tipitaka_pali/services/repositories/composite_page_content_repo.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
@@ -127,8 +129,7 @@ class ReaderView extends StatelessWidget implements Searchable {
     return Scaffold(
       body: Consumer<ThemeChangeNotifier>(
         builder: (context, themeChangeNotifier, child) {
-          return Container(
-            color: Prefs.getChosenColor(context),
+          return PaperBackground(
             child: SlidableBar(
               slidableController: _sc,
               side: Side.bottom,
@@ -302,7 +303,7 @@ class ReaderView extends StatelessWidget implements Searchable {
     final mediumTheme = themeNotifier.themeData.colorScheme.surfaceVariant;
     final backgroundColor = switch (Prefs.selectedPageTheme) {
       PageTheme.light => Colors.white,
-      PageTheme.medium => mediumTheme,
+      PageTheme.medium => pagePapers[Prefs.pagePaper].color ?? mediumTheme,
       PageTheme.dark => Colors.black,
     };
 

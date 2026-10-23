@@ -353,5 +353,15 @@
   "basketView": "ມຸມມອງແບບປິດົກ",
   "mulaView": "ມຸມມອງແບບມູລະ",
   "cardView": "ມຸມມອງແບບບັດ",
-  "resultLength": "ຄວາມຍາວຜົນລັບ"
+  "resultLength": "ຄວາມຍາວຜົນລັບ",
+  "paper": "ເຈ້ຍ",
+  "paperCream": "ສີຄຣີມ",
+  "paperIvory": "ສີງາຊ້າງ",
+  "paperSepia": "ສີຊີເປຍ",
+  "paperSage": "ສີຂຽວອ່ອນ",
+  "paperParchment": "ເຈ້ຍໜັງ",
+  "paperAgedParchment": "ເຈ້ຍໜັງເກົ່າ",
+  "paperRicePaper": "ເຈ້ຍສາ",
+  "paperPalmLeaf": "ໃບລານ",
+  "paperLinen": "ຜ້າລິນິນ"
 }

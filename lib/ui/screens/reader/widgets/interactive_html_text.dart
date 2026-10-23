@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/providers/font_provider.dart';
+import 'package:tipitaka_pali/data/page_papers.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 
@@ -24,7 +25,7 @@ class InteractiveHtmlText extends StatelessWidget {
     final mediumTheme = themeNotifier.themeData.colorScheme.surfaceVariant;
     final backgroundColor = switch (Prefs.selectedPageTheme) {
       PageTheme.light => Colors.white,
-      PageTheme.medium => mediumTheme,
+      PageTheme.medium => pagePapers[Prefs.pagePaper].color ?? mediumTheme,
       PageTheme.dark => Colors.black,
       _ => Colors.white,
     };

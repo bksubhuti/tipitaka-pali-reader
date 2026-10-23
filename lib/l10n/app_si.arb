@@ -355,5 +355,15 @@
   "basketView": "පිටක දසුන",
   "mulaView": "මූල දසුන",
   "cardView": "කාඩ් දසුන",
-  "resultLength": "ප්‍රතිඵල දිග"
+  "resultLength": "ප්‍රතිඵල දිග",
+  "paper": "කඩදාසි",
+  "paperCream": "ක්‍රීම්",
+  "paperIvory": "ඇත්දළ",
+  "paperSepia": "සීපියා",
+  "paperSage": "ලා කොළ",
+  "paperParchment": "සම් පත්‍රය",
+  "paperAgedParchment": "පැරණි සම් පත්‍රය",
+  "paperRicePaper": "සහල් කඩදාසි",
+  "paperPalmLeaf": "පුස්කොළ",
+  "paperLinen": "ලිනන් රෙදි"
 }
