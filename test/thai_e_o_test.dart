@@ -19,9 +19,18 @@ void main() {
     expect(toRoman('เสฺว'), 'sve');
   });
 
+  test('inside a word the vowel goes before the last consonant only', () {
+    expect(toThai('sabbe'), 'สพ\u0E3Aเพ');
+    expect(toThai('khandhe'), 'ขน\u0E3Aเธ');
+    expect(toThai('dve'), 'เท\u0E3Aว');
+    expect(toRoman('สพ\u0E3Aเพ'), 'sabbe');
+    expect(toRoman('เท\u0E3Aว'), 'dve');
+  });
+
   test('Roman to Thai and back is unchanged', () {
     for (final word in ['tena', 'bhikkhave', 'sotāpanno', 'svākkhāto',
-        'evaṃ', 'dvemā', 'tvevā']) {
+        'evaṃ', 'dvemā', 'tvevā', 'sabbe', 'khandhe', 'setthi', 'metta',
+        'pubbe', 'ettha', 'bhikkhūnaṃ', 'brāhmaṇo', 'yo']) {
       expect(toRoman(toThai(word)), word, reason: toThai(word));
     }
   });

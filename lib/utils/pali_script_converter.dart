@@ -1454,11 +1454,17 @@ String unCapitalize(String text) => text.toLowerCase();
 // for thai text - this can also be done in the convert stage
 
 String swap_e_o(String text, {Script? script, String rendType = ''}) {
-  // e and o go before the consonant, and before the whole of a cluster
-  // joined by the phinthu (ฺ): สฺวเ is written เสฺว.
+  // e and o go before the consonant. A word that begins with a cluster
+  // joined by the phinthu (ฺ) has them before the whole cluster: dve is
+  // เทฺว. Inside a word the phinthu ends the syllable before, and the
+  // vowel goes before the last consonant only: sabbe is สพฺเพ.
   if (script == Script.thai) {
-    return text.replaceAllMapped(RegExp('((?:[ก-ฮ]\u0E3A)*[ก-ฮ])([เโ])'),
-        (match) => '${match.group(2)}${match.group(1)}');
+    return text
+        .replaceAllMapped(
+            RegExp('(?<![\u0E00-\u0E7F])((?:[ก-ฮ]\u0E3A)+[ก-ฮ])([เโ])'),
+            (match) => '${match.group(2)}${match.group(1)}')
+        .replaceAllMapped(RegExp('([ก-ฮ])([เโ])'),
+            (match) => '${match.group(2)}${match.group(1)}');
   }
   if (script == Script.laos) {
     return text.replaceAllMapped(RegExp('([ກ-ຮ])([ເໂ])'),
