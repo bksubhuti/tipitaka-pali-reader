@@ -129,6 +129,36 @@ class ThemeChangeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Pāḷi Script settings: here, not in a controller of their own, so the
+  // open pages redraw as soon as they change.
+  bool get showAlternatePali => Prefs.isShowAlternatePali;
+
+  void onChangeShowAlternatePali(bool on) {
+    Prefs.isShowAlternatePali = on;
+    notifyListeners();
+  }
+
+  bool get showPtsNumber => Prefs.isShowPtsNumber;
+
+  void onChangeShowPtsNumber(bool on) {
+    Prefs.isShowPtsNumber = on;
+    notifyListeners();
+  }
+
+  bool get showThaiNumber => Prefs.isShowThaiNumber;
+
+  void onChangeShowThaiNumber(bool on) {
+    Prefs.isShowThaiNumber = on;
+    notifyListeners();
+  }
+
+  bool get showVriNumber => Prefs.isShowVriNumber;
+
+  void onChangeShowVriNumber(bool on) {
+    Prefs.isShowVriNumber = on;
+    notifyListeners();
+  }
+
   // Returns dark ThemeData made by FlexColorScheme
   ThemeData get darkTheme => FlexThemeData.dark(
         colors: myFlexSchemes[Prefs.themeIndex].dark,

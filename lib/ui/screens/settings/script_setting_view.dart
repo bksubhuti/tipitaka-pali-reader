@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-import '../../../business_logic/view_models/script_settings_view_model.dart';
+import '../../../services/provider/theme_change_notifier.dart';
 import 'select_script_language.dart';
 
 class ScriptSettingView extends StatelessWidget {
@@ -10,87 +10,55 @@ class ScriptSettingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<ScriptSettingController>(
-        create: (_) => ScriptSettingController(),
-        child: Consumer<ScriptSettingController>(
-          builder: (context, controller, child) {
-            return Card(
-              child: ExpansionTile(
-                leading: const Icon(Icons.font_download_outlined),
-                title: Text(AppLocalizations.of(context)!.paliScript,
-                    style: Theme.of(context).textTheme.titleLarge),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32.0),
-                    child: ListTile(
-                      title: Text(AppLocalizations.of(context)!.scriptLanguage),
-                      trailing: const SelectScriptLanguageWidget(),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32.0),
-                    child: ListTile(
-                      title:
-                          Text(AppLocalizations.of(context)!.showAlternatePali),
-                      trailing: Switch(
-                        onChanged: (value) => context
-                            .read<ScriptSettingController>()
-                            .onToggleShowAlternatePali(value),
-                        value: context
-                            .read<ScriptSettingController>()
-                            .isShowAlternatePali,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32.0),
-                    child: ListTile(
-                      title:
-                          Text(AppLocalizations.of(context)!.showPTSPageNumber),
-                      trailing: Switch(
-                        onChanged: (value) => context
-                            .read<ScriptSettingController>()
-                            .onToggleShowPtsNumber(value),
-                        value: context
-                            .read<ScriptSettingController>()
-                            .isShowPtsNumber,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32.0),
-                    child: ListTile(
-                      title: Text(
-                          AppLocalizations.of(context)!.showThaiPageNumber),
-                      trailing: Switch(
-                        onChanged: (value) => context
-                            .read<ScriptSettingController>()
-                            .onToggleShowThaiNumber(value),
-                        value: context
-                            .read<ScriptSettingController>()
-                            .isShowThaiNumber,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32.0),
-                    child: ListTile(
-                      title:
-                          Text(AppLocalizations.of(context)!.showVRIPageNumber),
-                      trailing: Switch(
-                        onChanged: (value) => context
-                            .read<ScriptSettingController>()
-                            .onToggleShowVriNumber(value),
-                        value: context
-                            .read<ScriptSettingController>()
-                            .isShowVriNumber,
-                      ),
-                    ),
-                  ),
-                ],
+    return Consumer<ThemeChangeNotifier>(
+      builder: (context, notifier, child) {
+        return Card(
+          child: ExpansionTile(
+            leading: const Icon(Icons.font_download_outlined),
+            title: Text(AppLocalizations.of(context)!.paliScript,
+                style: Theme.of(context).textTheme.titleLarge),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 32.0),
+                child: ListTile(
+                  title: Text(AppLocalizations.of(context)!.scriptLanguage),
+                  trailing: const SelectScriptLanguageWidget(),
+                ),
               ),
-            );
-          },
-        ));
+              _switch(
+                AppLocalizations.of(context)!.showAlternatePali,
+                notifier.showAlternatePali,
+                notifier.onChangeShowAlternatePali,
+              ),
+              _switch(
+                AppLocalizations.of(context)!.showPTSPageNumber,
+                notifier.showPtsNumber,
+                notifier.onChangeShowPtsNumber,
+              ),
+              _switch(
+                AppLocalizations.of(context)!.showThaiPageNumber,
+                notifier.showThaiNumber,
+                notifier.onChangeShowThaiNumber,
+              ),
+              _switch(
+                AppLocalizations.of(context)!.showVRIPageNumber,
+                notifier.showVriNumber,
+                notifier.onChangeShowVriNumber,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _switch(String title, bool value, ValueChanged<bool> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text(title),
+        trailing: Switch(onChanged: onChanged, value: value),
+      ),
+    );
   }
 }

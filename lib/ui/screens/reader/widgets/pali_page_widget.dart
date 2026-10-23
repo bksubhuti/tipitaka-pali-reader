@@ -377,7 +377,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   @override
   Widget build(BuildContext context) {
     int fontSize = context.watch<ReaderFontProvider>().fontSize;
-    // Turning X-ray on or off redraws the page with or without the links.
+    // Turning X-ray, the alternate Pāḷi or the page numbers on or off
+    // redraws the page with or without them.
     context.watch<ThemeChangeNotifier>().xray;
     final fontName = FontUtils.getfontName(
         script: context.read<ScriptLanguageProvider>().currentScript);
