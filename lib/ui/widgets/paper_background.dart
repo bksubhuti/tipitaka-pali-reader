@@ -15,17 +15,29 @@ class PaperBackground extends StatelessWidget {
     final edge = Prefs.selectedPageTheme == PageTheme.medium
         ? pagePapers[Prefs.pagePaper].edge
         : null;
-    return Container(
-      decoration: Prefs.getPageDecoration(context),
-      child: edge == null
-          ? child
-          : DecoratedBox(
-              decoration: BoxDecoration(
-                image:
-                    DecorationImage(image: AssetImage(edge), fit: BoxFit.fill),
-              ),
-              child: child,
+    // The paper and the text each in a layer of their own: scrolling then
+    // repaints only the text, and the paper, painted once, is reused. In
+    // one layer the full-page texture and edges were painted again on
+    // every frame of a scroll.
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: DecoratedBox(
+              decoration: Prefs.getPageDecoration(context),
+              child: edge == null
+                  ? null
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                            image: AssetImage(edge), fit: BoxFit.fill),
+                      ),
+                    ),
             ),
+          ),
+        ),
+        RepaintBoundary(child: child),
+      ],
     );
   }
 }
