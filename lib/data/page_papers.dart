@@ -4,7 +4,7 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 /// A paper for the medium page theme: a plain tint, or a texture made for
 /// the app (assets/papers, generated from noise, so free of copyright).
 class PagePaper {
-  const PagePaper({this.color, this.asset, this.edge});
+  const PagePaper({this.color, this.asset, this.edge, this.edgeTop});
 
   /// Null for the theme's own tint, the medium page as it always was.
   final Color? color;
@@ -13,6 +13,10 @@ class PagePaper {
   /// Darker edges and corners, an image stretched over the whole page:
   /// in the texture they would repeat across it.
   final String? edge;
+
+  /// How dark [edge] is along the top of the page: the selected tab is
+  /// tinted with it, so it runs on into the page without a step.
+  final Color? edgeTop;
 
   String name(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -43,11 +47,13 @@ const pagePapers = <PagePaper>[
   PagePaper(
       color: Color(0xFFF2E2C8),
       asset: 'assets/papers/parchment.jpg',
-      edge: 'assets/papers/parchment_edge.png'),
+      edge: 'assets/papers/parchment_edge.png',
+      edgeTop: Color(0x4DB89868)),
   PagePaper(
       color: Color(0xFFEDDAB4),
       asset: 'assets/papers/aged_parchment.jpg',
-      edge: 'assets/papers/aged_parchment_edge.png'),
+      edge: 'assets/papers/aged_parchment_edge.png',
+      edgeTop: Color(0x6B9A6E36)),
   PagePaper(color: Color(0xFFF6F2E7), asset: 'assets/papers/rice_paper.jpg'),
   PagePaper(color: Color(0xFFE7D19A), asset: 'assets/papers/palm_leaf.jpg'),
   PagePaper(color: Color(0xFFF1EBDF), asset: 'assets/papers/linen.jpg'),

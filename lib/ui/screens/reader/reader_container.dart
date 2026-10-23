@@ -22,6 +22,7 @@ import '../../../utils/platform_info.dart';
 import '../home/openning_books_provider.dart';
 import '../home/search_page/search_page.dart';
 import 'reader.dart';
+import 'package:tipitaka_pali/data/page_papers.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/widgets/paper_background.dart';
 
@@ -374,9 +375,22 @@ class _ReaderContainerState extends State<ReaderContainer> {
     {
       final dark = Prefs.darkThemeOn;
       final line = dark ? Colors.grey.shade700 : Colors.grey;
+      // On the medium page the strip is a shade of the page's own colour or
+      // paper, not the light grey of the light page, which showed as a
+      // white band above it.
+      final medium = Prefs.selectedPageTheme == PageTheme.medium;
+      final page = Prefs.getChosenColor(context);
+      final tabTint =
+          medium ? pagePapers[Prefs.pagePaper].edgeTop : null;
+      Color shade(double amount) =>
+          Color.alphaBlend(Colors.black.withValues(alpha: amount), page);
       themeData.tabsArea
         ..border = null
-        ..color = dark ? Colors.grey.shade900 : const Color(0xFFf4f4f4)
+        ..color = medium
+            ? shade(0.05)
+            : dark
+                ? Colors.grey.shade900
+                : const Color(0xFFf4f4f4)
         ..middleGap = 0
         ..initialGap = 0
         ..gapBottomBorder = BorderSide(color: line);
@@ -399,7 +413,10 @@ class _ReaderContainerState extends State<ReaderContainer> {
         ..selectedStatus.normalButtonColor = primaryColor
         ..selectedStatus.decoration = BoxDecoration(
           shape: BoxShape.rectangle,
-          color: Prefs.getChosenColor(context),
+          color: tabTint == null ? page : Color.alphaBlend(tabTint, page),
+          // The paper's texture too, so the tab is of a piece with the page,
+          // and as dark as the page's darkened top edge.
+          image: _tabTexture(Prefs.getPageDecoration(context).image, tabTint),
           border: Border(
             left: BorderSide(color: line),
             right: BorderSide(color: line),
@@ -409,7 +426,11 @@ class _ReaderContainerState extends State<ReaderContainer> {
         )
         ..selectedStatus.fontColor = primaryColor
         ..highlightedStatus.decoration = BoxDecoration(
-          color: dark ? Colors.grey.shade800 : const Color(0xFFdadada),
+          color: medium
+              ? shade(0.10)
+              : dark
+                  ? Colors.grey.shade800
+                  : const Color(0xFFdadada),
           border: Border(
             left: const BorderSide(color: Colors.transparent),
             right: const BorderSide(color: Colors.transparent),
@@ -445,6 +466,17 @@ class _ReaderContainerState extends State<ReaderContainer> {
     } else {
       return tabsArea;
     }
+  }
+
+  static DecorationImage? _tabTexture(DecorationImage? image, Color? tint) {
+    if (image == null || tint == null) return image;
+    return DecorationImage(
+      image: image.image,
+      repeat: image.repeat,
+      alignment: image.alignment,
+      scale: image.scale,
+      colorFilter: ColorFilter.mode(tint, BlendMode.srcATop),
+    );
   }
 
   void _closeAllTabs() {
@@ -496,85 +528,96 @@ class _ReaderContainerState extends State<ReaderContainer> {
         // tabbed view uses custom theme and provide TabbedViewTheme.
         // need to watch theme change and rebuild TabbedViewTheme with new one
 
-        return TabbedViewTheme(
-          data: themeData,
-          child: TabbedView(
-              selectToEnableButtons: false,
-              controller: _tabController!,
-              tabsAreaButtonsBuilder: (context, tabsCount) {
-                if (tabsCount == 0) return [];
-                return [
-                  TabButton(
-                    icon: IconProvider.data(Icons.delete_sweep),
-                    iconSize: 22.0,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    hoverColor: Theme.of(context).colorScheme.primary,
-                    toolTip: AppLocalizations.of(context)!.closeAll,
-                    onPressed: _closeAllTabs,
-                  ),
-                ];
-              },
-              onTabSelection: (selectedIndex) {
-                if (selectedIndex != null) {
-                  context
-                      .read<OpenningBooksProvider>()
-                      .updateSelectedBookIndex(selectedIndex);
-                }
-              },
-              tabCloseInterceptor: (int tabIndex) {
-                closeTab(tabIndex, _tabController!);
-                return false;
-              },
-              draggableTabBuilder:
-                  (int tabIndex, TabData tab, Widget tabWidget) {
-                // tabWidget actually is a MouseRegion in the tabbed_view
-                // library. The following code is only used to make tabs
-                // selectable on "tap down" instead of "on tap" (which is
-                // "on tap down" + "on tap up").
-                //
-                final mr = tabWidget as MouseRegion;
-                final gd = mr.child as GestureDetector;
+        // The page's colour behind the tabs: the library leaves a one-point
+        // gap between the tab strip and the page, which showed as a white
+        // line on the medium page.
+        // Tinted as the selected tab is, where the paper darkens its edges.
+        final page = Prefs.getChosenColor(context);
+        final tint = Prefs.selectedPageTheme == PageTheme.medium
+            ? pagePapers[Prefs.pagePaper].edgeTop
+            : null;
+        return ColoredBox(
+          color: tint == null ? page : Color.alphaBlend(tint, page),
+          child: TabbedViewTheme(
+            data: themeData,
+            child: TabbedView(
+                selectToEnableButtons: false,
+                controller: _tabController!,
+                tabsAreaButtonsBuilder: (context, tabsCount) {
+                  if (tabsCount == 0) return [];
+                  return [
+                    TabButton(
+                      icon: IconProvider.data(Icons.delete_sweep),
+                      iconSize: 22.0,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      hoverColor: Theme.of(context).colorScheme.primary,
+                      toolTip: AppLocalizations.of(context)!.closeAll,
+                      onPressed: _closeAllTabs,
+                    ),
+                  ];
+                },
+                onTabSelection: (selectedIndex) {
+                  if (selectedIndex != null) {
+                    context
+                        .read<OpenningBooksProvider>()
+                        .updateSelectedBookIndex(selectedIndex);
+                  }
+                },
+                tabCloseInterceptor: (int tabIndex) {
+                  closeTab(tabIndex, _tabController!);
+                  return false;
+                },
+                draggableTabBuilder:
+                    (int tabIndex, TabData tab, Widget tabWidget) {
+                  // tabWidget actually is a MouseRegion in the tabbed_view
+                  // library. The following code is only used to make tabs
+                  // selectable on "tap down" instead of "on tap" (which is
+                  // "on tap down" + "on tap up").
+                  //
+                  final mr = tabWidget as MouseRegion;
+                  final gd = mr.child as GestureDetector;
 
-                GestureDetector gestureDetector = GestureDetector(
-                    onTertiaryTapUp: (details) {
-                      closeTab(tabIndex, _tabController!);
-                    },
-                    onTap: () => gd.onTap?.call(),
-                    child: gd.child);
-
-                MouseRegion mouseRegion = MouseRegion(
-                    cursor: mr.cursor,
-                    onHover: mr.onHover,
-                    onExit: mr.onExit,
-                    child: gestureDetector);
-
-                return Draggable<int>(
-                    feedback: Material(
-                        child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(border: Border.all()),
-                            child: Text(tab.text))),
-                    data: tabIndex,
-                    dragAnchorStrategy: (Draggable<Object> draggable,
-                        BuildContext context, Offset position) {
-                      return Offset.zero;
-                    },
-                    child: DragTarget(
-                      builder: (
-                        BuildContext context,
-                        List<dynamic> accepted,
-                        List<dynamic> rejected,
-                      ) {
-                        return mouseRegion;
+                  GestureDetector gestureDetector = GestureDetector(
+                      onTertiaryTapUp: (details) {
+                        closeTab(tabIndex, _tabController!);
                       },
-                      onAccept: (int index) {
-                        debugPrint('Will move $tabIndex to $index');
-                        context
-                            .read<OpenningBooksProvider>()
-                            .swap(tabIndex, index, selected: tabIndex);
+                      onTap: () => gd.onTap?.call(),
+                      child: gd.child);
+
+                  MouseRegion mouseRegion = MouseRegion(
+                      cursor: mr.cursor,
+                      onHover: mr.onHover,
+                      onExit: mr.onExit,
+                      child: gestureDetector);
+
+                  return Draggable<int>(
+                      feedback: Material(
+                          child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(border: Border.all()),
+                              child: Text(tab.text))),
+                      data: tabIndex,
+                      dragAnchorStrategy: (Draggable<Object> draggable,
+                          BuildContext context, Offset position) {
+                        return Offset.zero;
                       },
-                    ));
-              }),
+                      child: DragTarget(
+                        builder: (
+                          BuildContext context,
+                          List<dynamic> accepted,
+                          List<dynamic> rejected,
+                        ) {
+                          return mouseRegion;
+                        },
+                        onAccept: (int index) {
+                          debugPrint('Will move $tabIndex to $index');
+                          context
+                              .read<OpenningBooksProvider>()
+                              .swap(tabIndex, index, selected: tabIndex);
+                        },
+                      ));
+                }),
+          ),
         );
       }),
     );
