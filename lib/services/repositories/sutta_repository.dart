@@ -98,9 +98,11 @@ class SuttaRepositoryDatabase implements SuttaRepository {
     }
   }
 
-  // Helper to remove diacritics for normalizing the input
+  // Helper to remove diacritics for normalizing the input. Lower case first:
+  // the names are stored in lower case, and a typed "Ā" would otherwise stay
+  // as it is. ṇ is left alone because the 'simple' column keeps it too.
   String _normalize(String input) {
-    return input.replaceAllMapped(
+    return input.toLowerCase().replaceAllMapped(
       RegExp('[ṭḍṃāūīḷñṅ]'),
       (match) => {
         'ṭ': 't',
