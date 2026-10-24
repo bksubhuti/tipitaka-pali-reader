@@ -43,19 +43,27 @@ class TocDialogViewController {
   }
 
   String normalizeText(String text) {
-    // Add any other normalizations as needed
-    return text.replaceAllMapped(RegExp('[ṭḍṃāūīḷñṅ]'), (match) {
-      return {
-        'ṭ': 't',
-        'ḍ': 'd',
-        'ṃ': 'm',
-        'ā': 'a',
-        'ū': 'u',
-        'ī': 'i',
-        'ḷ': 'l',
-        'ñ': 'n',
-        'ṅ': 'n',
-      }[match.group(0)]!;
-    }).toLowerCase();
+    // Lower case first, so a title such as "Ānāpānassatisuttaṃ" loses its
+    // capital Ā too.
+    return text
+        .toLowerCase()
+        .replaceAllMapped(RegExp('[ṭḍṃṁāūīḷñṅṇ]'), (match) {
+          return {
+            'ṭ': 't',
+            'ḍ': 'd',
+            'ṃ': 'm',
+            'ṁ': 'm',
+            'ā': 'a',
+            'ū': 'u',
+            'ī': 'i',
+            'ḷ': 'l',
+            'ñ': 'n',
+            'ṅ': 'n',
+            'ṇ': 'n',
+          }[match.group(0)]!;
+        })
+        // A doubled letter counts as one: "anapanasati" finds
+        // "ānāpānassati".
+        .replaceAllMapped(RegExp(r'(.)\1+'), (match) => match.group(1)!);
   }
 }

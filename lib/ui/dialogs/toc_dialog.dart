@@ -78,6 +78,7 @@ class _TocDialogState extends State<TocDialog> {
           ]),
           const Divider(color: Colors.grey),
           PaliSearchField(
+            autofocus: true,
             onTextChanged: (romanText) {
               tocDialogViewController.onFilterChanged(romanText);
             },

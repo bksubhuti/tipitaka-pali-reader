@@ -12,6 +12,9 @@ class PaliSearchField extends StatefulWidget {
   final ValueChanged<String>? onTextChanged;
   final String hint;
   final BorderRadius? borderRadius;
+
+  /// Put the cursor in the field as soon as it is shown.
+  final bool autofocus;
   const PaliSearchField({
     super.key,
     this.controller,
@@ -19,6 +22,7 @@ class PaliSearchField extends StatefulWidget {
     this.onTextChanged,
     this.hint = 'search',
     this.borderRadius,
+    this.autofocus = false,
   });
 
   @override
@@ -55,6 +59,7 @@ class _PaliSearchFieldState extends State<PaliSearchField> {
       padding: const EdgeInsets.all(8.0),
       child: TextField(
         autocorrect: false,
+        autofocus: widget.autofocus,
         controller: controller,
         textInputAction: TextInputAction.search,
         maxLines: 1,
