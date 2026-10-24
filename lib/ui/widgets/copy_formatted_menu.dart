@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
-/// Copying in the reader: the menu of selected text has "Copy Formatted"
-/// and "Copy Plain Text", and Cmd+C or Ctrl+C copies whichever the reader
+/// Copying in the reader: the menu of selected text has "Copy Plain Text"
+/// and "Copy Formatted", and Cmd+C or Ctrl+C copies whichever the reader
 /// has chosen in Settings › General, formatted unless they say otherwise.
 
-/// The menu's own buttons, with Copy as "Copy Formatted" and "Copy Plain
-/// Text" after it.
+/// The menu's own buttons, with Copy as "Copy Plain Text" and "Copy
+/// Formatted" after it.
 List<ContextMenuButtonItem> copyButtons(
   BuildContext context,
   SelectableRegionState region,
@@ -23,23 +23,23 @@ List<ContextMenuButtonItem> copyButtons(
       continue;
     }
     items.add(item.copyWith(
-        label: AppLocalizations.of(context)!.copyFormatted,
+        label: AppLocalizations.of(context)!.copyPlainText,
         onPressed: () {
           // Read before the menu closes, which can clear the selection.
           final text = selectedText();
           ContextMenuController.removeAny();
-          onCopyFormatted?.call(text);
+          if (onCopyPlain != null) {
+            onCopyPlain(text);
+          } else {
+            Clipboard.setData(ClipboardData(text: text));
+          }
         }));
     items.add(ContextMenuButtonItem(
-      label: AppLocalizations.of(context)!.copyPlainText,
+      label: AppLocalizations.of(context)!.copyFormatted,
       onPressed: () {
         final text = selectedText();
         ContextMenuController.removeAny();
-        if (onCopyPlain != null) {
-          onCopyPlain(text);
-        } else {
-          Clipboard.setData(ClipboardData(text: text));
-        }
+        onCopyFormatted?.call(text);
       },
     ));
   }
