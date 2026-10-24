@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class OpenningBooksProvider extends ChangeNotifier {
       'text_to_highlight': textToHighlight,
       'query_mode': queryMode,
     });
+    saveTabs();
     notifyListeners();
   }
 
@@ -51,12 +53,14 @@ class OpenningBooksProvider extends ChangeNotifier {
     } else {
       _selectedBookIndex = 0;
     }
+    saveTabs();
     notifyListeners();
   }
 
   void removeAll() {
     books.clear();
     _selectedBookIndex = 0;
+    saveTabs();
     notifyListeners();
   }
 
@@ -76,11 +80,13 @@ class OpenningBooksProvider extends ChangeNotifier {
     current['current_page'] = newPageNumber;
     // Always save the updated current back to the list at the correct index
     books[targetIndex] = current;
+    saveTabs();
   }
 
   void updateSelectedBookIndex(int index, {bool forceNotify = false}) {
     _selectedBookIndex = index;
     selectionChanges.value++;
+    saveTabs();
     if (forceNotify) {
       notifyListeners();
     }
@@ -99,6 +105,64 @@ class OpenningBooksProvider extends ChangeNotifier {
       _selectedBookIndex = selected;
     }
 
+    saveTabs();
+    notifyListeners();
+  }
+
+  /// Keeps the open books, each with the page at the top of its view, for
+  /// reopening at the next start. Only when the reader has turned on
+  /// restoring them in Settings › General.
+  void saveTabs() {
+    if (!Prefs.restoreTabs) return;
+    Prefs.savedTabs = jsonEncode({
+      'selected': _selectedBookIndex,
+      'books': [
+        for (final b in _books)
+          {
+            'id': (b['book'] as Book).id,
+            'name': (b['book'] as Book).name,
+            'page': b['current_page'],
+          }
+      ],
+    });
+  }
+
+  /// The books saved at the end of the last session, as (book, page), and
+  /// which of them was selected; empty when there are none.
+  static ({List<(Book, int?)> books, int selected}) savedTabs() {
+    try {
+      final saved = Prefs.savedTabs;
+      if (saved == null) return (books: const [], selected: 0);
+      final json = jsonDecode(saved) as Map<String, dynamic>;
+      return (
+        books: [
+          for (final b in json['books'] as List)
+            (
+              Book(id: b['id'] as String, name: b['name'] as String),
+              b['page'] as int?
+            )
+        ],
+        selected: json['selected'] as int? ?? 0,
+      );
+    } catch (_) {
+      return (books: const [], selected: 0);
+    }
+  }
+
+  /// Opens the saved books again, in their order, each on its page.
+  void restore(List<(Book, int?)> saved, int selected) {
+    for (final (book, page) in saved) {
+      _books.add({
+        'book': book,
+        'uuid': const Uuid().v4(),
+        'current_page': page,
+        'text_to_highlight': null,
+        'query_mode': null,
+      });
+    }
+    _selectedBookIndex = selected.clamp(0, _books.length - 1);
+    selectionChanges.value++;
+    saveTabs();
     notifyListeners();
   }
 }

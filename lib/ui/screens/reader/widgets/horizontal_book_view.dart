@@ -101,10 +101,9 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
               padding: const EdgeInsets.only(
                   bottom: 100.0), // estimated toolbar height
               child: CopyFormattedShortcuts(
-                  onCopy: () => widget.onCopyFormatted
-                      ?.call(_selectedContent?.plainText ?? ''),
-                  onCopyPlain: () =>
-                      _copyPlain(_selectedContent?.plainText ?? ''),
+                  selectedText: () => _selectedContent?.plainText ?? '',
+                  onCopy: (text) => widget.onCopyFormatted?.call(text),
+                  onCopyPlain: _copyPlain,
                   child: SelectionArea(
                     contextMenuBuilder: (context, selectableRegionState) {
                       return AdaptiveTextSelectionToolbar.buttonItems(

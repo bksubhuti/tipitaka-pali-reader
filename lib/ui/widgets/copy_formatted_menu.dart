@@ -5,10 +5,11 @@ import 'package:tipitaka_pali/services/prefs.dart';
 
 /// Copying in the reader: the menu of selected text has "Copy Plain Text"
 /// and "Copy Formatted", and Cmd+C or Ctrl+C copies whichever the reader
-/// has chosen in Settings › General, formatted unless they say otherwise.
+/// has chosen with the switch in the bar that follows, formatted unless
+/// they say otherwise.
 
 /// The menu's own buttons, with Copy as "Copy Plain Text" and "Copy
-/// Formatted" after it.
+/// Formatted" beside it, the way Cmd+C or Ctrl+C copies first.
 List<ContextMenuButtonItem> copyButtons(
   BuildContext context,
   SelectableRegionState region,
@@ -22,26 +23,38 @@ List<ContextMenuButtonItem> copyButtons(
       items.add(item);
       continue;
     }
-    items.add(item.copyWith(
+    void copyPlain(String text) => onCopyPlain != null
+        ? onCopyPlain(text)
+        : Clipboard.setData(ClipboardData(text: text));
+    // After either, the bar saying which it was, with the switch: on a phone,
+    // with no Ctrl+C, the only place to choose which comes first.
+    void copy(bool formatted) {
+      // Read before the menu closes, which can clear the selection.
+      final text = selectedText();
+      final copyFormatted = onCopyFormatted;
+      if (formatted && copyFormatted != null) {
+        copyFormatted(text);
+      } else {
+        copyPlain(text);
+      }
+      if (copyFormatted != null) {
+        showCopyModeBar(context,
+            text: text,
+            formatted: formatted,
+            copyFormatted: copyFormatted,
+            copyPlain: copyPlain);
+      }
+      ContextMenuController.removeAny();
+    }
+
+    final plain = item.copyWith(
         label: AppLocalizations.of(context)!.copyPlainText,
-        onPressed: () {
-          // Read before the menu closes, which can clear the selection.
-          final text = selectedText();
-          ContextMenuController.removeAny();
-          if (onCopyPlain != null) {
-            onCopyPlain(text);
-          } else {
-            Clipboard.setData(ClipboardData(text: text));
-          }
-        }));
-    items.add(ContextMenuButtonItem(
+        onPressed: () => copy(false));
+    final formatted = ContextMenuButtonItem(
       label: AppLocalizations.of(context)!.copyFormatted,
-      onPressed: () {
-        final text = selectedText();
-        ContextMenuController.removeAny();
-        onCopyFormatted?.call(text);
-      },
-    ));
+      onPressed: () => copy(true),
+    );
+    items.addAll(Prefs.copyFormatted ? [formatted, plain] : [plain, formatted]);
   }
   return items;
 }
@@ -56,10 +69,17 @@ class _CopyFormattedIntent extends Intent {
 /// first.
 class CopyFormattedShortcuts extends StatelessWidget {
   const CopyFormattedShortcuts(
-      {super.key, required this.onCopy, this.onCopyPlain, required this.child});
+      {super.key,
+      required this.selectedText,
+      required this.onCopy,
+      this.onCopyPlain,
+      required this.child});
 
-  final VoidCallback onCopy;
-  final VoidCallback? onCopyPlain;
+  /// The text selected now. Read when the keys are pressed and kept, so it
+  /// can be copied again from the bar after the selection has gone.
+  final String Function() selectedText;
+  final ValueChanged<String> onCopy;
+  final ValueChanged<String>? onCopyPlain;
   final Widget child;
 
   @override
@@ -75,11 +95,16 @@ class CopyFormattedShortcuts extends StatelessWidget {
         actions: {
           _CopyFormattedIntent: CallbackAction<_CopyFormattedIntent>(
             onInvoke: (_) {
+              final text = selectedText();
               final plain = onCopyPlain;
-              if (plain != null && !Prefs.copyFormatted) {
-                plain();
-              } else {
-                onCopy();
+              final formatted = plain == null || Prefs.copyFormatted;
+              (formatted ? onCopy : plain)(text);
+              if (plain != null) {
+                showCopyModeBar(context,
+                    text: text,
+                    formatted: formatted,
+                    copyFormatted: onCopy,
+                    copyPlain: plain);
               }
               return null;
             },
@@ -89,4 +114,51 @@ class CopyFormattedShortcuts extends StatelessWidget {
       ),
     );
   }
+}
+
+/// After a copy, a bar saying which way [text] was copied, [formatted] or
+/// plain, with a switch to change it. The switch is the one place the way
+/// is set: it decides what Cmd+C or Ctrl+C copies and which comes first in
+/// the menu. Changing it copies [text] again the new way, so what is on the
+/// clipboard is what the bar says.
+void showCopyModeBar(
+  BuildContext context, {
+  required String text,
+  required bool formatted,
+  required ValueChanged<String> copyFormatted,
+  required ValueChanged<String> copyPlain,
+}) {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final l10n = AppLocalizations.of(context);
+  if (messenger == null || l10n == null) return;
+  final colors = Theme.of(context).colorScheme;
+  final onBar = TextStyle(color: colors.onPrimaryContainer);
+  var on = formatted;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      // The theme's colours, so it reads in light and dark alike.
+      backgroundColor: colors.primaryContainer,
+      duration: const Duration(seconds: 6),
+      content: StatefulBuilder(
+        // The message, and the switch at the end where a button would be.
+        builder: (context, setBarState) => Row(
+          children: [
+            Expanded(
+              child: Text(on ? l10n.copiedFormatted : l10n.copiedPlain,
+                  style: onBar),
+            ),
+            Text(l10n.copyFormatted, style: onBar),
+            Switch(
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              value: on,
+              onChanged: (value) {
+                setBarState(() => on = Prefs.copyFormatted = value);
+                (value ? copyFormatted : copyPlain)(text);
+              },
+            ),
+          ],
+        ),
+      ),
+    ));
 }

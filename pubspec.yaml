@@ -156,6 +156,8 @@ flutter:
     - assets/images/remnote.jpg
     - assets/images/vecteezy_md.jpg
     - assets/inflectionTemplates.json
+    - assets/data/quotes.json
+    - assets/data/verses_to_know.json
 
   fonts:
     - family: Pyidaungsu

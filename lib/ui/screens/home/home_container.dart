@@ -15,6 +15,7 @@ import '../language_choice.dart';
 import 'desktop_home_view.dart';
 import 'mobile_navigation_bar.dart';
 import 'navigation_pane.dart';
+import '../reader/mobile_reader_container.dart';
 import 'openning_books_provider.dart';
 
 // enum Screen { Home, Bookmark, Recent, Search }
@@ -33,7 +34,10 @@ class _HomeState extends State<Home> {
     // Offer a translation once, on the first start that has the sentence data
     // to use one. First-run setup covers a fresh install; this covers an
     // existing one, which never runs that.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _offerTranslation());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _offerTranslation();
+      await _offerRestoreTabs();
+    });
     HardwareKeyboard.instance.addHandler(_onFontSizeKey);
   }
 
@@ -85,6 +89,77 @@ class _HomeState extends State<Home> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const LanguageChoiceScreen()),
     );
+  }
+
+  /// When the reader has turned on restoring in Settings › General, and books
+  /// were open when TPR last closed, asks whether to open them again, each on
+  /// the page that was at the top. Not when a book is already open, as from
+  /// a link that started the app.
+  Future<void> _offerRestoreTabs() async {
+    if (!Prefs.restoreTabs || !mounted) return;
+    final saved = OpenningBooksProvider.savedTabs();
+    if (saved.books.isEmpty) return;
+    final openBooks = context.read<OpenningBooksProvider>();
+    if (openBooks.books.isNotEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+    var turnOff = false;
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        // A switch that turns it off in the settings, for those who would
+        // rather not be asked.
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            final text = Theme.of(context).textTheme;
+            // A third larger than the theme's own sizes, which read too small
+            // here.
+            TextStyle? larger(TextStyle? style) =>
+                style?.copyWith(fontSize: (style.fontSize ?? 14) * 1.3);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // The question a third larger again than the switch under it.
+                Text(l10n.restoreTabsQuestion(saved.books.length),
+                    style: larger(larger(text.bodySmall))),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l10n.turnOffInSettings,
+                      style: larger(text.bodySmall)),
+                  value: turnOff,
+                  onChanged: (value) => setDialogState(() => turnOff = value),
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.no)),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l10n.open)),
+        ],
+      ),
+    );
+    if (turnOff) {
+      Prefs.restoreTabs = false;
+      Prefs.savedTabs = null;
+    }
+    if (restore != true) {
+      // Declined: forget them, or the next start would ask again about the
+      // same books, nothing having been opened since to replace them.
+      Prefs.savedTabs = null;
+      return;
+    }
+    if (!mounted) return;
+    openBooks.restore(saved.books, saved.selected);
+    if (Mobile.isPhone(context)) {
+      Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+    }
   }
 
   @override

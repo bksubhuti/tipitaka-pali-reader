@@ -91,7 +91,7 @@
   "areYouSureReset": "Are you sure you want to reset all settings and histories?",
   "wordSplit": "Digital Pāḷi Dictionary",
   "copyingStatus": "Please wait for initial setup to complete.\nThis may take a few minutes\nIf the status does not change for 60 seconds,\n please hit the reset button and restart.",
-  "about_info": "We strive to make the best Pāḷi reading app ever made using with Flutter with a SQLite database.  TPR is available in Windows, MacOS, Linux, iOS, and Android. The Digital Pāḷi Dictionary is used for word splits, and ships with the DPD and DPD Grammar.  DPD was created by Ven Bodhirasa as Creative Commons license.  The ​DPD website is here:  https://digitalpalidictionary.github.io/ .  We owe many thanks to this venerable because a good dictionary and splitter makes or breaks a good Pāḷi reader.  His work is ongoing and you can update with the updated extensions.   Most of the TPR code was written by Venerable Pandazza while I did most of the project management with some minor code additions and bug fixes.  Sumbodhi (Bulgaria) is our part time volunteer consultant who does various challenging tasks.  The PEU (Pāḷi English Ultimate) Is a translated version of the abbreviated Pāli Myanmar Abhidhān Dictionary.  This is an ongoing project translated by humans and Google.  There are 200,457 entries with 118,376 translated by humans.  It is quite useful to help you get the meaning of some difficult words not found in any other dictionary.  You can create issues and request features on the github website https://github.com/bksubhuti/tipitaka-pali-reader/issues , The Pāḷi is claimed to be copyright by VRI as cc-by-nc-attrib, The logo uses 3 books which was modified and used with permission by Michael Backman of www.michaelbackmanltd.com .  The Lao Font called LaoPaliRegular.ttf was created and copyrighted by Ven Jayasaro which was modified from a Google Font.  Both are free to use.  Download was from https://drive.google.com/drive/folders/1r-RfuoiMl1YwGk-0PD0g4VsAiRMOf0QG any license info is there.  MD File Icon Attrib https://www.vecteezy.com/free-vector/md",
+  "about_info": "We strive to make the best Pāḷi reading app ever made using with Flutter with a SQLite database.  TPR is available in Windows, MacOS, Linux, iOS, and Android. The Digital Pāḷi Dictionary is used for word splits, and ships with the DPD and DPD Grammar.  DPD was created by Ven Bodhirasa as Creative Commons license.  The ​DPD website is here:  https://digitalpalidictionary.github.io/ .  We owe many thanks to this venerable because a good dictionary and splitter makes or breaks a good Pāḷi reader.  His work is ongoing and you can update with the updated extensions.   Most of the TPR code was written by Venerable Pandazza while I did most of the project management with some minor code additions and bug fixes.  Sumbodhi (Bulgaria) is our part time volunteer consultant who does various challenging tasks.  The PEU (Pāḷi English Ultimate) Is a translated version of the abbreviated Pāli Myanmar Abhidhān Dictionary.  This is an ongoing project translated by humans and Google.  There are 200,457 entries with 118,376 translated by humans.  It is quite useful to help you get the meaning of some difficult words not found in any other dictionary.  You can create issues and request features on the github website https://github.com/bksubhuti/tipitaka-pali-reader/issues , The Pāḷi is claimed to be copyright by VRI as cc-by-nc-attrib, The logo uses 3 books which was modified and used with permission by Michael Backman of www.michaelbackmanltd.com .  The Lao Font called LaoPaliRegular.ttf was created and copyrighted by Ven Jayasaro which was modified from a Google Font.  Both are free to use.  Download was from https://drive.google.com/drive/folders/1r-RfuoiMl1YwGk-0PD0g4VsAiRMOf0QG any license info is there.  MD File Icon Attrib https://www.vecteezy.com/free-vector/md  The daily quote on the home screen is from the Daily Buddha Vacana of the Digital Pāḷi Reader (https://github.com/digitalpalireader/digitalpalireader), used under its CC BY-NC-SA 4.0 license.",
   "aboutToCopy": "About to copy database to your \nlocal Application folder\n Approximate Size (MB): ",
   "finishedCopying": "Finished copying",
   "buildingWordList": "Building word list",
@@ -465,36 +465,6 @@
       }
     }
   },
-  "copyShortcutTitle": "{key}+C copies with formatting",
-  "@copyShortcutTitle": {
-    "description": "Setting title. {key} is Cmd on macOS and Ctrl elsewhere; keep it and +C as they are.",
-    "placeholders": {
-      "key": {
-        "type": "String",
-        "example": "Ctrl"
-      }
-    }
-  },
-  "copyShortcutFormatted": "Bold, headings and the source, as in {menuItem}",
-  "@copyShortcutFormatted": {
-    "description": "Subtitle when the copy shortcut copies with formatting. {menuItem} is copyFormatted.",
-    "placeholders": {
-      "menuItem": {
-        "type": "String",
-        "example": "Copy Formatted"
-      }
-    }
-  },
-  "copyShortcutPlain": "The text alone, as in {menuItem}",
-  "@copyShortcutPlain": {
-    "description": "Subtitle when the copy shortcut copies plain text. {menuItem} is copyPlainText.",
-    "placeholders": {
-      "menuItem": {
-        "type": "String",
-        "example": "Copy Plain Text"
-      }
-    }
-  },
   "uiFont": "UI font",
   "@uiFont": {
     "description": "Setting for the font of menus, buttons, dialogs and settings."
@@ -709,5 +679,23 @@
   "paperAgedParchment": "Aged parchment",
   "paperRicePaper": "Rice paper",
   "paperPalmLeaf": "Palm leaf",
-  "paperLinen": "Linen"
+  "paperLinen": "Linen",
+  "homeScreenQuote": "Home screen quote",
+  "dailyBuddhaVacana": "Daily Buddha Vacana",
+  "versesToKnow": "Verses to know",
+  "restoreTabs": "Restore open books",
+  "restoreTabsSubtitle": "When TPR starts, offer to reopen the books that were open, each at its page",
+  "turnOffInSettings": "Turn off in settings",
+  "copiedFormatted": "Copied with formatting.",
+  "copiedPlain": "Copied as plain text.",
+  "restoreTabsQuestion": "Open the {count} books you had open last time?",
+  "@restoreTabsQuestion": {
+    "description": "Asked at startup. {count} is how many books were open.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  }
 }

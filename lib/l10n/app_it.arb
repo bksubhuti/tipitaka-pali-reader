@@ -296,9 +296,6 @@
   "versionNotRecorded": "La sua versione non è stata registrata. Aggiorna per avere l’ultima.",
   "update": "Aggiorna",
   "updatingLanguage": "Aggiornamento di {language}",
-  "copyShortcutTitle": "{key}+C copia con la formattazione",
-  "copyShortcutFormatted": "Grassetto, titoli e fonte, come in {menuItem}",
-  "copyShortcutPlain": "Solo il testo, come in {menuItem}",
   "uiFont": "Carattere dell’interfaccia",
   "translations": "Traduzioni",
   "noneInstalled": "Nessuna installata",
@@ -363,5 +360,14 @@
   "paperAgedParchment": "Pergamena antica",
   "paperRicePaper": "Carta di riso",
   "paperPalmLeaf": "Foglia di palma",
-  "paperLinen": "Lino"
+  "paperLinen": "Lino",
+  "homeScreenQuote": "Citazione della schermata iniziale",
+  "dailyBuddhaVacana": "Daily Buddha Vacana",
+  "versesToKnow": "Versi da conoscere",
+  "restoreTabs": "Ripristina i libri aperti",
+  "restoreTabsSubtitle": "All'avvio, propone di riaprire i libri che erano aperti, ciascuno alla sua pagina",
+  "turnOffInSettings": "Disattiva nelle impostazioni",
+  "copiedFormatted": "Copiato con formattazione.",
+  "copiedPlain": "Copiato come testo semplice.",
+  "restoreTabsQuestion": "Aprire i {count} libri che avevi aperto l'ultima volta?"
 }

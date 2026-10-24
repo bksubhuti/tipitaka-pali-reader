@@ -132,6 +132,9 @@ const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
 const String hideAiSearchNagPref = "hideAiSearchNag";
 const String aiTermsOfServicePref = "aiTermsOfService";
+const String quoteListPref = "quoteList";
+const String restoreTabsPref = "restoreTabs";
+const String savedTabsPref = "savedTabs";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -207,6 +210,8 @@ const bool defaultIsPaliBold =
 const bool defaultSangahaFixed = false;
 const bool defaultHideTranslationNag = false;
 const bool defaultHideAiSearchNag = false;
+const String defaultQuoteList = "verses";
+const bool defaultRestoreTabs = false;
 const bool defaultAiTermsOfService = false;
 
 const String defaultOpenRouterPrompt = """
@@ -852,6 +857,35 @@ class Prefs {
       instance.getBool(hideAiSearchNagPref) ?? defaultHideAiSearchNag;
   static set hideAiSearchNag(bool value) =>
       instance.setBool(hideAiSearchNagPref, value);
+
+  // The home screen's quote: which list it comes from, and for each list
+  // the quote (its day number) the reader is on and the date (yyyy-m-d) it
+  // was last shown.
+  static String get quoteList =>
+      instance.getString(quoteListPref) ?? defaultQuoteList;
+  static set quoteList(String value) =>
+      instance.setString(quoteListPref, value);
+
+  // Whether to offer, at startup, to reopen the books that were open, and
+  // those books (JSON: their ids, names and pages, and the selected one).
+  static bool get restoreTabs =>
+      instance.getBool(restoreTabsPref) ?? defaultRestoreTabs;
+  static set restoreTabs(bool value) =>
+      instance.setBool(restoreTabsPref, value);
+
+  static String? get savedTabs => instance.getString(savedTabsPref);
+  static set savedTabs(String? value) => value == null
+      ? instance.remove(savedTabsPref)
+      : instance.setString(savedTabsPref, value);
+
+  static int? quoteDay(String list) => instance.getInt('quoteDay_$list');
+  static void setQuoteDay(String list, int day) =>
+      instance.setInt('quoteDay_$list', day);
+
+  static String? quoteDate(String list) =>
+      instance.getString('quoteDate_$list');
+  static void setQuoteDate(String list, String date) =>
+      instance.setString('quoteDate_$list', date);
 
   // We return nullable double? for X and Y.
   // If null, the window manager will know to center the window default.

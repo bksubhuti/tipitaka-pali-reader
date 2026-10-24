@@ -1,7 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
+import 'package:tipitaka_pali/ui/screens/reader/widgets/quote_of_day.dart';
 
 enum Startup { quoteOfDay, restoreLastRead }
 
@@ -16,7 +18,6 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
   bool _clipboard = Prefs.saveClickToClipboard;
   bool _disableVelthuis = Prefs.disableVelthuis;
   bool _persitentSearchFilter = Prefs.persitentSearchFilter;
-  bool _copyFormatted = Prefs.copyFormatted;
 
   @override
   void initState() {
@@ -32,7 +33,9 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
         title: Text(AppLocalizations.of(context)!.generalSettings,
             style: Theme.of(context).textTheme.titleLarge),
         children: [
-          _getCopyFormattedSwitch(),
+          _getQuoteListDropdown(),
+          const Divider(),
+          _getRestoreTabsSwitch(),
           const Divider(),
           _getAnimationsSwitch(),
           const SizedBox(
@@ -56,16 +59,61 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
     );
   }
 
-  /// What the copy shortcut copies in the reader. The menu of selected text
-  /// offers both whatever this says.
-  Widget _getCopyFormattedSwitch() {
-    return CopyShortcutTile(
-      value: _copyFormatted,
-      onChanged: (value) {
-        setState(() {
-          _copyFormatted = Prefs.copyFormatted = value;
-        });
-      },
+  /// Which list the home screen's quote comes from.
+  Widget _getQuoteListDropdown() {
+    final l = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text(l.homeScreenQuote),
+        // Under the title, not beside it: side by side is too wide.
+        subtitle: Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: DropdownButton<QuoteList>(
+            value: quoteList.value,
+            items: [
+              DropdownMenuItem(
+                  value: QuoteList.versesToKnow, child: Text(l.versesToKnow)),
+              DropdownMenuItem(
+                  value: QuoteList.dailyBuddhaVacana,
+                  child: Text(l.dailyBuddhaVacana)),
+            ],
+            onChanged: (list) {
+              if (list == null) return;
+              setState(() {
+                Prefs.quoteList = list.id;
+                quoteList.value = list;
+              });
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Whether TPR offers, at startup, to reopen the books that were open.
+  Widget _getRestoreTabsSwitch() {
+    final l = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(left: 32.0),
+      child: ListTile(
+        title: Text(l.restoreTabs),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          SettingInfoButton(l.restoreTabsSubtitle),
+          Switch(
+            value: Prefs.restoreTabs,
+            onChanged: (value) {
+              setState(() => Prefs.restoreTabs = value);
+              if (value) {
+                // Keep what is open now, not only what opens from here on.
+                context.read<OpenningBooksProvider>().saveTabs();
+              } else {
+                Prefs.savedTabs = null;
+              }
+            },
+          ),
+        ]),
+      ),
     );
   }
 
@@ -195,29 +243,28 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
   }
 }
 
-/// The setting for what Cmd+C or Ctrl+C copies: with formatting when
-/// [value] is true, the text alone when false.
-class CopyShortcutTile extends StatelessWidget {
-  final bool value;
-  final ValueChanged<bool> onChanged;
+/// An ⓘ beside a setting, showing what it does in a box, so the list of
+/// settings can be names alone.
+class SettingInfoButton extends StatelessWidget {
+  final String text;
 
-  const CopyShortcutTile(
-      {super.key, required this.value, required this.onChanged});
+  const SettingInfoButton(this.text, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    final key = defaultTargetPlatform == TargetPlatform.macOS ? 'Cmd' : 'Ctrl';
-    final l = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.only(left: 32.0),
-      child: ListTile(
-        title: Text(l.copyShortcutTitle(key)),
-        subtitle: Text(value
-            ? l.copyShortcutFormatted(l.copyFormatted)
-            : l.copyShortcutPlain(l.copyPlainText)),
-        trailing: Switch(
-          onChanged: onChanged,
-          value: value,
+    return IconButton(
+      icon: const Icon(Icons.info_outline, size: 20),
+      color: Theme.of(context).hintColor,
+      onPressed: () => showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          content: Text(text),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(AppLocalizations.of(context)!.close),
+            ),
+          ],
         ),
       ),
     );

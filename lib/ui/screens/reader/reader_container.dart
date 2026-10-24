@@ -1,3 +1,4 @@
+import 'widgets/quote_of_day.dart';
 import 'widgets/home_shortcuts.dart';
 import 'dart:io';
 import 'dart:math';
@@ -174,9 +175,6 @@ class _ReaderContainerState extends State<ReaderContainer> {
     }).toList();
 
     if (books.isEmpty) {
-      final script = context.watch<ScriptLanguageProvider>().currentScript;
-      final fontName = FontUtils.getfontName(script: script);
-
       final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
       return PaperBackground(
@@ -184,35 +182,9 @@ class _ReaderContainerState extends State<ReaderContainer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // The verse is a card: a tap opens it in the Dhammapada, verse
-              // 183, where it is from.
-              Card(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => openBookAt(context,
-                      Book(id: 'mula_ku_02', name: 'dhammapadapāḷi'), 41,
-                      highlight: 'Sabbapāpassa akaraṇaṃ'),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 18),
-                    child: Text(
-                      PaliScript.getScriptOf(
-                          script: context
-                              .watch<ScriptLanguageProvider>()
-                              .currentScript,
-                          romanText:
-                              "Sabbapāpassa akaraṇaṃ\nKusalassa upasampadā\nSacittapariyodāpanaṃ\nEtaṃ buddhānasāsanaṃ"),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontFamily: fontName,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // Today's quote is a card: a tap opens the book where it is
+              // from.
+              const QuoteOfDayCard(),
               // Where the reader last was, and the last of Recent.
               const Padding(
                 padding: EdgeInsets.only(top: 16),
