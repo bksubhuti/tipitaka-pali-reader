@@ -34,17 +34,25 @@ class SentenceTocRepository implements TocRepository {
     final db = await databaseProvider.database;
     final rows = await db.rawQuery('''
       SELECT h.title, h.level, h.book_id, h.para_id,
-        (SELECT b.tpr_page FROM ext.page_break b
+        COALESCE((SELECT b.tpr_page FROM ext.page_break b
           WHERE b.tpr_book = ? AND b.book_id = h.book_id
             AND b.para_id <= h.para_id
-          ORDER BY b.para_id DESC, b.line_id DESC LIMIT 1) AS page
+          ORDER BY b.para_id DESC, b.line_id DESC LIMIT 1),
+          -- A heading before the book's first break opens its first page,
+          -- when that page is in this TPR book.
+          (SELECT b.tpr_page FROM ext.page_break b
+          WHERE b.book_id = h.book_id
+            AND NOT EXISTS (SELECT 1 FROM ext.page_break o
+              WHERE o.book_id = b.book_id AND (o.para_id < b.para_id
+                OR (o.para_id = b.para_id AND o.line_id < b.line_id)))
+            AND b.tpr_book = ?)) AS page
       FROM epi.headings h
       WHERE h.book_id IN (
               SELECT DISTINCT book_id FROM ext.page_break WHERE tpr_book = ?)
         AND h.level < 10
         AND h.title IS NOT NULL AND h.title <> ''
       ORDER BY h.book_id, h.para_id
-    ''', [bookID, bookID]);
+    ''', [bookID, bookID, bookID]);
 
     // Where a later volume of the same ePitaka book begins: another TPR book
     // lying wholly after this one's last page. Its headings are its own, and

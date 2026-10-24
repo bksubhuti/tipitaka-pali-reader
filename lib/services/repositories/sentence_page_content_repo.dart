@@ -39,7 +39,10 @@ class SentencePageContentRepository implements PageContentRepository {
     );
     if (bounds.isEmpty) return null;
 
-    final start = _Bound.from(bounds.first);
+    var start = _Bound.from(bounds.first);
+    if (await opensBookAt(db, bookID, page)) {
+      start = _Bound(start.bookId, 0, 0, 0);
+    }
 
     // The next page's start ends this one. In a few books the boundary that
     // follows sits earlier in the text than this one, because it was placed
@@ -80,6 +83,39 @@ class SentencePageContentRepository implements PageContentRepository {
       sentences: sentences,
       languages: languages,
     );
+  }
+
+  /// Whether [page] of [tprBook] is where an ePitaka book opens, part-way
+  /// into a TPR book that holds several of them.
+  ///
+  /// The printed page where one nipāta's commentary ends and the next begins
+  /// is recorded as a break in the earlier book only, and the later book's
+  /// first break is on the page after. The sentences between, the later
+  /// book's title, first headings and first suttas, were on no page at all,
+  /// so they could not be read and links to them went nowhere. They are shown
+  /// at the top of the later book's first page instead: one book to a page,
+  /// as everything else on a page assumes.
+  static Future<bool> opensBookAt(dynamic db, String tprBook, int page) async {
+    final here = await db.rawQuery(
+      'SELECT book_id, para_id, line_id FROM ext.page_break '
+      'WHERE tpr_book = ? AND tpr_page = ? LIMIT 1',
+      [tprBook, page],
+    );
+    if (here.isEmpty) return false;
+    final before = await db.rawQuery(
+      'SELECT book_id FROM ext.page_break '
+      'WHERE tpr_book = ? AND tpr_page < ? ORDER BY tpr_page DESC LIMIT 1',
+      [tprBook, page],
+    );
+    final book = here.first['book_id'] as String;
+    if (before.isEmpty || before.first['book_id'] == book) return false;
+    final para = here.first['para_id'] as int;
+    final earlier = await db.rawQuery(
+      'SELECT 1 FROM ext.page_break WHERE book_id = ? '
+      'AND (para_id < ? OR (para_id = ? AND line_id < ?)) LIMIT 1',
+      [book, para, para, here.first['line_id']],
+    );
+    return earlier.isEmpty;
   }
 
   /// Where the next printed volume begins, for the last page of a TPR book
@@ -396,7 +432,12 @@ class SentencePageContentRepository implements PageContentRepository {
     final out = <PageContent>[];
     final cursor = <String, int>{};
     for (var i = 0; i < breaks.length; i++) {
-      final start = _Bound.from(breaks[i]);
+      var start = _Bound.from(breaks[i]);
+      if (i > 0 &&
+          breaks[i - 1]['book_id'] != start.bookId &&
+          await opensBookAt(db, bookID, breaks[i]['tpr_page'] as int)) {
+        start = _Bound(start.bookId, 0, 0, 0);
+      }
       _Bound? end;
       for (var j = i + 1; j < breaks.length && j <= i + 8; j++) {
         final candidate = _Bound.from(breaks[j]);

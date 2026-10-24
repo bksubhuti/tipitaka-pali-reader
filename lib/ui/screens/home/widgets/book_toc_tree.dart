@@ -78,7 +78,9 @@ class _BookTocNodeState extends State<BookTocNode> {
 
   void _onFocus() {
     final f = widget.focus.value;
-    final mine = f != null && f.bookId == widget.item.book.id;
+    final mine = f != null &&
+        f.bookId == widget.item.book.id &&
+        widget.item.covers(f.page);
     if (!mine) {
       if (_page != null) setState(() => _page = null);
       return;
@@ -94,7 +96,10 @@ class _BookTocNodeState extends State<BookTocNode> {
     final TocRepository repo = DatabaseHelper.sentenceDataAvailable
         ? SentenceTocRepository(DatabaseHelper())
         : TocDatabaseRepository(DatabaseHelper());
-    return _Heading.nest(await repo.getTocs(widget.item.book.id));
+    final tocs = await repo.getTocs(widget.item.book.id);
+    // A book inside a volume shows its own pages' headings only.
+    return _Heading.nest(
+        tocs.where((t) => widget.item.covers(t.pageNumber)).toList());
   }
 
   @override
@@ -111,7 +116,8 @@ class _BookTocNodeState extends State<BookTocNode> {
             _open = !_open;
             _contents ??= _load();
           }),
-          onTap: () => widget.open(widget.item.book, null, null),
+          onTap: () =>
+              widget.open(widget.item.book, widget.item.fromPage, null),
         ),
         if (_open)
           _Indented(

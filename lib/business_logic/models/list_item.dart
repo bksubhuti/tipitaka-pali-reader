@@ -39,7 +39,19 @@ class CategoryItem implements ListItem {
 class BookItem implements ListItem {
   final Book book;
 
-  BookItem(this.book);
+  /// For one of the books inside a volume that holds several (see
+  /// VolumeParts): its name, and the pages of [book] it covers, [toPage]
+  /// null for the last. The volume itself is what opens.
+  final String? part;
+  final int? fromPage;
+  final int? toPage;
+
+  BookItem(this.book, {this.part, this.fromPage, this.toPage});
+
+  /// Whether [page] of [book] is in this item: any page, for a whole book.
+  bool covers(int page) =>
+      (fromPage == null || page >= fromPage!) &&
+      (toPage == null || page <= toPage!);
 
   @override
   Widget build(BuildContext context) => Card(
@@ -49,7 +61,7 @@ class BookItem implements ListItem {
           child: ColoredText(
               PaliScript.getScriptOf(
                   script: context.read<ScriptLanguageProvider>().currentScript,
-                  romanText: book.name),
+                  romanText: part ?? book.name),
               style: TextStyle(
                   fontSize: Prefs.uiFontSize + 4,
                   fontWeight: FontWeight.bold,

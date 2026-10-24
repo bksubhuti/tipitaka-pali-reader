@@ -1,6 +1,7 @@
 import 'package:tipitaka_pali/business_logic/models/paragraph_mapping.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/repositories/paragraph_mapping_repo.dart';
+import 'package:tipitaka_pali/services/repositories/sentence_page_content_repo.dart';
 
 /// The links between root text, commentary and sub-commentary, taken from
 /// ePitaka's `book_links`.
@@ -47,7 +48,11 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
     );
     if (bounds.isEmpty) return const [];
     final epiBook = bounds.first['book_id'] as String;
-    final fromPara = bounds.first['para_id'] as int;
+    // A page that opens its book also shows what comes before its break.
+    final fromPara =
+        await SentencePageContentRepository.opensBookAt(db, bookID, pageNumber)
+            ? 0
+            : bounds.first['para_id'] as int;
     final toPara = bounds.length > 1 && bounds[1]['book_id'] == epiBook
         ? bounds[1]['para_id'] as int
         : null;
@@ -65,16 +70,26 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
     // The page a linked paragraph sits on, in the reader's own numbering.
     final rows = await db.rawQuery('''
       SELECT DISTINCT l.${there}_book AS book, l.${there}_para AS para,
-        (SELECT b.tpr_book FROM ext.page_break b
+        COALESCE((SELECT b.tpr_book FROM ext.page_break b
           WHERE b.book_id = l.${there}_book AND b.para_id <= l.${there}_para
-          ORDER BY b.para_id DESC LIMIT 1) AS tpr_book,
-        (SELECT b.tpr_page FROM ext.page_break b
+          ORDER BY b.para_id DESC LIMIT 1),
+          -- Before the book's first break: on its first page.
+          (SELECT b.tpr_book FROM ext.page_break b
+          WHERE b.book_id = l.${there}_book
+          ORDER BY b.para_id, b.line_id LIMIT 1)) AS tpr_book,
+        COALESCE((SELECT b.tpr_page FROM ext.page_break b
           WHERE b.book_id = l.${there}_book AND b.para_id <= l.${there}_para
-          ORDER BY b.para_id DESC LIMIT 1) AS tpr_page,
+          ORDER BY b.para_id DESC LIMIT 1),
+          -- Before the book's first break: on its first page.
+          (SELECT b.tpr_page FROM ext.page_break b
+          WHERE b.book_id = l.${there}_book
+          ORDER BY b.para_id, b.line_id LIMIT 1)) AS tpr_page,
         (SELECT s.vripara FROM epi.sentences s
           WHERE s.book_id = l.${there}_book AND s.para_id <= l.${there}_para
             AND s.vripara IS NOT NULL AND s.vripara <> ''
-          ORDER BY s.para_id DESC LIMIT 1) AS printed
+          ORDER BY s.para_id DESC LIMIT 1) AS printed,
+        (SELECT e.book_name FROM epi.books e
+          WHERE e.book_id = l.${there}_book LIMIT 1) AS part
       FROM epi.book_links l
       WHERE l.${here}_book = ? AND $range
       ORDER BY l.${there}_book, l.${there}_para
@@ -83,6 +98,7 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
 
     final mappings = <ParagraphMapping>[];
     final seen = <String>{};
+    final partsIn = <String, int>{};
     for (final row in rows) {
       final targetBook = row['tpr_book'] as String?;
       final targetPage = row['tpr_page'] as int?;
@@ -93,6 +109,14 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
       final names = await db.rawQuery(
           'SELECT name FROM books WHERE id = ? LIMIT 1', [targetBook]);
       if (names.isEmpty) continue;
+
+      // Named by its part only in a volume that has more than one.
+      partsIn[targetBook] ??= (await db.rawQuery(
+              'SELECT COUNT(DISTINCT book_id) AS n FROM ext.page_break '
+              'WHERE tpr_book = ?',
+              [targetBook]))
+          .first['n'] as int;
+      final part = row['part'] as String?;
 
       mappings.add(ParagraphMapping(
         paragraph: row['para'] as int? ?? 0,
@@ -105,6 +129,9 @@ class SentenceParagraphMappingRepository implements ParagraphMappingRepository {
         // continues. The para_id is a running count, 1209 where the book
         // says 421.
         printedNumber: row['printed']?.toString(),
+        partName: partsIn[targetBook]! > 1 && part != null && part.isNotEmpty
+            ? part[0].toLowerCase() + part.substring(1)
+            : null,
       ));
     }
     return mappings;

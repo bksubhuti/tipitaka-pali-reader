@@ -129,7 +129,7 @@ class XrayRepository {
   /// has no page for it.
   Future<XrayTarget?> targetOf(XrayLink link) async {
     final db = await databaseProvider.database;
-    final rows = await db.rawQuery(
+    var rows = await db.rawQuery(
       'SELECT b.tpr_book, b.tpr_page, k.name FROM ext.page_break b '
       'JOIN books k ON k.id = b.tpr_book '
       'WHERE b.book_id = ? AND (b.para_id < ? '
@@ -137,6 +137,15 @@ class XrayRepository {
       'ORDER BY b.para_id DESC, b.line_id DESC LIMIT 1',
       [link.book, link.para, link.para, link.line],
     );
+    // Before the book's first break, the opening its first page shows.
+    if (rows.isEmpty) {
+      rows = await db.rawQuery(
+        'SELECT b.tpr_book, b.tpr_page, k.name FROM ext.page_break b '
+        'JOIN books k ON k.id = b.tpr_book '
+        'WHERE b.book_id = ? ORDER BY b.para_id, b.line_id LIMIT 1',
+        [link.book],
+      );
+    }
     if (rows.isEmpty) return null;
     final row = rows.first;
     return XrayTarget(row['tpr_book'] as String, row['name'] as String,

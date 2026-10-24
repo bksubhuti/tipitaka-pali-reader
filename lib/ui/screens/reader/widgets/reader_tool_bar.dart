@@ -219,6 +219,12 @@ class LowerRow extends StatelessWidget {
     context.read<ReaderFontProvider>().onDecreaseFontSize();
   }
 
+  /// The later books (añña): the Visuddhimagga and its mahāṭīkā, the
+  /// Abhidhammatthasaṅgaha and its ṭīkā, and the rest. Their ids do not say
+  /// mula, attha or tika, but the ePitaka links join them to their
+  /// commentaries all the same.
+  bool _isLaterBook(String bookId) => bookId.startsWith('annya');
+
   void _onMulaButtonClicked(BuildContext context) async {
     final vm = context.read<ReaderViewController>();
     if (vm.book.id.contains('mula')) {
@@ -266,13 +272,19 @@ class LowerRow extends StatelessWidget {
     }
     // forward
     if (vm.book.id.contains('mula')) {
+      // The ePitaka links also join the root text straight to its ṭīkā,
+      // which is not what A asks for.
+      Future<List<ParagraphMapping>> commentaries(int page) async =>
+          (await vm.getParagraphs(page))
+              .where((m) => !m.expBookID.contains('tika'))
+              .toList();
       int currentPage = vm.currentPage.value;
-      List<ParagraphMapping> paragraphs = await vm.getParagraphs(currentPage);
+      List<ParagraphMapping> paragraphs = await commentaries(currentPage);
       bool isResultFromPreviusPage = false;
       if (paragraphs.isEmpty) {
         isResultFromPreviusPage = true;
         while (paragraphs.isEmpty && currentPage-- > 1) {
-          paragraphs = await vm.getParagraphs(currentPage);
+          paragraphs = await commentaries(currentPage);
         }
       }
       if (context.mounted) {
@@ -297,8 +309,9 @@ class LowerRow extends StatelessWidget {
       return;
     }
 
-    // backward
-    if (vm.book.id.contains('tika')) {
+    // backward: from a ṭīkā, or from a later book (Visuddhimagga's
+    // mahāṭīkā and the like), whose id says annya, not tika.
+    if (vm.book.id.contains('tika') || _isLaterBook(vm.book.id)) {
       int currentPage = vm.currentPage.value;
       List<ParagraphMapping> paragraphs =
           await vm.getBackWardParagraphs(currentPage);
@@ -339,8 +352,9 @@ class LowerRow extends StatelessWidget {
       // do nothing
       return;
     }
-    // forward
-    if (vm.book.id.contains('attha')) {
+    // forward: from an aṭṭhakathā, or from a later book such as the
+    // Visuddhimagga, whose id says annya, not attha.
+    if (vm.book.id.contains('attha') || _isLaterBook(vm.book.id)) {
       int currentPage = vm.currentPage.value;
       List<ParagraphMapping> paragraphs = await vm.getParagraphs(currentPage);
       bool isResultFromPreviusPage = false;
@@ -495,7 +509,7 @@ class LowerRow extends StatelessWidget {
                       visualDensity:
                           const VisualDensity(horizontal: 0, vertical: -4),
                       title: Text(
-                        'Para.${paragraphs[i].printedNumber ?? paragraphs[i].paragraph} - ${PaliScript.getScriptOf(script: context.read<ScriptLanguageProvider>().currentScript, romanText: '${paragraphs[i].bookName} - $pageNumberIfFound')}',
+                        'Para.${paragraphs[i].printedNumber ?? paragraphs[i].paragraph} - ${PaliScript.getScriptOf(script: context.read<ScriptLanguageProvider>().currentScript, romanText: '${paragraphs[i].partName ?? paragraphs[i].bookName} - $pageNumberIfFound')}',
                       ),
                       // title: Text(
                       //     '${AppLocalizations.of(context)!.paragraph_number}: ${paragraphs[i].paragraph}'),

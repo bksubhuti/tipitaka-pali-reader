@@ -21,6 +21,7 @@ import '../../../routes.dart';
 import '../../../services/database/database_helper.dart';
 import '../../../services/provider/script_language_provider.dart';
 import '../../../services/repositories/sutta_repository.dart';
+import '../../../services/repositories/volume_parts.dart';
 import '../../../utils/platform_info.dart';
 import '../../dialogs/about_tpr_dialog.dart';
 import '../../dialogs/sutta_list_dialog.dart';
@@ -684,13 +685,15 @@ class _BookListPageState extends State<BookListPage> {
                     tilePadding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     childrenPadding: const EdgeInsets.only(left: 0, bottom: 8),
-                    children: categoryWithBooks.books.map<Widget>((bookItem) {
-                      return ListTile(
-                        title: bookItem.build(context),
-                        onTap: () => _openBook(context, bookItem),
-                        minVerticalPadding: 4,
-                      );
-                    }).toList(),
+                    children: [
+                      for (final bookItem in categoryWithBooks.books)
+                        ListTile(
+                          title: bookItem.build(context),
+                          onTap: () => _openBookAt(context, bookItem.book,
+                              bookItem.fromPage, null),
+                          minVerticalPadding: 4,
+                        ),
+                    ],
                   ),
                 );
               },
@@ -853,7 +856,8 @@ class _BookListPageState extends State<BookListPage> {
     for (var subCategory in subCategories) {
       final books = await BookDatabaseRepository(databaseProvider)
           .getBooks(mainCategory, subCategory.id);
-      final bookListItems = books.map((book) => BookItem(book)).toList();
+      final bookListItems = await VolumeParts.split(
+          books.map((book) => BookItem(book)).toList());
       categoriesWithBooks.add(CategoryWithBooks(
           category: CategoryItem(subCategory), books: bookListItems));
     }
@@ -987,6 +991,11 @@ Future<List<_Basket>> _loadBaskets(String view) async {
     byPath.putIfAbsent(path, () => {}).putIfAbsent(category, () => []).add(
         BookItem(
             Book(id: row['id'] as String, name: row['name'] as String? ?? '')));
+  }
+  for (final groups in byPath.values) {
+    for (final category in groups.keys.toList()) {
+      groups[category] = await VolumeParts.split(groups[category]!);
+    }
   }
 
   // A path's categories, in the categories' order, then any the list does
