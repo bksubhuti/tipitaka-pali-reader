@@ -105,10 +105,14 @@ class _BookListPageState extends State<BookListPage> {
     final books = _books;
     if (!mounted || books == null) return;
     if (books.books.isEmpty) {
+      final hadBook = _focusBook != null;
       _pageSource?.removeListener(_onPage);
       _pageSource = null;
       _focusBook = null;
       _focus.value = null;
+      // The last book closed: the trees fold back up, rather than staying
+      // open on a place no longer being read.
+      if (hadBook) _collapseAll();
       return;
     }
     final entry =
@@ -146,6 +150,13 @@ class _BookListPageState extends State<BookListPage> {
     _fallbackPage = entry['current_page'] as int?;
     if (newBook) _showTabOf(book.id);
     _onPage(now: newBook);
+  }
+
+  /// Every fold of the tree, basket and Mūla views closed.
+  void _collapseAll() {
+    for (final fold in _folds.values) {
+      if (fold.isExpanded) fold.collapse();
+    }
   }
 
   /// The page has moved. Followed once it pauses, so scrolling through a

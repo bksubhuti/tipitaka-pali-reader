@@ -67,6 +67,28 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
     super.dispose();
   }
 
+  final _selectionArea = GlobalKey<SelectionAreaState>();
+  final _menu = ContextMenuController();
+
+  /// Where a right click on the selection asked for the menu; the menu goes
+  /// there rather than at the selection's ends, which may be scrolled away.
+  TextSelectionToolbarAnchors? _menuAt;
+
+  /// The selection's own menu, at [position], for a right click that keeps
+  /// the selection; see [CopyFormattedShortcuts.onRightClick].
+  void _showMenuAt(Offset position) {
+    final area = _selectionArea.currentState;
+    final builder = area?.widget.contextMenuBuilder;
+    if (area == null || builder == null) return;
+    _menuAt = TextSelectionToolbarAnchors(primaryAnchor: position);
+    ContextMenuController.removeAny();
+    _menu.show(
+      context: context,
+      contextMenuBuilder: (menuContext) =>
+          builder(menuContext, area.selectableRegion),
+    );
+  }
+
   void _copyPlain(String text) {
     final onCopyPlain = widget.onCopyPlain;
     if (onCopyPlain != null) {
@@ -104,10 +126,13 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                   selectedText: () => _selectedContent?.plainText ?? '',
                   onCopy: (text) => widget.onCopyFormatted?.call(text),
                   onCopyPlain: _copyPlain,
+                  onRightClick: _showMenuAt,
                   child: SelectionArea(
+                    key: _selectionArea,
                     contextMenuBuilder: (context, selectableRegionState) {
                       return AdaptiveTextSelectionToolbar.buttonItems(
-                        anchors: selectableRegionState.contextMenuAnchors,
+                        anchors:
+                            _menuAt ?? selectableRegionState.contextMenuAnchors,
                         buttonItems: [
                           ...copyButtons(
                               context,
@@ -191,6 +216,7 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                       );
                     },
                     onSelectionChanged: (value) {
+                      _menuAt = null;
                       _selectedContent = value;
                       widget.onSelectionChanged?.call(value?.plainText ?? '');
                     },

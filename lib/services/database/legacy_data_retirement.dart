@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/services/database/reading_first.dart';
 
 /// Removes the page-shaped data once the sentence data has taken over.
 ///
@@ -235,14 +236,20 @@ class LegacyDataRetirement {
           final rows = await db.rawQuery(
               'SELECT translation FROM lang_$code.sentences WHERE book_id = ?',
               [books[i]['book_id']]);
-          for (final row in rows) {
-            words.addAll(_latinWords(row['translation'] as String? ?? ''));
+          for (var r = 0; r < rows.length; r++) {
+            words.addAll(
+                _latinWords(rows[r]['translation'] as String? ?? ''));
+            // Splitting runs where the screen is drawn, and one long book
+            // held it for most of a second on a phone, so the reader looked
+            // blank for the minute after installing English. A frame now,
+            // and anything the reader is loading, every few hundred.
+            if (r % 300 == 299) await ReadingFirst.pause();
           }
           if (i % 5 == 0) {
             onProgress?.call('Reading the $code translation: '
                 '${((i + 1) / books.length * 100).round()}%');
-            await Future.delayed(Duration.zero);
           }
+          await ReadingFirst.pause();
         }
       } catch (e) {
         onProgress?.call('Could not read the $code translations: $e');
@@ -262,7 +269,7 @@ class LegacyDataRetirement {
         written++;
         if (++pending >= 100) {
           await batch.commit(noResult: true);
-          await Future.delayed(Duration.zero);
+          await ReadingFirst.pause();
           batch = db.batch();
           pending = 0;
           if (written % 2000 == 0) {

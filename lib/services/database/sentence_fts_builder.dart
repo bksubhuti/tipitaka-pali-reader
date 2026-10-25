@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'reading_first.dart';
+
 /// Builds the search index from ePitaka's sentences, on the device.
 ///
 /// Nothing is shipped: the index is derived from data already installed, the
@@ -307,7 +309,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
           indexed++;
           if (++pending >= writesPerCommit) {
             await batch.commit(noResult: true);
-            await Future.delayed(Duration.zero);
+            await ReadingFirst.pause();
             batch = db.batch();
             pending = 0;
           }
@@ -717,8 +719,9 @@ CREATE TABLE IF NOT EXISTS search_meta (
       if (++pending >= writesPerCommit) {
         await batch.commit(noResult: true);
         // Let a frame through between batches, as the old download
-        // service did, so the screen keeps moving during a long build.
-        await Future.delayed(Duration.zero);
+        // service did, so the screen keeps moving during a long build, and
+        // a book being opened go first.
+        await ReadingFirst.pause();
         batch = db.batch();
         pending = 0;
       }
@@ -771,7 +774,7 @@ CREATE TABLE IF NOT EXISTS search_meta (
               where: 'id = ?', whereArgs: [existing[k]['id']]);
           if ((k + 1) % writesPerCommit == 0) {
             await batch.commit(noResult: true);
-            await Future.delayed(Duration.zero);
+            await ReadingFirst.pause();
             batch = db.batch();
           }
         }

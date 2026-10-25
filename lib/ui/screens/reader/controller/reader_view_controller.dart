@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/utils/search_cluster.dart';
 import 'package:tipitaka_pali/ui/dialogs/xray_notice.dart';
 import 'package:flutter/services.dart';
+import 'package:tipitaka_pali/services/database/reading_first.dart';
 import 'package:tipitaka_pali/services/repositories/sentence_paragraph_mapping_repo.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/app.dart';
@@ -562,7 +563,9 @@ class ReaderViewController extends ChangeNotifier {
     // Timed because this is what the reader waits on before a book appears,
     // and it is the first thing to look at when opening one feels slow.
     final started = DateTime.now();
-    final pages = await pageContentRepository.getPages(bookID);
+    // Ahead of any index being built meanwhile; see ReadingFirst.
+    final pages =
+        await ReadingFirst.run(() => pageContentRepository.getPages(bookID));
     myLogger.i('loaded ${pages.length} pages of $bookID in '
         '${DateTime.now().difference(started).inMilliseconds} ms');
     return pages;

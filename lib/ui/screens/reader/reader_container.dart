@@ -178,118 +178,133 @@ class _ReaderContainerState extends State<ReaderContainer> {
       final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
 
       return PaperBackground(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Today's quote is a card: a tap opens the book where it is
-              // from.
-              const QuoteOfDayCard(),
-              // Where the reader last was, and the last of Recent.
-              const Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: HomeShortcuts(),
-              ),
-              FutureBuilder<bool>(
-                future: _hasTranslationExtension(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData &&
-                      !snapshot.data! &&
-                      !Prefs.hideTranslationNag) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 24.0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.g_translate),
-                            label: Text(AppLocalizations.of(context)!
-                                .installEnglishTranslations),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext dialogContext) {
-                                  return AlertDialog(
-                                    title: Text(AppLocalizations.of(context)!
-                                        .installEnglishTranslations),
-                                    content: Text(AppLocalizations.of(context)!
-                                        .installTranslationInstructions),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(dialogContext).pop();
-                                          NestedNavigationHelper
-                                              .openDownloadView(
-                                            context,
-                                            autoInstallEnglish: true,
-                                          );
-                                          // Refresh welcome screen when returning
-                                          Future.delayed(
-                                              const Duration(milliseconds: 500),
-                                              () {
-                                            if (mounted) {
-                                              setState(() {});
-                                            }
-                                          });
-                                        },
-                                        child: Text(
-                                            AppLocalizations.of(context)!.ok),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline),
-                            tooltip: 'Dismiss',
-                            onPressed: () {
-                              setState(() {
-                                Prefs.hideTranslationNag = true;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-              if (Prefs.geminiDirectApiKey.isEmpty && !Prefs.hideAiSearchNag)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.video_library),
-                        label: Text(
-                            AppLocalizations.of(context)!.learnAboutAiSearch),
-                        onPressed: () {
-                          launchUrl(
-                            Uri.parse(
-                                'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
-                            mode: LaunchMode.externalApplication,
+        // Scrolls when a long quote and the notices under it are taller
+        // than the window, as in the default window size; centred when they
+        // fit.
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Today's quote is a card: a tap opens the book where it is
+                    // from.
+                    const QuoteOfDayCard(),
+                    // Where the reader last was, and the last of Recent.
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: HomeShortcuts(),
+                    ),
+                    FutureBuilder<bool>(
+                      future: _hasTranslationExtension(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData &&
+                            !snapshot.data! &&
+                            !Prefs.hideTranslationNag) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 24.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.g_translate),
+                                  label: Text(AppLocalizations.of(context)!
+                                      .installEnglishTranslations),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (BuildContext dialogContext) {
+                                        return AlertDialog(
+                                          title: Text(
+                                              AppLocalizations.of(context)!
+                                                  .installEnglishTranslations),
+                                          content: Text(AppLocalizations.of(
+                                                  context)!
+                                              .installTranslationInstructions),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () {
+                                                Navigator.of(dialogContext)
+                                                    .pop();
+                                                NestedNavigationHelper
+                                                    .openDownloadView(
+                                                  context,
+                                                  autoInstallEnglish: true,
+                                                );
+                                                // Refresh welcome screen when returning
+                                                Future.delayed(
+                                                    const Duration(
+                                                        milliseconds: 500), () {
+                                                  if (mounted) {
+                                                    setState(() {});
+                                                  }
+                                                });
+                                              },
+                                              child: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .ok),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: 'Dismiss',
+                                  onPressed: () {
+                                    setState(() {
+                                      Prefs.hideTranslationNag = true;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           );
-                        },
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    if (Prefs.geminiDirectApiKey.isEmpty &&
+                        !Prefs.hideAiSearchNag)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.video_library),
+                              label: Text(AppLocalizations.of(context)!
+                                  .learnAboutAiSearch),
+                              onPressed: () {
+                                launchUrl(
+                                  Uri.parse(
+                                      'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Dismiss',
+                              onPressed: () {
+                                setState(() {
+                                  Prefs.hideAiSearchNag = true;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        tooltip: 'Dismiss',
-                        onPressed: () {
-                          setState(() {
-                            Prefs.hideAiSearchNag = true;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
         ),
       );
@@ -352,8 +367,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
       // white band above it.
       final medium = Prefs.selectedPageTheme == PageTheme.medium;
       final page = Prefs.getChosenColor(context);
-      final tabTint =
-          medium ? pagePapers[Prefs.pagePaper].edgeTop : null;
+      final tabTint = medium ? pagePapers[Prefs.pagePaper].edgeTop : null;
       Color shade(double amount) =>
           Color.alphaBlend(Colors.black.withValues(alpha: amount), page);
       themeData.tabsArea

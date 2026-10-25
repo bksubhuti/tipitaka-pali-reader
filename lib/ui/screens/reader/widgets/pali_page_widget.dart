@@ -618,11 +618,15 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
           if (links == null || links.isEmpty) return const SizedBox.shrink();
           // Marked as not the text: its labels are drawn on the page but
           // are not in the block's HTML, and counted as words they put a
-          // tapped word's mark on the wrong one, or on none.
+          // tapped word's mark on the wrong one, or on none. Kept out of
+          // the selection too, or a copy took the labels, run together,
+          // after each sentence, and the copy could no longer be matched to
+          // the page to be tidied.
           return MetaData(
               metaData: _notText,
-              child:
-                  XrayLinksView(links: links, fontSize: fontSize.toDouble()));
+              child: SelectionContainer.disabled(
+                  child: XrayLinksView(
+                      links: links, fontSize: fontSize.toDouble())));
         }
 
         if (element.localName == 'span' && element.className == 'linebreak') {

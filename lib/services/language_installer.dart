@@ -67,8 +67,14 @@ class LanguageInstaller {
   LanguageInstaller._();
 
   /// Where the releases live. Rolling tag, so the newest is always here.
-  static const releaseUrl =
-      'https://github.com/dhammanana/epitaka_app/releases/download/latest';
+  ///
+  /// A test run can point it elsewhere, such as a folder of the archives
+  /// served on this computer, to try an install without waiting on a slow
+  /// connection: `--dart-define=TPR_LANG_URL=http://127.0.0.1:8765`. Without
+  /// it, every build uses the releases.
+  static const releaseUrl = String.fromEnvironment('TPR_LANG_URL',
+      defaultValue:
+          'https://github.com/dhammanana/epitaka_app/releases/download/latest');
 
   /// The translations ePitaka publishes.
   static const available = <LanguageOption>[
@@ -192,13 +198,30 @@ class LanguageInstaller {
     }
 
     onStep?.call(LanguageStep.attach, null, 'Opening ${option.name}…');
-    // Downloading again over a copy in use: the old one is let go only now
-    // that the new one is whole, so a failed download leaves it working.
-    final replacing = isInstalled(option.code);
-    if (replacing) await DatabaseHelper().detachLanguage(option.code);
-    if (await target.exists()) await target.delete();
-    await prepared.rename(target.path);
-    await DatabaseHelper().attachLanguage(option.code);
+    // Opening waits its turn behind any indexing still running, such as the
+    // language installed just before this one, which can be minutes. Saying
+    // what it waits for, so it does not look stuck.
+    void waiting() {
+      final message = DatabaseHelper.indexStatus.value;
+      if (message != null) {
+        onStep?.call(LanguageStep.attach, null,
+            'Opening ${option.name}… (waiting: $message)');
+      }
+    }
+
+    DatabaseHelper.indexStatus.addListener(waiting);
+    final bool replacing;
+    try {
+      // Downloading again over a copy in use: the old one is let go only now
+      // that the new one is whole, so a failed download leaves it working.
+      replacing = isInstalled(option.code);
+      if (replacing) await DatabaseHelper().detachLanguage(option.code);
+      if (await target.exists()) await target.delete();
+      await prepared.rename(target.path);
+      await DatabaseHelper().attachLanguage(option.code);
+    } finally {
+      DatabaseHelper.indexStatus.removeListener(waiting);
+    }
     // Indexed again from the new file rather than kept from the old.
     if (replacing) await DatabaseHelper().forgetLanguageIndex(option.code);
     // Shown as well as installed. These are two different things in the

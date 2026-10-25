@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/providers/navigation_provider.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -28,8 +29,50 @@ enum _Freshness { checking, current, newer, unrecorded, offline }
 /// What the steps on the page are doing.
 enum _Task { install, update, removal }
 
+/// The install, update or removal under way, or the last one, until another
+/// starts.
+///
+/// Kept here rather than on the page. The page is thrown away whenever the
+/// side panel moves to another of its tabs, as a word tapped in the reader
+/// moves it to the dictionary, while the install carries on. On the page,
+/// its steps went with it: coming back showed no install running, a second
+/// could be started over the first, and the reader was never told of the
+/// new language. Here they outlive the page, and a new one picks them up.
+class _Job extends ChangeNotifier {
+  static final _Job current = _Job();
+
+  String? busy;
+  LanguageStepState? steps;
+  _Task? task;
+  String language = '';
+
+  void begin(String code, LanguageStepState steps, _Task task, String name) {
+    NavigationProvider.paneLocked.value = true;
+    busy = code;
+    this.steps = steps;
+    this.task = task;
+    language = name;
+    notifyListeners();
+  }
+
+  void changed() => notifyListeners();
+
+  void end() {
+    NavigationProvider.paneLocked.value = false;
+    busy = null;
+    notifyListeners();
+  }
+}
+
 class _LanguageSettingsState extends State<LanguageSettings> {
-  String? _busy;
+  String? get _busy => _Job.current.busy;
+  LanguageStepState? get _steps => _Job.current.steps;
+  _Task? get _task => _Job.current.task;
+  String get _taskLanguage => _Job.current.language;
+
+  void _onJob() {
+    if (mounted) setState(() {});
+  }
 
   /// Each installed language against the server, checked when this page
   /// opens: a HEAD request each, nothing downloaded.
@@ -42,7 +85,14 @@ class _LanguageSettingsState extends State<LanguageSettings> {
   @override
   void initState() {
     super.initState();
+    _Job.current.addListener(_onJob);
     _checkForUpdates();
+  }
+
+  @override
+  void dispose() {
+    _Job.current.removeListener(_onJob);
+    super.dispose();
   }
 
   Future<void> _checkForUpdates() async {
@@ -127,21 +177,20 @@ class _LanguageSettingsState extends State<LanguageSettings> {
         LanguageInstaller.available.firstWhere((o) => o.code == code);
     final wasShown = LanguageInstaller.isShown(code);
     final steps = LanguageStepState(LanguageStep.install);
-    setState(() {
-      _busy = code;
-      _steps = steps;
-      _task = _Task.update;
-      _taskLanguage = option.name;
-    });
+    final job = _Job.current;
+    // Held now: the page may be gone by the time it is needed.
+    final shown = context.read<ShownLanguagesProvider>();
+    job.begin(code, steps, _Task.update, option.name);
     try {
       await LanguageInstaller.install(option,
           onStep: (step, fraction, message) {
-        if (mounted) setState(() => steps.update(step, fraction, message));
+        steps.update(step, fraction, message);
+        job.changed();
       });
       if (!wasShown) LanguageInstaller.setShown(code, false);
       steps.finish();
+      shown.installedChanged();
       if (mounted) {
-        context.read<ShownLanguagesProvider>().installedChanged();
         final device = await LanguageInstaller.deviceCopy(code);
         if (mounted) {
           setState(() {
@@ -153,14 +202,9 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     } catch (e) {
       steps.fail(e);
     } finally {
-      if (mounted) setState(() => _busy = null);
+      job.end();
     }
   }
-
-  /// The install or removal under way, or the last one, until another starts.
-  LanguageStepState? _steps;
-  _Task? _task;
-  String _taskLanguage = '';
 
   /// "Installing English" and the like, over the steps.
   String _stepsTitle(AppLocalizations l) => switch (_task) {
@@ -199,20 +243,20 @@ class _LanguageSettingsState extends State<LanguageSettings> {
 
   Future<void> _install(LanguageOption option) async {
     if (!await ensureTranslationTermsAccepted(context)) return;
+    if (!mounted || _busy != null) return;
     final steps = LanguageStepState(LanguageStep.install);
-    setState(() {
-      _busy = option.code;
-      _steps = steps;
-      _task = _Task.install;
-      _taskLanguage = option.name;
-    });
+    final job = _Job.current;
+    // Held now: the page may be gone by the time it is needed.
+    final shown = context.read<ShownLanguagesProvider>();
+    job.begin(option.code, steps, _Task.install, option.name);
     try {
       await LanguageInstaller.install(option,
           onStep: (step, fraction, message) {
-        if (mounted) setState(() => steps.update(step, fraction, message));
+        steps.update(step, fraction, message);
+        job.changed();
       });
       steps.finish();
-      if (mounted) context.read<ShownLanguagesProvider>().installedChanged();
+      shown.installedChanged();
       final device = await LanguageInstaller.deviceCopy(option.code);
       if (mounted) {
         setState(() {
@@ -223,28 +267,26 @@ class _LanguageSettingsState extends State<LanguageSettings> {
     } catch (e) {
       steps.fail(e);
     } finally {
-      if (mounted) setState(() => _busy = null);
+      job.end();
     }
   }
 
   Future<void> _remove(String code) async {
     final steps = LanguageStepState(LanguageStep.removal);
-    setState(() {
-      _busy = code;
-      _steps = steps;
-      _task = _Task.removal;
-      _taskLanguage = _nameOf(code);
-    });
+    final job = _Job.current;
+    final shown = context.read<ShownLanguagesProvider>();
+    job.begin(code, steps, _Task.removal, _nameOf(code));
     try {
       await LanguageInstaller.remove(code, onStep: (step, fraction, message) {
-        if (mounted) setState(() => steps.update(step, fraction, message));
+        steps.update(step, fraction, message);
+        job.changed();
       });
       steps.finish();
-      if (mounted) context.read<ShownLanguagesProvider>().installedChanged();
+      shown.installedChanged();
     } catch (e) {
       steps.fail(e);
     } finally {
-      if (mounted) setState(() => _busy = null);
+      job.end();
     }
   }
 

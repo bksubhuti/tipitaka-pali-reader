@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
@@ -73,6 +74,7 @@ class CopyFormattedShortcuts extends StatelessWidget {
       required this.selectedText,
       required this.onCopy,
       this.onCopyPlain,
+      this.onRightClick,
       required this.child});
 
   /// The text selected now. Read when the keys are pressed and kept, so it
@@ -80,6 +82,16 @@ class CopyFormattedShortcuts extends StatelessWidget {
   final String Function() selectedText;
   final ValueChanged<String> onCopy;
   final ValueChanged<String>? onCopyPlain;
+
+  /// Shows the menu at a right click, given while text is selected.
+  ///
+  /// Taken here, ahead of the selection area. On a right click it first
+  /// selects the word under the pointer, going through every paragraph of
+  /// the selection to find it, and with a long selection, part of it
+  /// scrolled away, that went wrong and no menu came at all. Copying a long
+  /// passage needed the menu. The selection is kept as it is, as the
+  /// computer's own text does, and the menu shown for it.
+  final ValueChanged<Offset>? onRightClick;
   final Widget child;
 
   @override
@@ -110,10 +122,65 @@ class CopyFormattedShortcuts extends StatelessWidget {
             },
           ),
         },
-        child: child,
+        child: onRightClick == null
+            ? child
+            : RawGestureDetector(
+                gestures: {
+                  _RightClickOnSelection: GestureRecognizerFactoryWithHandlers<
+                      _RightClickOnSelection>(
+                    _RightClickOnSelection.new,
+                    (recognizer) => recognizer
+                      ..claims = (() => selectedText().isNotEmpty)
+                      ..onRightClick = onRightClick,
+                  ),
+                },
+                child: child,
+              ),
       ),
     );
   }
+}
+
+/// A right click while text is selected, claimed before the selection area
+/// can take it; see [CopyFormattedShortcuts.onRightClick].
+class _RightClickOnSelection extends OneSequenceGestureRecognizer {
+  bool Function() claims = () => false;
+  ValueChanged<Offset>? onRightClick;
+  Offset? _at;
+
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      event.buttons == kSecondaryMouseButton &&
+      claims() &&
+      super.isPointerAllowed(event);
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    _at = event.position;
+    resolve(GestureDisposition.accepted);
+  }
+
+  @override
+  void acceptGesture(int pointer) {
+    super.acceptGesture(pointer);
+    final at = _at;
+    if (at != null) onRightClick?.call(at);
+    _at = null;
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      stopTrackingPointer(event.pointer);
+    }
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {}
+
+  @override
+  String get debugDescription => 'right click on a selection';
 }
 
 /// After a copy, a bar saying which way [text] was copied, [formatted] or

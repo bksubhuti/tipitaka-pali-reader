@@ -135,6 +135,7 @@ const String aiTermsOfServicePref = "aiTermsOfService";
 const String quoteListPref = "quoteList";
 const String restoreTabsPref = "restoreTabs";
 const String savedTabsPref = "savedTabs";
+const String foldedDictionariesPref = "foldedDictionaries";
 
 // default pref values
 const int defaultLocaleVal = 0;
@@ -872,6 +873,13 @@ class Prefs {
       instance.getBool(restoreTabsPref) ?? defaultRestoreTabs;
   static set restoreTabs(bool value) =>
       instance.setBool(restoreTabsPref, value);
+
+  // The dictionaries folded to their heading in the dictionary view, by
+  // the name on the heading.
+  static List<String> get foldedDictionaries =>
+      instance.getStringList(foldedDictionariesPref) ?? const [];
+  static set foldedDictionaries(List<String> value) =>
+      instance.setStringList(foldedDictionariesPref, value);
 
   static String? get savedTabs => instance.getString(savedTabsPref);
   static set savedTabs(String? value) => value == null

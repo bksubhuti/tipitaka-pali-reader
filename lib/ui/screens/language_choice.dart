@@ -193,7 +193,29 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
                     ),
                   Expanded(
                     child: _done
-                        ? const Center(child: Icon(Icons.check, size: 48))
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.check, size: 48),
+                                  const SizedBox(height: 16),
+                                  // A new install is slow for its first
+                                  // minute, most of all on a phone, and with
+                                  // nothing said a book that took a while to
+                                  // appear looked broken.
+                                  Text(
+                                    'TPR is still settling in. For the first '
+                                    'minute or so, books may take a while to '
+                                    'open and pages may be slow to appear.',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodyLarge,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
                         : ListView(
                             children: [
                               for (final option in LanguageInstaller.available)

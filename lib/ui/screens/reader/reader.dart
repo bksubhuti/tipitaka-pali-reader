@@ -662,7 +662,10 @@ class ReaderView extends StatelessWidget implements Searchable {
 
     // displaying dictionary in the side navigation view
     if ((PlatformInfo.isDesktop || Mobile.isTablet(context))) {
-      if (context.read<NavigationProvider>().isNavigationPaneOpened) {
+      // Not while the pane is held on a translation install; the side sheet
+      // below shows the word instead.
+      if (context.read<NavigationProvider>().isNavigationPaneOpened &&
+          !NavigationProvider.paneLocked.value) {
         context.read<NavigationProvider>().moveToDictionaryPage();
         // delay a little milliseconds to wait for DictionaryPage initialization;
         // one built later than that still takes the word when it starts

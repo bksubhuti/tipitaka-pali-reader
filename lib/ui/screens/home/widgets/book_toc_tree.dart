@@ -7,6 +7,7 @@ import '../../../../business_logic/models/list_item.dart';
 import '../../../../business_logic/models/toc.dart';
 import '../../../../business_logic/models/toc_list_item.dart';
 import '../../../../services/database/database_helper.dart';
+import '../../../../services/database/reading_first.dart';
 import '../../../../services/provider/script_language_provider.dart';
 import '../../../../services/repositories/sentence_toc_repo.dart';
 import '../../../../services/repositories/toc_repo.dart';
@@ -82,7 +83,13 @@ class _BookTocNodeState extends State<BookTocNode> {
         f.bookId == widget.item.book.id &&
         widget.item.covers(f.page);
     if (!mine) {
-      if (_page != null) setState(() => _page = null);
+      if (_page != null) {
+        setState(() {
+          _page = null;
+          // No book open at all: its contents fold away with the tree.
+          if (f == null) _open = false;
+        });
+      }
       return;
     }
     setState(() {
@@ -96,7 +103,9 @@ class _BookTocNodeState extends State<BookTocNode> {
     final TocRepository repo = DatabaseHelper.sentenceDataAvailable
         ? SentenceTocRepository(DatabaseHelper())
         : TocDatabaseRepository(DatabaseHelper());
-    final tocs = await repo.getTocs(widget.item.book.id);
+    // Ahead of any index being built meanwhile; see ReadingFirst.
+    final tocs =
+        await ReadingFirst.run(() => repo.getTocs(widget.item.book.id));
     // A book inside a volume shows its own pages' headings only.
     return _Heading.nest(
         tocs.where((t) => widget.item.covers(t.pageNumber)).toList());
