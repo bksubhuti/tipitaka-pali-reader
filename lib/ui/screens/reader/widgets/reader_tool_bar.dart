@@ -107,14 +107,18 @@ class LowerRow extends StatelessWidget {
                   onAtthaButtonClicked: () => _onAtthaButtonClicked(context),
                   onTikaButtonClicked: () => _onTikaButtonClicked(context))
               : buildSpeedDial(context),
-          IconButton(
-              onPressed: () => _onDecreaseButtonClicked(context),
-              icon: const Icon(Icons.remove_circle_outline),
-              tooltip: AppLocalizations.of(context)!.decreaseFontSize),
-          IconButton(
-              onPressed: () => _onIncreaseButtonClicked(context),
-              icon: const Icon(Icons.add_circle_outline),
-              tooltip: AppLocalizations.of(context)!.increaseFontSize),
+          // On a phone, the text is resized by pinching it, and X-ray, turned
+          // on and off while reading, has the room instead.
+          if (!Mobile.isPhone(context)) ...[
+            IconButton(
+                onPressed: () => _onDecreaseButtonClicked(context),
+                icon: const Icon(Icons.remove_circle_outline),
+                tooltip: AppLocalizations.of(context)!.decreaseFontSize),
+            IconButton(
+                onPressed: () => _onIncreaseButtonClicked(context),
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: AppLocalizations.of(context)!.increaseFontSize),
+          ],
           // On phones too, now that the top bar holds the tabs.
           IconButton(
             icon: const Icon(Icons.text_format_outlined),
@@ -135,8 +139,7 @@ class LowerRow extends StatelessWidget {
               );
             },
           ),
-          // On a phone held upright X-ray is in the quick view, for room.
-          if (!Mobile.isPhone(context)) const _XrayButton(),
+          const _XrayButton(),
           IconButton(
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined),
