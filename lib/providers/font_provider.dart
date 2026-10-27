@@ -81,6 +81,15 @@ class ReaderFontProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sets the size outright, as a pinch on the text does; nothing is done
+  /// for the size it already is.
+  void setFontSize(int size) {
+    if (size == _fontSize) return;
+    _fontSize = size;
+    Prefs.readerFontSize = _fontSize;
+    notifyListeners();
+  }
+
   void onDecreaseFontSize() {
     _fontSize -= 1;
     Prefs.readerFontSize = _fontSize;

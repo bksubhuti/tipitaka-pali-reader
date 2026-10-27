@@ -364,6 +364,14 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                           content: Text(
                                               '${AppLocalizations.of(context)!.copied}: $bookName'),
                                           duration: const Duration(seconds: 2),
+                                          behavior:
+                                              AfterCopyPlacement.of(context)
+                                                  .behavior,
+                                          dismissDirection:
+                                              AfterCopyPlacement.of(context)
+                                                  .dismissDirection,
+                                          margin: AfterCopyPlacement.of(context)
+                                              .margin,
                                         ),
                                       );
                                     },
@@ -518,7 +526,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
                     preference: context
                         .read<StreamingSharedPreferences>()
                         .getBool(hideScrollbarPref,
-                    defaultValue: defaultHideScrollbar),
+                            defaultValue: defaultHideScrollbar),
                     builder: (context, hideScrollbar) {
                       if (!hideScrollbar) {
                         // The control bar's pull tab sits over the bottom

@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/utils/html_text_map.dart';
+import 'package:tipitaka_pali/ui/widgets/selection_from_margin.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/page_composer.dart';
 import 'package:tipitaka_pali/utils/formatted_copy.dart';
@@ -577,6 +578,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
   /// The block, or one cell of it side by side, as the reader draws it.
   Widget _htmlView(String html, int fontSize, String? fontName, {Key? key}) {
+    // A selection begun in the margin takes the line beside it, not the
+    // whole paragraph above.
+    return SelectionFromMargin(
+        child: _html(html, fontSize, fontName, key: key));
+  }
+
+  Widget _html(String html, int fontSize, String? fontName, {Key? key}) {
     return HtmlWidget(
       key: key,
       html,
@@ -605,8 +613,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
         }
 
         if (element.className == 'highlighted') {
-          // A phrase in a box could not wrap at the end of a line.
-          return _markStyle(boxed: !element.text.trim().contains(' '));
+          return _markStyle();
         }
         // no style
         return {'text-decoration': 'none'};
@@ -878,7 +885,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   /// A word picked out on the page, by a tap or by a search, tinted and
   /// boxed in the theme's colour. [boxed] false gives the tint alone,
   /// [strong] a deeper one.
-  Map<String, String> _markStyle({bool boxed = true, bool strong = false}) {
+  /// The tint on a tapped or looked-up word, or a match of a search.
+  ///
+  /// Tinted only, never boxed: a box is drawn as a block of its own in the
+  /// line, and a selection begun on it started elsewhere, back at the top
+  /// of the block or after the word. The tapped word is where a selection
+  /// is most often begun.
+  Map<String, String> _markStyle({bool strong = false}) {
     final accent = Theme.of(context).colorScheme.primary;
     final argb = accent.toARGB32();
     final alpha = (Prefs.darkThemeOn ? 0.28 : 0.14) * (strong ? 2 : 1);
@@ -886,22 +899,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       'color': 'inherit',
       'background-color': 'rgba(${(argb >> 16) & 0xFF}, ${(argb >> 8) & 0xFF}, '
           '${argb & 0xFF}, $alpha)',
-      // A block in the line, so the tint fills the rounded box with a
-      // little room either side of the word.
-      if (boxed) ...{
-        'display': 'inline-block',
-        'border': '1px solid ${_toCssHex(argb)}',
-        'border-radius': '4px',
-        'padding': '0 2px',
-      },
     };
   }
 
-  String _markCss({bool boxed = true, bool strong = false}) =>
-      _markStyle(boxed: boxed, strong: strong)
-          .entries
-          .map((e) => '${e.key}: ${e.value};')
-          .join(' ');
+  String _markCss({bool strong = false}) => _markStyle(strong: strong)
+      .entries
+      .map((e) => '${e.key}: ${e.value};')
+      .join(' ');
 
   String _toCssHex(int colorValue) {
     return '#${(colorValue & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
@@ -1021,10 +1025,8 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       'highlightedSearch': 'background: #FFE959; color: #000;',
 
       // Variables from your class
-      // A match can be part of a word, or cut in pieces by a tag, so these
-      // are tinted only: a box could break the word at the end of a line.
-      searchTermCssClass: _markCss(boxed: false),
-      currentSearchTermCssClass: _markCss(boxed: false, strong: true),
+      searchTermCssClass: _markCss(),
+      currentSearchTermCssClass: _markCss(strong: true),
       'tts_highlighted': 'background: yellow; color: black;',
       'underlined_highlight': _markCss(),
     };

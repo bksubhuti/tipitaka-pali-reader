@@ -1,6 +1,9 @@
+import 'dart:math';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 
@@ -108,6 +111,8 @@ class CopyFormattedShortcuts extends StatelessWidget {
           _CopyFormattedIntent: CallbackAction<_CopyFormattedIntent>(
             onInvoke: (_) {
               final text = selectedText();
+              // Nothing selected: nothing copied, and no bar saying it was.
+              if (text.trim().isEmpty) return null;
               final plain = onCopyPlain;
               final formatted = plain == null || Prefs.copyFormatted;
               (formatted ? onCopy : plain)(text);
@@ -188,6 +193,32 @@ class _RightClickOnSelection extends OneSequenceGestureRecognizer {
 /// is set: it decides what Cmd+C or Ctrl+C copies and which comes first in
 /// the menu. Changing it copies [text] again the new way, so what is on the
 /// clipboard is what the bar says.
+/// Where a message after a copy is shown. On a phone or tablet, at the
+/// top, under the tabs: Android shows its own preview of what was copied,
+/// with Share and the like, along the bottom, over the message. Swiped up
+/// to go. On a computer, at the bottom as usual.
+class AfterCopyPlacement {
+  const AfterCopyPlacement._(this.behavior, this.dismissDirection, this.margin);
+
+  final SnackBarBehavior? behavior;
+  final DismissDirection? dismissDirection;
+  final EdgeInsetsGeometry? margin;
+
+  /// Room for a message of a line or two.
+  static const double _height = 72;
+
+  factory AfterCopyPlacement.of(BuildContext context) {
+    if (PlatformInfo.isDesktop) {
+      return const AfterCopyPlacement._(null, null, null);
+    }
+    final media = MediaQuery.of(context);
+    final fromBottom =
+        media.size.height - media.padding.top - kToolbarHeight - _height;
+    return AfterCopyPlacement._(SnackBarBehavior.floating, DismissDirection.up,
+        EdgeInsets.fromLTRB(12, 0, 12, max(12, fromBottom)));
+  }
+}
+
 void showCopyModeBar(
   BuildContext context, {
   required String text,
@@ -199,6 +230,7 @@ void showCopyModeBar(
   final l10n = AppLocalizations.of(context);
   if (messenger == null || l10n == null) return;
   final colors = Theme.of(context).colorScheme;
+  final afterCopy = AfterCopyPlacement.of(context);
   final onBar = TextStyle(color: colors.onPrimaryContainer);
   var on = formatted;
   messenger
@@ -207,6 +239,9 @@ void showCopyModeBar(
       // The theme's colours, so it reads in light and dark alike.
       backgroundColor: colors.primaryContainer,
       duration: const Duration(seconds: 6),
+      behavior: afterCopy.behavior,
+      dismissDirection: afterCopy.dismissDirection,
+      margin: afterCopy.margin,
       content: StatefulBuilder(
         // The message, and the switch at the end where a button would be.
         builder: (context, setBarState) => Row(

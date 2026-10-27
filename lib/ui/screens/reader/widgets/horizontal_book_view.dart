@@ -156,6 +156,13 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                                     content: Text(
                                         '${AppLocalizations.of(context)!.copied}: $bookName'),
                                     duration: const Duration(seconds: 2),
+                                    behavior:
+                                        AfterCopyPlacement.of(context).behavior,
+                                    dismissDirection:
+                                        AfterCopyPlacement.of(context)
+                                            .dismissDirection,
+                                    margin:
+                                        AfterCopyPlacement.of(context).margin,
                                   ),
                                 );
                               },

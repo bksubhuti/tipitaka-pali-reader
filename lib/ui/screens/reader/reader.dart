@@ -43,6 +43,8 @@ import '../../dialogs/dictionary_dialog.dart';
 import '../dictionary/controller/dictionary_controller.dart';
 import '../home/search_page/search_page.dart';
 import 'controller/reader_view_controller.dart';
+import '../../widgets/copy_formatted_menu.dart';
+import 'widgets/pinch_font_size.dart';
 import 'widgets/horizontal_book_view.dart';
 import 'widgets/reader_tool_bar.dart';
 import 'widgets/vertical_book_view.dart';
@@ -148,175 +150,195 @@ class ReaderView extends StatelessWidget implements Searchable {
                   backgroundColor: Colors.blue.withOpacity(0.3),
                   clickerSize: 32,
                   clickerPosition: 0.98,
-                  child: Stack(
-                    children: [
-                      // Main content, kept clear of the control bar while it is
-                      // open. The bar is drawn over the reader, so without this the
-                      // last lines and the end of the scrollbar went behind it.
-                      StreamBuilder<bool>(
-                        stream: _sc.statusStream,
-                        initialData: _sc.currentStatus,
-                        builder: (context, barOpen) => AnimatedPadding(
-                          duration: const Duration(milliseconds: 300),
-                          padding: EdgeInsets.only(
-                              bottom: barOpen.data! ? barSize : 0),
-                          child: Column(
-                            children: [
-                              if (context
-                                  .watch<ReaderViewController>()
-                                  .showSearch)
-                                SearchWidget(
-                                  word: context
+                  child: PinchFontSize(
+                      // Pinch to resize the text, on a phone or tablet; a
+                      // computer has Ctrl or Cmd and + or −.
+                      enabled: !PlatformInfo.isDesktop,
+                      child: Stack(
+                        children: [
+                          // Main content, kept clear of the control bar while it is
+                          // open. The bar is drawn over the reader, so without this the
+                          // last lines and the end of the scrollbar went behind it.
+                          StreamBuilder<bool>(
+                            stream: _sc.statusStream,
+                            initialData: _sc.currentStatus,
+                            builder: (context, barOpen) => AnimatedPadding(
+                              duration: const Duration(milliseconds: 300),
+                              padding: EdgeInsets.only(
+                                  bottom: barOpen.data! ? barSize : 0),
+                              child: Column(
+                                children: [
+                                  if (context
                                       .watch<ReaderViewController>()
-                                      .searchText
-                                      .value,
-                                ),
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    // While the keyboard is up, the reader keeps a
-                                    // usable height and scrolls rather than being
-                                    // squeezed. Otherwise it fills exactly the room it
-                                    // has: a fixed 80% of the screen ran past that room
-                                    // on short windows and pushed the scrollbar under
-                                    // the control bar.
-                                    final keyboardUp = MediaQuery.of(context)
-                                            .viewInsets
-                                            .bottom >
-                                        0;
-                                    return SingleChildScrollView(
-                                      padding: EdgeInsets.only(
-                                          bottom: keyboardUp ? 24 : 0),
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                            minHeight: constraints.maxHeight),
-                                        child: IntrinsicHeight(
-                                          child: SizedBox(
-                                            height: keyboardUp
-                                                ? MediaQuery.of(context)
-                                                        .size
-                                                        .height *
-                                                    0.8
-                                                : constraints.maxHeight,
-                                            child: bookViewMode ==
-                                                    BookViewMode.horizontal
-                                                ? VerticalBookView(
-                                                    onSearchedSelectedText:
-                                                        (text) =>
-                                                            _onSearchSelectedText(
+                                      .showSearch)
+                                    SearchWidget(
+                                      word: context
+                                          .watch<ReaderViewController>()
+                                          .searchText
+                                          .value,
+                                    ),
+                                  Expanded(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        // While the keyboard is up, the reader keeps a
+                                        // usable height and scrolls rather than being
+                                        // squeezed. Otherwise it fills exactly the room it
+                                        // has: a fixed 80% of the screen ran past that room
+                                        // on short windows and pushed the scrollbar under
+                                        // the control bar.
+                                        final keyboardUp =
+                                            MediaQuery.of(context)
+                                                    .viewInsets
+                                                    .bottom >
+                                                0;
+                                        return SingleChildScrollView(
+                                          padding: EdgeInsets.only(
+                                              bottom: keyboardUp ? 24 : 0),
+                                          child: ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                                minHeight:
+                                                    constraints.maxHeight),
+                                            child: IntrinsicHeight(
+                                              child: SizedBox(
+                                                height: keyboardUp
+                                                    ? MediaQuery.of(context)
+                                                            .size
+                                                            .height *
+                                                        0.8
+                                                    : constraints.maxHeight,
+                                                child: bookViewMode ==
+                                                        BookViewMode.horizontal
+                                                    ? VerticalBookView(
+                                                        onSearchedSelectedText:
+                                                            (text) =>
+                                                                _onSearchSelectedText(
+                                                                    text,
+                                                                    context),
+                                                        onSharedSelectedText:
+                                                            _onShareSelectedText,
+                                                        onClickedWord: (word) =>
+                                                            _onClickedWord(
+                                                                word, context),
+                                                        onSearchedInCurrentBook:
+                                                            (text) =>
+                                                                _onClickedSearchInCurrent(
+                                                                    context,
+                                                                    text),
+                                                        onAiContextRightClick:
+                                                            (text) =>
+                                                                _onAiContextRightClick(
+                                                                    text,
+                                                                    context),
+                                                        onCopyLink: (text) =>
+                                                            _onCopyLink(
                                                                 text, context),
-                                                    onSharedSelectedText:
-                                                        _onShareSelectedText,
-                                                    onClickedWord: (word) =>
-                                                        _onClickedWord(
-                                                            word, context),
-                                                    onSearchedInCurrentBook:
-                                                        (text) =>
-                                                            _onClickedSearchInCurrent(
-                                                                context, text),
-                                                    onAiContextRightClick:
-                                                        (text) =>
-                                                            _onAiContextRightClick(
+                                                        onShareLink: (text) =>
+                                                            _onShareLink(
                                                                 text, context),
-                                                    onCopyLink: (text) =>
-                                                        _onCopyLink(
-                                                            text, context),
-                                                    onShareLink: (text) =>
-                                                        _onShareLink(
-                                                            text, context),
-                                                    onCopyFormatted: (text) =>
-                                                        _onCopyFormatted(
-                                                            text, context),
-                                                    onCopyPlain: (text) =>
-                                                        _onCopyPlain(
-                                                            text, context),
-                                                    onSelectionChanged: (text) {
-                                                      Provider.of<ReaderViewController>(
-                                                              context,
-                                                              listen: false)
-                                                          .selection = text;
-                                                    },
-                                                  )
-                                                : HorizontalBookView(
-                                                    onSearchedSelectedText:
-                                                        (text) =>
-                                                            _onSearchSelectedText(
+                                                        onCopyFormatted:
+                                                            (text) =>
+                                                                _onCopyFormatted(
+                                                                    text,
+                                                                    context),
+                                                        onCopyPlain: (text) =>
+                                                            _onCopyPlain(
                                                                 text, context),
-                                                    onSharedSelectedText:
-                                                        _onShareSelectedText,
-                                                    onClickedWord: (word) =>
-                                                        _onClickedWord(
-                                                            word, context),
-                                                    onSearchedInCurrentBook:
-                                                        (text) =>
-                                                            _onClickedSearchInCurrent(
-                                                                context, text),
-                                                    onAiContextRightClick:
-                                                        (text) =>
-                                                            _onAiContextRightClick(
+                                                        onSelectionChanged:
+                                                            (text) {
+                                                          Provider.of<ReaderViewController>(
+                                                                  context,
+                                                                  listen: false)
+                                                              .selection = text;
+                                                        },
+                                                      )
+                                                    : HorizontalBookView(
+                                                        onSearchedSelectedText:
+                                                            (text) =>
+                                                                _onSearchSelectedText(
+                                                                    text,
+                                                                    context),
+                                                        onSharedSelectedText:
+                                                            _onShareSelectedText,
+                                                        onClickedWord: (word) =>
+                                                            _onClickedWord(
+                                                                word, context),
+                                                        onSearchedInCurrentBook:
+                                                            (text) =>
+                                                                _onClickedSearchInCurrent(
+                                                                    context,
+                                                                    text),
+                                                        onAiContextRightClick:
+                                                            (text) =>
+                                                                _onAiContextRightClick(
+                                                                    text,
+                                                                    context),
+                                                        onCopyLink: (text) =>
+                                                            _onCopyLink(
                                                                 text, context),
-                                                    onCopyLink: (text) =>
-                                                        _onCopyLink(
-                                                            text, context),
-                                                    onShareLink: (text) =>
-                                                        _onShareLink(
-                                                            text, context),
-                                                    onCopyFormatted: (text) =>
-                                                        _onCopyFormatted(
-                                                            text, context),
-                                                    onCopyPlain: (text) =>
-                                                        _onCopyPlain(
-                                                            text, context),
-                                                    onSelectionChanged: (text) {
-                                                      Provider.of<ReaderViewController>(
-                                                              context,
-                                                              listen: false)
-                                                          .selection = text;
-                                                    },
-                                                  ),
+                                                        onShareLink: (text) =>
+                                                            _onShareLink(
+                                                                text, context),
+                                                        onCopyFormatted:
+                                                            (text) =>
+                                                                _onCopyFormatted(
+                                                                    text,
+                                                                    context),
+                                                        onCopyPlain: (text) =>
+                                                            _onCopyPlain(
+                                                                text, context),
+                                                        onSelectionChanged:
+                                                            (text) {
+                                                          Provider.of<ReaderViewController>(
+                                                                  context,
+                                                                  listen: false)
+                                                              .selection = text;
+                                                        },
+                                                      ),
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Read aloud, in the lower right, clear of the control bar's
-                      // pull tab, and going down with the bar when it is lowered.
-                      // On desktop it is in the control bar instead.
-                      if (!PlatformInfo.isDesktop)
-                        PreferenceBuilder<bool>(
-                          preference: context
-                              .read<StreamingSharedPreferences>()
-                              .getBool(hideTtsControlsPref,
-                                  defaultValue: defaultHideTtsControls),
-                          builder: (context, hide) => hide
-                              ? const SizedBox.shrink()
-                              : StreamBuilder<bool>(
-                                  stream: _sc.statusStream,
-                                  initialData: _sc.currentStatus,
-                                  builder: (context, barOpen) =>
-                                      AnimatedPositioned(
-                                    duration: const Duration(milliseconds: 300),
-                                    right: 12,
-                                    bottom: barOpen.data! ? barSize + 40 : 44,
-                                    child: const TtsControls(),
+                                        );
+                                      },
+                                    ),
                                   ),
-                                ),
-                        ),
+                                ],
+                              ),
+                            ),
+                          ),
 
-                      // Translation Overlay
-                      _buildTranslationOverlay(context),
+                          // Read aloud, in the lower right, clear of the control bar's
+                          // pull tab, and going down with the bar when it is lowered.
+                          // On desktop it is in the control bar instead.
+                          if (!PlatformInfo.isDesktop)
+                            PreferenceBuilder<bool>(
+                              preference: context
+                                  .read<StreamingSharedPreferences>()
+                                  .getBool(hideTtsControlsPref,
+                                      defaultValue: defaultHideTtsControls),
+                              builder: (context, hide) => hide
+                                  ? const SizedBox.shrink()
+                                  : StreamBuilder<bool>(
+                                      stream: _sc.statusStream,
+                                      initialData: _sc.currentStatus,
+                                      builder: (context, barOpen) =>
+                                          AnimatedPositioned(
+                                        duration:
+                                            const Duration(milliseconds: 300),
+                                        right: 12,
+                                        bottom:
+                                            barOpen.data! ? barSize + 40 : 44,
+                                        child: const TtsControls(),
+                                      ),
+                                    ),
+                            ),
 
-                      // Translation Loading Overlay
-                      _buildTranslationLoadingOverlay(context),
-                    ],
-                  ),
+                          // Translation Overlay
+                          _buildTranslationOverlay(context),
+
+                          // Translation Loading Overlay
+                          _buildTranslationLoadingOverlay(context),
+                        ],
+                      )),
                 ),
               );
             },
@@ -666,10 +688,14 @@ class ReaderView extends StatelessWidget implements Searchable {
     final link = _generateDeepLink(selectedText, context);
     Clipboard.setData(ClipboardData(text: link));
     if (context.mounted) {
+      final afterCopy = AfterCopyPlacement.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.linkCopied),
           duration: const Duration(seconds: 2),
+          behavior: afterCopy.behavior,
+          dismissDirection: afterCopy.dismissDirection,
+          margin: afterCopy.margin,
         ),
       );
     }
