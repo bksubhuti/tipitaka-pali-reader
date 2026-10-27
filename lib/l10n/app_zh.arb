@@ -369,5 +369,9 @@
   "turnOffInSettings": "在设置中关闭",
   "copiedFormatted": "已带格式复制。",
   "copiedPlain": "已作为纯文本复制。",
-  "restoreTabsQuestion": "重新打开上次打开的 {count} 本书吗？"
+  "restoreTabsQuestion": "重新打开上次打开的 {count} 本书吗？",
+  "scrolling": "翻页方式",
+  "scrollUpDown": "上下",
+  "scrollSideways": "左右",
+  "openBook": "打开书籍"
 }

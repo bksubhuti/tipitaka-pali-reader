@@ -369,5 +369,9 @@
   "turnOffInSettings": "ปิดในการตั้งค่า",
   "copiedFormatted": "คัดลอกพร้อมรูปแบบแล้ว",
   "copiedPlain": "คัดลอกเป็นข้อความธรรมดาแล้ว",
-  "restoreTabsQuestion": "เปิดหนังสือ {count} เล่มที่เปิดไว้ครั้งก่อนอีกครั้งไหม?"
+  "restoreTabsQuestion": "เปิดหนังสือ {count} เล่มที่เปิดไว้ครั้งก่อนอีกครั้งไหม?",
+  "scrolling": "การเลื่อน",
+  "scrollUpDown": "ขึ้นลง",
+  "scrollSideways": "ซ้ายขวา",
+  "openBook": "เปิดหนังสือ"
 }

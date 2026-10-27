@@ -369,5 +369,9 @@
   "turnOffInSettings": "ປິດໃນການຕັ້ງຄ່າ",
   "copiedFormatted": "ສຳເນົາພ້ອມຮູບແບບແລ້ວ.",
   "copiedPlain": "ສຳເນົາເປັນຂໍ້ຄວາມທຳມະດາແລ້ວ.",
-  "restoreTabsQuestion": "ເປີດປຶ້ມ {count} ຫົວທີ່ເປີດໄວ້ຄັ້ງກ່ອນຄືນບໍ?"
+  "restoreTabsQuestion": "ເປີດປຶ້ມ {count} ຫົວທີ່ເປີດໄວ້ຄັ້ງກ່ອນຄືນບໍ?",
+  "scrolling": "ການເລື່ອນ",
+  "scrollUpDown": "ຂຶ້ນລົງ",
+  "scrollSideways": "ຊ້າຍຂວາ",
+  "openBook": "ເປີດປຶ້ມ"
 }

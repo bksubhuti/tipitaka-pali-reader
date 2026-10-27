@@ -3,6 +3,7 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/providers/navigation_provider.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 
 class DeskTopNavigationBar extends StatelessWidget {
   const DeskTopNavigationBar({
@@ -30,12 +31,21 @@ class DeskTopNavigationBar extends StatelessWidget {
 
     return NavigationRail(
       minWidth: navigationBarWidth,
-      leading: Ink.image(
-        height: navigationBarWidth,
-        width: navigationBarWidth,
-        image: const AssetImage('assets/icon/icon.png'),
-        fit: BoxFit.scaleDown,
-      ),
+      // In the phone's ☰ panel, a tap on the logo closes the panel. Not
+      // there on a phone held sideways, which is short of room for the rail.
+      leading: Mobile.isPhone(context) &&
+              MediaQuery.orientationOf(context) == Orientation.landscape
+          ? null
+          : Ink.image(
+              height: navigationBarWidth,
+              width: navigationBarWidth,
+              image: const AssetImage('assets/icon/icon.png'),
+              fit: BoxFit.scaleDown,
+              child: Mobile.isPhone(context)
+                  ? InkWell(
+                      onTap: () => Scaffold.maybeOf(context)?.closeDrawer())
+                  : null,
+            ),
       useIndicator: true,
       labelType: NavigationRailLabelType.none,
       destinations: [

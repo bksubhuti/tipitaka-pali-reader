@@ -26,8 +26,10 @@ class _DetailNavigationPaneState extends State<DetailNavigationPane> {
   @override
   void initState() {
     super.initState();
-    pageController = PageController();
     navigationProvider = context.read<NavigationProvider>();
+    // On the page last chosen, as when the phone's ☰ panel is opened again.
+    pageController =
+        PageController(initialPage: navigationProvider.currentNavigation);
     navigationProvider.addListener(_pageChangeListener);
   }
 

@@ -369,5 +369,9 @@
   "turnOffInSettings": "সেটিংসে বন্ধ করুন",
   "copiedFormatted": "ফরম্যাটিং সহ কপি হয়েছে।",
   "copiedPlain": "সাধারণ লেখা হিসেবে কপি হয়েছে।",
-  "restoreTabsQuestion": "শেষবার খোলা {count}টি বই আবার খুলবেন?"
+  "restoreTabsQuestion": "শেষবার খোলা {count}টি বই আবার খুলবেন?",
+  "scrolling": "স্ক্রলিং",
+  "scrollUpDown": "উপর-নিচে",
+  "scrollSideways": "পাশাপাশি",
+  "openBook": "বই খুলুন"
 }

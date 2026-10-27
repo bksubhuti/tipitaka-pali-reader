@@ -126,8 +126,7 @@ class _QuickJumpPageState extends State<QuickJumpPage> {
       // ignore: use_build_context_synchronously
       if (Mobile.isPhone(context)) {
         // ignore: use_build_context_synchronously
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+        MobileReaderContainer.show(context);
       }
     }
   }

@@ -371,5 +371,9 @@
   "turnOffInSettings": "සැකසුම්වලින් අක්‍රිය කරන්න",
   "copiedFormatted": "හැඩතල සමඟ පිටපත් කරන ලදී.",
   "copiedPlain": "සරල පෙළ ලෙස පිටපත් කරන ලදී.",
-  "restoreTabsQuestion": "පසුගිය වර විවෘතව තිබූ පොත් {count} යළි විවෘත කරන්නද?"
+  "restoreTabsQuestion": "පසුගිය වර විවෘතව තිබූ පොත් {count} යළි විවෘත කරන්නද?",
+  "scrolling": "අනුචලනය",
+  "scrollUpDown": "ඉහළ පහළ",
+  "scrollSideways": "දෙපසට",
+  "openBook": "පොත විවෘත කරන්න"
 }

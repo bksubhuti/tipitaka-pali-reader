@@ -152,7 +152,6 @@ void openBookAt(BuildContext context, Book book, int page,
       .read<OpenningBooksProvider>()
       .add(book: book, currentPage: page, textToHighlight: highlight);
   if (Mobile.isPhone(context)) {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+    MobileReaderContainer.show(context);
   }
 }

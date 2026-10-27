@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:tipitaka_pali/ui/screens/settings/language_settings.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
@@ -17,16 +16,13 @@ import '../../../business_logic/models/category.dart' as models;
 import '../../../business_logic/models/list_item.dart';
 import '../../../business_logic/models/sutta.dart';
 import '../../../business_logic/view_models/home_page_view_model.dart';
-import '../../../routes.dart';
 import '../../../services/database/database_helper.dart';
 import '../../../services/provider/script_language_provider.dart';
 import '../../../services/repositories/sutta_repository.dart';
 import '../../../services/repositories/volume_parts.dart';
 import '../../../utils/platform_info.dart';
-import '../../dialogs/about_tpr_dialog.dart';
 import '../../dialogs/sutta_list_dialog.dart';
 import '../../widgets/basket_icon.dart';
-import '../../widgets/colored_text.dart';
 import 'openning_books_provider.dart';
 import 'widgets/book_toc_tree.dart';
 import '../reader/controller/reader_view_controller.dart';
@@ -255,18 +251,10 @@ class _BookListPageState extends State<BookListPage> {
         return Scaffold(
           appBar: Mobile.isPhone(context)
               ? AppBar(
-                  title:
-                      Text(AppLocalizations.of(context)!.tipitaka_pali_reader),
-                  actions: [
-                    IconButton(
-                      padding: const EdgeInsets.all(4.0),
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.settings),
-                      onPressed: () async {
-                        await Navigator.pushNamed(context, settingRoute);
-                      },
-                    ),
-                  ],
+                  // In the reader's ☰ panel, whose rail has the settings:
+                  // no title or menu of its own.
+                  automaticallyImplyLeading: false,
+                  toolbarHeight: 0,
                   // The view choice on top, then the tabs, which the basket
                   // tree does without.
                   bottom: PreferredSize(
@@ -282,7 +270,6 @@ class _BookListPageState extends State<BookListPage> {
           // Rydmike proposal: Consider converting the Drawer on this Home screen
           //    to a Widget and then add it also to other top level screens.
           // drawer: Mobile.isPhone(context) ? AppDrawer(context) : null,
-          drawer: Mobile.isPhone(context) ? _buildDrawer(context) : null,
           body: Column(
             children: [
               // The view choice at the very top, in its own row so the tabs
@@ -319,10 +306,7 @@ class _BookListPageState extends State<BookListPage> {
                   textToHighlight: sutta.name,
                 );
                 if (Mobile.isPhone(context)) {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const MobileReaderContainer()));
+                  MobileReaderContainer.show(context);
                 }
               }
             },
@@ -363,62 +347,6 @@ class _BookListPageState extends State<BookListPage> {
       unselectedLabelStyle: TextStyle(
           fontFamily: FontUtils.getfontName(
               script: context.read<ScriptLanguageProvider>().currentScript)),
-    );
-  }
-
-  Drawer _buildDrawer(BuildContext context) {
-    return Drawer(
-      // Add a ListView to the drawer. This ensures the user can scroll
-      // through the options in the drawer if there isn't enough vertical
-      // space to fit everything.
-      child: ListView(
-        // Important: Remove any padding from the ListView.
-        padding: EdgeInsets.zero,
-        children: [
-          SizedBox(
-            height: 250,
-            child: DrawerHeader(
-              duration: Duration(
-                milliseconds: Prefs.animationSpeed.round(),
-              ),
-              decoration: const BoxDecoration(),
-              child: Column(
-                children: [
-                  ColoredText(
-                    AppLocalizations.of(context)!.tipitaka_pali_reader,
-                  ),
-                  const SizedBox(height: 25.0),
-                  Image.asset(
-                    "assets/icon/icon.png",
-                    height: 90,
-                    width: 90,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          ListTile(
-            title: ColoredText(AppLocalizations.of(context)!.dictionary,
-                style: const TextStyle()),
-            onTap: () => _openDictionaryPage(context),
-          ),
-          ListTile(
-            title: ColoredText(AppLocalizations.of(context)!.translations,
-                style: const TextStyle()),
-            onTap: () => _openTranslationsPage(context),
-          ),
-          ListTile(
-            title: ColoredText(AppLocalizations.of(context)!.settings,
-                style: const TextStyle()),
-            onTap: () => _openSettingPage(context),
-          ),
-          ListTile(
-            title: ColoredText(AppLocalizations.of(context)!.about,
-                style: const TextStyle()),
-            onTap: () => showAboutTprDialog(context),
-          ),
-        ],
-      ),
     );
   }
 
@@ -700,8 +628,8 @@ class _BookListPageState extends State<BookListPage> {
                       for (final bookItem in categoryWithBooks.books)
                         ListTile(
                           title: bookItem.build(context),
-                          onTap: () => _openBookAt(context, bookItem.book,
-                              bookItem.fromPage, null),
+                          onTap: () => _openBookAt(
+                              context, bookItem.book, bookItem.fromPage, null),
                           minVerticalPadding: 4,
                         ),
                     ],
@@ -721,10 +649,6 @@ class _BookListPageState extends State<BookListPage> {
     return await HomePageViewModel().fecthItems(category);
   }
 
-  _openSettingPage(BuildContext context) async {
-    await Navigator.pushNamed(context, settingRoute);
-  }
-
   /// Opens [book] at [page] with [highlight] marked, as the contents panel
   /// does, or at its first page when [page] is null.
   Future<void> _openBookAt(
@@ -742,8 +666,7 @@ class _BookListPageState extends State<BookListPage> {
         final uuid = books.books[at]['uuid'] as String;
         books.updateSelectedBookIndex(at, forceNotify: true);
         if (Mobile.isPhone(context)) {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+          MobileReaderContainer.show(context);
         }
         // After the tab has come to the front and its list can move.
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -762,8 +685,7 @@ class _BookListPageState extends State<BookListPage> {
       textToHighlight: highlight,
     );
     if (Mobile.isPhone(context)) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+      MobileReaderContainer.show(context);
     }
   }
 
@@ -785,23 +707,9 @@ class _BookListPageState extends State<BookListPage> {
       if (Mobile.isPhone(context)) {
         // Navigator.pushNamed(context, readerRoute,
         //     arguments: {'book': bookItem.book});
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+        MobileReaderContainer.show(context);
       }
     }
-  }
-
-  _openDictionaryPage(BuildContext context) {
-    Navigator.pushNamed(context, dictionaryRoute);
-  }
-
-  /// Translations install as language files now, not as the old English
-  /// extension, so the drawer goes to where they are chosen.
-  _openTranslationsPage(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const LanguageSettings()),
-    );
   }
 
   Future<Sutta?> _openSuttaDialog(BuildContext context) async {
@@ -867,8 +775,8 @@ class _BookListPageState extends State<BookListPage> {
     for (var subCategory in subCategories) {
       final books = await BookDatabaseRepository(databaseProvider)
           .getBooks(mainCategory, subCategory.id);
-      final bookListItems = await VolumeParts.split(
-          books.map((book) => BookItem(book)).toList());
+      final bookListItems =
+          await VolumeParts.split(books.map((book) => BookItem(book)).toList());
       categoriesWithBooks.add(CategoryWithBooks(
           category: CategoryItem(subCategory), books: bookListItems));
     }

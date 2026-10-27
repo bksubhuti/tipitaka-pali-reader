@@ -369,5 +369,9 @@
   "turnOffInSettings": "Отключить в настройках",
   "copiedFormatted": "Скопировано с форматированием.",
   "copiedPlain": "Скопировано как простой текст.",
-  "restoreTabsQuestion": "Открыть {count} книг, открытых в прошлый раз?"
+  "restoreTabsQuestion": "Открыть {count} книг, открытых в прошлый раз?",
+  "scrolling": "Прокрутка",
+  "scrollUpDown": "Вверх-вниз",
+  "scrollSideways": "Вбок",
+  "openBook": "Открыть книгу"
 }

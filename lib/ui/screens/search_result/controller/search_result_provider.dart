@@ -109,7 +109,8 @@ class SearchResultController extends ChangeNotifier {
     final List<SearchResult> thirdFilterdList = [];
     if (filterController.postSearchBooks.isNotEmpty) {
       thirdFilterdList.addAll(secondFilterdList.where((searchResult) {
-        return filterController.selectedPostSearchBookIds.contains(searchResult.book.id);
+        return filterController.selectedPostSearchBookIds
+            .contains(searchResult.book.id);
       }));
     } else {
       thirdFilterdList.addAll(secondFilterdList);
@@ -142,8 +143,7 @@ class SearchResultController extends ChangeNotifier {
     if (Mobile.isPhone(context)) {
       // Navigator.pushNamed(context, readerRoute,
       //     arguments: {'book': bookItem.book});
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+      MobileReaderContainer.show(context);
     }
   }
 }

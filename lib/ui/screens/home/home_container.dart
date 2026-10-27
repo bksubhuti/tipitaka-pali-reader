@@ -13,9 +13,8 @@ import '../../../services/prefs.dart';
 import '../../../utils/platform_info.dart';
 import '../language_choice.dart';
 import 'desktop_home_view.dart';
-import 'mobile_navigation_bar.dart';
-import 'navigation_pane.dart';
 import '../reader/mobile_reader_container.dart';
+import '../reader/reader.dart';
 import 'openning_books_provider.dart';
 
 // enum Screen { Home, Bookmark, Recent, Search }
@@ -39,6 +38,21 @@ class _HomeState extends State<Home> {
       await _offerRestoreTabs();
     });
     HardwareKeyboard.instance.addHandler(_onFontSizeKey);
+  }
+
+  Orientation? _orientation;
+
+  /// A dictionary open as the device is turned is shown again the way it
+  /// is now held. Watched here, above both layouts, as a tablet turned
+  /// changes from one to the other.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final orientation = MediaQuery.orientationOf(context);
+    if (_orientation != null && orientation != _orientation) {
+      DictionaryPopup.onTurned(context);
+    }
+    _orientation = orientation;
   }
 
   @override
@@ -157,8 +171,7 @@ class _HomeState extends State<Home> {
     if (!mounted) return;
     openBooks.restore(saved.books, saved.selected);
     if (Mobile.isPhone(context)) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+      MobileReaderContainer.show(context);
     }
   }
 
@@ -188,15 +201,12 @@ class _HomeState extends State<Home> {
               },
               child: Builder(builder: (context) {
                 return Scaffold(
+                    // On a phone, the reader is the home screen: the quote
+                    // of the day until a book is opened, and the rest from
+                    // its ☰ panel.
                     body: PlatformInfo.isDesktop || Mobile.isTablet(context)
                         ? const DesktopHomeView()
-                        : const DetailNavigationPane(
-                            navigationCount: 5,
-                          ),
-                    bottomNavigationBar:
-                        !(PlatformInfo.isDesktop || Mobile.isTablet(context))
-                            ? const MobileNavigationBar()
-                            : null);
+                        : const MobileReaderContainer());
               }),
             ),
           ),

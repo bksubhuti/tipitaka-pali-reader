@@ -239,8 +239,7 @@ No App Liability: The developer of this application is not responsible for any a
     );
 
     if (Mobile.isPhone(context)) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+      MobileReaderContainer.show(context);
     }
   }
 

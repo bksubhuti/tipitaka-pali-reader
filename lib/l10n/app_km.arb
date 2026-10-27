@@ -369,5 +369,9 @@
   "turnOffInSettings": "បិទនៅក្នុងការកំណត់",
   "copiedFormatted": "បានចម្លងជាមួយទម្រង់។",
   "copiedPlain": "បានចម្លងជាអត្ថបទធម្មតា។",
-  "restoreTabsQuestion": "បើកសៀវភៅ {count} ក្បាលដែលអ្នកបានបើកលើកមុនឡើងវិញ?"
+  "restoreTabsQuestion": "បើកសៀវភៅ {count} ក្បាលដែលអ្នកបានបើកលើកមុនឡើងវិញ?",
+  "scrolling": "ការរំកិល",
+  "scrollUpDown": "ឡើងចុះ",
+  "scrollSideways": "ឆ្វេងស្តាំ",
+  "openBook": "បើកសៀវភៅ"
 }

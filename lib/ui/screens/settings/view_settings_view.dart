@@ -10,6 +10,7 @@ import 'package:tipitaka_pali/services/language_installer.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
+import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/ui/screens/settings/language_settings.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 
@@ -47,6 +48,12 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
         _getUiFontSizeSlider(),
         const Divider(),
         _getDictionaryFontSizeSlider(),
+        const Divider(),
+      ],
+      // Up and down or side to side, from the phone's reader, whose top bar
+      // now holds the tabs instead of a button for it.
+      if (widget.isMobilePopup && Mobile.isPhone(context)) ...[
+        _getScrollDirection(),
         const Divider(),
       ],
       _getTextDisplayModeRadio(),
@@ -107,6 +114,34 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         children: settingWidgets,
+      ),
+    );
+  }
+
+  Widget _getScrollDirection() {
+    final l10n = AppLocalizations.of(context)!;
+    return ValueListenableBuilder<BookViewMode>(
+      valueListenable: MobileReaderContainer.bookViewMode,
+      builder: (context, mode, _) => ListTile(
+        title: Text(l10n.scrolling),
+        trailing: SegmentedButton<BookViewMode>(
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment(
+                value: BookViewMode.vertical,
+                icon: const Icon(Icons.swap_vert),
+                tooltip: l10n.scrollUpDown),
+            ButtonSegment(
+                value: BookViewMode.horizontal,
+                icon: const Icon(Icons.swap_horiz),
+                tooltip: l10n.scrollSideways),
+          ],
+          selected: {mode},
+          onSelectionChanged: (selected) {
+            MobileReaderContainer.bookViewMode.value = selected.first;
+            Prefs.bookViewModeIndex = selected.first.index;
+          },
+        ),
       ),
     );
   }
@@ -194,9 +229,8 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
               ),
             ),
 
-          // The commentary under the Pali it explains. In the popup the
-          // control bar opens it is left out: the bar has its own button.
-          if (shown.paliShown && !widget.isMobilePopup)
+          // The commentary under the Pali it explains, in the quick view too.
+          if (shown.paliShown)
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: CheckboxListTile(

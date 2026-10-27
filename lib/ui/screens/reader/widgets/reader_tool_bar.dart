@@ -6,14 +6,14 @@ import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/providers/font_provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
+import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
+import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
+import 'package:tipitaka_pali/ui/widgets/xray_icon.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_controller.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/mat_button.dart';
 import 'package:tipitaka_pali/ui/screens/reader/widgets/tts_controls.dart';
 import 'package:tipitaka_pali/ui/screens/settings/view_settings_view.dart';
-import 'package:tipitaka_pali/ui/widgets/xray_icon.dart';
-import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
-import 'package:tipitaka_pali/services/provider/theme_change_notifier.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 
@@ -63,14 +63,14 @@ class UpperRow extends StatelessWidget {
           child: PreferenceBuilder<bool>(
             preference: context
                 .read<StreamingSharedPreferences>()
-                .getBool(hideScrollbarPref, defaultValue: false),
+                .getBool(hideScrollbarPref, defaultValue: defaultHideScrollbar),
             builder: (context, hideScrollbar) {
               // If hideScrollbar is false, show the BookSlider
               if (!hideScrollbar) {
                 return const BookSlider();
               } else {
-                // Otherwise, show an empty SizedBox to take up the space
-                return const SizedBox(height: 30);
+                // Otherwise nothing: the bar is only as tall as its buttons.
+                return const SizedBox.shrink();
               }
             },
           ),
@@ -115,28 +115,28 @@ class LowerRow extends StatelessWidget {
               onPressed: () => _onIncreaseButtonClicked(context),
               icon: const Icon(Icons.add_circle_outline),
               tooltip: AppLocalizations.of(context)!.increaseFontSize),
-          (PlatformInfo.isDesktop || Mobile.isTablet(context))
-              ? IconButton(
-                  icon: const Icon(Icons.text_format_outlined),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => Dialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        // Wrap in SingleChildScrollView so the ExpansionTile has room to expand
-                        child: const SingleChildScrollView(
-                          child: ViewSettingsView(
-                            isMobilePopup: true,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                )
-              : const SizedBox.shrink(),
-          const _XrayButton(),
+          // On phones too, now that the top bar holds the tabs.
+          IconButton(
+            icon: const Icon(Icons.text_format_outlined),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  // Wrap in SingleChildScrollView so the ExpansionTile has room to expand
+                  child: const SingleChildScrollView(
+                    child: ViewSettingsView(
+                      isMobilePopup: true,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // On a phone held upright X-ray is in the quick view, for room.
+          if (!Mobile.isPhone(context)) const _XrayButton(),
           IconButton(
               onPressed: () => _addBookmark(context),
               icon: const Icon(Icons.bookmark_add_outlined),
@@ -149,10 +149,9 @@ class LowerRow extends StatelessWidget {
           // it over the text instead.
           if (PlatformInfo.isDesktop)
             PreferenceBuilder<bool>(
-              preference: context
-                  .read<StreamingSharedPreferences>()
-                  .getBool(hideTtsControlsPref,
-                      defaultValue: defaultHideTtsControls),
+              preference: context.read<StreamingSharedPreferences>().getBool(
+                  hideTtsControlsPref,
+                  defaultValue: defaultHideTtsControls),
               builder: (context, hide) => hide
                   ? const SizedBox.shrink()
                   : const TtsControls(inBar: true),
@@ -606,28 +605,32 @@ class LowerRow extends StatelessWidget {
       },
       pageBuilder: (context, animation, secondaryAnimation) {
         double topPadding = MediaQuery.paddingOf(context).top;
-        return Align(
-          alignment: Alignment.centerRight,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Container(
-              padding: EdgeInsets.fromLTRB(8, 8 + topPadding, 8, 8),
-              width: MediaQuery.of(context).size.width > 600
-                  ? sideSheetWidth
-                  : double.infinity,
-              decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.background,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  )),
-              child: TocDialog(
-                bookID: vm.book.id,
-                currentPage: vm.currentPage.value,
+        return SafeArea(
+            // Clear of a camera hole at the side, held sideways.
+            top: false,
+            bottom: false,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                type: MaterialType.transparency,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(8, 8 + topPadding, 8, 8),
+                  width: MediaQuery.of(context).size.width > 600
+                      ? sideSheetWidth
+                      : double.infinity,
+                  decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.background,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
+                      )),
+                  child: TocDialog(
+                    bookID: vm.book.id,
+                    currentPage: vm.currentPage.value,
+                  ),
+                ),
               ),
-            ),
-          ),
-        );
+            ));
       },
     );
 

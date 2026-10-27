@@ -369,5 +369,9 @@
   "turnOffInSettings": "सेटिंग्स में बंद करें",
   "copiedFormatted": "फ़ॉर्मेटिंग के साथ कॉपी किया गया।",
   "copiedPlain": "सादे पाठ के रूप में कॉपी किया गया।",
-  "restoreTabsQuestion": "पिछली बार खुली {count} पुस्तकें फिर से खोलें?"
+  "restoreTabsQuestion": "पिछली बार खुली {count} पुस्तकें फिर से खोलें?",
+  "scrolling": "स्क्रॉलिंग",
+  "scrollUpDown": "ऊपर-नीचे",
+  "scrollSideways": "दाएँ-बाएँ",
+  "openBook": "पुस्तक खोलें"
 }

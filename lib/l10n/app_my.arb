@@ -370,5 +370,9 @@
   "turnOffInSettings": "ဆက်တင်များတွင် ပိတ်ရန်",
   "copiedFormatted": "ပုံစံဖြင့် ကူးယူပြီးပါပြီ။",
   "copiedPlain": "စာသားသက်သက်အဖြစ် ကူးယူပြီးပါပြီ။",
-  "restoreTabsQuestion": "ယခင်က ဖွင့်ထားသော စာအုပ် {count} အုပ်ကို ပြန်ဖွင့်မလား?"
+  "restoreTabsQuestion": "ယခင်က ဖွင့်ထားသော စာအုပ် {count} အုပ်ကို ပြန်ဖွင့်မလား?",
+  "scrolling": "လှိမ့်ကြည့်ခြင်း",
+  "scrollUpDown": "အထက်အောက်",
+  "scrollSideways": "ဘေးတိုက်",
+  "openBook": "စာအုပ်ဖွင့်ရန်"
 }

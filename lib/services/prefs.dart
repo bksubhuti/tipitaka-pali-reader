@@ -12,6 +12,7 @@ import 'package:tipitaka_pali/utils/simple_encryptor.dart';
 import '../data/constants.dart';
 import '../data/page_papers.dart';
 import 'package:tipitaka_pali/services/country_service.dart';
+import 'package:tipitaka_pali/utils/platform_info.dart';
 
 enum PageTheme {
   light,
@@ -192,7 +193,9 @@ const bool defaultUseM3 = true;
 const String defaultRomanFontName = "Open Sans";
 const String defaultOldPassword = '';
 const String defaultOldUsername = '';
-const bool defaultHideScrollbar = false;
+// Hidden on phones and tablets, where the text is scrolled by touch and the
+// bar takes room from it; shown on computers.
+final bool defaultHideScrollbar = PlatformInfo.isMobile;
 const bool defaultHideTtsControls = false;
 const bool defaultHideIPA = true;
 const bool defaultHideSanskrit = true;

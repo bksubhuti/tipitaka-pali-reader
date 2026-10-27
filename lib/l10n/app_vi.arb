@@ -369,5 +369,9 @@
   "turnOffInSettings": "Tắt trong cài đặt",
   "copiedFormatted": "Đã sao chép kèm định dạng.",
   "copiedPlain": "Đã sao chép dạng văn bản thuần.",
-  "restoreTabsQuestion": "Mở lại {count} cuốn sách bạn đã mở lần trước?"
+  "restoreTabsQuestion": "Mở lại {count} cuốn sách bạn đã mở lần trước?",
+  "scrolling": "Cuộn trang",
+  "scrollUpDown": "Lên xuống",
+  "scrollSideways": "Sang ngang",
+  "openBook": "Mở sách"
 }

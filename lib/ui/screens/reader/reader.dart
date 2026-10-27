@@ -94,7 +94,9 @@ class ReaderView extends StatelessWidget implements Searchable {
   final _sc = SlidableBarController(initialStatus: Prefs.controlBarShow);
 
   /// Height of the control bar at the bottom, without its pull tab.
-  static const double _controlBarSize = 100;
+  /// The control bar's height: the page slider and the buttons under it,
+  /// or the buttons alone when the slider is hidden.
+  static double _controlBarSize(bool hideScrollbar) => hideScrollbar ? 56 : 100;
 
   @override
   void onSearchRequested(BuildContext context) {
@@ -129,167 +131,195 @@ class ReaderView extends StatelessWidget implements Searchable {
     return Scaffold(
       body: Consumer<ThemeChangeNotifier>(
         builder: (context, themeChangeNotifier, child) {
-          return PaperBackground(
-            child: SlidableBar(
-              slidableController: _sc,
-              side: Side.bottom,
-              barContent: const ReaderToolbar(),
-              size: _controlBarSize,
-              clicker: SlidableClicker(controller: _sc),
-              frontColor: Colors.white,
-              backgroundColor: Colors.blue.withOpacity(0.3),
-              clickerSize: 32,
-              clickerPosition: 0.98,
-              child: Stack(
-                children: [
-                  // Main content, kept clear of the control bar while it is
-                  // open. The bar is drawn over the reader, so without this the
-                  // last lines and the end of the scrollbar went behind it.
-                  StreamBuilder<bool>(
-                    stream: _sc.statusStream,
-                    initialData: _sc.currentStatus,
-                    builder: (context, barOpen) => AnimatedPadding(
-                      duration: const Duration(milliseconds: 300),
-                      padding: EdgeInsets.only(
-                          bottom: barOpen.data! ? _controlBarSize : 0),
-                      child: Column(
-                        children: [
-                          if (context.watch<ReaderViewController>().showSearch)
-                            SearchWidget(
-                              word: context
+          return PreferenceBuilder<bool>(
+            preference: context
+                .read<StreamingSharedPreferences>()
+                .getBool(hideScrollbarPref, defaultValue: defaultHideScrollbar),
+            builder: (context, hideScrollbar) {
+              final barSize = _controlBarSize(hideScrollbar);
+              return PaperBackground(
+                child: SlidableBar(
+                  slidableController: _sc,
+                  side: Side.bottom,
+                  barContent: const ReaderToolbar(),
+                  size: barSize,
+                  clicker: SlidableClicker(controller: _sc),
+                  frontColor: Colors.white,
+                  backgroundColor: Colors.blue.withOpacity(0.3),
+                  clickerSize: 32,
+                  clickerPosition: 0.98,
+                  child: Stack(
+                    children: [
+                      // Main content, kept clear of the control bar while it is
+                      // open. The bar is drawn over the reader, so without this the
+                      // last lines and the end of the scrollbar went behind it.
+                      StreamBuilder<bool>(
+                        stream: _sc.statusStream,
+                        initialData: _sc.currentStatus,
+                        builder: (context, barOpen) => AnimatedPadding(
+                          duration: const Duration(milliseconds: 300),
+                          padding: EdgeInsets.only(
+                              bottom: barOpen.data! ? barSize : 0),
+                          child: Column(
+                            children: [
+                              if (context
                                   .watch<ReaderViewController>()
-                                  .searchText
-                                  .value,
-                            ),
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                // While the keyboard is up, the reader keeps a
-                                // usable height and scrolls rather than being
-                                // squeezed. Otherwise it fills exactly the room it
-                                // has: a fixed 80% of the screen ran past that room
-                                // on short windows and pushed the scrollbar under
-                                // the control bar.
-                                final keyboardUp =
-                                    MediaQuery.of(context).viewInsets.bottom >
+                                  .showSearch)
+                                SearchWidget(
+                                  word: context
+                                      .watch<ReaderViewController>()
+                                      .searchText
+                                      .value,
+                                ),
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    // While the keyboard is up, the reader keeps a
+                                    // usable height and scrolls rather than being
+                                    // squeezed. Otherwise it fills exactly the room it
+                                    // has: a fixed 80% of the screen ran past that room
+                                    // on short windows and pushed the scrollbar under
+                                    // the control bar.
+                                    final keyboardUp = MediaQuery.of(context)
+                                            .viewInsets
+                                            .bottom >
                                         0;
-                                return SingleChildScrollView(
-                                  padding: EdgeInsets.only(
-                                      bottom: keyboardUp ? 24 : 0),
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                        minHeight: constraints.maxHeight),
-                                    child: IntrinsicHeight(
-                                      child: SizedBox(
-                                        height: keyboardUp
-                                            ? MediaQuery.of(context)
-                                                    .size
-                                                    .height *
-                                                0.8
-                                            : constraints.maxHeight,
-                                        child: bookViewMode ==
-                                                BookViewMode.horizontal
-                                            ? VerticalBookView(
-                                                onSearchedSelectedText:
-                                                    (text) =>
-                                                        _onSearchSelectedText(
+                                    return SingleChildScrollView(
+                                      padding: EdgeInsets.only(
+                                          bottom: keyboardUp ? 24 : 0),
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                            minHeight: constraints.maxHeight),
+                                        child: IntrinsicHeight(
+                                          child: SizedBox(
+                                            height: keyboardUp
+                                                ? MediaQuery.of(context)
+                                                        .size
+                                                        .height *
+                                                    0.8
+                                                : constraints.maxHeight,
+                                            child: bookViewMode ==
+                                                    BookViewMode.horizontal
+                                                ? VerticalBookView(
+                                                    onSearchedSelectedText:
+                                                        (text) =>
+                                                            _onSearchSelectedText(
+                                                                text, context),
+                                                    onSharedSelectedText:
+                                                        _onShareSelectedText,
+                                                    onClickedWord: (word) =>
+                                                        _onClickedWord(
+                                                            word, context),
+                                                    onSearchedInCurrentBook:
+                                                        (text) =>
+                                                            _onClickedSearchInCurrent(
+                                                                context, text),
+                                                    onAiContextRightClick:
+                                                        (text) =>
+                                                            _onAiContextRightClick(
+                                                                text, context),
+                                                    onCopyLink: (text) =>
+                                                        _onCopyLink(
                                                             text, context),
-                                                onSharedSelectedText:
-                                                    _onShareSelectedText,
-                                                onClickedWord: (word) =>
-                                                    _onClickedWord(
-                                                        word, context),
-                                                onSearchedInCurrentBook: (text) =>
-                                                    _onClickedSearchInCurrent(
-                                                        context, text),
-                                                onAiContextRightClick: (text) =>
-                                                    _onAiContextRightClick(
-                                                        text, context),
-                                                onCopyLink: (text) =>
-                                                    _onCopyLink(text, context),
-                                                onShareLink: (text) =>
-                                                    _onShareLink(text, context),
-                                                onCopyFormatted: (text) =>
-                                                    _onCopyFormatted(
-                                                        text, context),
-                                                onCopyPlain: (text) =>
-                                                    _onCopyPlain(text, context),
-                                                onSelectionChanged: (text) {
-                                                  Provider.of<ReaderViewController>(
-                                                          context,
-                                                          listen: false)
-                                                      .selection = text;
-                                                },
-                                              )
-                                            : HorizontalBookView(
-                                                onSearchedSelectedText:
-                                                    (text) =>
-                                                        _onSearchSelectedText(
+                                                    onShareLink: (text) =>
+                                                        _onShareLink(
                                                             text, context),
-                                                onSharedSelectedText:
-                                                    _onShareSelectedText,
-                                                onClickedWord: (word) =>
-                                                    _onClickedWord(
-                                                        word, context),
-                                                onSearchedInCurrentBook: (text) =>
-                                                    _onClickedSearchInCurrent(
-                                                        context, text),
-                                                onAiContextRightClick: (text) =>
-                                                    _onAiContextRightClick(
-                                                        text, context),
-                                                onCopyLink: (text) =>
-                                                    _onCopyLink(text, context),
-                                                onShareLink: (text) =>
-                                                    _onShareLink(text, context),
-                                                onCopyFormatted: (text) =>
-                                                    _onCopyFormatted(
-                                                        text, context),
-                                                onCopyPlain: (text) =>
-                                                    _onCopyPlain(text, context),
-                                                onSelectionChanged: (text) {
-                                                  Provider.of<ReaderViewController>(
-                                                          context,
-                                                          listen: false)
-                                                      .selection = text;
-                                                },
-                                              ),
+                                                    onCopyFormatted: (text) =>
+                                                        _onCopyFormatted(
+                                                            text, context),
+                                                    onCopyPlain: (text) =>
+                                                        _onCopyPlain(
+                                                            text, context),
+                                                    onSelectionChanged: (text) {
+                                                      Provider.of<ReaderViewController>(
+                                                              context,
+                                                              listen: false)
+                                                          .selection = text;
+                                                    },
+                                                  )
+                                                : HorizontalBookView(
+                                                    onSearchedSelectedText:
+                                                        (text) =>
+                                                            _onSearchSelectedText(
+                                                                text, context),
+                                                    onSharedSelectedText:
+                                                        _onShareSelectedText,
+                                                    onClickedWord: (word) =>
+                                                        _onClickedWord(
+                                                            word, context),
+                                                    onSearchedInCurrentBook:
+                                                        (text) =>
+                                                            _onClickedSearchInCurrent(
+                                                                context, text),
+                                                    onAiContextRightClick:
+                                                        (text) =>
+                                                            _onAiContextRightClick(
+                                                                text, context),
+                                                    onCopyLink: (text) =>
+                                                        _onCopyLink(
+                                                            text, context),
+                                                    onShareLink: (text) =>
+                                                        _onShareLink(
+                                                            text, context),
+                                                    onCopyFormatted: (text) =>
+                                                        _onCopyFormatted(
+                                                            text, context),
+                                                    onCopyPlain: (text) =>
+                                                        _onCopyPlain(
+                                                            text, context),
+                                                    onSelectionChanged: (text) {
+                                                      Provider.of<ReaderViewController>(
+                                                              context,
+                                                              listen: false)
+                                                          .selection = text;
+                                                    },
+                                                  ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+
+                      // Read aloud, in the lower right, clear of the control bar's
+                      // pull tab, and going down with the bar when it is lowered.
+                      // On desktop it is in the control bar instead.
+                      if (!PlatformInfo.isDesktop)
+                        PreferenceBuilder<bool>(
+                          preference: context
+                              .read<StreamingSharedPreferences>()
+                              .getBool(hideTtsControlsPref,
+                                  defaultValue: defaultHideTtsControls),
+                          builder: (context, hide) => hide
+                              ? const SizedBox.shrink()
+                              : StreamBuilder<bool>(
+                                  stream: _sc.statusStream,
+                                  initialData: _sc.currentStatus,
+                                  builder: (context, barOpen) =>
+                                      AnimatedPositioned(
+                                    duration: const Duration(milliseconds: 300),
+                                    right: 12,
+                                    bottom: barOpen.data! ? barSize + 40 : 44,
+                                    child: const TtsControls(),
+                                  ),
+                                ),
+                        ),
+
+                      // Translation Overlay
+                      _buildTranslationOverlay(context),
+
+                      // Translation Loading Overlay
+                      _buildTranslationLoadingOverlay(context),
+                    ],
                   ),
-
-                  // Read aloud, in the lower right, clear of the control bar's
-                  // pull tab. On desktop it is in the control bar instead.
-                  if (!PlatformInfo.isDesktop)
-                    PreferenceBuilder<bool>(
-                      preference: context
-                          .read<StreamingSharedPreferences>()
-                          .getBool(hideTtsControlsPref,
-                              defaultValue: defaultHideTtsControls),
-                      builder: (context, hide) => hide
-                          ? const SizedBox.shrink()
-                          : const Positioned(
-                              right: 12,
-                              bottom: 120,
-                              child: TtsControls(),
-                            ),
-                    ),
-
-                  // Translation Overlay
-                  _buildTranslationOverlay(context),
-
-                  // Translation Loading Overlay
-                  _buildTranslationLoadingOverlay(context),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -660,87 +690,7 @@ class ReaderView extends StatelessWidget implements Searchable {
     // convert ot lower case
     word = word.toLowerCase();
 
-    // displaying dictionary in the side navigation view
-    if ((PlatformInfo.isDesktop || Mobile.isTablet(context))) {
-      // Not while the pane is held on a translation install; the side sheet
-      // below shows the word instead.
-      if (context.read<NavigationProvider>().isNavigationPaneOpened &&
-          !NavigationProvider.paneLocked.value) {
-        context.read<NavigationProvider>().moveToDictionaryPage();
-        // delay a little milliseconds to wait for DictionaryPage initialization;
-        // one built later than that still takes the word when it starts
-        await Future.delayed(
-            const Duration(milliseconds: 50), () => lookUpWord(word));
-        return;
-      }
-
-      // displaying dictionary in side sheet dialog
-      final sideSheetWidth = context
-          .read<StreamingSharedPreferences>()
-          .getDouble(panelSizeKey, defaultValue: defaultPanelSize)
-          .getValue();
-
-      showGeneralDialog(
-        context: context,
-        barrierLabel: 'TOC',
-        barrierDismissible: true,
-        transitionDuration:
-            Duration(milliseconds: Prefs.animationSpeed.round()),
-        transitionBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(-1, 0), end: const Offset(0, 0))
-                .animate(
-              CurvedAnimation(parent: animation, curve: Curves.linear),
-            ),
-            child: child,
-          );
-        },
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return Align(
-            alignment: Alignment.centerLeft,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
-                width: sideSheetWidth,
-                height: MediaQuery.of(context).size.height - 80,
-                decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.background,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(16),
-                      bottomRight: Radius.circular(16),
-                    )),
-                child: DictionaryDialog(word: word),
-              ),
-            ),
-          );
-        },
-      );
-    } else {
-      // displaying dictionary using bottom sheet dialog
-      await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(16),
-          ),
-        ),
-        builder: (context) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.95,
-          snap: true,
-          snapSizes: const [0.6, 0.8, 0.95],
-          builder: (context, scrollController) => DictionaryDialog(
-            scrollController: scrollController,
-            word: word,
-          ),
-        ),
-      );
-    }
+    await DictionaryPopup.show(context, word);
   }
 
   void _onClickedSearchInCurrent(BuildContext context, String text) {
@@ -1022,4 +972,134 @@ PageContentRepository _pageContentRepository() {
     return CompositePageContentRepository(DatabaseHelper());
   }
   return PageContentDatabaseRepository(DatabaseHelper());
+}
+
+/// The dictionary that opens on a tapped word: in the side panel, a side
+/// sheet or a bottom sheet, as the device and the way it is held allow.
+///
+/// Turned while it is open, from upright to sideways or back, it is shown
+/// again the other way, on the word it was showing: a bottom sheet stayed
+/// on a phone turned sideways, too short to read, and a tablet's moved to
+/// its other layout without it.
+class DictionaryPopup {
+  DictionaryPopup._();
+
+  /// The side or bottom sheet while it is open.
+  static Route? _route;
+
+  /// Counts the times it is shown, so that one closed for the device being
+  /// turned does not, as it finishes closing, forget the one shown again.
+  static int _shown = 0;
+
+  static Future<void> show(BuildContext context, String word) async {
+    _route = null;
+    final shown = ++_shown;
+    // displaying dictionary in the side navigation view; on a phone held
+    // sideways, in the side sheet, a bottom sheet having too little height.
+    final sideways =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    if (PlatformInfo.isDesktop || Mobile.isTablet(context) || sideways) {
+      // Not while the pane is held on a translation install; the side sheet
+      // below shows the word instead. Nor on a phone, whose panel is in ☰.
+      if ((PlatformInfo.isDesktop || Mobile.isTablet(context)) &&
+          context.read<NavigationProvider>().isNavigationPaneOpened &&
+          !NavigationProvider.paneLocked.value) {
+        context.read<NavigationProvider>().moveToDictionaryPage();
+        // delay a little milliseconds to wait for DictionaryPage initialization;
+        // one built later than that still takes the word when it starts
+        await Future.delayed(
+            const Duration(milliseconds: 50), () => lookUpWord(word));
+        return;
+      }
+
+      // displaying dictionary in side sheet dialog
+      final sideSheetWidth = context
+          .read<StreamingSharedPreferences>()
+          .getDouble(panelSizeKey, defaultValue: defaultPanelSize)
+          .getValue();
+
+      await showGeneralDialog(
+        context: context,
+        barrierLabel: 'TOC',
+        barrierDismissible: true,
+        transitionDuration:
+            Duration(milliseconds: Prefs.animationSpeed.round()),
+        transitionBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween(begin: const Offset(-1, 0), end: const Offset(0, 0))
+                .animate(
+              CurvedAnimation(parent: animation, curve: Curves.linear),
+            ),
+            child: child,
+          );
+        },
+        pageBuilder: (context, animation, secondaryAnimation) {
+          _route = ModalRoute.of(context);
+          return SafeArea(
+              // Clear of a camera hole at the side, held sideways.
+              top: false,
+              bottom: false,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 8.0),
+                    width: sideSheetWidth,
+                    height: MediaQuery.of(context).size.height - 80,
+                    decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.background,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        )),
+                    child: DictionaryDialog(word: word),
+                  ),
+                ),
+              ));
+        },
+      );
+    } else {
+      // displaying dictionary using bottom sheet dialog
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+        ),
+        builder: (context) {
+          _route = ModalRoute.of(context);
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.6,
+            minChildSize: 0.3,
+            maxChildSize: 0.95,
+            snap: true,
+            snapSizes: const [0.6, 0.8, 0.95],
+            builder: (context, scrollController) => DictionaryDialog(
+              scrollController: scrollController,
+              word: word,
+            ),
+          );
+        },
+      );
+    }
+    if (shown == _shown) _route = null;
+  }
+
+  /// Called when the device is turned: the open sheet is closed and the
+  /// dictionary shown again, the way the device is now held.
+  static void onTurned(BuildContext context) {
+    final route = _route;
+    final word = lastLookedUpWord;
+    if (route == null || !route.isActive || word == null) return;
+    _route = null;
+    route.navigator?.removeRoute(route);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) show(context, word);
+    });
+  }
 }

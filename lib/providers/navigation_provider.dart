@@ -67,6 +67,13 @@ class NavigationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The library, as from the phone's Open Book button.
+  void moveToBookList() {
+    if (paneLocked.value) return;
+    currentNavigation = 0;
+    notifyListeners();
+  }
+
   void moveToSettingPage() {
     currentNavigation = _indexOfSettingNavigation;
     notifyListeners();

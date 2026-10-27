@@ -697,5 +697,9 @@
         "example": "3"
       }
     }
-  }
+  },
+  "scrolling": "Scrolling",
+  "scrollUpDown": "Up and down",
+  "scrollSideways": "Side to side",
+  "openBook": "Open Book"
 }

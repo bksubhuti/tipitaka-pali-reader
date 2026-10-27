@@ -517,7 +517,8 @@ class _VerticalBookViewState extends State<VerticalBookView>
                   PreferenceBuilder<bool>(
                     preference: context
                         .read<StreamingSharedPreferences>()
-                        .getBool(hideScrollbarPref, defaultValue: false),
+                        .getBool(hideScrollbarPref,
+                    defaultValue: defaultHideScrollbar),
                     builder: (context, hideScrollbar) {
                       if (!hideScrollbar) {
                         // The control bar's pull tab sits over the bottom

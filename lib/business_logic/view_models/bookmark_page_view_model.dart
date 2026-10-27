@@ -157,8 +157,7 @@ class BookmarkPageViewModel extends ChangeNotifier {
     if (Mobile.isPhone(context)) {
       // Navigator.pushNamed(context, readerRoute,
       //     arguments: {'book': bookItem.book});
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const MobileReaderContainer()));
+      MobileReaderContainer.show(context);
     }
     // update bookmarks
     _bookmarks =

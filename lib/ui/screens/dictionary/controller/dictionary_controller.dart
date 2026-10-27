@@ -24,6 +24,11 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 final ValueNotifier<String?> globalLookupWord = ValueNotifier<String?>(null);
 DateTime? _lookupAskedAt;
 
+/// The word the dictionary last showed, tapped in the text or looked up in
+/// the dictionary itself; it is looked up again when the dictionary is
+/// reopened for a device turned sideways or upright.
+String? lastLookedUpWord;
+
 /// Asks the dictionary to look up [word].
 ///
 /// Asked for twice, the same word is looked up twice: a value notifier says
@@ -129,6 +134,7 @@ class DictionaryController with ChangeNotifier {
     if (_currentlookupWord.isEmpty) {
       return;
     }
+    lastLookedUpWord = _currentlookupWord;
     final lookup = ++_lookups;
     // loading definitions
     String romanWord = _currentlookupWord;

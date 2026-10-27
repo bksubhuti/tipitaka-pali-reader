@@ -369,5 +369,9 @@
   "turnOffInSettings": "Disattiva nelle impostazioni",
   "copiedFormatted": "Copiato con formattazione.",
   "copiedPlain": "Copiato come testo semplice.",
-  "restoreTabsQuestion": "Aprire i {count} libri che avevi aperto l'ultima volta?"
+  "restoreTabsQuestion": "Aprire i {count} libri che avevi aperto l'ultima volta?",
+  "scrolling": "Scorrimento",
+  "scrollUpDown": "Su e giù",
+  "scrollSideways": "Di lato",
+  "openBook": "Apri libro"
 }
