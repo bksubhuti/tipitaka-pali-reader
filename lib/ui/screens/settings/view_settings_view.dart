@@ -4,6 +4,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:tipitaka_pali/providers/font_provider.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/services/language_installer.dart';
@@ -53,6 +54,9 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
       // Up and down or side to side, from the phone's reader, whose top bar
       // now holds the tabs instead of a button for it.
       if (widget.isMobilePopup && Mobile.isPhone(context)) ...[
+        // A− and A+, which the phone's control bar no longer has room for;
+        // the text can also be pinched.
+        _getTextSize(),
         _getScrollDirection(),
         const Divider(),
       ],
@@ -114,6 +118,30 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
           style: Theme.of(context).textTheme.titleLarge,
         ),
         children: settingWidgets,
+      ),
+    );
+  }
+
+  Widget _getTextSize() {
+    final l10n = AppLocalizations.of(context)!;
+    final fonts = context.watch<ReaderFontProvider>();
+    return ListTile(
+      title: Text(l10n.textSize),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline),
+            tooltip: l10n.decreaseFontSize,
+            onPressed: fonts.onDecreaseFontSize,
+          ),
+          Text('${fonts.fontSize}'),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: l10n.increaseFontSize,
+            onPressed: fonts.onIncreaseFontSize,
+          ),
+        ],
       ),
     );
   }
@@ -229,8 +257,9 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
               ),
             ),
 
-          // The commentary under the Pali it explains, in the quick view too.
-          if (shown.paliShown)
+          // The commentary under the Pali it explains. Left out of the quick
+          // view: the control bar has its own button for it.
+          if (shown.paliShown && !widget.isMobilePopup)
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: CheckboxListTile(

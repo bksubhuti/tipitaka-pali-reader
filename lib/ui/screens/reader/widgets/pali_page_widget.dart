@@ -247,9 +247,11 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       if (context == null) return;
       final target = context.findRenderObject();
       final scrollable = Scrollable.maybeOf(context);
-      if (target == null || scrollable == null) return;
-      final viewport = RenderAbstractViewport.maybeOf(target);
-      if (viewport == null) return;
+      if (target is! RenderBox || !target.attached || scrollable == null) {
+        return;
+      }
+      final view = scrollable.context.findRenderObject();
+      if (view is! RenderBox || !view.hasSize) return;
 
       // Where the sentence begins, as a fraction of the screen from the top.
       // Left alone while it is comfortably in view, so the page does not
@@ -257,10 +259,13 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
       // it nears the bottom or has gone off either edge. The marker has no
       // height, so revealing it only at the bottom edge — which is what
       // "keep visible" does — left the words being spoken just out of view.
-      final position = scrollable.position;
-      final top = viewport.getOffsetToReveal(target, 0.0).offset;
-      final fraction = (top - position.pixels) / position.viewportDimension;
+      // Measured on the screen: the list's own measure, like ensureVisible,
+      // was wrong away from the block last jumped to, and the spoken line
+      // was let run off the bottom and later pulled back up.
+      final top = target.localToGlobal(Offset.zero, ancestor: view).dy;
+      final fraction = top / view.size.height;
       if (fraction >= 0.02 && fraction <= 0.6) return;
+      if (_revealInList(context, 0.2)) return;
       Scrollable.ensureVisible(context,
           alignment: 0.2, duration: const Duration(milliseconds: 300));
     });

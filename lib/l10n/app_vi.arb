@@ -281,7 +281,7 @@
   "backupReadFailed": "Không thể đọc bản sao lưu. Có phải nó được tạo trước khi đổi mật khẩu?",
   "deleteAll": "Xóa tất cả",
   "xrayViewTitle": "Chế độ X-ray",
-  "xrayNoticeMessage": "Chế độ X-ray đang bật: những từ được chú giải giải thích sẽ được liệt kê dưới mỗi câu Pāḷi. Bạn có thể tắt nó trong cài đặt Xem và trong cài đặt xem nhanh.\n\nBạn có muốn tiếp tục bật không?",
+  "xrayNoticeMessage": "Chế độ X-ray đang bật: những từ được chú giải giải thích sẽ được liệt kê dưới mỗi câu Pāḷi. Bạn có thể tắt nó trong cài đặt Xem hoặc bằng nút X-ray trên thanh điều khiển.\n\nBạn có muốn tiếp tục bật không?",
   "xrayKeepOn": "Có, tiếp tục bật",
   "xrayTurnOff": "Không, tắt đi",
   "commentaryNotInLibrary": "Bản chú giải này không có trong thư viện.",
@@ -373,5 +373,6 @@
   "scrolling": "Cuộn trang",
   "scrollUpDown": "Lên xuống",
   "scrollSideways": "Sang ngang",
-  "openBook": "Mở sách"
+  "openBook": "Mở sách",
+  "textSize": "Cỡ chữ"
 }

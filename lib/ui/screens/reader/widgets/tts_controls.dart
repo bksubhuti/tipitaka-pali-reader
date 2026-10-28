@@ -233,9 +233,13 @@ class TtsControls extends StatelessWidget {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      // As tall as its contents, past the usual nine-sixteenths of the
+      // screen: with two languages the speed sliders were cut off.
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, setState) => SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,

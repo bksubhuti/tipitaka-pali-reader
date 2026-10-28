@@ -397,7 +397,7 @@
   "@xrayViewTitle": {
     "description": "Title of the one-time notice about the X-ray view (commentary links under the Pali)."
   },
-  "xrayNoticeMessage": "X-ray view is turned on: the words the commentary explains are listed under each Pāḷi sentence. You can turn it off in View settings and in the quick view settings.\n\nWould you like to keep it on?",
+  "xrayNoticeMessage": "X-ray view is turned on: the words the commentary explains are listed under each Pāḷi sentence. You can turn it off in View settings, or with the X-ray button in the control bar.\n\nWould you like to keep it on?",
   "@xrayNoticeMessage": {
     "description": "Body of the one-time X-ray notice."
   },
@@ -701,5 +701,6 @@
   "scrolling": "Scrolling",
   "scrollUpDown": "Up and down",
   "scrollSideways": "Side to side",
-  "openBook": "Open Book"
+  "openBook": "Open Book",
+  "textSize": "Text size"
 }

@@ -282,7 +282,7 @@
   "backupReadFailed": "无法读取备份。它是否是在更改密码之前创建的？",
   "deleteAll": "全部删除",
   "xrayViewTitle": "X-ray 视图",
-  "xrayNoticeMessage": "X-ray 视图已开启：注释所解释的词语会列在每个巴利文句子下方。您可以在“视图”设置和快速视图设置中将其关闭。\n\n要保持开启吗？",
+  "xrayNoticeMessage": "X-ray 视图已开启：注释所解释的词语会列在每个巴利文句子下方。您可以在“视图”设置中或用控制栏上的 X-ray 按钮将其关闭。\n\n要保持开启吗？",
   "xrayKeepOn": "是，保持开启",
   "xrayTurnOff": "否，关闭",
   "commentaryNotInLibrary": "书库中没有这部注释。",
@@ -373,5 +373,6 @@
   "scrolling": "翻页方式",
   "scrollUpDown": "上下",
   "scrollSideways": "左右",
-  "openBook": "打开书籍"
+  "openBook": "打开书籍",
+  "textSize": "文字大小"
 }

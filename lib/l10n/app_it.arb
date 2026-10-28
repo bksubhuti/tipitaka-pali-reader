@@ -282,7 +282,7 @@
   "backupReadFailed": "Impossibile leggere il backup. È stato creato prima di un cambio di password?",
   "deleteAll": "Elimina tutto",
   "xrayViewTitle": "Vista X-ray",
-  "xrayNoticeMessage": "La vista X-ray è attiva: le parole spiegate dal commentario sono elencate sotto ogni frase in Pāḷi. Puoi disattivarla nelle impostazioni Vista e nelle impostazioni rapide di visualizzazione.\n\nVuoi lasciarla attiva?",
+  "xrayNoticeMessage": "La vista X-ray è attiva: le parole spiegate dal commentario sono elencate sotto ogni frase in Pāḷi. Puoi disattivarla nelle impostazioni Vista o con il pulsante X-ray nella barra dei comandi.\n\nVuoi lasciarla attiva?",
   "xrayKeepOn": "Sì, lasciala attiva",
   "xrayTurnOff": "No, disattivala",
   "commentaryNotInLibrary": "Questo commentario non è nella biblioteca.",
@@ -373,5 +373,6 @@
   "scrolling": "Scorrimento",
   "scrollUpDown": "Su e giù",
   "scrollSideways": "Di lato",
-  "openBook": "Apri libro"
+  "openBook": "Apri libro",
+  "textSize": "Dimensione del testo"
 }
