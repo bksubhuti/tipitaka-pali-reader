@@ -11,8 +11,9 @@ LLVM=${LLVM:-llvm22}
 # The SDK and its clang come separately: without the LLVM extension for this
 # runtime, /usr/lib/sdk/$LLVM is empty and CMake cannot find a C++ compiler.
 # Downloaded only when missing.
-if ! flatpak info "org.freedesktop.Sdk//$RUNTIME" >/dev/null 2>&1 ||
-   ! flatpak info "org.freedesktop.Sdk.Extension.$LLVM//$RUNTIME" >/dev/null 2>&1; then
+installed=$(flatpak list --runtime --columns=application,branch)
+if ! grep -qP "^org\.freedesktop\.Sdk\t$RUNTIME$" <<<"$installed" ||
+   ! grep -qP "^org\.freedesktop\.Sdk\.Extension\.$LLVM\t$RUNTIME$" <<<"$installed"; then
   flatpak remote-add --user --if-not-exists flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo
   flatpak install --user -y --noninteractive flathub \
