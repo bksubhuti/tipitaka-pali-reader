@@ -3,16 +3,22 @@
 # Keep RUNTIME and LLVM in step with that workflow and the Flathub manifest.
 set -e
 
-RUNTIME=26.08
-LLVM=llvm22
+# An SDK already installed can be used instead, matching the manifest's
+# runtime-version: RUNTIME=25.08 LLVM=llvm20 ./flatbuild.sh
+RUNTIME=${RUNTIME:-26.08}
+LLVM=${LLVM:-llvm22}
 
 # The SDK and its clang come separately: without the LLVM extension for this
 # runtime, /usr/lib/sdk/$LLVM is empty and CMake cannot find a C++ compiler.
-flatpak remote-add --user --if-not-exists flathub \
-  https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --user -y --noninteractive flathub \
-  "org.freedesktop.Sdk//$RUNTIME" \
-  "org.freedesktop.Sdk.Extension.$LLVM//$RUNTIME"
+# Downloaded only when missing.
+if ! flatpak info "org.freedesktop.Sdk//$RUNTIME" >/dev/null 2>&1 ||
+   ! flatpak info "org.freedesktop.Sdk.Extension.$LLVM//$RUNTIME" >/dev/null 2>&1; then
+  flatpak remote-add --user --if-not-exists flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo
+  flatpak install --user -y --noninteractive flathub \
+    "org.freedesktop.Sdk//$RUNTIME" \
+    "org.freedesktop.Sdk.Extension.$LLVM//$RUNTIME"
+fi
 
 flatpak run \
   --filesystem=$HOME \
