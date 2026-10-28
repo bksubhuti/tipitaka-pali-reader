@@ -14,9 +14,9 @@ LLVM=${LLVM:-llvm22}
 installed=$(flatpak list --runtime --columns=application,branch)
 if ! grep -qP "^org\.freedesktop\.Sdk\t$RUNTIME$" <<<"$installed" ||
    ! grep -qP "^org\.freedesktop\.Sdk\.Extension\.$LLVM\t$RUNTIME$" <<<"$installed"; then
-  flatpak remote-add --user --if-not-exists flathub \
+  flatpak remote-add --if-not-exists flathub \
     https://dl.flathub.org/repo/flathub.flatpakrepo
-  flatpak install --user -y --noninteractive flathub \
+  flatpak install --system -y --noninteractive flathub \
     "org.freedesktop.Sdk//$RUNTIME" \
     "org.freedesktop.Sdk.Extension.$LLVM//$RUNTIME"
 fi
