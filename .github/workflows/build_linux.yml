@@ -201,9 +201,12 @@ jobs:
           cp -r build/linux/x64/release/bundle/* flathub/bin/
           chmod +x flathub/bin/tipitaka_pali_reader
           
-          # Create tpr_${BUILD_NUM}.tar.gz with root-relative contents
+          # Create tpr_${BUILD_NUM}.tar.gz with root-relative contents.
+          # The same files as flatbuild.sh packs; the manifest stays out.
           cd flathub
-          tar -czvf "../tpr_${BUILD_NUM}.tar.gz" *
+          tar -czvf "../tpr_${BUILD_NUM}.tar.gz" bin icons \
+            org.americanmonk.TipitakaPaliReader.desktop \
+            org.americanmonk.TipitakaPaliReader.xml
           cd ..
           
           # Calculate SHA256 checksum
