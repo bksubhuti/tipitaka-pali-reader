@@ -52,10 +52,10 @@ class DeskTopNavigationBar extends StatelessWidget {
       destinations: [
         NavigationRailDestination(
           icon: Tooltip(
-              message: AppLocalizations.of(context)!.home,
-              child: const Icon(Icons.home_outlined)),
-          selectedIcon: const Icon(Icons.home),
-          label: Text(AppLocalizations.of(context)!.home),
+              message: AppLocalizations.of(context)!.library,
+              child: const Icon(Icons.local_library_outlined)),
+          selectedIcon: const Icon(Icons.local_library),
+          label: Text(AppLocalizations.of(context)!.library),
           padding: padding,
         ),
         NavigationRailDestination(

@@ -1,6 +1,10 @@
 {
   "tipitaka_pali_reader": "Tipitaka Pāḷi Reader",
   "home": "Home",
+  "library": "Library",
+  "@library": {
+    "description": "The rail's first place: the list of books."
+  },
   "bookmark": "Bookmark",
   "recent": "Recent",
   "lastRead": "Last read",
