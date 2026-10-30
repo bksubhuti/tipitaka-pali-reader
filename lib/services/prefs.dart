@@ -129,6 +129,7 @@ const String sideBySidePref = "sideBySide";
 const String xrayPref = "xray";
 const String copyFormattedPref = "copyFormatted";
 const String xrayNoticeShownPref = "xrayNoticeShown";
+const String paperOfferShownPref = "paperOfferShown";
 const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
 const String hideAiSearchNagPref = "hideAiSearchNag";
@@ -846,6 +847,13 @@ class Prefs {
       instance.getBool(xrayNoticeShownPref) ?? false;
   static set xrayNoticeShown(bool value) =>
       instance.setBool(xrayNoticeShownPref, value);
+
+  /// The one-time offer of a paper page, after the X-ray notice, has been
+  /// shown.
+  static bool get paperOfferShown =>
+      instance.getBool(paperOfferShownPref) ?? false;
+  static set paperOfferShown(bool value) =>
+      instance.setBool(paperOfferShownPref, value);
 
   static bool get sangahaFixed =>
       instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;

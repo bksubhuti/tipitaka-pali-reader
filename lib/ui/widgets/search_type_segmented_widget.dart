@@ -103,8 +103,12 @@ class _SearchTypeSegmentedControlState
                   padding: const EdgeInsets.all(8.0),
                   child: Row(
                     children: [
-                      Text(AppLocalizations.of(context)!.distanceBetweenWords),
-                      const Spacer(),
+                      // Wraps rather than runs under the number in the
+                      // phone's narrow ☰ panel.
+                      Expanded(
+                          child: Text(AppLocalizations.of(context)!
+                              .distanceBetweenWords)),
+                      const SizedBox(width: 8),
                       EasyNumberInput(
                           initial: widget.wordDistance,
                           onChanged: (value) {

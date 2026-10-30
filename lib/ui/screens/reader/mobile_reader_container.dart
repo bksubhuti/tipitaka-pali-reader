@@ -33,7 +33,11 @@ class MobileReaderContainer extends StatefulWidget {
   static final bookViewMode =
       ValueNotifier(BookViewMode.values[Prefs.bookViewModeIndex]);
 
-  static final _scaffoldKey = GlobalKey<ScaffoldState>();
+  /// The ☰ panel is open.
+  static final _panelOpen = ValueNotifier(false);
+
+  static void openPanel() => _panelOpen.value = true;
+  static void closePanel() => _panelOpen.value = false;
 
   /// The welcome screen's tab is chosen, over the open books.
   static final _homeTab = ValueNotifier(false);
@@ -42,22 +46,24 @@ class MobileReaderContainer extends StatefulWidget {
   static Route? _route;
 
   /// Shows the reader on a phone, after a book has been added to the open
-  /// books. When it is already there, under the ☰ panel or a page opened
-  /// from it, such as search results, those are closed to show it, rather
-  /// than a second reader being put on top.
+  /// books. When it is already there, the ☰ panel is shut and any page over
+  /// it closed to show it, rather than a second reader being put on top.
+  /// What the panel had open, such as search results, is kept for the next
+  /// time it opens.
   static void show(BuildContext context) {
     _homeTab.value = false;
     final route = _route;
+    // The app's own navigator: called from the ☰ panel, the nearest one is
+    // the panel's, holding the search results to come back to.
+    final navigator = Navigator.of(context, rootNavigator: true);
     if (route != null && route.isActive) {
-      Navigator.popUntil(context, (r) => r == route);
-      _scaffoldKey.currentState?.closeDrawer();
+      navigator.popUntil((r) => r == route);
+      closePanel();
       return;
     }
-    Navigator.push(
-        context,
-        MaterialPageRoute(
-            settings: const RouteSettings(name: routeName),
-            builder: (_) => const MobileReaderContainer()));
+    navigator.push(MaterialPageRoute(
+        settings: const RouteSettings(name: routeName),
+        builder: (_) => const MobileReaderContainer()));
   }
 
   @override
@@ -87,6 +93,7 @@ class _MobileReaderContainerState extends State<MobileReaderContainer> {
     if (MobileReaderContainer._route == ModalRoute.of(context)) {
       MobileReaderContainer._route = null;
     }
+    MobileReaderContainer.closePanel();
     pageController.dispose();
     super.dispose();
   }
@@ -125,66 +132,64 @@ class _MobileReaderContainerState extends State<MobileReaderContainer> {
           return SafeArea(
             top: false,
             bottom: true,
-            child: Scaffold(
-              key: MobileReaderContainer._scaffoldKey,
-              // Opened by ☰ only: a swipe from the edge would be taken from
-              // the pages of a book read side to side.
-              drawerEnableOpenDragGesture: false,
-              drawer: const _NavigationDrawer(),
-              appBar: AppBar(
-                toolbarHeight: barHeight,
-                // ☰, and the open books as tabs that slide sideways.
-                leading: IconButton(
-                  icon: const Icon(Icons.menu),
-                  tooltip:
-                      MaterialLocalizations.of(context).openAppDrawerTooltip,
-                  onPressed: () => MobileReaderContainer
-                      ._scaffoldKey.currentState
-                      ?.openDrawer(),
+            child: Stack(children: [
+              Scaffold(
+                appBar: AppBar(
+                  toolbarHeight: barHeight,
+                  // ☰, and the open books as tabs that slide sideways.
+                  leading: IconButton(
+                    icon: const Icon(Icons.menu),
+                    tooltip:
+                        MaterialLocalizations.of(context).openAppDrawerTooltip,
+                    onPressed: MobileReaderContainer.openPanel,
+                  ),
+                  titleSpacing: 0,
+                  title: _BookTabStrip(
+                    books: openningBooks,
+                    height: barHeight,
+                    homeSelected: home,
+                    onHome: () => MobileReaderContainer._homeTab.value = true,
+                    selectedIndex: home ? -1 : selectedBookIndex,
+                    onSelected: (index) => _select(context, index),
+                    onClosed: (index) => _close(context, index),
+                  ),
                 ),
-                titleSpacing: 0,
-                title: _BookTabStrip(
-                  books: openningBooks,
-                  height: barHeight,
-                  homeSelected: home,
-                  onHome: () => MobileReaderContainer._homeTab.value = true,
-                  selectedIndex: home ? -1 : selectedBookIndex,
-                  onSelected: (index) => _select(context, index),
-                  onClosed: (index) => _close(context, index),
-                ),
-              ),
-              // The books stay open under the welcome screen, each on its
-              // page.
-              body: IndexedStack(
-                index: home ? 1 : 0,
-                children: [
-                  PageView.builder(
-                      controller: pageController,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: openningBooks.length,
-                      itemBuilder: (context, index) {
-                        final openedBook = openningBooks[index];
-                        final book = openedBook['book'] as Book;
-                        final pageNumber = openedBook['current_page'] as int?;
-                        final textToHighlight =
-                            openedBook['text_to_highlight'] as String?;
-                        final queryMode =
-                            openedBook['query_mode'] as QueryMode?;
+                // The books stay open under the welcome screen, each on its
+                // page.
+                body: IndexedStack(
+                  index: home ? 1 : 0,
+                  children: [
+                    PageView.builder(
+                        controller: pageController,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: openningBooks.length,
+                        itemBuilder: (context, index) {
+                          final openedBook = openningBooks[index];
+                          final book = openedBook['book'] as Book;
+                          final pageNumber = openedBook['current_page'] as int?;
+                          final textToHighlight =
+                              openedBook['text_to_highlight'] as String?;
+                          final queryMode =
+                              openedBook['query_mode'] as QueryMode?;
 
-                        return Reader(
-                          key: Key(openedBook['uuid']),
-                          book: book,
-                          initialPage: pageNumber,
-                          textToHighlight: textToHighlight,
-                          queryMode: queryMode,
-                          bookViewMode: bookViewMode,
-                          bookUuid: openedBook['uuid'],
-                        );
-                      }),
-                  const _HomeView(),
-                ],
+                          return Reader(
+                            key: Key(openedBook['uuid']),
+                            book: book,
+                            initialPage: pageNumber,
+                            textToHighlight: textToHighlight,
+                            queryMode: queryMode,
+                            bookViewMode: bookViewMode,
+                            bookUuid: openedBook['uuid'],
+                          );
+                        }),
+                    const _HomeView(),
+                  ],
+                ),
               ),
-            ),
+              // Over the whole screen, so a tap beside the panel reaches the
+              // dimmed reader behind it and closes the panel.
+              const Positioned.fill(child: _NavigationPanel()),
+            ]),
           );
         });
   }
@@ -369,38 +374,135 @@ class _BookTabStripState extends State<_BookTabStrip> {
 /// The ☰ panel over the reader: the rail, as on a computer, and beside it
 /// the library, Recent, Bookmarks, Search, AI search, the dictionary or the
 /// settings. A book chosen in it opens in a new tab, and the panel closes.
-class _NavigationDrawer extends StatelessWidget {
-  const _NavigationDrawer();
+///
+/// Kept, hidden, while it is closed, as the panel beside the reader is on a
+/// computer: a Scaffold's drawer is thrown away when it closes, and the
+/// search results in it went with it, so a search had to be made again
+/// after every result looked at.
+///
+/// Opened by ☰ only: a swipe from the edge would be taken from the pages of
+/// a book read side to side. Closed by ☰'s logo, the back button, a tap
+/// beside it or a swipe to the left.
+class _NavigationPanel extends StatefulWidget {
+  const _NavigationPanel();
+
+  @override
+  State<_NavigationPanel> createState() => _NavigationPanelState();
+}
+
+class _NavigationPanelState extends State<_NavigationPanel> {
+  static const _duration = Duration(milliseconds: 250);
+
+  /// Shown: open, or sliding shut.
+  bool _shown = MobileReaderContainer._panelOpen.value;
+
+  @override
+  void initState() {
+    super.initState();
+    MobileReaderContainer._panelOpen.addListener(_onOpen);
+  }
+
+  @override
+  void dispose() {
+    MobileReaderContainer._panelOpen.removeListener(_onOpen);
+    super.dispose();
+  }
+
+  void _onOpen() {
+    final open = MobileReaderContainer._panelOpen.value;
+    if (open) {
+      setState(() => _shown = true);
+    } else {
+      // Whatever was being typed in it is let go.
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Drawer(
-      // Most of the screen upright; held sideways, no wider than it needs.
-      width: min(MediaQuery.of(context).size.width * 0.9, 480),
-      shape: const RoundedRectangleBorder(),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                  border: Border(
-                      right:
-                          BorderSide(color: Theme.of(context).dividerColor))),
-              // Scrolls on a phone held sideways, too short for all of it.
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints:
-                        BoxConstraints(minHeight: constraints.maxHeight),
-                    child: const IntrinsicHeight(
-                      child: DeskTopNavigationBar(),
+    final open = MobileReaderContainer._panelOpen.value;
+    return PopScope(
+      canPop: !open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) MobileReaderContainer.closePanel();
+      },
+      child: Offstage(
+        offstage: !_shown,
+        child: TickerMode(
+          enabled: _shown,
+          child: Stack(children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !open,
+                child: GestureDetector(
+                  onTap: MobileReaderContainer.closePanel,
+                  child: AnimatedOpacity(
+                    opacity: open ? 1 : 0,
+                    duration: _duration,
+                    child: const ColoredBox(color: Colors.black54),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: AnimatedSlide(
+                offset: open ? Offset.zero : const Offset(-1, 0),
+                duration: _duration,
+                curve: Curves.easeOutCubic,
+                onEnd: () {
+                  if (!MobileReaderContainer._panelOpen.value && mounted) {
+                    setState(() => _shown = false);
+                  }
+                },
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if ((details.primaryVelocity ?? 0) < -300) {
+                      MobileReaderContainer.closePanel();
+                    }
+                  },
+                  child: Drawer(
+                    // Most of the screen upright; held sideways, no wider than
+                    // it needs.
+                    width: min(MediaQuery.of(context).size.width * 0.9, 480),
+                    shape: const RoundedRectangleBorder(),
+                    child: SafeArea(
+                      child: Row(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                                border: Border(
+                                    right: BorderSide(
+                                        color:
+                                            Theme.of(context).dividerColor))),
+                            // Scrolls on a phone held sideways, too short for
+                            // all of it.
+                            child: LayoutBuilder(
+                              builder: (context, constraints) =>
+                                  SingleChildScrollView(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      minHeight: constraints.maxHeight),
+                                  child: const IntrinsicHeight(
+                                    child: DeskTopNavigationBar(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                              child: DetailNavigationPane(navigationCount: 7)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-            const Expanded(child: DetailNavigationPane(navigationCount: 7)),
-          ],
+          ]),
         ),
       ),
     );
@@ -433,8 +535,7 @@ class _HomeView extends StatelessWidget {
                       child: InkWell(
                         onTap: () {
                           context.read<NavigationProvider>().moveToBookList();
-                          MobileReaderContainer._scaffoldKey.currentState
-                              ?.openDrawer();
+                          MobileReaderContainer.openPanel();
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 20),

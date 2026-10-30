@@ -409,6 +409,22 @@
   "@xrayTurnOff": {
     "description": "Answer to the X-ray notice that turns X-ray off."
   },
+  "paperOfferTitle": "Paper pages",
+  "@paperOfferTitle": {
+    "description": "Title of the one-time offer of paper page themes."
+  },
+  "paperOfferMessage": "Pages can look like real paper: parchment, palm leaf, linen and more. In Settings, choose the middle of the three page buttons, then a paper.\n\nWould you like to try aged parchment?",
+  "@paperOfferMessage": {
+    "description": "Body of the one-time paper offer; the paper themes are under the middle page button in Settings."
+  },
+  "paperOfferTry": "Yes, try it",
+  "@paperOfferTry": {
+    "description": "Answer to the paper offer that switches to aged parchment."
+  },
+  "paperOfferNo": "No, thanks",
+  "@paperOfferNo": {
+    "description": "Answer to the paper offer that keeps the page as it is."
+  },
   "commentaryNotInLibrary": "This commentary is not in the library.",
   "@commentaryNotInLibrary": {
     "description": "Shown when an X-ray link points to a commentary book that is not installed."

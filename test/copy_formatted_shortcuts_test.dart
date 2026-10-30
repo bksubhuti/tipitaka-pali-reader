@@ -23,7 +23,8 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: CopyFormattedShortcuts(
-            onCopy: () => formatted++,
+            selectedText: () => 'evaṃ me sutaṃ',
+            onCopy: (_) => formatted++,
             child: const SelectionArea(child: Text('evaṃ me sutaṃ')),
           ),
         ),

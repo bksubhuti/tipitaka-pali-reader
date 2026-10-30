@@ -49,12 +49,15 @@ const pagePapers = <PagePaper>[
       asset: 'assets/papers/parchment.jpg',
       edge: 'assets/papers/parchment_edge.png',
       edgeTop: Color(0x4DB89868)),
-  PagePaper(
-      color: Color(0xFFEDDAB4),
-      asset: 'assets/papers/aged_parchment.jpg',
-      edge: 'assets/papers/aged_parchment_edge.png',
-      edgeTop: Color(0x6B9A6E36)),
+  agedParchment,
   PagePaper(color: Color(0xFFF6F2E7), asset: 'assets/papers/rice_paper.jpg'),
   PagePaper(color: Color(0xFFE7D19A), asset: 'assets/papers/palm_leaf.jpg'),
   PagePaper(color: Color(0xFFF1EBDF), asset: 'assets/papers/linen.jpg'),
 ];
+
+/// The paper offered once to readers who have not found the papers.
+const agedParchment = PagePaper(
+    color: Color(0xFFEDDAB4),
+    asset: 'assets/papers/aged_parchment.jpg',
+    edge: 'assets/papers/aged_parchment_edge.png',
+    edgeTop: Color(0x6B9A6E36));

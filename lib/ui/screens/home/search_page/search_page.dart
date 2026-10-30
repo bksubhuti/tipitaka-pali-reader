@@ -117,43 +117,49 @@ class _SearchPageState extends State<SearchPage>
                     }
                   },
                   valueListenable: globalSearchWord,
-                  child: Column(
-                    children: [
-                      SearchTypeSegmentedControl(
-                        mode: vm.queryMode,
-                        wordDistance: vm.wordDistance,
-                        onModeChanged: (value) {
-                          if (value == QueryMode.ai) {
-                            FocusScope.of(context).unfocus();
-                            _openAiSearchPage('');
-                          } else {
-                            setState(() {
-                              vm.onQueryModeChanged(value);
-                            });
-                          }
-                        },
-                        onDistanceChanged: (value) {
-                          vm.onWordDistanceChanged(value);
-                        },
-                      ),
-                      _resultLengthSlider(context),
-                      // search bar: its own padding is the same on both
-                      // sides; a gap after it made the right twice the left.
-                      TprSearchBar(
-                        hint: _getHint(vm.queryMode),
-                        controller: controller,
-                        focusNode: _searchFocus,
-                        onSubmitted: (value) {
-                          _onSubmitted(value, vm);
-                        },
-                        onTextChanged: vm.onTextChanged,
-                      ),
-                      _getMakeWordListButton(vm, context),
-                      // search mode chooser view
-                      AnimatedSize(
-                        duration: Duration(
-                            milliseconds: Prefs.animationSpeed.round()),
-                        child: /* isShowingSearchModeView
+                  // The controls scroll away with the suggestions under them:
+                  // in the phone's ☰ panel, with the keyboard up, they left
+                  // the list little room or none.
+                  child: NestedScrollView(
+                    headerSliverBuilder: (context, _) => [
+                      SliverToBoxAdapter(
+                          child: Column(
+                        children: [
+                          SearchTypeSegmentedControl(
+                            mode: vm.queryMode,
+                            wordDistance: vm.wordDistance,
+                            onModeChanged: (value) {
+                              if (value == QueryMode.ai) {
+                                FocusScope.of(context).unfocus();
+                                _openAiSearchPage('');
+                              } else {
+                                setState(() {
+                                  vm.onQueryModeChanged(value);
+                                });
+                              }
+                            },
+                            onDistanceChanged: (value) {
+                              vm.onWordDistanceChanged(value);
+                            },
+                          ),
+                          _resultLengthSlider(context),
+                          // search bar: its own padding is the same on both
+                          // sides; a gap after it made the right twice the left.
+                          TprSearchBar(
+                            hint: _getHint(vm.queryMode),
+                            controller: controller,
+                            focusNode: _searchFocus,
+                            onSubmitted: (value) {
+                              _onSubmitted(value, vm);
+                            },
+                            onTextChanged: vm.onTextChanged,
+                          ),
+                          _getMakeWordListButton(vm, context),
+                          // search mode chooser view
+                          AnimatedSize(
+                            duration: Duration(
+                                milliseconds: Prefs.animationSpeed.round()),
+                            child: /* isShowingSearchModeView
                           ? SearchModeView(
                               mode: vm.queryMode,
                               wordDistance: vm.wordDistance,
@@ -165,43 +171,42 @@ class _SearchPageState extends State<SearchPage>
                               },
                             )
                           : */
-                            const SizedBox.shrink(),
-                      ),
-                      // suggestion view
-
-                      Expanded(
-                        child: ValueListenableBuilder(
-                            valueListenable: vm.isSearching,
-                            builder: (context, isSearching, child) {
-                              if (isSearching) {
-                                return ValueListenableBuilder(
-                                    valueListenable: vm.suggestions,
-                                    builder: (_, suggestions, __) {
-                                      return SearchSuggestionView(
-                                        suggestions: suggestions,
-                                        onClickedAddButton: (suggestion) {
-                                          _updateInput(suggestion);
-                                        },
-                                        onClickedSuggestion: (suggestion) {
-                                          _updateInput(suggestion);
-                                          _onSubmitted(controller.text, vm);
-                                        },
-                                      );
-                                    });
-                              }
-                              return ValueListenableBuilder(
-                                  valueListenable: vm.histories,
-                                  builder: (_, histories, __) {
-                                    return SearchHistoryView(
-                                        histories: histories,
-                                        onClick: (value) {
-                                          _onSubmitted(value, vm);
-                                        },
-                                        onDelete: vm.onDeleteButtonClicked);
-                                  });
-                            }),
-                      ),
+                                const SizedBox.shrink(),
+                          ),
+                        ],
+                      )),
                     ],
+                    // suggestion view
+                    body: ValueListenableBuilder(
+                        valueListenable: vm.isSearching,
+                        builder: (context, isSearching, child) {
+                          if (isSearching) {
+                            return ValueListenableBuilder(
+                                valueListenable: vm.suggestions,
+                                builder: (_, suggestions, __) {
+                                  return SearchSuggestionView(
+                                    suggestions: suggestions,
+                                    onClickedAddButton: (suggestion) {
+                                      _updateInput(suggestion);
+                                    },
+                                    onClickedSuggestion: (suggestion) {
+                                      _updateInput(suggestion);
+                                      _onSubmitted(controller.text, vm);
+                                    },
+                                  );
+                                });
+                          }
+                          return ValueListenableBuilder(
+                              valueListenable: vm.histories,
+                              builder: (_, histories, __) {
+                                return SearchHistoryView(
+                                    histories: histories,
+                                    onClick: (value) {
+                                      _onSubmitted(value, vm);
+                                    },
+                                    onDelete: vm.onDeleteButtonClicked);
+                              });
+                        }),
                   ),
                 )),
           );

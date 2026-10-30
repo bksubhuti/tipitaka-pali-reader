@@ -98,7 +98,7 @@ class NestedNavigationHelper {
       {required BuildContext context,
       required MaterialPageRoute route,
       required GlobalKey<NavigatorState> navkey}) {
-    if (Mobile.isPhone(context)) {
+    if (Mobile.isPhone(context) && !_keptOnPhone(navkey)) {
       Navigator.push(context, route);
       return;
     }
@@ -110,7 +110,7 @@ class NestedNavigationHelper {
       {required BuildContext context,
       required Widget screen,
       required GlobalKey<NavigatorState> key}) {
-    if (Mobile.isPhone(context)) return screen;
+    if (Mobile.isPhone(context) && !_keptOnPhone(key)) return screen;
 
     return Navigator(
       key: key,
@@ -119,6 +119,13 @@ class NestedNavigationHelper {
       },
     );
   }
+
+  /// Search results open inside the phone's ☰ panel, as beside the reader
+  /// on a computer, and are there again when the panel is opened after a
+  /// result is read. Opened over the whole screen, they were closed with it
+  /// when the book opened.
+  static bool _keptOnPhone(GlobalKey<NavigatorState> key) =>
+      key == searchNavigationKey;
 
   static void openDownloadView(BuildContext context,
       {bool autoInstallEnglish = false}) {

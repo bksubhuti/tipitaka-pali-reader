@@ -164,19 +164,6 @@ void main() {
         );
       });
 
-      testWidgets('copy shortcut setting', (tester) async {
-        for (final value in [true, false]) {
-          await fitsOnPage(
-            tester,
-            locale,
-            'Copy shortcut setting ($value)',
-            (_, __) => _AllLaidOut(children: [
-              CopyShortcutTile(value: value, onChanged: (_) {}),
-            ]),
-          );
-        }
-      });
-
       testWidgets('cloud backup section', (tester) async {
         for (final summary in [true, false]) {
           await fitsInDialog(

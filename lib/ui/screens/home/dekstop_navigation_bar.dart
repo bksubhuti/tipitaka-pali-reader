@@ -3,6 +3,7 @@ import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/data/constants.dart';
 import 'package:tipitaka_pali/providers/navigation_provider.dart';
+import 'package:tipitaka_pali/ui/screens/reader/mobile_reader_container.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 
 class DeskTopNavigationBar extends StatelessWidget {
@@ -43,7 +44,7 @@ class DeskTopNavigationBar extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: Mobile.isPhone(context)
                   ? InkWell(
-                      onTap: () => Scaffold.maybeOf(context)?.closeDrawer())
+                      onTap: MobileReaderContainer.closePanel)
                   : null,
             ),
       useIndicator: true,
