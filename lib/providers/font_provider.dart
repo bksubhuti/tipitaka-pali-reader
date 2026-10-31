@@ -16,6 +16,8 @@ class ReaderFontProvider extends ChangeNotifier {
     'Open Sans',
     'Noto Serif',
     'DejaVu Sans',
+    'TPR Indic Roman',
+    'TPR Indic Roman Noline',
     'System Font',
   ];
 

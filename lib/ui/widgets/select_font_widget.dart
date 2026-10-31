@@ -122,7 +122,14 @@ class TranslationFontTiles extends StatelessWidget {
           builder: (_) => _FontDialog(
             title: 'Translation font ($name)',
             sample: sample,
-            builtIn: [_Option(sameAsPali, paliFont, null)],
+            builtIn: [
+              _Option(sameAsPali, paliFont, null),
+              // A translation in Roman letters can use the app's own Roman
+              // fonts, which are there when the device has none of them.
+              if (_inRomanLetters(sample))
+                for (final f in ReaderFontProvider.bundledFonts)
+                  if (f != 'System Font' && f != paliFont) _Option(f, f, f)
+            ],
             needs: SystemFonts.lettersForLanguage(code),
             current: chosen.isEmpty ? null : chosen,
             choose: (family, files) =>
@@ -133,6 +140,10 @@ class TranslationFontTiles extends StatelessWidget {
     );
   }
 }
+
+/// Whether [text] is written in Roman letters, accented ones included.
+bool _inRomanLetters(String text) =>
+    text.runes.every((r) => r < 0x0250 || (r >= 0x1E00 && r <= 0x1EFF));
 
 class AppFontTile extends StatelessWidget {
   const AppFontTile({super.key});

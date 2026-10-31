@@ -1,58 +1,107 @@
-name: Build Apple (macOS & iOS)
+name: Build Apple (iOS & macOS) and upload to App Store Connect
+
+# Builds, signs and uploads from GitHub's machines, so the upload does not
+# go over the local line. Signing is automatic, as in Xcode's Organizer:
+# with the App Store Connect API key, xcodebuild fetches the distribution
+# certificate and profiles itself. The key needs the Admin role for that.
+#
+# Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (the AuthKey_XXXX.p8 text).
+# After the upload the build shows in App Store Connect / TestFlight; the
+# What's New text and the submission are still done there by hand.
+#
+# platform 'dmg' needs no key: it makes a .dmg of the macOS app signed only
+# to run, not by the team, so macOS asks once to allow it (Privacy &
+# Security > Open Anyway).
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version Name (e.g. 1.0.5)'
+      data_tag:
+        description: 'Release tag that holds the databases (tipitaka_pali.db.tar.bz2, epitaka_part.*, tpr_extension_part.*)'
         required: true
-        default: '1.0.5'
+        default: 'sentence-data-2026-09-28'
+      platform:
+        description: 'What to build'
+        required: true
+        default: 'both'
+        type: choice
+        options: [both, ios, macos, dmg]
+      upload:
+        description: 'Upload to App Store Connect (off: build and keep the files only)'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
 
+env:
+  TEAM_ID: 4456F3J27A
+
 jobs:
-  build-apple:
-    name: Build macOS & iOS
-    runs-on: macos-latest
+  build:
+    runs-on: macos-26
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.41.9'
 
-      - name: Enable macOS Desktop
-        run: flutter config --enable-macos-desktop
-
-      - name: Flutter doctor
-        run: flutter doctor -v
-
-      # --- 1. DOWNLOAD DATABASE ---
-      - name: Download database zip
+      # The same databases as the Linux build, from the same release.
+      - name: Download databases from release ${{ inputs.data_tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_TAG: ${{ inputs.data_tag }}
         run: |
+          set -euo pipefail
           mkdir -p assets/database
-          curl -L "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1" -o assets/database/tipitaka_pali.db.zip
+          cd assets/database
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${DATA_TAG}" \
+            | jq -r '.assets[] | select(.name | test("^(tipitaka_pali\\.db\\.tar\\.bz2|epitaka_part\\..*|tpr_extension_part\\..*)$")) | "\(.name) \(.browser_download_url)"' \
+            > assets.txt
+          cat assets.txt
+          test -s assets.txt
+          while read -r name url; do
+            echo "Downloading $name"
+            curl -fL --retry 3 -o "$name" "$url"
+          done < assets.txt
+          rm assets.txt
 
-      - name: Extract database zip
-        run: |
-          unzip -o assets/database/tipitaka_pali.db.zip -d assets/database
-          rm assets/database/tipitaka_pali.db.zip
-
-      # --- 2. SPLIT DATABASE (BASH) ---
-      - name: Run split.sh
+      - name: Extract and split tipitaka_pali.db
         run: |
           set -euo pipefail
           cd assets/database
+          tar -xjf tipitaka_pali.db.tar.bz2
+          rm tipitaka_pali.db.tar.bz2
           chmod +x split.sh
           ./split.sh
-          ls -l tipitaka_pali_part.* || true
 
-      # --- 3. DEPENDENCIES & ENVIED KEY INJECTION ---
+      - name: Check database parts match pubspec.yaml
+        run: |
+          set -euo pipefail
+          grep -oE 'assets/database/[a-z_]+_part\.[a-z]+' pubspec.yaml | sort > expected.txt
+          ls assets/database/*_part.* | sort > actual.txt
+          if ! diff expected.txt actual.txt; then
+            echo "::error::Database parts in the release do not match pubspec.yaml (< pubspec, > release)"
+            exit 1
+          fi
+          rm expected.txt actual.txt
+
+      - name: Check database parts match SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd assets/database
+          shasum -a 256 -c SHA256SUMS
+
       - name: Install Dependencies
         run: flutter pub get
 
@@ -67,26 +116,127 @@ jobs:
       - name: Run Build Runner (Envied CodeGen)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # --- 4. BUILD MACOS ---
-      - name: Flutter build (macOS)
-        run: |
-          flutter gen-l10n
-          flutter build macos --release --build-name=${{ inputs.version }}
+      - name: Generate Localization
+        run: flutter gen-l10n
 
-      # --- 5. BUILD IOS (UNSIGNED) ---
-      - name: Flutter build (iOS)
+      - name: App Store Connect API key
+        if: inputs.platform != 'dmg'
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
         run: |
-          flutter build ios --release --no-codesign --build-name=${{ inputs.version }}
+          set -euo pipefail
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
 
-      # --- 6. ARTIFACT UPLOADS ---
-      - name: Upload macOS Artifact
+      # Upload on: the export sends the build straight to App Store
+      # Connect. Upload off: it writes the .ipa / .pkg to keep.
+      - name: Export options
+        if: inputs.platform != 'dmg'
+        run: |
+          set -euo pipefail
+          DEST=${{ inputs.upload && 'upload' || 'export' }}
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>${DEST}</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          cat "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Build and export iOS
+        if: inputs.platform == 'both' || inputs.platform == 'ios'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          flutter build ios --release --config-only
+          AUTH=(-allowProvisioningUpdates
+                -authenticationKeyPath "$ASC_KEY_PATH"
+                -authenticationKeyID "$ASC_KEY_ID"
+                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/ios/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" "${AUTH[@]}" archive
+          xcodebuild -exportArchive -archivePath build/ios/Runner.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath build/ios/export "${AUTH[@]}"
+
+      - name: Build and export macOS
+        if: inputs.platform == 'both' || inputs.platform == 'macos'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          flutter build macos --release --config-only
+          AUTH=(-allowProvisioningUpdates
+                -authenticationKeyPath "$ASC_KEY_PATH"
+                -authenticationKeyID "$ASC_KEY_ID"
+                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -archivePath build/macos/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" "${AUTH[@]}" archive
+          xcodebuild -exportArchive -archivePath build/macos/Runner.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath build/macos/export "${AUTH[@]}"
+
+      # Without a provisioning profile the associated-domains entitlement
+      # would stop the app from opening, so it is left out here.
+      - name: Build macOS DMG
+        if: inputs.platform == 'dmg'
+        run: |
+          set -euo pipefail
+          flutter build macos --release --config-only
+          ENT="$RUNNER_TEMP/dmg.entitlements"
+          cp macos/Runner/Release.entitlements "$ENT"
+          /usr/libexec/PlistBuddy -c 'Delete :com.apple.developer.associated-domains' "$ENT"
+          xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build/macos/dd \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- \
+            'CODE_SIGN_IDENTITY[sdk=macosx*]=-' DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= CODE_SIGN_ENTITLEMENTS="$ENT" build
+          APP=$(find build/macos/dd/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          codesign -dv --entitlements - "$APP"
+          VERSION=$(awk '/^version:/ {print $2}' pubspec.yaml)
+          mkdir -p build/dmg/src
+          cp -R "$APP" build/dmg/src/
+          ln -s /Applications build/dmg/src/Applications
+          hdiutil create -volname 'Tipitaka Pali Reader' -srcfolder build/dmg/src \
+            -format UDZO "build/dmg/TipitakaPaliReader-${VERSION}.dmg"
+          rm -rf build/dmg/src
+
+      - name: Keep the DMG
+        if: inputs.platform == 'dmg'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-app
-          path: build/macos/Build/Products/Release/*.app
+          name: macos-dmg
+          path: build/dmg/*.dmg
 
-      - name: Upload iOS Artifact
+      - name: Remove the API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+
+      # With upload off, the signed files are kept here for a hand upload.
+      - name: Keep the exported files
+        if: ${{ !inputs.upload && inputs.platform != 'dmg' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app
-          path: build/ios/iphoneos/Runner.app
+          name: apple-export
+          path: |
+            build/ios/export/
+            build/macos/export/
+          if-no-files-found: ignore

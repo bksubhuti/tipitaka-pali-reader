@@ -186,6 +186,12 @@ flutter:
     - family: Noto Serif
       fonts:
         - asset: assets/fonts/NotoSerif-VariableFont_wdth,wght.ttf
+    - family: TPR Indic Roman
+      fonts:
+        - asset: assets/fonts/TPRIndicRoman-Regular.ttf
+    - family: TPR Indic Roman Noline
+      fonts:
+        - asset: assets/fonts/TPRIndicRomanNoline-Regular.ttf
     - family: Noto Sans Brahmi
       fonts:
         - asset: assets/fonts/NotoSansBrahmi-Regular.ttf
