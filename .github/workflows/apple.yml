@@ -207,7 +207,7 @@ jobs:
             -configuration Release -destination 'generic/platform=macOS' \
             -derivedDataPath build/macos/dd \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- \
-            'CODE_SIGN_IDENTITY[sdk=macosx*]=-' DEVELOPMENT_TEAM= \
+            DEVELOPMENT_TEAM= \
             PROVISIONING_PROFILE_SPECIFIER= CODE_SIGN_ENTITLEMENTS="$ENT" build
           APP=$(find build/macos/dd/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           codesign -dv --entitlements - "$APP"
