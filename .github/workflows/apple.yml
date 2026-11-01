@@ -1,17 +1,27 @@
 name: Build Apple (iOS & macOS) and upload to App Store Connect
 
 # Builds, signs and uploads from GitHub's machines, so the upload does not
-# go over the local line. Signing is automatic, as in Xcode's Organizer:
-# with the App Store Connect API key, xcodebuild fetches the distribution
-# certificate and profiles itself. The key needs the Admin role for that.
+# go over the local line and no Mac is needed.
 #
-# Secrets: ASC_KEY_ID, ASC_KEY_P8 (the .p8 text), and ASC_ISSUER_ID only for
-# a team key; an individual key has none.
+# Signing uses the team's distribution certificates and App Store profiles,
+# kept as secrets; the API key is an individual one (App Manager, limited
+# to our apps), which Apple does not let fetch certificates or profiles, so
+# it is used only for the upload.
+#
+# Secrets:
+#   APPLE_DIST_P12, APPLE_INSTALLER_P12  base64 .p12 of "Apple Distribution"
+#                                        and "3rd Party Mac Developer
+#                                        Installer"; APPLE_P12_PASSWORD
+#   MACOS_PROFILE, IOS_PROFILE           base64 App Store profiles
+#   ASC_KEY_ID, ASC_KEY_P8               the individual API key (.p8 text)
+# The certificates and profiles run out after a year (next: Nov 2027);
+# make new ones in Xcode and export them again.
+#
 # After the upload the build shows in App Store Connect / TestFlight; the
 # What's New text and the submission are still done there by hand.
 #
-# platform 'dmg' needs no key: it makes a .dmg of the macOS app signed only
-# to run, not by the team, so macOS asks once to allow it (Privacy &
+# platform 'dmg' needs none of this: it makes a .dmg of the macOS app signed
+# only to run, not by the team, so macOS asks once to allow it (Privacy &
 # Security > Open Anyway).
 
 on:
@@ -38,6 +48,7 @@ permissions:
 
 env:
   TEAM_ID: 4456F3J27A
+  APP_APPLE_ID: '1541426949'
 
 jobs:
   build:
@@ -120,85 +131,102 @@ jobs:
       - name: Generate Localization
         run: flutter gen-l10n
 
-      - name: App Store Connect API key
+      # A keychain of its own, so codesign never stops to ask.
+      - name: Certificates, profiles and API key
         if: inputs.platform != 'dmg'
         env:
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_DIST_P12: ${{ secrets.APPLE_DIST_P12 }}
+          APPLE_INSTALLER_P12: ${{ secrets.APPLE_INSTALLER_P12 }}
+          APPLE_P12_PASSWORD: ${{ secrets.APPLE_P12_PASSWORD }}
+          MACOS_PROFILE: ${{ secrets.MACOS_PROFILE }}
+          IOS_PROFILE: ${{ secrets.IOS_PROFILE }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           set -euo pipefail
-          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KC_PW=$(openssl rand -hex 16)
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          for c in "$APPLE_DIST_P12" "$APPLE_INSTALLER_P12"; do
+            printf '%s' "$c" | base64 -d > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$APPLE_P12_PASSWORD" \
+              -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/security
+          done
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v "$KC"
+
+          # Each profile goes where Xcode looks, and its name is kept for
+          # the export options.
+          DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$DIR"
+          for p in macos ios; do
+            var=$(echo "${p}_PROFILE" | tr a-z A-Z)
+            [ -n "${!var:-}" ] || continue
+            printf '%s' "${!var}" | base64 -d > "$RUNNER_TEMP/$p.profile"
+            security cms -D -i "$RUNNER_TEMP/$p.profile" > "$RUNNER_TEMP/$p.plist"
+            uuid=$(plutil -extract UUID raw "$RUNNER_TEMP/$p.plist")
+            name=$(plutil -extract Name raw "$RUNNER_TEMP/$p.plist")
+            ext=$([ $p = macos ] && echo provisionprofile || echo mobileprovision)
+            cp "$RUNNER_TEMP/$p.profile" "$DIR/$uuid.$ext"
+            echo "$(echo $p | tr a-z A-Z)_PROFILE_NAME=$name" >> "$GITHUB_ENV"
+            echo "$p profile: $name"
+          done
+
+          KEY="$RUNNER_TEMP/ApiKey_${ASC_KEY_ID}.p8"
           printf '%s\n' "$ASC_KEY_P8" > "$KEY"
           echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f1)" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f2)" >> "$GITHUB_ENV"
 
-      # Upload on: the export sends the build straight to App Store
-      # Connect. Upload off: it writes the .ipa / .pkg to keep.
-      - name: Export options
-        if: inputs.platform != 'dmg'
+      # The archive is signed only to run; the export signs it again with
+      # the distribution certificate and the App Store profile.
+      - name: Build and export macOS
+        if: inputs.platform == 'both' || inputs.platform == 'macos'
         run: |
           set -euo pipefail
-          DEST=${{ inputs.upload && 'upload' || 'export' }}
-          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          flutter build macos --release --config-only
+          xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -archivePath build/macos/Runner.xcarchive \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= archive
+          cat > "$RUNNER_TEMP/mac-export.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>${DEST}</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>${TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>uploadSymbols</key><true/>
-            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>installerSigningCertificate</key><string>3rd Party Mac Developer Installer</string>
+            <key>provisioningProfiles</key>
+            <dict><key>org.americanmonk.tpp</key><string>${MACOS_PROFILE_NAME}</string></dict>
           </dict>
           </plist>
           EOF
-          cat "$RUNNER_TEMP/ExportOptions.plist"
-
-      - name: Build and export iOS
-        if: inputs.platform == 'both' || inputs.platform == 'ios'
-        env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          flutter build ios --release --config-only
-          AUTH=(-allowProvisioningUpdates
-                -authenticationKeyPath "$ASC_KEY_PATH"
-                -authenticationKeyID "$ASC_KEY_ID")
-          # An individual key has no issuer; only a team key needs one.
-          if [ -n "${ASC_ISSUER_ID:-}" ]; then
-            AUTH+=(-authenticationKeyIssuerID "$ASC_ISSUER_ID")
-          fi
-          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
-            -configuration Release -destination 'generic/platform=iOS' \
-            -archivePath build/ios/Runner.xcarchive \
-            DEVELOPMENT_TEAM="$TEAM_ID" "${AUTH[@]}" archive
-          xcodebuild -exportArchive -archivePath build/ios/Runner.xcarchive \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -exportPath build/ios/export "${AUTH[@]}"
-
-      - name: Build and export macOS
-        if: inputs.platform == 'both' || inputs.platform == 'macos'
-        env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          flutter build macos --release --config-only
-          AUTH=(-allowProvisioningUpdates
-                -authenticationKeyPath "$ASC_KEY_PATH"
-                -authenticationKeyID "$ASC_KEY_ID")
-          # An individual key has no issuer; only a team key needs one.
-          if [ -n "${ASC_ISSUER_ID:-}" ]; then
-            AUTH+=(-authenticationKeyIssuerID "$ASC_ISSUER_ID")
-          fi
-          xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner \
-            -configuration Release -destination 'generic/platform=macOS' \
-            -archivePath build/macos/Runner.xcarchive \
-            DEVELOPMENT_TEAM="$TEAM_ID" "${AUTH[@]}" archive
           xcodebuild -exportArchive -archivePath build/macos/Runner.xcarchive \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -exportPath build/macos/export "${AUTH[@]}"
+            -exportOptionsPlist "$RUNNER_TEMP/mac-export.plist" \
+            -exportPath build/macos/export
+          ls -l build/macos/export
+
+      - name: Upload macOS
+        if: inputs.upload && (inputs.platform == 'both' || inputs.platform == 'macos')
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          set -euo pipefail
+          # An individual key has no issuer; altool wants one given anyway.
+          xcrun altool --upload-package build/macos/export/*.pkg -t macos \
+            --apple-id "$APP_APPLE_ID" --bundle-version "$BUILD_NUMBER" \
+            --bundle-short-version-string "$VERSION_NAME" \
+            --api-key "$ASC_KEY_ID" --api-issuer none --api-key-subject user \
+            --p8-file-path "$ASC_KEY_PATH"
 
       # Without a provisioning profile the associated-domains entitlement
       # would stop the app from opening, so it is left out here.
@@ -233,9 +261,11 @@ jobs:
           name: macos-dmg
           path: build/dmg/*.dmg
 
-      - name: Remove the API key
+      - name: Remove the key and keychain
         if: always()
-        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+        run: |
+          rm -f "$RUNNER_TEMP"/ApiKey_*.p8
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
       # With upload off, the signed files are kept here for a hand upload.
       - name: Keep the exported files
@@ -244,6 +274,5 @@ jobs:
         with:
           name: apple-export
           path: |
-            build/ios/export/
             build/macos/export/
           if-no-files-found: ignore
