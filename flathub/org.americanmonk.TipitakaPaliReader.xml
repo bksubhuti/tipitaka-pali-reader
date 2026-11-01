@@ -30,6 +30,23 @@
   </description>
 
   <releases>
+    <release version="3.1.3+134" date="2026-11-01">
+      <description>
+        <p>
+          A season of reading improvements since 3.0.1.
+        </p>
+        <ul>
+          <li>X-ray: commentary links shown under the Pāḷi</li>
+          <li>A library tree, and Piṭaka and Mūla views, that follow the open book</li>
+          <li>Faster, whole-word search, with headings shown in the results</li>
+          <li>Abhidhamma handbooks included</li>
+          <li>Choice of paper for the page, and two new head-bar Roman fonts</li>
+          <li>Quote of the day and "Verses to know" on the home screen</li>
+          <li>Foldable dictionaries, smoother language installs, read-aloud fixes</li>
+          <li>Bookmarks backed up with their folders</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.0.1+125" date="2026-10-05">
       <description>
         <p>
