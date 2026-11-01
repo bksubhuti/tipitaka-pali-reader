@@ -8,7 +8,7 @@ name: Build Apple (iOS & macOS) and upload to App Store Connect
 # to our apps), which Apple does not let fetch certificates or profiles, so
 # it is used only for the upload.
 #
-# Secrets:
+# Secrets, in the 'apple' environment (each run needs the owner's approval):
 #   APPLE_DIST_P12, APPLE_INSTALLER_P12  base64 .p12 of "Apple Distribution"
 #                                        and "3rd Party Mac Developer
 #                                        Installer"; APPLE_P12_PASSWORD
@@ -53,6 +53,9 @@ env:
 jobs:
   build:
     runs-on: macos-26
+    # The signing secrets are kept in this environment, and a run waits
+    # for the owner's approval before it can use them.
+    environment: apple
 
     steps:
       - name: Checkout repository
