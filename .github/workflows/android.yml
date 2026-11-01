@@ -228,10 +228,9 @@ jobs:
         if: always()
         run: rm -f android/app/upload.jks android/keystore.properties
 
-      # With upload off, or when the upload fails, the signed bundle is kept
-      # here for a hand upload.
+      # With upload off, the signed bundle is kept here for a hand upload.
       - name: Keep the app bundle
-        if: ${{ !inputs.upload || failure() }}
+        if: ${{ !inputs.upload }}
         uses: actions/upload-artifact@v4
         with:
           name: android-aab
