@@ -182,6 +182,59 @@ jobs:
           echo "VERSION_NAME=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f1)" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f2)" >> "$GITHUB_ENV"
 
+      # Only the Runner target is switched to the App Store profile; the
+      # pods are left as they are.
+      - name: Build and export iOS
+        if: inputs.platform == 'both' || inputs.platform == 'ios'
+        run: |
+          set -euo pipefail
+          flutter build ios --release --config-only
+          ruby -rxcodeproj -e '
+            p = Xcodeproj::Project.open("ios/Runner.xcodeproj")
+            t = p.targets.find { |x| x.name == "Runner" }
+            c = t.build_configurations.find { |x| x.name == "Release" }
+            s = c.build_settings
+            s["CODE_SIGN_STYLE"] = "Manual"
+            s["DEVELOPMENT_TEAM"] = ENV["TEAM_ID"]
+            s["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+            s["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+            s["PROVISIONING_PROFILE_SPECIFIER"] = ENV["IOS_PROFILE_NAME"]
+            p.save'
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/ios/Runner.xcarchive archive
+          cat > "$RUNNER_TEMP/ios-export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>org.americanmonk.tpp</key><string>${IOS_PROFILE_NAME}</string></dict>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive -archivePath build/ios/Runner.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/ios-export.plist" \
+            -exportPath build/ios/export
+          ls -l build/ios/export
+
+      - name: Upload iOS
+        if: inputs.upload && (inputs.platform == 'both' || inputs.platform == 'ios')
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          set -euo pipefail
+          xcrun altool --upload-package build/ios/export/*.ipa -t ios \
+            --apple-id "$APP_APPLE_ID" --bundle-version "$BUILD_NUMBER" \
+            --bundle-short-version-string "$VERSION_NAME" \
+            --api-key "$ASC_KEY_ID" --api-issuer none --api-key-subject user \
+            --p8-file-path "$ASC_KEY_PATH"
+
       # The archive is signed only to run; the export signs it again with
       # the distribution certificate and the App Store profile.
       - name: Build and export macOS
@@ -274,5 +327,6 @@ jobs:
         with:
           name: apple-export
           path: |
+            build/ios/export/
             build/macos/export/
           if-no-files-found: ignore
