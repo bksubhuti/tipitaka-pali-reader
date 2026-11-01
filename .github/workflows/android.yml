@@ -33,6 +33,11 @@ on:
         required: true
         default: true
         type: boolean
+      check_only:
+        description: 'Only check that Google Play lets the service account in (no build, about a minute)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -41,7 +46,47 @@ env:
   PACKAGE_NAME: com.paauk.tipitakapalireader
 
 jobs:
+  # Opens a Play edit and throws it away: a 403 here means the service
+  # account has no rights to the app yet (they can take hours to apply).
+  check:
+    if: inputs.check_only
+    runs-on: ubuntu-latest
+    environment: google
+    steps:
+      - name: Check Google Play access
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          pip install --quiet google-auth requests
+          python3 - <<'EOF'
+          import json, os
+          import requests
+          from google.auth.transport.requests import Request
+          from google.oauth2 import service_account
+
+          info = json.loads(os.environ['PLAY_SERVICE_ACCOUNT_JSON'])
+          print('Service account:', info['client_email'])
+          creds = service_account.Credentials.from_service_account_info(
+              info, scopes=['https://www.googleapis.com/auth/androidpublisher'])
+          creds.refresh(Request())
+          s = requests.Session()
+          s.headers['Authorization'] = f'Bearer {creds.token}'
+          api = f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{os.environ['PACKAGE_NAME']}/edits"
+          r = s.post(api)
+          if not r.ok:
+              raise SystemExit(f'{r.status_code} {r.text}')
+          edit = r.json()['id']
+          tracks = s.get(f'{api}/{edit}/tracks').json().get('tracks', [])
+          for t in tracks:
+              codes = [c for rel in t.get('releases', []) for c in rel.get('versionCodes', [])]
+              print(f"{t['track']}: {', '.join(codes) or '-'}")
+          s.delete(f'{api}/{edit}')
+          print('Access OK')
+          EOF
+
   build:
+    if: ${{ !inputs.check_only }}
     runs-on: ubuntu-latest
     # The signing secrets are kept in this environment, and a run waits
     # for the owner's approval before it can use them.
