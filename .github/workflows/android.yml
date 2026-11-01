@@ -1,0 +1,226 @@
+name: Build Android and upload to Google Play
+
+# Builds the app bundle on GitHub's machines, signs it with the upload key
+# and sends it to Google Play, the same way apple.yml does for the App Store.
+#
+# Secrets, in the 'google' environment (each run needs the owner's approval):
+#   ANDROID_KEYSTORE           base64 of the upload keystore (.jks), the one
+#                              android/keystore.properties points to locally
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+#   PLAY_SERVICE_ACCOUNT_JSON  the service account's JSON key; the account is
+#                              invited in Play Console (Users and permissions)
+#                              with release rights for this app only
+#
+# With track 'library' the bundle is only uploaded (App bundle explorer) and
+# a release is made from it in Play Console by hand; with a track it is put
+# there as a draft release. Release notes and roll-out are done by hand.
+
+on:
+  workflow_dispatch:
+    inputs:
+      data_tag:
+        description: 'Release tag that holds the databases (tipitaka_pali.db.tar.bz2, epitaka_part.*, tpr_extension_part.*)'
+        required: true
+        default: 'sentence-data-2026-09-28'
+      track:
+        description: 'library: bundle only, in App bundle explorer; or a track to put a draft release on'
+        required: true
+        default: 'library'
+        type: choice
+        options: [library, internal, alpha, beta, production]
+      upload:
+        description: 'Upload to Google Play (off: build and keep the .aab only)'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_NAME: com.paauk.tipitakapalireader
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # The signing secrets are kept in this environment, and a run waits
+    # for the owner's approval before it can use them.
+    environment: google
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.9'
+
+      # The same databases as the Linux and Apple builds, from the same release.
+      - name: Download databases from release ${{ inputs.data_tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_TAG: ${{ inputs.data_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets/database
+          cd assets/database
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${DATA_TAG}" \
+            | jq -r '.assets[] | select(.name | test("^(tipitaka_pali\\.db\\.tar\\.bz2|epitaka_part\\..*|tpr_extension_part\\..*)$")) | "\(.name) \(.browser_download_url)"' \
+            > assets.txt
+          cat assets.txt
+          test -s assets.txt
+          while read -r name url; do
+            echo "Downloading $name"
+            curl -fL --retry 3 -o "$name" "$url"
+          done < assets.txt
+          rm assets.txt
+
+      - name: Extract and split tipitaka_pali.db
+        run: |
+          set -euo pipefail
+          cd assets/database
+          tar -xjf tipitaka_pali.db.tar.bz2
+          rm tipitaka_pali.db.tar.bz2
+          chmod +x split.sh
+          ./split.sh
+
+      - name: Check database parts match pubspec.yaml
+        run: |
+          set -euo pipefail
+          grep -oE 'assets/database/[a-z_]+_part\.[a-z]+' pubspec.yaml | sort > expected.txt
+          ls assets/database/*_part.* | sort > actual.txt
+          if ! diff expected.txt actual.txt; then
+            echo "::error::Database parts in the release do not match pubspec.yaml (< pubspec, > release)"
+            exit 1
+          fi
+          rm expected.txt actual.txt
+
+      - name: Check database parts match SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd assets/database
+          sha256sum -c SHA256SUMS
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Generate .env File for Envied
+        run: |
+          cat <<EOF > .env
+          FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}"
+          OPEN_ROUTER_API_KEY="${{ secrets.OPEN_ROUTER_API_KEY }}"
+          DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}"
+          EOF
+
+      - name: Run Build Runner (Envied CodeGen)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate Localization
+        run: flutter gen-l10n
+
+      # android/app/build.gradle signs the release only when
+      # keystore.properties is there; storeFile is relative to android/app.
+      - name: Upload keystore
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANDROID_KEYSTORE" | base64 -d > android/app/upload.jks
+          cat > android/keystore.properties <<EOF
+          storeFile=upload.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+          keytool -list -keystore android/app/upload.jks \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS"
+
+      - name: Build app bundle
+        run: |
+          set -euo pipefail
+          flutter build appbundle --release
+          ls -l build/app/outputs/bundle/release/
+          # An unsigned bundle would be refused by Play only after the upload.
+          jarsigner -verify build/app/outputs/bundle/release/app-release.aab | tail -1
+
+      # One Play "edit": the bundle and its mapping file are uploaded, put on
+      # a track as a draft unless 'library' was chosen, and committed. With
+      # 'library' the bundle only lands in App bundle explorer.
+      - name: Upload to Google Play (${{ inputs.track }})
+        if: inputs.upload
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          TRACK: ${{ inputs.track }}
+        run: |
+          set -euo pipefail
+          pip install --quiet google-auth requests
+          python3 - <<'EOF'
+          import json, os
+          import requests
+          from google.auth.transport.requests import Request
+          from google.oauth2 import service_account
+
+          creds = service_account.Credentials.from_service_account_info(
+              json.loads(os.environ['PLAY_SERVICE_ACCOUNT_JSON']),
+              scopes=['https://www.googleapis.com/auth/androidpublisher'])
+          creds.refresh(Request())
+          s = requests.Session()
+          s.headers['Authorization'] = f'Bearer {creds.token}'
+          pkg = os.environ['PACKAGE_NAME']
+          track = os.environ['TRACK']
+          api = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{pkg}/edits'
+          upload = f'https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/{pkg}/edits'
+
+          def ok(r):
+              if not r.ok:
+                  raise SystemExit(f'{r.status_code} {r.text}')
+              return r.json()
+
+          edit = ok(s.post(api))['id']
+          with open('build/app/outputs/bundle/release/app-release.aab', 'rb') as f:
+              bundle = ok(s.post(f'{upload}/{edit}/bundles?uploadType=media', data=f,
+                                 headers={'Content-Type': 'application/octet-stream'},
+                                 timeout=3600))
+          code = bundle['versionCode']
+          print('Uploaded version code', code)
+
+          mapping = 'build/app/outputs/mapping/release/mapping.txt'
+          if os.path.exists(mapping):
+              with open(mapping, 'rb') as f:
+                  ok(s.post(f'{upload}/{edit}/apks/{code}/deobfuscationFiles/proguard?uploadType=media',
+                            data=f, headers={'Content-Type': 'application/octet-stream'}))
+              print('Uploaded mapping file')
+
+          if track != 'library':
+              ok(s.put(f'{api}/{edit}/tracks/{track}', json={
+                  'track': track,
+                  'releases': [{'versionCodes': [str(code)], 'status': 'draft'}]}))
+              print(f'Draft release on {track}')
+
+          ok(s.post(f'{api}/{edit}:commit'))
+          print('Committed')
+          EOF
+
+      - name: Remove the keystore
+        if: always()
+        run: rm -f android/app/upload.jks android/keystore.properties
+
+      # With upload off, the signed bundle is kept here for a hand upload.
+      - name: Keep the app bundle
+        if: ${{ !inputs.upload }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: build/app/outputs/bundle/release/app-release.aab
