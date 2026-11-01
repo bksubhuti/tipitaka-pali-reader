@@ -5,7 +5,8 @@ name: Build Apple (iOS & macOS) and upload to App Store Connect
 # with the App Store Connect API key, xcodebuild fetches the distribution
 # certificate and profiles itself. The key needs the Admin role for that.
 #
-# Secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (the AuthKey_XXXX.p8 text).
+# Secrets: ASC_KEY_ID, ASC_KEY_P8 (the .p8 text), and ASC_ISSUER_ID only for
+# a team key; an individual key has none.
 # After the upload the build shows in App Store Connect / TestFlight; the
 # What's New text and the submission are still done there by hand.
 #
@@ -163,8 +164,11 @@ jobs:
           flutter build ios --release --config-only
           AUTH=(-allowProvisioningUpdates
                 -authenticationKeyPath "$ASC_KEY_PATH"
-                -authenticationKeyID "$ASC_KEY_ID"
-                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+                -authenticationKeyID "$ASC_KEY_ID")
+          # An individual key has no issuer; only a team key needs one.
+          if [ -n "${ASC_ISSUER_ID:-}" ]; then
+            AUTH+=(-authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          fi
           xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath build/ios/Runner.xcarchive \
@@ -183,8 +187,11 @@ jobs:
           flutter build macos --release --config-only
           AUTH=(-allowProvisioningUpdates
                 -authenticationKeyPath "$ASC_KEY_PATH"
-                -authenticationKeyID "$ASC_KEY_ID"
-                -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+                -authenticationKeyID "$ASC_KEY_ID")
+          # An individual key has no issuer; only a team key needs one.
+          if [ -n "${ASC_ISSUER_ID:-}" ]; then
+            AUTH+=(-authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          fi
           xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner \
             -configuration Release -destination 'generic/platform=macOS' \
             -archivePath build/macos/Runner.xcarchive \
