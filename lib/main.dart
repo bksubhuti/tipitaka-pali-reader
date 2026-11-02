@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:tipitaka_pali/app.dart';
@@ -21,6 +22,12 @@ final ValueNotifier<String?> deepLinkNotifier = ValueNotifier(null);
 void main(List<String> args) async {
   // Required for async calls in `main`
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Edge to edge on every Android, not only from 15, where it is forced:
+  // the app already draws its bars transparent and keeps clear of them.
+  if (Platform.isAndroid) {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
 
   // If this returns false (because we are the second instance),
   // the app is already closed by now.
