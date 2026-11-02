@@ -109,8 +109,8 @@ jobs:
         run: flutter build windows --release
 
       # Windows does not always have the C++ runtime, so the package brings
-      # its own, from this machine. sqlite3.dll comes from the sqlite3
-      # package's build hook; the build must have put it there.
+      # its own, from this machine. SQLite comes from the sqlite3 package's
+      # build hook, under a name of its own; the build must have put it there.
       - name: Add the C++ runtime
         run: |
           set -euo pipefail
@@ -118,8 +118,9 @@ jobs:
           for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
             cp "/c/Windows/System32/$dll" "$REL/"
           done
-          test -f "$REL/sqlite3.dll" || { echo "::error::sqlite3.dll missing from the build"; exit 1; }
-          ls -l "$REL"
+          ls -lR "$REL" | grep -v '/data/flutter_assets' | head -60
+          ls "$REL"/sqlite3*.dll "$REL"/*/sqlite3*.dll 2>/dev/null | grep -q . \
+            || { echo "::error::no sqlite3 DLL in the build"; exit 1; }
 
       - name: Create the Store package
         run: |
