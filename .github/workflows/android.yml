@@ -214,6 +214,16 @@ jobs:
           # An unsigned bundle would be refused by Play only after the upload.
           jarsigner -verify build/app/outputs/bundle/release/app-release.aab | tail -1
 
+      # An APK of the same build, to install on a phone by hand before the
+      # release. It is signed with the upload key, not Play's, so a copy
+      # installed from Play must be removed first.
+      - name: Build APK to test
+        run: |
+          set -euo pipefail
+          flutter build apk --release --target-platform android-arm64
+          mv build/app/outputs/flutter-apk/app-release.apk "build/tpr-$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | tr + -).apk"
+          ls -l build/*.apk
+
       # One Play "edit": the bundle and its mapping file are uploaded, put on
       # a track as a draft unless 'library' was chosen, and committed. With
       # 'library' the bundle only lands in App bundle explorer.
@@ -285,6 +295,14 @@ jobs:
           name: dart-symbols-${{ github.run_number }}
           path: build/symbols/
           retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Keep the test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-apk-${{ github.run_number }}
+          path: build/*.apk
+          retention-days: 30
           if-no-files-found: ignore
 
       # With upload off, the signed bundle is kept here for a hand upload.
