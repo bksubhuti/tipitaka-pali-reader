@@ -119,8 +119,9 @@ jobs:
             cp "/c/Windows/System32/$dll" "$REL/"
           done
           ls -l "$REL" "$REL"/*/ | grep -v flutter_assets || true
-          ls "$REL"/sqlite3*.dll "$REL"/*/sqlite3*.dll 2>/dev/null | grep -q . \
-            || { echo "::error::no sqlite3 DLL in the build"; exit 1; }
+          SQL=$(find "$REL" -iname 'sqlite3*.dll')
+          test -n "$SQL" || { echo "::error::no sqlite3 DLL in the build"; exit 1; }
+          echo "SQLite: $SQL"
 
       - name: Create the Store package
         run: |
