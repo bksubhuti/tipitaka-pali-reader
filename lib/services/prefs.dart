@@ -130,6 +130,7 @@ const String xrayPref = "xray";
 const String copyFormattedPref = "copyFormatted";
 const String xrayNoticeShownPref = "xrayNoticeShown";
 const String paperOfferShownPref = "paperOfferShown";
+const String fontNoticeShownPref = "fontNoticeShown";
 const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
 const String hideAiSearchNagPref = "hideAiSearchNag";
@@ -854,6 +855,13 @@ class Prefs {
       instance.getBool(paperOfferShownPref) ?? false;
   static set paperOfferShown(bool value) =>
       instance.setBool(paperOfferShownPref, value);
+
+  /// The one-time notice of the TPR Indic Roman fonts, after the paper
+  /// offer, has been shown.
+  static bool get fontNoticeShown =>
+      instance.getBool(fontNoticeShownPref) ?? false;
+  static set fontNoticeShown(bool value) =>
+      instance.setBool(fontNoticeShownPref, value);
 
   static bool get sangahaFixed =>
       instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;

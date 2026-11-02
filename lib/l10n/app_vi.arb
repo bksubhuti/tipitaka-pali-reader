@@ -289,6 +289,8 @@
   "paperOfferMessage": "Trang có thể trông như giấy thật: giấy da, lá buông, vải lanh và nhiều loại khác. Trong Cài đặt, chọn nút ở giữa trong ba nút trang, rồi chọn một loại giấy.\n\nBạn có muốn thử giấy da cũ không?",
   "paperOfferTry": "Có, thử xem",
   "paperOfferNo": "Không, cảm ơn",
+  "fontNoticeTitle": "Phông chữ Pāḷi mới",
+  "fontNoticeMessage": "Hai phông chữ mới cho Pāḷi chữ La-tinh đã có trong {settings} › {theme}, mục {font}:",
   "commentaryNotInLibrary": "Bản chú giải này không có trong thư viện.",
   "open": "Mở",
   "xray": "X-ray",

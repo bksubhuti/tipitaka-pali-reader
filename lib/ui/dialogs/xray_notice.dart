@@ -23,6 +23,10 @@ class XrayNotice {
   /// waits for the next start rather than following straight after it.
   static bool _xrayShownNow = false;
 
+  /// The paper offer was shown since the app started: the font notice
+  /// waits for the next start in turn.
+  static bool _paperShownNow = false;
+
   /// Shows the notice [_delay] after a book opens, until it has been seen.
   /// [readerContext] is the open book's; [stillOpen] says whether it is.
   static void scheduleFor(
@@ -62,7 +66,11 @@ class XrayNotice {
   /// colours. Yes puts the page on aged parchment.
   static void _schedulePaperOffer(
       BuildContext readerContext, bool Function() stillOpen) {
-    if (Prefs.paperOfferShown || _xrayShownNow || _waiting) return;
+    if (Prefs.paperOfferShown) {
+      _scheduleFontNotice(readerContext, stillOpen);
+      return;
+    }
+    if (_xrayShownNow || _waiting) return;
     _waiting = true;
     Future.delayed(_delay, () async {
       _waiting = false;
@@ -74,6 +82,7 @@ class XrayNotice {
           Prefs.pagePaper != 0) {
         return;
       }
+      _paperShownNow = true;
       final tryIt = await showDialog<bool>(
         context: readerContext,
         builder: (context) => const PaperOfferDialog(),
@@ -83,6 +92,30 @@ class XrayNotice {
         theme.onChangePagePaper(pagePapers.indexOf(agedParchment));
         theme.toggleTheme(PageTheme.medium);
       }
+    });
+  }
+
+  /// After the paper offer, at a later start, the two TPR Indic Roman
+  /// fonts are made known once. Only to a reader of Roman script, as the
+  /// fonts are only for it, and not to one using either already. Nothing
+  /// is changed: the notice only says where they are.
+  static void _scheduleFontNotice(
+      BuildContext readerContext, bool Function() stillOpen) {
+    if (Prefs.fontNoticeShown || _xrayShownNow || _paperShownNow || _waiting) {
+      return;
+    }
+    if (Prefs.currentScriptLanguage != defaultScriptLanguage) return;
+    _waiting = true;
+    Future.delayed(_delay, () async {
+      _waiting = false;
+      if (!stillOpen() || !readerContext.mounted) return;
+      if (Prefs.fontNoticeShown) return;
+      Prefs.fontNoticeShown = true;
+      if (FontNoticeDialog.fonts.contains(Prefs.romanFontName)) return;
+      await showDialog<void>(
+        context: readerContext,
+        builder: (context) => const FontNoticeDialog(),
+      );
     });
   }
 
@@ -134,7 +167,21 @@ class PaperOfferDialog extends StatelessWidget {
       title: Text(l.paperOfferTitle),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
-        child: Text(l.paperOfferMessage),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.paperOfferMessage),
+              const SizedBox(height: 16),
+              // Where the buttons are, as Settings › Theme shows them.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset('assets/images/paper_settings.png'),
+              ),
+            ],
+          ),
+        ),
       ),
       actions: [
         TextButton(
@@ -144,6 +191,52 @@ class PaperOfferDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
           child: Text(l.paperOfferTry),
+        ),
+      ],
+    );
+  }
+}
+
+/// Where the TPR Indic Roman fonts are, each name drawn in its own font.
+class FontNoticeDialog extends StatelessWidget {
+  const FontNoticeDialog({super.key});
+
+  static const fonts = ['TPR Indic Roman', 'TPR Indic Roman Noline'];
+  static const _sample = 'evaṃ me sutaṃ — ekaṃ samayaṃ bhagavā';
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final style = Theme.of(context).textTheme.bodyMedium;
+    return AlertDialog(
+      title: Text(l.fontNoticeTitle),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.fontNoticeMessage(l.settings, l.theme, l.font)),
+              for (final font in fonts) ...[
+                const SizedBox(height: 16),
+                Text.rich(TextSpan(children: [
+                  TextSpan(
+                      text: font,
+                      style: style?.copyWith(fontFamily: font, fontSize: 22)),
+                  TextSpan(
+                      text: '\n$_sample',
+                      style: style?.copyWith(fontFamily: font, fontSize: 18)),
+                ])),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.ok),
         ),
       ],
     );

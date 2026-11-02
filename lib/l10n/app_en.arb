@@ -429,6 +429,19 @@
   "@paperOfferNo": {
     "description": "Answer to the paper offer that keeps the page as it is."
   },
+  "fontNoticeTitle": "New Pāḷi fonts",
+  "@fontNoticeTitle": {
+    "description": "Title of the one-time notice that the TPR Indic Roman fonts are available."
+  },
+  "fontNoticeMessage": "Two new fonts for Pāḷi in Roman script are now in {settings} › {theme}, under {font}:",
+  "@fontNoticeMessage": {
+    "description": "Body of the font notice; the two font names follow it, drawn in their own fonts. The placeholders are the existing Settings, Theme and Font labels.",
+    "placeholders": {
+      "settings": {"type": "String"},
+      "theme": {"type": "String"},
+      "font": {"type": "String"}
+    }
+  },
   "commentaryNotInLibrary": "This commentary is not in the library.",
   "@commentaryNotInLibrary": {
     "description": "Shown when an X-ray link points to a commentary book that is not installed."

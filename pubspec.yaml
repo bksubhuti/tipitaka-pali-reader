@@ -152,6 +152,7 @@ flutter:
     - assets/papers/
     - assets/icon/icon.png
     - assets/icon/tpr_dictionary.png
+    - assets/images/paper_settings.png
     - assets/images/anki.png
     - assets/images/remnote.jpg
     - assets/images/vecteezy_md.jpg

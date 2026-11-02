@@ -290,6 +290,8 @@
   "paperOfferMessage": "页面可以像真正的纸张：羊皮纸、贝叶、亚麻布等。在设置中选择页面三个按钮中的中间一个，然后选择一种纸张。\n\n要试试旧羊皮纸吗？",
   "paperOfferTry": "好，试试",
   "paperOfferNo": "不用了，谢谢",
+  "fontNoticeTitle": "新的巴利字体",
+  "fontNoticeMessage": "两种用于罗马字母巴利文的新字体，现已在 {settings} › {theme} 的“{font}”中提供：",
   "commentaryNotInLibrary": "书库中没有这部注释。",
   "open": "打开",
   "xray": "X-ray",

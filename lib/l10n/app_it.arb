@@ -290,6 +290,8 @@
   "paperOfferMessage": "Le pagine possono sembrare carta vera: pergamena, foglia di palma, lino e altro. Nelle Impostazioni scegli il pulsante centrale dei tre per la pagina, poi una carta.\n\nVuoi provare la pergamena antica?",
   "paperOfferTry": "Sì, provala",
   "paperOfferNo": "No, grazie",
+  "fontNoticeTitle": "Nuovi caratteri per il Pāḷi",
+  "fontNoticeMessage": "Due nuovi caratteri per il Pāḷi in caratteri latini sono ora in {settings} › {theme}, alla voce {font}:",
   "commentaryNotInLibrary": "Questo commentario non è nella biblioteca.",
   "open": "Apri",
   "xray": "X-ray",
