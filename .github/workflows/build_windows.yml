@@ -118,7 +118,7 @@ jobs:
           for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
             cp "/c/Windows/System32/$dll" "$REL/"
           done
-          ls -lR "$REL" | grep -v '/data/flutter_assets' | head -60
+          ls -l "$REL" "$REL"/*/ | grep -v flutter_assets || true
           ls "$REL"/sqlite3*.dll "$REL"/*/sqlite3*.dll 2>/dev/null | grep -q . \
             || { echo "::error::no sqlite3 DLL in the build"; exit 1; }
 
