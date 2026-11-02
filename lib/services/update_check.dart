@@ -64,7 +64,13 @@ class UpdateCheck {
     storePage.value = null;
   }
 
-  static String get _platform => Platform.operatingSystem;
+  /// The entry in messages.json for this install. On Linux, the Flathub
+  /// install runs in a Flatpak sandbox; any other is the AppImage, which is
+  /// on GitHub as soon as it is built and so has its own build number.
+  static String get _platform {
+    if (!Platform.isLinux) return Platform.operatingSystem;
+    return File('/.flatpak-info').existsSync() ? 'linux' : 'appimage';
+  }
 
   static Uri? _storePage() => switch (_platform) {
         'android' => Uri.parse(
@@ -73,10 +79,10 @@ class UpdateCheck {
         'macos' => Uri.parse('macappstore://apps.apple.com/app/id1541426949'),
         'windows' =>
           Uri.parse('ms-windows-store://pdp/?productid=9MTH9TD82TGR'),
-        // Only from Flathub: other Linux builds come out at other times,
-        // and messages.json gives Flathub's build.
-        'linux' when File('/.flatpak-info').existsSync() => Uri.parse(
+        'linux' => Uri.parse(
             'https://flathub.org/apps/org.americanmonk.TipitakaPaliReader'),
+        'appimage' => Uri.parse(
+            'https://github.com/bksubhuti/tipitaka-pali-reader/releases/latest'),
         _ => null,
       };
 

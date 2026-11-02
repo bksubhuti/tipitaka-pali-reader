@@ -39,5 +39,9 @@
     "messageDate": "20250507",
     "peuDate": "March, 2025",
     "dpdDate": "March, 2025"
+  },
+  "appimage": {
+    "currentVersion": "3.1.1+132",
+    "message": "AppImage on the GitHub releases page"
   }
 }
