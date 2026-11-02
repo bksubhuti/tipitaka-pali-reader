@@ -118,8 +118,8 @@ jobs:
           for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
             cp "/c/Windows/System32/$dll" "$REL/"
           done
-          curl -fsSLo sqlite.zip https://www.sqlite.org/2025/sqlite-dll-win-x64-3500400.zip
-          echo "56b8751cdbf6dcd8ac9a35508039e456692a402bc5ddf576c2b0eddb0fed8536  sqlite.zip" | sha256sum -c -
+          curl -fsSLo sqlite.zip https://www.sqlite.org/2026/sqlite-dll-win-x64-3540100.zip
+          echo "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4  sqlite.zip" | sha256sum -c -
           unzip -o sqlite.zip sqlite3.dll -d "$REL"
           rm sqlite.zip
           ls -l "$REL"
