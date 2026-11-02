@@ -6,35 +6,35 @@
     "dpdDate": "March, 2025"
   },
   "android": {
-    "currentVersion": "2.7.0+85",
+    "currentVersion": "3.1.2+133",
     "message": "Download in the Play Store",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
     "dpdDate": "March, 2025"
   },
   "windows": {
-    "currentVersion": "2.7.0+85",
+    "currentVersion": "3.1.2+133",
     "message": "Build 85 in MS App Store and github repo as exe",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
     "dpdDate": "March, 2025"
   },
   "linux": {
-    "currentVersion": "2.7.0+85",
+    "currentVersion": "3.1.2+133",
     "message": "Appimage build 85  Appimage and Flatpak",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
     "dpdDate": "March, 2025"
   },
   "ios": {
-    "currentVersion": "2.7.0+87",
+    "currentVersion": "3.1.2+133",
     "message": "Build 87 in app store",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
     "dpdDate": "March, 2025"
   },
   "macos": {
-    "currentVersion": "87",
+    "currentVersion": "3.1.2+133",
     "message": "Build 87 available in app store",
     "messageDate": "20250507",
     "peuDate": "March, 2025",

@@ -17,6 +17,7 @@ import '../../../providers/navigation_provider.dart';
 import '../home/search_page/search_page.dart';
 import '../../widgets/paper_background.dart';
 import 'widgets/home_shortcuts.dart';
+import '../../widgets/update_button.dart';
 import 'widgets/quote_of_day.dart';
 
 enum BookViewMode {
@@ -559,6 +560,8 @@ class _HomeView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // A newer build in the store: a small button above the quote.
+                  const UpdateButton(),
                   const QuoteOfDayCard(),
                   const Padding(
                     padding: EdgeInsets.only(top: 16),

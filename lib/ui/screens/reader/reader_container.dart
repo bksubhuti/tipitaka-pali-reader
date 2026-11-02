@@ -1,3 +1,4 @@
+import '../../widgets/update_button.dart';
 import 'widgets/quote_of_day.dart';
 import 'widgets/home_shortcuts.dart';
 import 'dart:io';
@@ -189,6 +190,8 @@ class _ReaderContainerState extends State<ReaderContainer> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // A newer build in the store: a small button above the quote.
+                    const UpdateButton(),
                     // Today's quote is a card: a tap opens the book where it is
                     // from.
                     const QuoteOfDayCard(),

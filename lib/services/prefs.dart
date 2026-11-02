@@ -69,7 +69,6 @@ const String searchSnippetWordsPref = "searchSnippetWords";
 const String messagePref = "message";
 const String messageDatePref = "messageDate";
 const String lastDateCheckedMessagePref = "lastDateCheckedMessage";
-const String showWhatsNewPref = "dontShowMessage";
 const String versionNumberPref = "versionNumber";
 const String keyBookViewModeIndex = 'book_view_mode';
 const String emailPref = 'username';
@@ -133,6 +132,9 @@ const String paperOfferShownPref = "paperOfferShown";
 const String fontNoticeShownPref = "fontNoticeShown";
 const String sangahaFixedPref = "sangahaFixed";
 const String hideTranslationNagPref = "hideTranslationNag";
+const String updateCheckedOnPref = "updateCheckedOn";
+const String latestBuildPref = "latestBuild";
+const String updateDismissedBuildPref = "updateDismissedBuild";
 const String hideAiSearchNagPref = "hideAiSearchNag";
 const String aiTermsOfServicePref = "aiTermsOfService";
 const String quoteListPref = "quoteList";
@@ -182,7 +184,6 @@ const bool defaultExpandedBookList = false;
 const String defaultMessage = "";
 const String defaultMessageDate = "20230701";
 const String defaultLastDateCheckedMessage = "20230701";
-const bool defaultShowWhatsNew = false;
 const String defaultVersionNumber = "2.3.4+53";
 const int defaultBookViewMode = 0; // horizontal
 const String defaultEmail = '';
@@ -493,10 +494,6 @@ class Prefs {
       defaultLastDateCheckedMessage;
   static set lastDateCheckedMessage(String value) =>
       instance.setString(lastDateCheckedMessagePref, value);
-
-  static bool get showWhatsNew => false;
-  static set showWhatsNew(bool value) =>
-      instance.setBool(showWhatsNewPref, value);
 
   static String get versionNumber =>
       instance.getString(versionNumberPref) ?? defaultVersionNumber;
@@ -867,6 +864,22 @@ class Prefs {
       instance.getBool(sangahaFixedPref) ?? defaultSangahaFixed;
   static set sangahaFixed(bool value) =>
       instance.setBool(sangahaFixedPref, value);
+
+  /// The day the latest build was last read from messages.json (yyyymmdd),
+  /// and the build read: see UpdateCheck.
+  static String get updateCheckedOn =>
+      instance.getString(updateCheckedOnPref) ?? '';
+  static set updateCheckedOn(String value) =>
+      instance.setString(updateCheckedOnPref, value);
+  static int get latestBuild => instance.getInt(latestBuildPref) ?? 0;
+  static set latestBuild(int value) => instance.setInt(latestBuildPref, value);
+
+  /// The latest build when the reader put the update button away: it stays
+  /// away until a newer one is out.
+  static int get updateDismissedBuild =>
+      instance.getInt(updateDismissedBuildPref) ?? 0;
+  static set updateDismissedBuild(int value) =>
+      instance.setInt(updateDismissedBuildPref, value);
 
   static bool get hideTranslationNag =>
       instance.getBool(hideTranslationNagPref) ?? defaultHideTranslationNag;
