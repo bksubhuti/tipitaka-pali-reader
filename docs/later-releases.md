@@ -3,6 +3,22 @@
 Work agreed but left out of the ePitaka release (#321). Roughly in order of
 how much it matters.
 
+## Data patches: fix in the next data release
+
+Faults in the shipped databases are patched in code, so readers are not made
+to download the data again for them. Every one is listed in
+`lib/services/database/data_patches.dart`, with what is wrong and where its
+code is. When a data release is made for any reason, fix each listed fault
+in the databases, then delete its entry and its code.
+
+- **Five second volumes start at paragraph 1** (Vinayālaṅkāra-ṭīkā,
+  Vinayavinicchaya-ṭīkā, Dhammapada-aṭṭhakathā, Suttanipāta-aṭṭhakathā,
+  Paṭisambhidāmagga-aṭṭhakathā). Page 1 held the whole first volume, which
+  froze the reader: the Play ANRs of 3.0.x–3.1.x. Patched 2026-11-02.
+- **X-ray link terms** read from the bold, since `book_links` has no word.
+- **Volume ends**: a volume's last page has no end break.
+- **`tika_sa_05`**: a stray page 32 on paragraph 1 (not patched; harmless).
+
 ## Merging cloud bookmarks across devices
 
 Backup and restore with folders is done (2026-10-13,
@@ -58,9 +74,6 @@ compare correctly.
 ## Smaller items
 
 - **Read aloud on Windows** has not been tested.
-- **`tika_sa_05` page data:** `page_break` has a stray page 32 on paragraph 1,
-  before the book's first page, 393. The app copes with it. It belongs in
-  the extension tooling.
 - **`test/sentence_search_test.dart`** opens a database at a fixed Windows
   path and fails on every other machine. It needs the same `TPR_DATA_DIR`
   switch as `test/paragraph_read_test.dart`.

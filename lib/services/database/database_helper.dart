@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/data/constants.dart';
+import 'package:tipitaka_pali/services/database/data_patches.dart';
 import 'package:tipitaka_pali/services/database/legacy_data_retirement.dart';
 import 'package:tipitaka_pali/services/database/sentence_data_installer.dart';
 import 'package:tipitaka_pali/services/database/sentence_fts_builder.dart';
@@ -84,7 +85,10 @@ class DatabaseHelper {
         .catchError((Object e) => myLogger.e('packages not applied: $e'))
         .then((_) => helper.buildSentenceFtsIfNeeded(
           onProgress: report,
-    )).then((_) => helper.retireLegacyDataIfReady(
+    )).then((_) => DataPatches.changedBooks.isEmpty
+            ? 0
+            : helper.reindexBooks(DataPatches.changedBooks)
+    ).then((_) => helper.retireLegacyDataIfReady(
           onProgress: report,
         )).then((_) => helper.updateTranslationWordLists(
           onProgress: report,
@@ -175,6 +179,7 @@ class DatabaseHelper {
       await db.execute("ATTACH DATABASE ? AS epi", [epitaka]);
       await db.execute("ATTACH DATABASE ? AS ext", [extension]);
       await _ensureSentenceIndexes(db);
+      await DataPatches.apply(db);
       // Prove both are readable before letting the reader depend on them.
       await db.rawQuery('SELECT count(*) FROM epi.sentences LIMIT 1');
       await db.rawQuery('SELECT count(*) FROM ext.page_break LIMIT 1');
