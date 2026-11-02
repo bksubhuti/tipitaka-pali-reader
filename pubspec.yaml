@@ -176,6 +176,11 @@ flutter:
     - family: Lao Pali Regular
       fonts:
         - asset: assets\fonts\LaoPaliRegular.ttf
+    - family: Sarabun
+      fonts:
+        - asset: assets/fonts/Sarabun-Regular.ttf
+        - asset: assets/fonts/Sarabun-Bold.ttf
+          weight: 700
     - family: NotoSansTaiTham
       fonts:
         - asset: assets/fonts/NotoSansTaiTham-Medium.ttf

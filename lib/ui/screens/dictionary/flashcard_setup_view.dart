@@ -6,6 +6,7 @@ import '../../../services/repositories/dictionary_history_repo.dart';
 import '../../../services/database/database_helper.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_controller.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/ui/widgets/pali_text_view.dart';
 
 class FlashCardSetupView extends StatefulWidget {
   const FlashCardSetupView({super.key});
@@ -27,6 +28,8 @@ class _FlashCardSetupViewState extends State<FlashCardSetupView> {
     super.initState();
     // Initialize _dictionaryHistoryFuture
     _dictionaryHistoryFuture = _repo.getAll().then((value) {
+      // A word tapped in Thai was once kept empty (#340): nothing to learn.
+      value.removeWhere((item) => item.word.isEmpty);
       value.sort((a, b) =>
           b.dateTime.compareTo(a.dateTime)); // sort in descending order
       return value; // return sorted list
@@ -77,7 +80,7 @@ class _FlashCardSetupViewState extends State<FlashCardSetupView> {
                       _selectedItems[item] = newValue!;
                     });
                   },
-                  title: Text(item.word), // Display word for each item
+                  title: PaliTextView(item.word), // Display word for each item
                 );
               },
             );

@@ -8,7 +8,9 @@ import 'package:tipitaka_pali/services/repositories/dictionary_history_repo.dart
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 
 import '../../../../services/provider/script_language_provider.dart';
+import '../../../../utils/font_utils.dart';
 import '../../../../utils/pali_script.dart';
+import '../../../widgets/pali_text_view.dart';
 import '../../../../utils/pali_tools.dart';
 import '../../../../utils/script_detector.dart';
 import '../controller/dictionary_controller.dart';
@@ -36,16 +38,23 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
     dictionaryController = context.read<DictionaryController>();
     textEditingController = TextEditingController();
 
-    final lookupWord = dictionaryController.lookupWord;
-    if (lookupWord.isNotEmpty) {
-      textEditingController.text = PaliScript.getScriptOf(
-          script: context.read<ScriptLanguageProvider>().currentScript,
-          romanText: lookupWord);
-    } else {
-      textEditingController.text = '';
-    }
+    textEditingController.text = _boxText();
     dictionaryController.addListener(_lookUpWordListener);
     textEditingController.addListener(_onTextChanged);
+  }
+
+  /// The lookup word as the box shows it: see
+  /// [DictionaryController.lookupWordAsTapped].
+  String _boxText() {
+    final lookupWord = dictionaryController.lookupWord;
+    final script = context.read<ScriptLanguageProvider>().currentScript;
+    if (lookupWord.isEmpty ||
+        (dictionaryController.lookupWordAsTapped &&
+            script != Script.roman &&
+            ScriptDetector.getLanguage(lookupWord) == Script.roman)) {
+      return lookupWord;
+    }
+    return PaliScript.getScriptOf(script: script, romanText: lookupWord);
   }
 
   void _onTextChanged() {
@@ -59,14 +68,7 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
   }
 
   void _lookUpWordListener() {
-    final lookupWord = dictionaryController.lookupWord;
-    if (lookupWord.isNotEmpty) {
-      textEditingController.text = PaliScript.getScriptOf(
-          script: context.read<ScriptLanguageProvider>().currentScript,
-          romanText: lookupWord);
-    } else {
-      textEditingController.text = '';
-    }
+    textEditingController.text = _boxText();
   }
 
   @override
@@ -96,10 +98,7 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
             ),
       itemBuilder: (context, String suggestion) {
         return ListTile(
-          title: Text(PaliScript.getScriptOf(
-            script: context.read<ScriptLanguageProvider>().currentScript,
-            romanText: suggestion,
-          )),
+          title: PaliTextView(suggestion),
         );
       },
       onSelected: (String suggestion) async {
@@ -117,6 +116,12 @@ class _DictionarySearchFieldState extends State<DictionarySearchField> {
           controller: controller,
           focusNode: focusNode,
           autocorrect: false,
+          // In the Pāḷi font: ทีฆํ showed a dotted circle in the system's
+          // Thai font (#340).
+          style: TextStyle(
+              fontFamily: FontUtils.getfontName(
+                  script:
+                      context.read<ScriptLanguageProvider>().currentScript)),
           decoration: InputDecoration(
             border: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(16)),

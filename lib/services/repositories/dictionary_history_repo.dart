@@ -1,5 +1,8 @@
 import 'package:tipitaka_pali/business_logic/models/dictionary_history.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
+import 'package:tipitaka_pali/utils/pali_script.dart';
+import 'package:tipitaka_pali/utils/pali_script_converter.dart';
+import 'package:tipitaka_pali/utils/script_detector.dart';
 
 abstract class DictionaryHistoryRepository {
   Future<int> insert(
@@ -28,13 +31,20 @@ class DictionaryHistoryDatabaseRepository
   Future<int> insert(
       String word, String context, int page, String bookId) async {
     final db = await dbh.database;
-    // delete first if exists
-    await db
-        .delete(_historyTable, where: '$_columnWord = ?', whereArgs: [word]);
+    // Kept in Roman, as the dictionary looks words up. A word tapped in Thai
+    // or another script lost every letter to the line below and was kept
+    // empty, so the flash cards had no word (#340).
+    final script = ScriptDetector.getLanguage(word);
+    if (script != Script.roman) {
+      word = PaliScript.getRomanScriptFrom(script: script, text: word);
+    }
 
     // Remove numbers and punctuation, retaining only specified characters and whitespace
     String sanitizedWord =
         word.replaceAll(RegExp(r'[^\sa-zA-ZāīūṅñṭḍṇḷṃĀĪŪṄÑṬḌṆḶṂ]+'), '');
+    // delete first if exists
+    await db.delete(_historyTable,
+        where: '$_columnWord = ?', whereArgs: [sanitizedWord]);
 
     return await db.insert(
       _historyTable,

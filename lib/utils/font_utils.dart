@@ -26,6 +26,10 @@ class FontUtils {
         return 'NotoSansDevanagari';
       case Script.laos:
         return 'Lao Pali Regular';
+      // Thai Pāḷi has ṃ on letters modern Thai never puts it on. iOS and
+      // macOS draw ฆํ and ฑํ in Thonburi with a dotted circle (#340).
+      case Script.thai:
+        return 'Sarabun';
       case Script.taitham:
         return 'NotoSansTaiTham';
       case Script.brahmi:

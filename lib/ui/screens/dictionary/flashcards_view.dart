@@ -11,6 +11,10 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:path/path.dart' as path;
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_controller.dart';
+import 'package:tipitaka_pali/ui/widgets/pali_text_view.dart';
+import 'package:tipitaka_pali/utils/pali_script.dart';
+import 'package:tipitaka_pali/utils/pali_script_converter.dart';
+import 'package:tipitaka_pali/utils/script_detector.dart';
 
 import '../../../business_logic/models/dictionary_history.dart';
 
@@ -22,7 +26,16 @@ class FlashCardsView extends StatelessWidget {
   FlashCardsView(
       {super.key, required this.cards, required this.dictionaryController});
 
+  /// [word], kept in Roman, in the script of [source], the sentence it was
+  /// tapped in: tapped in Thai, the sentence is in Thai (#340).
+  static String _inScriptOf(String word, String source) {
+    final script = ScriptDetector.getLanguage(source);
+    if (word.isEmpty || script == Script.roman) return word;
+    return PaliScript.getScriptOf(script: script, romanText: word);
+  }
+
   String _highlightOccurrences(String source, String context) {
+    context = _inScriptOf(context, source);
     if (context.isEmpty || !source.contains(context)) {
       return source;
     }
@@ -30,6 +43,7 @@ class FlashCardsView extends StatelessWidget {
   }
 
   String _highlightMDOccurrences(String source, String word) {
+    word = _inScriptOf(word, source);
     if (word.isEmpty || !source.contains(word)) {
       return source;
     }
@@ -197,10 +211,10 @@ class FlashCardsView extends StatelessWidget {
                   // Allows scrolling within the card
                   child: Column(
                     children: [
-                      Text(
+                      PaliTextView(
                         cards[index].word, // Display the word
-                        style: const TextStyle(fontSize: 30),
-                        overflow: TextOverflow.ellipsis, // Prevents overflow
+                        style: const TextStyle(
+                            fontSize: 30, overflow: TextOverflow.ellipsis),
                       ),
                       HtmlWidget(
                         _highlightOccurrences(

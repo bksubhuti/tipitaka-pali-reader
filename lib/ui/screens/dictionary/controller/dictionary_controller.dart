@@ -56,6 +56,15 @@ class DictionaryController with ChangeNotifier {
 
   String _currentlookupWord = '';
   String get lookupWord => _currentlookupWord;
+
+  /// Whether [lookupWord] is a word tapped in the reader, which the search
+  /// box shows as it was tapped. Pāḷi is tapped in the script it is read in,
+  /// so a word in Roman letters there, with the Pāḷi in Thai, is a word of
+  /// the translation: "process" was shown in the box as โปรเจสฺส (#340).
+  /// Words from the history and the suggestions are kept in Roman, and
+  /// the box shows them in the script the Pāḷi is read in.
+  bool _lookupWordAsTapped = false;
+  bool get lookupWordAsTapped => _lookupWordAsTapped;
   BuildContext context;
 
   DictionaryState _dictionaryState = const DictionaryState.initial();
@@ -75,7 +84,8 @@ class DictionaryController with ChangeNotifier {
     required this.dictionaryHistoryRepository,
     required this.dictionaryRepository,
     String? lookupWord,
-  }) : _currentlookupWord = lookupWord ?? '';
+  })  : _currentlookupWord = lookupWord ?? '',
+        _lookupWordAsTapped = lookupWord != null;
 
   void onLoad() {
     debugPrint('init dictionary controller');
@@ -100,6 +110,7 @@ class DictionaryController with ChangeNotifier {
         asked != null &&
         DateTime.now().difference(asked) < const Duration(seconds: 3)) {
       _currentlookupWord = pending;
+      _lookupWordAsTapped = true;
     }
 
     if (_currentlookupWord.isNotEmpty) {
@@ -121,6 +132,7 @@ class DictionaryController with ChangeNotifier {
   void _lookupWordListener() {
     if (globalLookupWord.value != null) {
       _currentlookupWord = globalLookupWord.value ?? '';
+      _lookupWordAsTapped = true;
       debugPrint('lookup word: $_currentlookupWord');
       if (_currentlookupWord.isNotEmpty) {
         _lookupDefinition();
@@ -334,6 +346,7 @@ class DictionaryController with ChangeNotifier {
 
   Future<void> onLookup(String word) async {
     _currentlookupWord = word;
+    _lookupWordAsTapped = false;
     _lookupDefinition();
   }
 
@@ -421,6 +434,7 @@ class DictionaryController with ChangeNotifier {
 
     word = word.toLowerCase();
     _currentlookupWord = word;
+    _lookupWordAsTapped = false;
 
     _lookupDefinition();
   }
@@ -436,6 +450,7 @@ class DictionaryController with ChangeNotifier {
 
     if (index + 1 < _histories.value.length) {
       _currentlookupWord = _histories.value[index + 1].word;
+      _lookupWordAsTapped = false;
       _lookupDefinition();
     }
   }
@@ -451,6 +466,7 @@ class DictionaryController with ChangeNotifier {
 
     if (index > 0) {
       _currentlookupWord = _histories.value[index - 1].word;
+      _lookupWordAsTapped = false;
       _lookupDefinition();
     }
   }

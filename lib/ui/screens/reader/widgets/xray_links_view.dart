@@ -10,6 +10,7 @@ import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:tipitaka_pali/services/provider/shown_languages_provider.dart';
 import 'package:tipitaka_pali/services/repositories/xray_repo.dart';
 import 'package:tipitaka_pali/ui/screens/home/openning_books_provider.dart';
+import 'package:tipitaka_pali/utils/font_utils.dart';
 import 'package:tipitaka_pali/utils/pali_script.dart';
 
 /// The commentary links of one sentence, drawn under its Pali: a small link
@@ -115,7 +116,13 @@ class _XrayLinksViewState extends State<XrayLinksView> {
                         Flexible(
                           child: Text(
                             inScript(word),
-                            style: TextStyle(fontSize: small, color: muted),
+                            style: TextStyle(
+                                fontSize: small,
+                                color: muted,
+                                fontFamily: FontUtils.getfontName(
+                                    script: context
+                                        .read<ScriptLanguageProvider>()
+                                        .currentScript)),
                           ),
                         ),
                       ],
@@ -174,7 +181,9 @@ class _XrayLinksViewState extends State<XrayLinksView> {
                               script: script,
                               romanText: comments[i].pali!,
                               isHtmlText: true),
-                      textStyle: TextStyle(fontSize: widget.fontSize * 0.85),
+                      textStyle: TextStyle(
+                          fontSize: widget.fontSize * 0.85,
+                          fontFamily: FontUtils.getfontName(script: script)),
                     ),
                   for (final code in languages)
                     if (comments[i].translations[code] case final text?)
