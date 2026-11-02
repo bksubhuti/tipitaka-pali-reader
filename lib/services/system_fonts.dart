@@ -74,6 +74,13 @@ class SystemFonts {
     'ta': 'தமிழ் மொழி',
     'pt': 'Português, tradução',
     'de': 'Deutsch, Übersetzung',
+    'es': 'Español, traducción',
+    'fr': 'Français, traduction',
+    'cs': 'Čeština, překlad',
+    'id': 'Bahasa Indonesia',
+    'ko': '한국어 번역',
+    'mr': 'मराठी भाषा',
+    'ne': 'नेपाली भाषा',
   };
 
   /// A few words in [language], to show a font with.

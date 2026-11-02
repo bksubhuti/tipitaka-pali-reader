@@ -80,6 +80,14 @@ class TtsPlan {
     'de': 'de-DE',
     'ja': 'ja-JP',
     'ta': 'ta-IN',
+    'es': 'es-ES',
+    'fr': 'fr-FR',
+    'cs': 'cs-CZ',
+    'id': 'id-ID',
+    'ko': 'ko-KR',
+    'bn': 'bn-IN',
+    'mr': 'mr-IN',
+    'ne': 'ne-NP',
   };
 
   static String voiceFor(String language) => language == pali

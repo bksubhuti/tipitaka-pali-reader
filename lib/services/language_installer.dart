@@ -92,6 +92,14 @@ class LanguageInstaller {
     LanguageOption('de', 'German'),
     LanguageOption('ja', 'Japanese'),
     LanguageOption('ta', 'Tamil'),
+    LanguageOption('es', 'Spanish'),
+    LanguageOption('fr', 'French'),
+    LanguageOption('cs', 'Czech'),
+    LanguageOption('id', 'Indonesian'),
+    LanguageOption('ko', 'Korean'),
+    LanguageOption('bn', 'Bengali'),
+    LanguageOption('mr', 'Marathi'),
+    LanguageOption('ne', 'Nepali'),
   ];
 
   static String get _dir => Prefs.databaseDirPath;
