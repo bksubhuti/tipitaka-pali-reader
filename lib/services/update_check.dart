@@ -73,7 +73,9 @@ class UpdateCheck {
         'macos' => Uri.parse('macappstore://apps.apple.com/app/id1541426949'),
         'windows' =>
           Uri.parse('ms-windows-store://pdp/?productid=9MTH9TD82TGR'),
-        'linux' => Uri.parse(
+        // Only from Flathub: other Linux builds come out at other times,
+        // and messages.json gives Flathub's build.
+        'linux' when File('/.flatpak-info').existsSync() => Uri.parse(
             'https://flathub.org/apps/org.americanmonk.TipitakaPaliReader'),
         _ => null,
       };
