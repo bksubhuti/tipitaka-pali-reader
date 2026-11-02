@@ -206,8 +206,11 @@ jobs:
       - name: Build app bundle
         run: |
           set -euo pipefail
-          flutter build appbundle --release
-          ls -l build/app/outputs/bundle/release/
+          # The Dart symbols are split off and kept (below): Play's ANR and
+          # crash traces show the app's own frames as bare addresses, and
+          # these turn them back into function names.
+          flutter build appbundle --release --split-debug-info=build/symbols
+          ls -l build/app/outputs/bundle/release/ build/symbols/
           # An unsigned bundle would be refused by Play only after the upload.
           jarsigner -verify build/app/outputs/bundle/release/app-release.aab | tail -1
 
@@ -272,6 +275,17 @@ jobs:
       - name: Remove the keystore
         if: always()
         run: rm -f android/app/upload.jks android/keystore.properties
+
+      # Named by version, kept as long as GitHub allows. To read a Play
+      # trace: llvm-symbolizer --obj=app.android-arm64.symbols <pc>.
+      - name: Keep the Dart symbols
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dart-symbols-${{ github.run_number }}
+          path: build/symbols/
+          retention-days: 90
+          if-no-files-found: ignore
 
       # With upload off, the signed bundle is kept here for a hand upload.
       - name: Keep the app bundle
