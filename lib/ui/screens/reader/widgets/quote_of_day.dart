@@ -88,11 +88,16 @@ Future<List<Quote>> _quotes(QuoteList list) =>
       return quotes;
     });
 
+String _today() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month}-${now.day}';
+}
+
 /// The quote to show today. The reader keeps their place in each list: each
 /// new day moves on one quote from where they were.
 int quoteIndexForToday(QuoteList list, List<Quote> quotes) {
   final now = DateTime.now();
-  final today = '${now.year}-${now.month}-${now.day}';
+  final today = _today();
   final saved = Prefs.quoteDay(list.id);
   var index = saved == null
       ? (list.startOnDayOfYear
@@ -117,9 +122,34 @@ class QuoteOfDayCard extends StatefulWidget {
   State<QuoteOfDayCard> createState() => _QuoteOfDayCardState();
 }
 
-class _QuoteOfDayCardState extends State<QuoteOfDayCard> {
+class _QuoteOfDayCardState extends State<QuoteOfDayCard>
+    with WidgetsBindingObserver {
   QuoteList? _list;
   int? _index;
+
+  /// The day [_index] was chosen for. A phone brings the app back from the
+  /// background rather than starting it again, and a computer is left open
+  /// overnight: the quote chosen once stayed for days.
+  String? _shownOn;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _shownOn != _today()) {
+      setState(() {});
+    }
+  }
 
   void _next(List<Quote> quotes) {
     setState(() {
@@ -141,8 +171,9 @@ class _QuoteOfDayCardState extends State<QuoteOfDayCard> {
         builder: (context, snapshot) {
           final quotes = snapshot.data ?? const <Quote>[];
           if (quotes.isEmpty) return const SizedBox.shrink();
-          if (_list != list) {
+          if (_list != list || _shownOn != _today()) {
             _list = list;
+            _shownOn = _today();
             _index = quoteIndexForToday(list, quotes);
           }
           final quote = quotes[_index!];
