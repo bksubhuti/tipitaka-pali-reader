@@ -59,6 +59,16 @@ android {
         }
     }
 
+    // DataStore (via shared_preferences_android) ships this library built
+    // with NDK r27, which Play flags for 16 KB devices. It serves only
+    // multi-process DataStore; the app uses SharedPreferences.getInstance(),
+    // which never loads it.
+    packaging {
+        jniLibs {
+            excludes += ['**/libdatastore_shared_counter.so']
+        }
+    }
+
     buildTypes {
         release {
             // Enable code shrinking, obfuscation, and optimization for the release build type.
