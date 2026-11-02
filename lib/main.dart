@@ -122,8 +122,10 @@ void main(List<String> args) async {
     });
   }
 
-  // async calling of setup of firestore below
-  await setupFirestore();
+  // Not waited for: it checks the internet, which can take ten seconds on a
+  // poor line, and signs in to the cloud, which nothing on the first screen
+  // needs. Waiting kept the app from opening until it was done.
+  setupFirestore();
 
   // This view is only called one time.
   // before the select language and before the select script are created
