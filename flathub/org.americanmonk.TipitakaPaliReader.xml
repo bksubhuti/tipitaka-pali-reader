@@ -30,6 +30,18 @@
   </description>
 
   <releases>
+    <release version="3.1.4+135" date="2026-11-02">
+      <description>
+        <p>
+          Fixes and small additions.
+        </p>
+        <ul>
+          <li>Five second volumes now open at their own beginning, not at the start of the first volume</li>
+          <li>The paper-page tip shows where the setting is</li>
+          <li>A note on the two TPR Indic Roman fonts for Pāḷi</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.1.3+134" date="2026-11-01">
       <description>
         <p>
