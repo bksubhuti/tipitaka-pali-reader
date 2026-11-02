@@ -109,19 +109,20 @@ jobs:
         run: flutter build windows --release
 
       # Windows does not always have the C++ runtime, so the package brings
-      # its own, from this machine. SQLite comes from the sqlite3 package's
-      # build hook, under a name of its own; the build must have put it there.
-      - name: Add the C++ runtime
+      # its own, from this machine. The build brings no SQLite either, so the
+      # official sqlite.org DLL (with FTS5) is added, at a fixed version.
+      - name: Add the C++ runtime and SQLite
         run: |
           set -euo pipefail
           REL=build/windows/x64/runner/Release
           for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
             cp "/c/Windows/System32/$dll" "$REL/"
           done
-          ls -l "$REL" "$REL"/*/ | grep -v flutter_assets || true
-          SQL=$(find "$REL" -iname 'sqlite3*.dll')
-          test -n "$SQL" || { echo "::error::no sqlite3 DLL in the build"; exit 1; }
-          echo "SQLite: $SQL"
+          curl -fsSLo sqlite.zip https://www.sqlite.org/2025/sqlite-dll-win-x64-3500400.zip
+          echo "56b8751cdbf6dcd8ac9a35508039e456692a402bc5ddf576c2b0eddb0fed8536  sqlite.zip" | sha256sum -c -
+          unzip -o sqlite.zip sqlite3.dll -d "$REL"
+          rm sqlite.zip
+          ls -l "$REL"
 
       - name: Create the Store package
         run: |
