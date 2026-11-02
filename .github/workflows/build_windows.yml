@@ -1,67 +1,92 @@
-name: Build Windows (MSIX & Store Upload)
+name: Build Windows (MSIX for the Microsoft Store)
+
+# Builds the Store package on GitHub's Windows machines, from the same
+# databases as the other builds, and keeps it for download. It is uploaded
+# by hand in Partner Center (Apps and games › the app › new submission ›
+# Packages): a Store package needs no signing, the Store signs it.
+#
+# The version is msix_version in pubspec.yaml, raised at each build
+# increment; Partner Center refuses one it has already had.
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'MSIX Version (e.g. 1.0.5.0 - MUST be higher than previous version)'
+      data_tag:
+        description: 'Release tag that holds the databases (tipitaka_pali.db.tar.bz2, epitaka_part.*, tpr_extension_part.*)'
         required: true
-        default: '1.0.5.0'
+        default: 'sentence-data-2026-09-28'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-windows-msix:
-    name: Build Windows & Submit to Store
+  build:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: '3.41.9'
 
-      - name: Enable Windows Desktop
-        run: flutter config --enable-windows-desktop
-
-      - name: Flutter doctor
-        run: flutter doctor -v
-
-      # --- 1. DOWNLOAD DATABASE ---
-      - name: Download database zip
-        shell: pwsh
+      # The same databases as the Linux, Apple and Android builds.
+      - name: Download databases from release ${{ inputs.data_tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_TAG: ${{ inputs.data_tag }}
         run: |
-          New-Item -ItemType Directory -Force -Path "assets/database" | Out-Null
-          $url = "https://www.dropbox.com/scl/fi/18cwqb6hyr81ws6n8aeyh/tipitaka_pali.db.zip?rlkey=lpiuyk3amqm9hrxpq007sb45m&st=ktchca1x&dl=1"
-          Invoke-WebRequest -Uri $url -OutFile "assets/database/tipitaka_pali.db.zip"
+          set -euo pipefail
+          mkdir -p assets/database
+          cd assets/database
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${DATA_TAG}" \
+            | jq -r '.assets[] | select(.name | test("^(tipitaka_pali\\.db\\.tar\\.bz2|epitaka_part\\..*|tpr_extension_part\\..*)$")) | "\(.name) \(.browser_download_url)"' \
+            | tr -d '\r' > assets.txt
+          cat assets.txt
+          test -s assets.txt
+          while read -r name url; do
+            echo "Downloading $name"
+            curl -fL --retry 3 -o "$name" "$url"
+          done < assets.txt
+          rm assets.txt
 
-      - name: Extract database zip
-        shell: pwsh
-        run: |
-          Expand-Archive -Path "assets/database/tipitaka_pali.db.zip" -DestinationPath "assets/database" -Force
-          Remove-Item "assets/database/tipitaka_pali.db.zip" -Force
-
-      # --- 2. SPLIT DATABASE ---
-      - name: Run split.sh
-        shell: bash
+      - name: Extract and split tipitaka_pali.db
         run: |
           set -euo pipefail
           cd assets/database
+          tar -xjf tipitaka_pali.db.tar.bz2
+          rm tipitaka_pali.db.tar.bz2
           chmod +x split.sh
           ./split.sh
-          ls -l tipitaka_pali_part.* || true
 
-      # --- 3. DEPENDENCIES & ENVIED KEY INJECTION ---
+      - name: Check database parts match pubspec.yaml
+        run: |
+          set -euo pipefail
+          grep -oE 'assets/database/[a-z_]+_part\.[a-z]+' pubspec.yaml | sort > expected.txt
+          ls assets/database/*_part.* | sort > actual.txt
+          if ! diff expected.txt actual.txt; then
+            echo "::error::Database parts in the release do not match pubspec.yaml (< pubspec, > release)"
+            exit 1
+          fi
+          rm expected.txt actual.txt
+
+      - name: Check database parts match SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd assets/database
+          sha256sum -c SHA256SUMS
+
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Generate .env File for Envied
-        shell: bash
         run: |
           cat <<EOF > .env
           FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}"
@@ -72,77 +97,39 @@ jobs:
       - name: Run Build Runner (Envied CodeGen)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # --- 4. FLUTTER BUILD WINDOWS ---
-      - name: Flutter build (Windows)
+      - name: Generate Localization
+        run: flutter gen-l10n
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      # Windows does not always have the C++ runtime, so the package brings
+      # its own, from this machine. sqlite3.dll comes from the sqlite3
+      # package's build hook; the build must have put it there.
+      - name: Add the C++ runtime
         run: |
-          flutter gen-l10n
-          flutter build windows --release
-        env:
-          CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+          set -euo pipefail
+          REL=build/windows/x64/runner/Release
+          for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do
+            cp "/c/Windows/System32/$dll" "$REL/"
+          done
+          test -f "$REL/sqlite3.dll" || { echo "::error::sqlite3.dll missing from the build"; exit 1; }
+          ls -l "$REL"
 
-      # --- 5. EXTRA DLLs INJECTION ---
-      - name: Download extra DLLs and extract into Release
-        shell: pwsh
+      - name: Create MSIX package
         run: |
-          $dllUrl = "https://www.dropbox.com/scl/fi/snreunqjw24o14erk369l/dlls.tar.gz?rlkey=yu93hvb4l4zf8jl1wv6vuftxk&st=hxvd9iwa&dl=1"
-          Invoke-WebRequest -Uri $dllUrl -OutFile "dlls.tar.gz"
-          if (Test-Path "build/windows/x64/runner/Release") {
-            $releaseDir = "build/windows/x64/runner/Release"
-          } elseif (Test-Path "build/windows/runner/Release") {
-            $releaseDir = "build/windows/runner/Release"
-          } else {
-            throw "Windows Release directory not found. Did the build step succeed?"
-          }
-          Write-Host "Using Release dir: $releaseDir"
-          tar -xzf "dlls.tar.gz" -C $releaseDir
-          Remove-Item "dlls.tar.gz" -Force
+          set -euo pipefail
+          dart run msix:create --build-windows false --output-path build/msix --output-name tipitaka
+          ls -l build/msix
 
-      # --- 6. LEGACY MSIX PATH COPY ---
-      - name: Prepare MSIX input path
-        shell: pwsh
+      - name: Version
+        id: version
         run: |
-          $src = "build/windows/x64/runner/Release"
-          $dst = "build/windows/runner/Release"
-          if (Test-Path $src) {
-            New-Item -ItemType Directory -Force -Path $dst | Out-Null
-            Copy-Item -Recurse -Force "$src\*" "$dst\"
-            Write-Host "Copied files to legacy msix path:"
-            Get-ChildItem $dst
-          }
+          echo "msix=$(grep -oE 'msix_version: [0-9.]+' pubspec.yaml | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
-      # --- 7. CREATE MSIX PACKAGE ---
-      - name: Create MSIX Package
-        run: dart run msix:create --version ${{ inputs.version }} --build-windows false --output-path build/msix --output-name tipitaka
-
-      # --- 8. SETUP MICROSOFT STORE CLI ---
-      - name: Setup Microsoft Store Developer CLI
-        uses: microsoft/microsoft-store-apppublisher@v1.3
-
-      # --- 9. CONFIGURE CREDENTIALS (THIS WAS MISSING) ---
-      - name: Configure MSStore CLI
-        shell: pwsh
-        run: |
-          msstore reconfigure `
-            --tenantId "${{ secrets.MS_STORE_TENANT_ID }}" `
-            --sellerId "${{ secrets.MS_STORE_SELLER_ID }}" `
-            --clientId "${{ secrets.MS_STORE_CLIENT_ID }}" `
-            --clientSecret "${{ secrets.MS_STORE_CLIENT_SECRET }}"
-
-      # --- 10. PUBLISH TO MICROSOFT STORE ---
-      - name: Publish MSIX to Microsoft Store
-        shell: pwsh
-        run: |
-          msstore publish "build/msix/tipitaka.msix" -id "${{ secrets.MS_STORE_APP_ID }}"
-
-      # --- 11. ARTIFACT UPLOADS ---
-      - name: Upload MSIX Artifact
+      - name: Keep the package
         uses: actions/upload-artifact@v4
         with:
-          name: windows-msix
-          path: build/msix/*.msix
-
-      - name: Upload Windows Release Folder
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: build/windows/x64/runner/Release
+          name: tipitaka-msix-${{ steps.version.outputs.msix }}
+          path: build/msix/tipitaka.msix
+          retention-days: 30
