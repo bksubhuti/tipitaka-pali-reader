@@ -1,9 +1,13 @@
-name: Build Windows (MSIX for the Microsoft Store)
+name: Build Windows (MSIX for the Store, and one to test)
 
 # Builds the Store package on GitHub's Windows machines, from the same
 # databases as the other builds, and keeps it for download. It is uploaded
 # by hand in Partner Center (Apps and games › the app › new submission ›
-# Packages): a Store package needs no signing, the Store signs it.
+# Packages): a Store package needs no signing, the Store signs it. The
+# Store API is no use with a personal account.
+#
+# A second package, signed with a test certificate, is kept beside it for
+# installing on a computer by hand first (its README says how).
 #
 # The version is msix_version in pubspec.yaml, raised at each build
 # increment; Partner Center refuses one it has already had.
@@ -81,7 +85,8 @@ jobs:
         run: |
           set -euo pipefail
           cd assets/database
-          sha256sum -c SHA256SUMS
+          # The checkout gave the list Windows line endings.
+          tr -d '\r' < SHA256SUMS | sha256sum -c -
 
       - name: Install Dependencies
         run: flutter pub get
@@ -116,20 +121,52 @@ jobs:
           test -f "$REL/sqlite3.dll" || { echo "::error::sqlite3.dll missing from the build"; exit 1; }
           ls -l "$REL"
 
-      - name: Create MSIX package
+      - name: Create the Store package
         run: |
           set -euo pipefail
-          dart run msix:create --build-windows false --output-path build/msix --output-name tipitaka
-          ls -l build/msix
+          dart run msix:create --build-windows false --output-path build/store --output-name tipitaka
+          ls -l build/store
+
+      # The same build, signed with the msix tool's test certificate so it
+      # installs outside the Store. Windows trusts it only once its
+      # certificate is in Trusted People, so that comes with it.
+      - name: Create the test package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          (Get-Content pubspec.yaml) -replace '^  store: true', '  store: false' | Set-Content pubspec.yaml
+          dart run msix:create --build-windows false --install-certificate false --output-path build/test --output-name tipitaka-test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git checkout pubspec.yaml
+          $pfx = Get-ChildItem "$env:LOCALAPPDATA\Pub\Cache\hosted\pub.dev\msix-*\lib\assets\test_certificate.pfx" | Select-Object -Last 1
+          $cert = Get-PfxCertificate -FilePath $pfx.FullName -Password (ConvertTo-SecureString 1234 -AsPlainText -Force)
+          Export-Certificate -Cert $cert -FilePath build/test/msix-testing.cer | Out-Null
+          @"
+          Test build of Tipitaka Pali Reader, not for the Store.
+
+          Once on each computer, in PowerShell as administrator, in this folder:
+            Import-Certificate -FilePath msix-testing.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+
+          Then double-click tipitaka-test.msix and Install. It sits beside the
+          Store copy; remove it in Settings > Apps when done.
+          "@ | Set-Content build/test/README.txt
+          Get-ChildItem build/test
 
       - name: Version
         id: version
         run: |
           echo "msix=$(grep -oE 'msix_version: [0-9.]+' pubspec.yaml | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
-      - name: Keep the package
+      - name: Keep the Store package
         uses: actions/upload-artifact@v4
         with:
-          name: tipitaka-msix-${{ steps.version.outputs.msix }}
-          path: build/msix/tipitaka.msix
+          name: store-msix-${{ steps.version.outputs.msix }}
+          path: build/store/tipitaka.msix
+          retention-days: 30
+
+      - name: Keep the test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-msix-${{ steps.version.outputs.msix }}
+          path: build/test/
           retention-days: 30
