@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -245,5 +246,25 @@ void main() {
     final file = await package(format: ExtensionPackages.supportedFormat + 1);
     await expectLater(
         ExtensionPackages.run(db, file), throwsA(isA<PackageException>()));
+  });
+
+  test('a zip is unpacked to disk, byte for byte', () async {
+    final file = await package();
+    final zip = File(join(temp.path, 'p.pkg.zip'));
+    final encoder = ZipFileEncoder()..create(zip.path);
+    await encoder.addFile(file, 'p.pkg.db');
+    await encoder.close();
+    final into = File(join(temp.path, 'unpacked.db'));
+    await ExtensionPackages.unpack(zip, into);
+    expect(await into.readAsBytes(), await file.readAsBytes());
+  });
+
+  test('a package can ask not to be kept', () async {
+    final file = await package();
+    expect((await ExtensionPackages.read(file)).keep, isTrue);
+    final p = await databaseFactoryFfi.openDatabase(file.path);
+    await p.insert('meta', {'key': 'keep', 'value': '0'});
+    await p.close();
+    expect((await ExtensionPackages.read(file)).keep, isFalse);
   });
 }

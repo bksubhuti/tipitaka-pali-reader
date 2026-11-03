@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -171,6 +172,7 @@ class ExtensionPackages {
         title: meta['title'] ?? id,
         description: meta['description'] ?? '',
         file: file,
+        keep: meta['keep'] != '0',
       );
     } on DatabaseException catch (e) {
       throw PackageException('not an extension package: $e');
@@ -242,11 +244,7 @@ class ExtensionPackages {
 
     if (extension(source.path).toLowerCase() == '.zip') {
       onProgress?.call('Unpacking…');
-      final archive = ZipDecoder().decodeBytes(await source.readAsBytes());
-      final entry = archive.files.firstWhere(
-          (f) => f.isFile && f.name.toLowerCase().endsWith('.db'),
-          orElse: () => throw PackageException('no .db file in the zip'));
-      await incoming.writeAsBytes(entry.content as List<int>, flush: true);
+      await unpack(source, incoming);
     } else {
       await source.copy(incoming.path);
     }
@@ -272,10 +270,51 @@ class ExtensionPackages {
         version: info.version,
         title: info.title,
         description: info.description,
-        file: kept);
+        file: kept,
+        keep: info.keep);
 
+    final applied = await _appliedVersion(db, info.id);
+    if (applied != null && applied > info.version) {
+      kept.deleteSync();
+      throw PackageException(
+          'a newer ${info.title} ($applied) is already installed');
+    }
     await apply(info, onProgress: onProgress);
+    if (!info.keep && kept.existsSync()) kept.deleteSync();
     return info;
+  }
+
+  /// Writes the `.db` inside the zip [source] to [into], from the file to
+  /// the file: read whole, DPD's 61 MB zip and its 411 MB database would
+  /// both be held in memory at once, more than an old phone has.
+  @visibleForTesting
+  static Future<void> unpack(File source, File into) async {
+    final input = InputFileStream(source.path);
+    try {
+      final archive = ZipDecoder().decodeBuffer(input);
+      final entry = archive.files.firstWhere(
+          (f) => f.isFile && f.name.toLowerCase().endsWith('.db'),
+          orElse: () => throw PackageException('no .db file in the zip'));
+      final output = OutputFileStream(into.path);
+      try {
+        entry.writeContent(output);
+      } finally {
+        await output.close();
+      }
+    } finally {
+      await input.close();
+    }
+  }
+
+  /// The version of package [id] the main database records as applied.
+  static Future<int?> _appliedVersion(Database db, String id) async {
+    try {
+      final rows = await db.rawQuery(
+          'SELECT version FROM applied_package WHERE id = ?', [id]);
+      return rows.isEmpty ? null : rows.first['version'] as int?;
+    } catch (_) {
+      return null; // no table: nothing applied yet
+    }
   }
 
   /// Applies a kept package and indexes its books.
@@ -332,6 +371,12 @@ class ExtensionPackages {
     final books = <String>[];
     for (final p in packages) {
       if (applied[p.id] == (p.version, stamp)) continue;
+      // The databases carry a newer one, as a DPD baked into the shipped
+      // database does: the kept package would only take it backwards.
+      if ((applied[p.id]?.$1 ?? 0) > p.version) {
+        p.file.deleteSync();
+        continue;
+      }
       onProgress?.call('Applying ${p.title}…');
       try {
         books.addAll(await DatabaseHelper.runExclusive(
@@ -352,12 +397,19 @@ class PackageInfo {
   final String description;
   final File file;
 
+  /// Whether the package is kept on the device to be applied again after an
+  /// update replaces the databases. A package the shipped databases carry
+  /// from their next release on, such as DPD at 411 MB, says no (`keep` 0
+  /// in its meta): keeping it would cost the space for nothing.
+  final bool keep;
+
   const PackageInfo({
     required this.id,
     required this.version,
     required this.title,
     required this.description,
     required this.file,
+    this.keep = true,
   });
 }
 
