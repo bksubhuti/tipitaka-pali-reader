@@ -1,0 +1,96 @@
+name: Google Play ANR report
+
+# Reads the ANR rate of the last 28 days from the Play Developer Reporting
+# API, by device model, by RAM and by app version, and lists the worst. It
+# only reads. The service account needs "View app information" in Play
+# Console, and the Play Developer Reporting API enabled in its project.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'How many days back'
+        default: '28'
+
+env:
+  PACKAGE_NAME: com.paauk.tipitakapalireader
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    environment: google
+    steps:
+      - name: ANR rate by device, RAM and version
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          DAYS: ${{ inputs.days }}
+        run: |
+          set -euo pipefail
+          pip install --quiet google-auth requests
+          python3 - <<'EOF'
+          import datetime as dt
+          import json, os
+          import requests
+          from google.auth.transport.requests import Request
+          from google.oauth2 import service_account
+
+          creds = service_account.Credentials.from_service_account_info(
+              json.loads(os.environ['PLAY_SERVICE_ACCOUNT_JSON']),
+              scopes=['https://www.googleapis.com/auth/playdeveloperreporting'])
+          creds.refresh(Request())
+          s = requests.Session()
+          s.headers['Authorization'] = f'Bearer {creds.token}'
+          base = ('https://playdeveloperreporting.googleapis.com/v1beta1/'
+                  f"apps/{os.environ['PACKAGE_NAME']}/anrRateMetricSet")
+
+          r = s.get(base)
+          if not r.ok:
+              raise SystemExit(f'{r.status_code} {r.text}')
+          # The data lags a day or two behind; end where it is complete.
+          fresh = next(f['latestEndTime'] for f in r.json()['freshnessInfo']['freshnesses']
+                       if f['aggregationPeriod'] == 'DAILY')
+          end = dt.date(fresh['year'], fresh['month'], fresh['day'])
+          start = end - dt.timedelta(days=int(os.environ['DAYS']))
+          day = lambda d: {'year': d.year, 'month': d.month, 'day': d.day,
+                           'timeZone': {'id': 'America/Los_Angeles'}}
+
+          def query(dimension):
+              body = {'timelineSpec': {'aggregationPeriod': 'DAILY',
+                                       'startTime': day(start), 'endTime': day(end)},
+                      'dimensions': [dimension],
+                      'metrics': ['anrRate', 'distinctUsers'],
+                      'pageSize': 10000}
+              rows, token = [], None
+              while True:
+                  if token: body['pageToken'] = token
+                  r = s.post(base + ':query', json=body)
+                  if not r.ok:
+                      raise SystemExit(f'{r.status_code} {r.text}')
+                  data = r.json()
+                  rows += data.get('rows', [])
+                  token = data.get('nextPageToken')
+                  if not token: return rows
+
+          def value(m):
+              v = m.get('decimalValue', {}).get('value')
+              return float(v) if v is not None else 0.0
+
+          for dimension, label in [('deviceModel', 'Device'),
+                                   ('deviceRamBucket', 'RAM'),
+                                   ('versionCode', 'Version')]:
+              users, anr = {}, {}
+              for row in query(dimension):
+                  key = ' '.join(d.get('stringValue') or d.get('int64Value') or ''
+                                 for d in row['dimensions']) or '(unknown)'
+                  m = {x['metric']: value(x) for x in row['metrics']}
+                  users[key] = users.get(key, 0) + m.get('distinctUsers', 0)
+                  anr[key] = anr.get(key, 0) + m.get('anrRate', 0) * m.get('distinctUsers', 0)
+              total_u, total_a = sum(users.values()), sum(anr.values())
+              print(f'\n== {label}: {start} to {end}, user-days {total_u:.0f}, '
+                    f'ANR rate {100 * total_a / max(total_u, 1):.2f}%')
+              print(f'{"share of ANRs":>13}  {"ANR rate":>8}  {"user-days":>9}  {label}')
+              worst = sorted(anr, key=anr.get, reverse=True)[:25]
+              for k in worst:
+                  print(f'{100 * anr[k] / max(total_a, 1e-9):12.1f}%  '
+                        f'{100 * anr[k] / max(users[k], 1):7.2f}%  {users[k]:9.0f}  {k}')
+          EOF
