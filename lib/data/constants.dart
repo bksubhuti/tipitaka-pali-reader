@@ -10,7 +10,11 @@ class DatabaseInfo {
   ///
   /// 62: the Abhidhamma handbooks (tika_bi_06 … tika_bi_13) are in the
   /// shipped tipitaka_pali.db and tpr_extension.db, no longer a package.
-  static const int version = 62;
+  ///
+  /// 63: DPD of 26 Oct 2026 with its extras (inflections, root and compound
+  /// families, frequency) and grammar, as the dpd package installs them; the
+  /// database records it as package dpd 20261026.
+  static const int version = 63;
   static const String fileName = 'tipitaka_pali.db';
 }
 
@@ -28,6 +32,10 @@ class AssetsFile {
     'tipitaka_pali_part.ag',
     'tipitaka_pali_part.ah',
     'tipitaka_pali_part.ai',
+    'tipitaka_pali_part.aj',
+    'tipitaka_pali_part.ak',
+    'tipitaka_pali_part.al',
+    'tipitaka_pali_part.am',
   ];
 
   /// ePitaka's sentences, headings and book links, trimmed to what TPR reads

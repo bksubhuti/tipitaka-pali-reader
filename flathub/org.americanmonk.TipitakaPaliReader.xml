@@ -30,6 +30,17 @@
   </description>
 
   <releases>
+    <release version="3.1.5+136" date="2026-11-03">
+      <description>
+        <p>
+          The Digital Pāḷi Dictionary now comes complete with the app.
+        </p>
+        <ul>
+          <li>DPD of October 2026 built in, with inflection tables, root and compound families and word frequency</li>
+          <li>Extensions install more reliably on devices with little memory, and take less space once installed</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.1.4+135" date="2026-11-02">
       <description>
         <p>
