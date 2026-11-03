@@ -119,7 +119,9 @@ jobs:
             cp "/c/Windows/System32/$dll" "$REL/"
           done
           curl -fsSLo sqlite.zip https://www.sqlite.org/2026/sqlite-dll-win-x64-3540100.zip
-          echo "c2d09c8babb9399277055c057c97a53f1ffd7c5f11d0c1f2118ffdfa39f2daa4  sqlite.zip" | sha256sum -c -
+          # sha256 of the zip. sqlite.org's page gives SHA3-256 instead
+          # (c2d09c8b…f2daa4 for this file), which sha256sum cannot check.
+          echo "f436f53ad8f965af43f3817b42c99c0689e6787f6b7ace208fe38dab7ffc4971  sqlite.zip" | sha256sum -c -
           unzip -o sqlite.zip sqlite3.dll -d "$REL"
           rm sqlite.zip
           ls -l "$REL"
