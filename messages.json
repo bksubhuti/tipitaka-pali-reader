@@ -13,7 +13,7 @@
     "dpdDate": "March, 2025"
   },
   "windows": {
-    "currentVersion": "3.1.1+132",
+    "currentVersion": "3.1.4+135",
     "message": "Build 85 in MS App Store and github repo as exe",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
@@ -27,14 +27,14 @@
     "dpdDate": "March, 2025"
   },
   "ios": {
-    "currentVersion": "3.1.2+133",
+    "currentVersion": "3.1.4+135",
     "message": "Build 87 in app store",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
     "dpdDate": "March, 2025"
   },
   "macos": {
-    "currentVersion": "3.1.2+133",
+    "currentVersion": "3.1.4+135",
     "message": "Build 87 available in app store",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
