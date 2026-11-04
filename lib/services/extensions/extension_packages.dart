@@ -371,9 +371,15 @@ class ExtensionPackages {
     final books = <String>[];
     for (final p in packages) {
       if (applied[p.id] == (p.version, stamp)) continue;
-      // The databases carry a newer one, as a DPD baked into the shipped
-      // database does: the kept package would only take it backwards.
-      if ((applied[p.id]?.$1 ?? 0) > p.version) {
+      // The databases carry it themselves: a newer one, or this very one
+      // baked into the shipped database, which records it with no stamp
+      // (as DPD from DB 63 on). Applying the kept copy would only take it
+      // backwards, or redo two million rows in one locked transaction at
+      // the first start, the reader waiting on it, for nothing.
+      final carried = applied[p.id];
+      if (carried != null &&
+          (carried.$1 > p.version ||
+              (carried.$1 == p.version && carried.$2.isEmpty))) {
         p.file.deleteSync();
         continue;
       }
