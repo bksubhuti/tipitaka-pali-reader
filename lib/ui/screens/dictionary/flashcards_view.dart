@@ -14,6 +14,7 @@ import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_contro
 import 'package:tipitaka_pali/ui/widgets/pali_text_view.dart';
 import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
+import 'package:tipitaka_pali/utils/font_utils.dart';
 import 'package:tipitaka_pali/utils/script_detector.dart';
 
 import '../../../business_logic/models/dictionary_history.dart';
@@ -34,21 +35,22 @@ class FlashCardsView extends StatelessWidget {
     return PaliScript.getScriptOf(script: script, romanText: word);
   }
 
-  String _highlightOccurrences(String source, String context) {
-    context = _inScriptOf(context, source);
-    if (context.isEmpty || !source.contains(context)) {
-      return source;
-    }
-    return source.replaceAll(context, '<b>$context</b>');
+  /// Each [word] in [source], with the marks written over or after it,
+  /// such as Thai ํ, kept inside the bold: a mark left outside loses its
+  /// letter and is drawn on a dotted circle (#341).
+  static String _wrap(String source, String word, String before, String after) {
+    word = _inScriptOf(word, source);
+    if (word.isEmpty || !source.contains(word)) return source;
+    return source.replaceAllMapped(
+        RegExp('${RegExp.escape(word)}\\p{M}*', unicode: true),
+        (m) => '$before${m[0]}$after');
   }
 
-  String _highlightMDOccurrences(String source, String word) {
-    word = _inScriptOf(word, source);
-    if (word.isEmpty || !source.contains(word)) {
-      return source;
-    }
-    return source.replaceAll(word, '**$word**');
-  }
+  String _highlightOccurrences(String source, String context) =>
+      _wrap(source, context, '<b>', '</b>');
+
+  String _highlightMDOccurrences(String source, String word) =>
+      _wrap(source, word, '**', '**');
 
   void _exportToAnki(BuildContext context, bool note3) async {
     isExporting.value = true;
@@ -221,6 +223,13 @@ class FlashCardsView extends StatelessWidget {
                             cards[index].context,
                             cards[index]
                                 .word), // Highlight the word in the context
+                        // The sentence in its script's Pāḷi font, as the
+                        // word above is. Left to the system, iOS drew Thai
+                        // ฆํ with Thonburi, the ํ on a dotted circle (#341).
+                        textStyle: TextStyle(
+                            fontFamily: FontUtils.getfontName(
+                                script: ScriptDetector.getLanguage(
+                                    cards[index].context))),
                       ),
                     ],
                   ),
