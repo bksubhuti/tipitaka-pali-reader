@@ -53,13 +53,34 @@ class _ReaderContainerState extends State<ReaderContainer> {
         await DatabaseHelper.hasTranslations();
   }
 
+  /// The home screen, as a small house tab before the books' tabs, as on
+  /// a phone: the quote and shortcuts stay a click away with books open.
+  /// Opening or selecting a book leaves it.
+  bool _home = false;
+  int _bookCount = 0;
+  late final TabData _homeTab = TabData(
+      text: '',
+      closable: false,
+      leading: (context, status) => const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 2),
+            child: Icon(Icons.home_outlined, size: 18),
+          ));
+  late final OpenningBooksProvider _openBooks =
+      context.read<OpenningBooksProvider>();
+
+  void _leaveHome() {
+    if (_home && mounted) setState(() => _home = false);
+  }
+
   @override
   void initState() {
     super.initState();
+    _openBooks.selectionChanges.addListener(_leaveHome);
   }
 
   @override
   void dispose() {
+    _openBooks.selectionChanges.removeListener(_leaveHome);
     super.dispose();
   }
 
@@ -92,6 +113,14 @@ class _ReaderContainerState extends State<ReaderContainer> {
     // add new books to tabbed view by TabbedViewController
     final openedBookProvider = context.watch<OpenningBooksProvider>();
     final books = openedBookProvider.books;
+    // A book opened: it is shown, not the home screen.
+    // With none open, the home tab is the only one, and selected.
+    if (books.isEmpty) {
+      _home = true;
+    } else if (books.length > _bookCount) {
+      _home = false;
+    }
+    _bookCount = books.length;
 
     books.asMap().forEach((index, entry) {
       final uuid = entry['uuid'];
@@ -174,144 +203,6 @@ class _ReaderContainerState extends State<ReaderContainer> {
       _tabDataCache[uuid] = newTab;
       return newTab;
     }).toList();
-
-    if (books.isEmpty) {
-      final isDarkTheme = Theme.of(context).brightness == Brightness.dark;
-
-      return PaperBackground(
-        // Scrolls when a long quote and the notices under it are taller
-        // than the window, as in the default window size; centred when they
-        // fit.
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // A newer build in the store: a small button above the quote.
-                    const UpdateButton(),
-                    // Today's quote is a card: a tap opens the book where it is
-                    // from.
-                    const QuoteOfDayCard(),
-                    // Where the reader last was, and the last of Recent.
-                    const Padding(
-                      padding: EdgeInsets.only(top: 16),
-                      child: HomeShortcuts(),
-                    ),
-                    FutureBuilder<bool>(
-                      future: _hasTranslationExtension(),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData &&
-                            !snapshot.data! &&
-                            !Prefs.hideTranslationNag) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 24.0),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.g_translate),
-                                  label: Text(AppLocalizations.of(context)!
-                                      .installEnglishTranslations),
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext dialogContext) {
-                                        return AlertDialog(
-                                          title: Text(
-                                              AppLocalizations.of(context)!
-                                                  .installEnglishTranslations),
-                                          content: Text(AppLocalizations.of(
-                                                  context)!
-                                              .installTranslationInstructions),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () {
-                                                Navigator.of(dialogContext)
-                                                    .pop();
-                                                NestedNavigationHelper
-                                                    .openDownloadView(
-                                                  context,
-                                                  autoInstallEnglish: true,
-                                                );
-                                                // Refresh welcome screen when returning
-                                                Future.delayed(
-                                                    const Duration(
-                                                        milliseconds: 500), () {
-                                                  if (mounted) {
-                                                    setState(() {});
-                                                  }
-                                                });
-                                              },
-                                              child: Text(
-                                                  AppLocalizations.of(context)!
-                                                      .ok),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline),
-                                  tooltip: 'Dismiss',
-                                  onPressed: () {
-                                    setState(() {
-                                      Prefs.hideTranslationNag = true;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                    if (Prefs.geminiDirectApiKey.isEmpty &&
-                        !Prefs.hideAiSearchNag)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16.0),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.video_library),
-                              label: Text(AppLocalizations.of(context)!
-                                  .learnAboutAiSearch),
-                              onPressed: () {
-                                launchUrl(
-                                  Uri.parse(
-                                      'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              tooltip: 'Dismiss',
-                              onPressed: () {
-                                setState(() {
-                                  Prefs.hideAiSearchNag = true;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     final primaryColor = Theme.of(context).colorScheme.primary;
     final surface = Theme.of(context).colorScheme.surfaceTint;
@@ -447,14 +338,159 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
     // cannot watch two notifiers simultaneity in a single widget
     // so warp in consumer for watching theme change
-    final tabsArea = getTabArea(themeData, multiWindowMode, tabs, books);
+    _homeTab.content = multiWindowMode ? Container() : _homeView();
+    final tabsArea =
+        getTabArea(themeData, multiWindowMode, [_homeTab, ...tabs], books);
     if (multiWindowMode) {
       return Stack(
-        children: [tabsArea, getColumns(books)],
+        children: [
+          tabsArea,
+          if (_home)
+            Padding(
+                padding: const EdgeInsets.fromLTRB(1, 31, 1, 1),
+                child: _homeView())
+          else
+            getColumns(books),
+        ],
       );
     } else {
       return tabsArea;
     }
+  }
+
+  Widget _homeView() {
+    return PaperBackground(
+      // Scrolls when a long quote and the notices under it are taller
+      // than the window, as in the default window size; centred when they
+      // fit.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // A newer build in the store: a small button above the quote.
+                  const UpdateButton(),
+                  // Today's quote is a card: a tap opens the book where it is
+                  // from.
+                  const QuoteOfDayCard(),
+                  // Where the reader last was, and the last of Recent.
+                  const Padding(
+                    padding: EdgeInsets.only(top: 16),
+                    child: HomeShortcuts(),
+                  ),
+                  FutureBuilder<bool>(
+                    future: _hasTranslationExtension(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData &&
+                          !snapshot.data! &&
+                          !Prefs.hideTranslationNag) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 24.0),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.g_translate),
+                                label: Text(AppLocalizations.of(context)!
+                                    .installEnglishTranslations),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext dialogContext) {
+                                      return AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .installEnglishTranslations),
+                                        content: Text(AppLocalizations.of(
+                                                context)!
+                                            .installTranslationInstructions),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.of(dialogContext).pop();
+                                              NestedNavigationHelper
+                                                  .openDownloadView(
+                                                context,
+                                                autoInstallEnglish: true,
+                                              );
+                                              // Refresh welcome screen when returning
+                                              Future.delayed(
+                                                  const Duration(
+                                                      milliseconds: 500), () {
+                                                if (mounted) {
+                                                  setState(() {});
+                                                }
+                                              });
+                                            },
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .ok),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: 'Dismiss',
+                                onPressed: () {
+                                  setState(() {
+                                    Prefs.hideTranslationNag = true;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                  if (Prefs.geminiDirectApiKey.isEmpty &&
+                      !Prefs.hideAiSearchNag)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.video_library),
+                            label: Text(AppLocalizations.of(context)!
+                                .learnAboutAiSearch),
+                            onPressed: () {
+                              launchUrl(
+                                Uri.parse(
+                                    'https://www.youtube.com/watch?v=tJXhPFZO6Xs'),
+                                mode: LaunchMode.externalApplication,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Dismiss',
+                            onPressed: () {
+                              setState(() {
+                                Prefs.hideAiSearchNag = true;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   static DecorationImage? _tabTexture(DecorationImage? image, Color? tint) {
@@ -476,13 +512,16 @@ class _ReaderContainerState extends State<ReaderContainer> {
     context.read<OpenningBooksProvider>().removeAll();
   }
 
+  /// Closes the book at [tabIndex], counted among the books; its tab is
+  /// one on, after the home tab.
   closeTab(int tabIndex, TabbedViewController controller) {
+    final openedBookProvider = context.read<OpenningBooksProvider>();
+    final books = openedBookProvider.books;
     int toSelect = 0;
-    int selected = controller.selectedIndex ?? 0;
+    int selected = openedBookProvider.selectedBookIndex;
 
     if (tabIndex <= selected) {
-      toSelect =
-          min(controller.tabs.length - 2, (controller.selectedIndex ?? 1));
+      toSelect = max(0, min(books.length - 2, selected));
     } else {
       toSelect = selected;
     }
@@ -491,10 +530,9 @@ class _ReaderContainerState extends State<ReaderContainer> {
       toSelect = 0;
     }
 
-    controller.removeTab(tabIndex, selectedIndex: toSelect);
+    controller.removeTab(tabIndex + 1,
+        selectedIndex: _home || books.length < 2 ? 0 : toSelect + 1);
 
-    final openedBookProvider = context.read<OpenningBooksProvider>();
-    final books = openedBookProvider.books;
     if (tabIndex < books.length) {
       final uuid = books[tabIndex]['uuid'];
       tabsVisibility.remove(uuid);
@@ -511,7 +549,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
       _tabController!.setTabs(tabs);
     }
     _tabController!.selectedIndex =
-        context.read<OpenningBooksProvider>().selectedBookIndex;
+        _home ? 0 : context.read<OpenningBooksProvider>().selectedBookIndex + 1;
     return Consumer<ThemeChangeNotifier>(
       builder: ((context, themeChangeNotifier, child) {
         // tabbed view uses custom theme and provide TabbedViewTheme.
@@ -533,7 +571,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
                 selectToEnableButtons: false,
                 controller: _tabController!,
                 tabsAreaButtonsBuilder: (context, tabsCount) {
-                  if (tabsCount == 0) return [];
+                  if (tabsCount <= 1) return [];
                   return [
                     TabButton(
                       icon: IconProvider.data(Icons.delete_sweep),
@@ -546,18 +584,30 @@ class _ReaderContainerState extends State<ReaderContainer> {
                   ];
                 },
                 onTabSelection: (selectedIndex) {
-                  if (selectedIndex != null) {
-                    context
-                        .read<OpenningBooksProvider>()
-                        .updateSelectedBookIndex(selectedIndex);
+                  if (selectedIndex == null) return;
+                  if (selectedIndex == 0) {
+                    setState(() => _home = true);
+                    return;
                   }
+                  context
+                      .read<OpenningBooksProvider>()
+                      .updateSelectedBookIndex(selectedIndex - 1);
+                  // With books side by side, the panes come back.
+                  _leaveHome();
                 },
                 tabCloseInterceptor: (int tabIndex) {
-                  closeTab(tabIndex, _tabController!);
+                  if (tabIndex > 0) closeTab(tabIndex - 1, _tabController!);
                   return false;
                 },
                 draggableTabBuilder:
                     (int tabIndex, TabData tab, Widget tabWidget) {
+                  // The home tab stays first, and is not moved.
+                  if (tabIndex == 0) {
+                    return Draggable<int>(
+                        maxSimultaneousDrags: 0,
+                        feedback: const SizedBox.shrink(),
+                        child: tabWidget);
+                  }
                   // tabWidget actually is a MouseRegion in the tabbed_view
                   // library. The following code is only used to make tabs
                   // selectable on "tap down" instead of "on tap" (which is
@@ -568,7 +618,7 @@ class _ReaderContainerState extends State<ReaderContainer> {
 
                   GestureDetector gestureDetector = GestureDetector(
                       onTertiaryTapUp: (details) {
-                        closeTab(tabIndex, _tabController!);
+                        closeTab(tabIndex - 1, _tabController!);
                       },
                       onTap: () => gd.onTap?.call(),
                       child: gd.child);
@@ -600,9 +650,9 @@ class _ReaderContainerState extends State<ReaderContainer> {
                         },
                         onAccept: (int index) {
                           debugPrint('Will move $tabIndex to $index');
-                          context
-                              .read<OpenningBooksProvider>()
-                              .swap(tabIndex, index, selected: tabIndex);
+                          context.read<OpenningBooksProvider>().swap(
+                              tabIndex - 1, index - 1,
+                              selected: tabIndex - 1);
                         },
                       ));
                 }),

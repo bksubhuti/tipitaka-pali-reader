@@ -151,9 +151,9 @@ class ReaderView extends StatelessWidget implements Searchable {
                   clickerSize: 32,
                   clickerPosition: 0.98,
                   child: PinchFontSize(
-                      // Pinch to resize the text, on a phone or tablet; a
-                      // computer has Ctrl or Cmd and + or −.
-                      enabled: !PlatformInfo.isDesktop,
+                      // Pinch to resize the text: two fingers on a phone,
+                      // tablet or touch screen, or a trackpad's pinch on a
+                      // computer, as well as Ctrl or Cmd and + or −.
                       child: Stack(
                         children: [
                           // Main content, kept clear of the control bar while it is

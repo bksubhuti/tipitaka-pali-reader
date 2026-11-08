@@ -26,7 +26,11 @@ class ThemeSettingView extends StatelessWidget {
               title: Text(
                 AppLocalizations.of(context)!.color,
               ),
-              trailing: const SelectThemeWidget(),
+              // Under the name, not beside it: a narrow panel left the name a
+              // letter to a line.
+              subtitle: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: const SelectThemeWidget()),
             ),
           ),
           Padding(

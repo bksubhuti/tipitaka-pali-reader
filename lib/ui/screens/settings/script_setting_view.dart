@@ -22,7 +22,11 @@ class ScriptSettingView extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 32.0),
                 child: ListTile(
                   title: Text(AppLocalizations.of(context)!.scriptLanguage),
-                  trailing: const SelectScriptLanguageWidget(),
+                  // Under the name, not beside it: a narrow panel left the name a
+                  // letter to a line.
+                  subtitle: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: const SelectScriptLanguageWidget()),
                 ),
               ),
               _switch(

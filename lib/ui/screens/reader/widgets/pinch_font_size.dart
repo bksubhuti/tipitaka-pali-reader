@@ -1,6 +1,5 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../providers/font_provider.dart';
@@ -11,9 +10,20 @@ import '../../../../providers/font_provider.dart';
 /// The fingers are only watched, not claimed: the text still scrolls and
 /// its words are still tapped as before.
 class PinchFontSize extends StatefulWidget {
-  const PinchFontSize({super.key, this.enabled = true, required this.child});
+  const PinchFontSize(
+      {super.key,
+      this.enabled = true,
+      this.readSize,
+      this.writeSize,
+      this.maxSize = 1000,
+      required this.child});
 
   final bool enabled;
+
+  /// The size pinched, and where it goes; the reader's text if not given.
+  final int Function(BuildContext context)? readSize;
+  final void Function(BuildContext context, int size)? writeSize;
+  final int maxSize;
   final Widget child;
 
   @override
@@ -34,7 +44,7 @@ class _PinchFontSizeState extends State<PinchFontSize> {
     _fingers[event.pointer] = event.position;
     if (_fingers.length == 2) {
       _startSpread = _spread;
-      _startSize = context.read<ReaderFontProvider>().fontSize;
+      _startSize = _read();
     } else {
       _startSpread = null;
     }
@@ -45,8 +55,28 @@ class _PinchFontSizeState extends State<PinchFontSize> {
     _fingers[event.pointer] = event.position;
     final start = _startSpread;
     if (start == null || _fingers.length != 2 || start < 1) return;
-    final size = max(8, (_startSize * _spread / start).round());
-    context.read<ReaderFontProvider>().setFontSize(size);
+    _resize(_spread / start);
+  }
+
+  int _read() =>
+      widget.readSize?.call(context) ??
+      context.read<ReaderFontProvider>().fontSize;
+
+  void _resize(double scale) {
+    final size = (_startSize * scale).round().clamp(8, widget.maxSize);
+    if (size == _read()) return;
+    if (widget.writeSize != null) {
+      widget.writeSize!(context, size);
+    } else {
+      context.read<ReaderFontProvider>().setFontSize(size);
+    }
+  }
+
+  // A trackpad's pinch, on a computer, comes as one pan-zoom gesture.
+  void _panZoomStart(PointerPanZoomStartEvent event) => _startSize = _read();
+
+  void _panZoomUpdate(PointerPanZoomUpdateEvent event) {
+    if (event.scale != 1.0) _resize(event.scale);
   }
 
   void _up(PointerEvent event) {
@@ -62,6 +92,8 @@ class _PinchFontSizeState extends State<PinchFontSize> {
       onPointerMove: _move,
       onPointerUp: _up,
       onPointerCancel: _up,
+      onPointerPanZoomStart: _panZoomStart,
+      onPointerPanZoomUpdate: _panZoomUpdate,
       child: widget.child,
     );
   }

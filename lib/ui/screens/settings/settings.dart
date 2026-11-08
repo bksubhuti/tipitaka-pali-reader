@@ -77,8 +77,7 @@ class DarkModeSettingView extends StatelessWidget {
                           listen: false);
                       themeNotifier.toggleTheme(PageTheme.values[index]);
                     },
-                    isSelected:
-                        context.read<ThemeChangeNotifier>().isSelected,
+                    isSelected: context.read<ThemeChangeNotifier>().isSelected,
                     children: const <Widget>[
                       Icon(Icons.wb_sunny),
                       Icon(Icons.color_lens),
@@ -100,7 +99,11 @@ class DarkModeSettingView extends StatelessWidget {
           child: isMedium
               ? ListTile(
                   title: Text(AppLocalizations.of(context)!.paper),
-                  trailing: const SelectPaperWidget(),
+                  // Under the name, not beside it: a narrow panel left the name a
+                  // letter to a line.
+                  subtitle: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: const SelectPaperWidget()),
                 )
               : const SizedBox.shrink(),
         ),
@@ -121,7 +124,11 @@ class LanguageSettingView extends StatelessWidget {
           AppLocalizations.of(context)!.language,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        trailing: SelectLanguageWidget(),
+        // Under the name, as the chosen translation is under Translations:
+        // beside it, a narrow panel left the name a letter to a line.
+        subtitle: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: SelectLanguageWidget()),
       ),
     );
   }

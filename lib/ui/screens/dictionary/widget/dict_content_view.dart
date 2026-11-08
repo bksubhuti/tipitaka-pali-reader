@@ -13,12 +13,24 @@ import 'package:tipitaka_pali/ui/dialogs/show_root_family_dialog.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_controller.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_state.dart';
 import 'package:tipitaka_pali/ui/screens/dictionary/widget/dictionary_history_view.dart';
+import 'package:tipitaka_pali/ui/screens/reader/widgets/pinch_font_size.dart';
 import 'package:tipitaka_pali/ui/screens/settings/download_view.dart';
 import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/utils/script_detector.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+
+/// The dictionary's text size, kept in Prefs; pinching the definitions or
+/// the settings slider changes it, and the open dictionary follows.
+final dictionaryFontSize = ValueNotifier<int>(Prefs.dictionaryFontSize);
+
+void setDictionaryFontSize(int size) {
+  Prefs.dictionaryFontSize = size;
+  dictionaryFontSize.value = size;
+}
+
+const maxDictionaryFontSize = 24;
 
 class DictionaryContentView extends StatelessWidget {
   final ScrollController? scrollController;
@@ -45,158 +57,176 @@ class DictionaryContentView extends StatelessWidget {
             }),
         loading: () => const SizedBox(
             height: 100, child: Center(child: CircularProgressIndicator())),
-        data: (content) => SingleChildScrollView(
-              controller: scrollController,
-              padding: const EdgeInsets.all(8.0),
-              child: SelectionArea(
-                child: GestureDetector(
-                  onTapUp: (details) {
-                    final box = textKey.currentContext?.findRenderObject()!
-                        as RenderBox;
-                    final result = BoxHitTestResult();
-                    final offset = box.globalToLocal(details.globalPosition);
-                    if (!box.hitTest(result, position: offset)) {
-                      return;
-                    }
+        data: (content) => PinchFontSize(
+            readSize: (_) => dictionaryFontSize.value,
+            writeSize: (_, size) => setDictionaryFontSize(size),
+            maxSize: maxDictionaryFontSize,
+            child: ValueListenableBuilder<int>(
+                valueListenable: dictionaryFontSize,
+                builder: (context, _, __) => SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(8.0),
+                      child: SelectionArea(
+                        child: GestureDetector(
+                          onTapUp: (details) {
+                            final box = textKey.currentContext
+                                ?.findRenderObject()! as RenderBox;
+                            final result = BoxHitTestResult();
+                            final offset =
+                                box.globalToLocal(details.globalPosition);
+                            if (!box.hitTest(result, position: offset)) {
+                              return;
+                            }
 
-                    for (final entry in result.path) {
-                      final target = entry.target;
-                      if (entry is! BoxHitTestEntry ||
-                          target is! RenderParagraph) {
-                        continue;
-                      }
+                            for (final entry in result.path) {
+                              final target = entry.target;
+                              if (entry is! BoxHitTestEntry ||
+                                  target is! RenderParagraph) {
+                                continue;
+                              }
 
-                      final p =
-                          target.getPositionForOffset(entry.localPosition);
-                      final text = target.text.toPlainText();
-                      if (text.isNotEmpty && p.offset < text.length) {
-                        final int offset = p.offset;
-                        // print('pargraph: $text');
-                        final charUnderTap = text[offset];
-                        final leftChars = getLeftCharacters(text, offset);
-                        final rightChars = getRightCharacters(text, offset);
-                        final word = leftChars + charUnderTap + rightChars;
-                        debugPrint(word);
-                        writeHistory(
-                            word,
-                            AppLocalizations.of(context)!.dictionary,
-                            1,
-                            "dictionary");
+                              final p = target
+                                  .getPositionForOffset(entry.localPosition);
+                              final text = target.text.toPlainText();
+                              if (text.isNotEmpty && p.offset < text.length) {
+                                final int offset = p.offset;
+                                // print('pargraph: $text');
+                                final charUnderTap = text[offset];
+                                final leftChars =
+                                    getLeftCharacters(text, offset);
+                                final rightChars =
+                                    getRightCharacters(text, offset);
+                                final word =
+                                    leftChars + charUnderTap + rightChars;
+                                debugPrint(word);
+                                writeHistory(
+                                    word,
+                                    AppLocalizations.of(context)!.dictionary,
+                                    1,
+                                    "dictionary");
 
-                        // loading definitions
-                        String romanWord = word;
-                        Script inputScript = ScriptDetector.getLanguage(word);
-                        if (inputScript != Script.roman) {
-                          romanWord = PaliScript.getRomanScriptFrom(
-                              script: inputScript, text: romanWord);
-                        }
+                                // loading definitions
+                                String romanWord = word;
+                                Script inputScript =
+                                    ScriptDetector.getLanguage(word);
+                                if (inputScript != Script.roman) {
+                                  romanWord = PaliScript.getRomanScriptFrom(
+                                      script: inputScript, text: romanWord);
+                                }
 
-                        context
-                            .read<DictionaryController>()
-                            .onWordClicked(romanWord);
-                      }
-                    }
-                  },
-                  child: _DictionarySections(
-                    key: textKey,
-                    content: content,
-                    html: (part) => HtmlWidget(
-                      part,
-                      customStylesBuilder: (element) {
-                        if (element.classes.contains('dpdheader')) {
-                          return {'font-weight:': 'bold'};
-                        }
-                        return null;
-                      },
-                      customWidgetBuilder: (element) {
-                        final href = element.attributes['href'];
-                        if (href != null) {
-                          // Determine the link text
-                          String linkText = href.contains("wikipedia")
-                              ? "Wikipedia"
-                              : "Submit a correction";
-                          final allowedExtras = [
-                            'inflect',
-                            'root-family',
-                            'compound-family',
-                            'freq'
-                          ];
-
-                          if (href.startsWith("dpd://")) {
-                            // Return a small button for DPD extra links
-
-                            Uri parsedUri = Uri.parse(href);
-                            String extra = parsedUri.host;
-                            int id = parsedUri.port;
-
-                            return InlineCustomWidget(
-                              child: ElevatedButton(
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0),
-                                  minimumSize: const Size(0,
-                                      0), // Removes default minimum size constraints
-                                  tapTargetSize: MaterialTapTargetSize
-                                      .shrinkWrap, // Reduces button padding
-                                ),
-                                onPressed: () {
-                                  if (extra == 'get-extras') {
-                                    debugPrint(
-                                        'Get Extras button pressed for id: $id');
-                                    // Implement logic to direct user to the download screen
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const DownloadView()),
-                                    );
-                                  } else if (allowedExtras.contains(extra)) {
-                                    debugPrint(
-                                        'DPD "$extra" extra operation for: $id');
-                                    showDpdExtra(context, extra, id);
-                                  } else {
-                                    debugPrint('Unhandled DPD link: $extra');
-                                  }
-                                },
-                                child: Text(
-                                  element.text,
-                                  style: const TextStyle(
-                                      fontSize: 10), // Set font size to 10pt
-                                ),
-                              ),
-                            );
-                          } else {
-                            // Use InkWell with 10pt font for other links
-                            return InkWell(
-                              onTap: () {
-                                launchUrl(Uri.parse(href),
-                                    mode: LaunchMode.externalApplication);
-                                debugPrint('Will launch $href. --> $textKey');
+                                context
+                                    .read<DictionaryController>()
+                                    .onWordClicked(romanWord);
+                              }
+                            }
+                          },
+                          child: _DictionarySections(
+                            key: textKey,
+                            content: content,
+                            html: (part) => HtmlWidget(
+                              part,
+                              customStylesBuilder: (element) {
+                                if (element.classes.contains('dpdheader')) {
+                                  return {'font-weight:': 'bold'};
+                                }
+                                return null;
                               },
-                              child: Text(
-                                linkText,
-                                style: const TextStyle(
-                                  decoration: TextDecoration.underline,
-                                  color: Colors.blue,
-                                  fontSize: 10, // Set font size to 10pt
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                        return null;
-                      },
-                      textStyle: TextStyle(
-                          fontSize: Prefs.dictionaryFontSize.toDouble(),
-                          color: context.watch<ThemeChangeNotifier>().isDarkMode
-                              ? Colors.white
-                              : Colors.black,
-                          inherit: true),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+                              customWidgetBuilder: (element) {
+                                final href = element.attributes['href'];
+                                if (href != null) {
+                                  // Determine the link text
+                                  String linkText = href.contains("wikipedia")
+                                      ? "Wikipedia"
+                                      : "Submit a correction";
+                                  final allowedExtras = [
+                                    'inflect',
+                                    'root-family',
+                                    'compound-family',
+                                    'freq'
+                                  ];
+
+                                  if (href.startsWith("dpd://")) {
+                                    // Return a small button for DPD extra links
+
+                                    Uri parsedUri = Uri.parse(href);
+                                    String extra = parsedUri.host;
+                                    int id = parsedUri.port;
+
+                                    return InlineCustomWidget(
+                                      child: ElevatedButton(
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8.0),
+                                          minimumSize: const Size(0,
+                                              0), // Removes default minimum size constraints
+                                          tapTargetSize: MaterialTapTargetSize
+                                              .shrinkWrap, // Reduces button padding
+                                        ),
+                                        onPressed: () {
+                                          if (extra == 'get-extras') {
+                                            debugPrint(
+                                                'Get Extras button pressed for id: $id');
+                                            // Implement logic to direct user to the download screen
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const DownloadView()),
+                                            );
+                                          } else if (allowedExtras
+                                              .contains(extra)) {
+                                            debugPrint(
+                                                'DPD "$extra" extra operation for: $id');
+                                            showDpdExtra(context, extra, id);
+                                          } else {
+                                            debugPrint(
+                                                'Unhandled DPD link: $extra');
+                                          }
+                                        },
+                                        child: Text(
+                                          element.text,
+                                          style: const TextStyle(
+                                              fontSize:
+                                                  10), // Set font size to 10pt
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    // Use InkWell with 10pt font for other links
+                                    return InkWell(
+                                      onTap: () {
+                                        launchUrl(Uri.parse(href),
+                                            mode:
+                                                LaunchMode.externalApplication);
+                                        debugPrint(
+                                            'Will launch $href. --> $textKey');
+                                      },
+                                      child: Text(
+                                        linkText,
+                                        style: const TextStyle(
+                                          decoration: TextDecoration.underline,
+                                          color: Colors.blue,
+                                          fontSize: 10, // Set font size to 10pt
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                                return null;
+                              },
+                              textStyle: TextStyle(
+                                  fontSize: Prefs.dictionaryFontSize.toDouble(),
+                                  color: context
+                                          .watch<ThemeChangeNotifier>()
+                                          .isDarkMode
+                                      ? Colors.white
+                                      : Colors.black,
+                                  inherit: true),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ))),
         noData: () => const SizedBox(
               height: 100,
               child: Center(child: Text('Not found')),

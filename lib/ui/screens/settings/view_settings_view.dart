@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/ui/screens/dictionary/widget/dict_content_view.dart';
 import 'package:tipitaka_pali/ui/widgets/xray_icon.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
@@ -372,12 +373,12 @@ class _ViewSettingsViewState extends State<ViewSettingsView> {
           Slider(
             value: Prefs.dictionaryFontSize.toDouble(),
             min: 8,
-            max: 20,
-            divisions: 12,
+            max: maxDictionaryFontSize.toDouble(),
+            divisions: maxDictionaryFontSize - 8,
             label: Prefs.dictionaryFontSize.toString(),
             onChanged: (double value) {
               setState(() {
-                Prefs.dictionaryFontSize = value.toInt();
+                setDictionaryFontSize(value.toInt());
               });
             },
           ),
