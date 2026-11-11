@@ -356,7 +356,7 @@ class ReaderView extends StatelessWidget implements Searchable {
     final backgroundColor = switch (Prefs.selectedPageTheme) {
       PageTheme.light => Colors.white,
       PageTheme.medium => pagePapers[Prefs.pagePaper].color ?? mediumTheme,
-      PageTheme.dark => Colors.black,
+      PageTheme.dark => Prefs.paper?.color ?? Colors.black,
     };
 
     return ValueListenableBuilder<String?>(

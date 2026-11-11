@@ -604,7 +604,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
             return {'color': '#000', 'text-decoration': 'none'};
           }
 
-          if (context.read<ThemeChangeNotifier>().isDarkMode) {
+          if (Prefs.pageIsDark) {
             return {
               'color': 'white',
               'text-decoration': 'none',
@@ -899,7 +899,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   Map<String, String> _markStyle({bool strong = false}) {
     final accent = Theme.of(context).colorScheme.primary;
     final argb = accent.toARGB32();
-    final alpha = (Prefs.darkThemeOn ? 0.28 : 0.14) * (strong ? 2 : 1);
+    final alpha = (Prefs.pageIsDark ? 0.28 : 0.14) * (strong ? 2 : 1);
     return {
       'color': 'inherit',
       'background-color': 'rgba(${(argb >> 16) & 0xFF}, ${(argb >> 8) & 0xFF}, '
@@ -919,7 +919,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   String _changeToInlineStyle(String content) {
     // 1. SETUP VARIABLES (Same as your original code)
     int paliTextColorInt = Prefs.paliTextColor;
-    if (paliTextColorInt == 0xFF000000 && Prefs.darkThemeOn) {
+    if (paliTextColorInt == 0xFF000000 && Prefs.pageIsDark) {
       paliTextColorInt = 0xFFFFFFFF;
     }
     String paliTextColorCss = _toCssHex(paliTextColorInt);
@@ -954,7 +954,7 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
 
     String baseStyle;
     if (isBilingual) {
-      String themeColor = (Prefs.darkThemeOn) ? "white" : "black";
+      String themeColor = (Prefs.pageIsDark) ? "white" : "black";
       baseStyle = "color: $themeColor;";
     } else {
       baseStyle = "${boldStyle}color: $paliTextColorCss;";

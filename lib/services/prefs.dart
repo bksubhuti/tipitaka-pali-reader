@@ -43,6 +43,7 @@ const String isPeuPref = "isPeuOn";
 const String isDpdPref = "isDpdOn";
 const String selectedPageColorPref = "selectedPageColor";
 const String pagePaperPref = "pagePaper";
+const String darkPagePaperPref = "darkPagePaper";
 const String databaseDirPathPref = "databaseDirPath";
 const String saveClickToClipboardPref = "saveClickToClipbard";
 const String multiTabModePref = "multiTabMode";
@@ -352,13 +353,31 @@ class Prefs {
   static set selectedPageTheme(PageTheme theme) =>
       instance.setInt(selectedPageColorPref, theme.index);
 
-  /// The paper of the medium page, by its place in [pagePapers].
+  /// The paper of the page, by its place in [pagePapers]. The medium and
+  /// the dark page each keep a choice of their own; on the dark page the
+  /// first is no paper, the black page.
   static int get pagePaper {
-    final i = instance.getInt(pagePaperPref) ?? 0;
+    final i = instance.getInt(_pagePaperKey) ?? 0;
     return i < pagePapers.length ? i : 0;
   }
 
-  static set pagePaper(int value) => instance.setInt(pagePaperPref, value);
+  static set pagePaper(int value) => instance.setInt(_pagePaperKey, value);
+
+  static String get _pagePaperKey => selectedPageTheme == PageTheme.dark
+      ? darkPagePaperPref
+      : pagePaperPref;
+
+  /// The paper the text is read on, or null on a page with none: the
+  /// light page, and the dark page left black.
+  static PagePaper? get paper => switch (selectedPageTheme) {
+        PageTheme.light => null,
+        PageTheme.medium => pagePapers[pagePaper],
+        PageTheme.dark => pagePaper == 0 ? null : pagePapers[pagePaper],
+      };
+
+  /// Whether the text is read light on dark. Not so in the dark theme with
+  /// a paper: the app around the page is dark, the page itself is not.
+  static bool get pageIsDark => darkThemeOn && paper == null;
 
   static String get databaseDirPath =>
       instance.getString(databaseDirPathPref) ?? defaultDatabaseDirPath;
@@ -948,16 +967,14 @@ class Prefs {
         return pagePapers[pagePaper].color ??
             Theme.of(context).colorScheme.surfaceContainer;
       case PageTheme.dark:
-        return Colors.black;
+        return paper?.color ?? Colors.black;
     }
   }
 
   /// The page behind the text: [getChosenColor], with the paper's texture
   /// over it when the medium page has a textured paper.
   static BoxDecoration getPageDecoration(BuildContext context) {
-    final asset = selectedPageTheme == PageTheme.medium
-        ? pagePapers[pagePaper].asset
-        : null;
+    final asset = paper?.asset;
     return BoxDecoration(
       color: getChosenColor(context),
       image: asset == null

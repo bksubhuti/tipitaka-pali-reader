@@ -78,7 +78,7 @@ class XrayNotice {
       if (Prefs.paperOfferShown) return;
       Prefs.paperOfferShown = true;
       // On a paper already: they have found them.
-      if (Prefs.selectedPageTheme == PageTheme.medium &&
+      if (Prefs.selectedPageTheme != PageTheme.light &&
           Prefs.pagePaper != 0) {
         return;
       }
@@ -89,8 +89,9 @@ class XrayNotice {
       );
       if (tryIt == true && readerContext.mounted) {
         final theme = readerContext.read<ThemeChangeNotifier>();
-        theme.onChangePagePaper(pagePapers.indexOf(agedParchment));
+        // The theme first: each theme keeps a paper of its own.
         theme.toggleTheme(PageTheme.medium);
+        theme.onChangePagePaper(pagePapers.indexOf(agedParchment));
       }
     });
   }

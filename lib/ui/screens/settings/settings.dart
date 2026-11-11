@@ -64,7 +64,8 @@ class DarkModeSettingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMedium = context.watch<ThemeChangeNotifier>().isSelected[1];
+    // The medium and the dark page can each have a paper.
+    final isMedium = !context.watch<ThemeChangeNotifier>().isSelected[0];
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -88,7 +89,7 @@ class DarkModeSettingView extends StatelessWidget {
             AppLocalizations.of(context)!.darkMode,
           ),
         ),
-        // The paper, only for the medium page.
+        // The paper, for the medium and the dark page.
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           transitionBuilder: (child, animation) => SizeTransition(

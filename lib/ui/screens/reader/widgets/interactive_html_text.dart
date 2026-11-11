@@ -26,13 +26,14 @@ class InteractiveHtmlText extends StatelessWidget {
     final backgroundColor = switch (Prefs.selectedPageTheme) {
       PageTheme.light => Colors.white,
       PageTheme.medium => pagePapers[Prefs.pagePaper].color ?? mediumTheme,
-      PageTheme.dark => Colors.black,
+      PageTheme.dark => Prefs.paper?.color ?? Colors.black,
       _ => Colors.white,
     };
 
     // Get system-wide font and theme info
     final fontSize = context.watch<ReaderFontProvider>().fontSize;
-    final isDark = context.watch<ThemeChangeNotifier>().isDarkMode;
+    context.watch<ThemeChangeNotifier>();
+    final isDark = Prefs.pageIsDark;
     final fontColor = isDark ? Colors.white : Colors.black;
 
     return SelectionArea(

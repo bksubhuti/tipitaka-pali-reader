@@ -15,9 +15,7 @@ class PaperBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final edge = Prefs.selectedPageTheme == PageTheme.medium
-        ? pagePapers[Prefs.pagePaper].edge
-        : null;
+    final edge = Prefs.paper?.edge;
     // The paper and the text each in a layer of their own: scrolling then
     // repaints only the text, and the paper, painted once, is reused. In
     // one layer the full-page texture and edges were painted again on
@@ -77,9 +75,7 @@ class PaperFlow {
 
   void _load(BuildContext context) {
     _ratio = MediaQuery.devicePixelRatioOf(context);
-    final paper = Prefs.selectedPageTheme == PageTheme.medium
-        ? pagePapers[Prefs.pagePaper]
-        : null;
+    final paper = Prefs.paper;
     final asset = paper?.asset;
     final edge = asset == null ? null : paper?.edge;
     if (asset == _asset && edge == _edgeAsset) return;
