@@ -1209,7 +1209,8 @@ class DownloadService {
 /// are installed, so they stay restorable there.
 ///
 /// A language archive (`epitaka_en.zip`) is removed after it installs, but
-/// one left by an interrupted install is not an extension either.
+/// one left by an interrupted install is not an extension either. Nor are
+/// the legacy DPD and book zips of builds 128 and lower.
 bool isRetiredExtensionZip(String fileName) {
   const alwaysRetired = {
     'full_en.zip',
@@ -1221,9 +1222,23 @@ bool isRetiredExtensionZip(String fileName) {
     'epitaka_full_en.zip',
     'epitaka_viet_full.zip',
   };
+  // The extensions of builds 128 and lower. The database now carries a
+  // newer DPD and these books itself, so one restored would go over them
+  // with older data.
+  const legacy = {
+    'dpd.zip',
+    'dpd__extras.zip',
+    'dpd_extras.zip',
+    'iit_chantingbook.zip',
+    'safeguard-recitals.zip',
+    'daily_chanting.zip',
+    'chanting_for_meditators.zip',
+    'sbs_pali_recitation.zip',
+  };
   final name = fileName.toLowerCase();
   if (alwaysRetired.contains(name)) return true;
   if (!DatabaseHelper.sentenceDataAvailable) return false;
-  return oldTranslations.contains(name) ||
+  return legacy.contains(name) ||
+      oldTranslations.contains(name) ||
       RegExp(r'^epitaka_[a-z]{2,3}\.zip$').hasMatch(name);
 }
