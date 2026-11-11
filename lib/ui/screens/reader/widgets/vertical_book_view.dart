@@ -22,6 +22,7 @@ import '../controller/reader_view_controller.dart';
 import '../reader_motion.dart';
 import '../../../widgets/keep_while_selecting.dart';
 import '../../../widgets/copy_formatted_menu.dart';
+import '../../../widgets/paper_background.dart';
 import 'pali_page_widget.dart';
 import 'vertical_book_slider.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
@@ -65,6 +66,9 @@ class _VerticalBookViewState extends State<VerticalBookView>
   String searchText = '';
 
   StreamSubscription<double>? _scrollOffsetSubscription;
+
+  /// The paper under the text, which scrolls with it.
+  final _paperFlow = PaperFlow();
 
   SelectedContent? _selectedContent;
 
@@ -240,6 +244,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
     readerViewController.currentPage.removeListener(_listenPageChange);
     readerViewController.foundState.removeListener(_listenSearchIndexChanged);
     _selecting.dispose();
+    _paperFlow.dispose();
     super.dispose();
   }
 
@@ -477,46 +482,52 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                     isHtmlText: true,
                                   );
 
-                                  return KeepWhileSelecting(
-                                      selecting: _selecting,
-                                      child: Padding(
-                                        padding: index ==
-                                                readerViewController
-                                                        .chunks.length -
-                                                    1
-                                            ? const EdgeInsets.only(
-                                                bottom: 100.0)
-                                            : EdgeInsets.zero,
-                                        child: ValueListenableBuilder(
-                                          valueListenable:
-                                              readerViewController.foundState,
-                                          builder: (_, foundState, __) {
-                                            return PaliPageWidget(
-                                              pageNumber: pageChunk.pageNumber,
-                                              htmlContent: htmlContent,
-                                              script: script,
-                                              highlightedWord:
+                                  return PaperStrip(
+                                      flow: _paperFlow,
+                                      index: index,
+                                      child: KeepWhileSelecting(
+                                          selecting: _selecting,
+                                          child: Padding(
+                                            padding: index ==
+                                                    readerViewController
+                                                            .chunks.length -
+                                                        1
+                                                ? const EdgeInsets.only(
+                                                    bottom: 100.0)
+                                                : EdgeInsets.zero,
+                                            child: ValueListenableBuilder(
+                                              valueListenable:
                                                   readerViewController
-                                                      .textToHighlight,
-                                              pageToHighlight:
-                                                  readerViewController
-                                                      .pageToHighlight,
-                                              height: constraints.maxHeight,
-                                              founds: _getFounds(
-                                                  pageChunk.pageNumber,
-                                                  foundState),
-                                              currentOccurrence:
-                                                  _getCurrentOccurrence(
-                                                      index, foundState),
-                                              onClick: widget.onClickedWord,
-                                              book: readerViewController.book,
-                                              isFirstChunkOfPage:
-                                                  pageChunk.isFirstChunkOfPage,
-                                              blockIndex: index,
-                                            );
-                                          },
-                                        ),
-                                      ));
+                                                      .foundState,
+                                              builder: (_, foundState, __) {
+                                                return PaliPageWidget(
+                                                  pageNumber:
+                                                      pageChunk.pageNumber,
+                                                  htmlContent: htmlContent,
+                                                  script: script,
+                                                  highlightedWord:
+                                                      readerViewController
+                                                          .textToHighlight,
+                                                  pageToHighlight:
+                                                      readerViewController
+                                                          .pageToHighlight,
+                                                  height: constraints.maxHeight,
+                                                  founds: _getFounds(
+                                                      pageChunk.pageNumber,
+                                                      foundState),
+                                                  currentOccurrence:
+                                                      _getCurrentOccurrence(
+                                                          index, foundState),
+                                                  onClick: widget.onClickedWord,
+                                                  book:
+                                                      readerViewController.book,
+                                                  isFirstChunkOfPage: pageChunk
+                                                      .isFirstChunkOfPage,
+                                                  blockIndex: index,
+                                                );
+                                              },
+                                            ),
+                                          )));
                                   // bookmarks: readerViewController.bookmarks,);
                                 },
                               ))),
