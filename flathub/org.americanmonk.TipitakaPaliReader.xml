@@ -30,6 +30,21 @@
   </description>
 
   <releases>
+    <release version="3.1.7+138" date="2026-11-12">
+      <description>
+        <p>
+          A home tab on desktop, paper that scrolls with the text, and smaller fixes.
+        </p>
+        <ul>
+          <li>Home tab on desktop, with the quote of the day</li>
+          <li>Pinch to zoom in the dictionary and the reader</li>
+          <li>Paper textures now scroll with the text, and work in the dark theme</li>
+          <li>Settings use drop-down lists</li>
+          <li>Thai Pāḷi shown correctly in flashcard sentences</li>
+          <li>Old DPD and book zips are no longer offered for restore</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.1.6+137" date="2026-11-03">
       <description>
         <p>
