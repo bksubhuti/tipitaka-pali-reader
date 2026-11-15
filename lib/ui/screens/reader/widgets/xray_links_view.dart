@@ -73,6 +73,30 @@ class _XrayLinksViewState extends State<XrayLinksView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // On a paper in the dark theme the app is dark but the page is light:
+    // the dark theme's pale colours were lost on it, so the links and the
+    // panel take light-page colours there.
+    if (!Prefs.darkThemeOn || Prefs.pageIsDark) return _content(context);
+    const ink = Colors.black87;
+    return Theme(
+      data: theme.copyWith(
+        colorScheme: ColorScheme.fromSeed(
+            seedColor: theme.colorScheme.primary,
+            brightness: Brightness.light),
+        textTheme: theme.textTheme.apply(bodyColor: ink, displayColor: ink),
+        hintColor: Colors.black54,
+        dividerColor: Colors.black26,
+        iconTheme: theme.iconTheme.copyWith(color: ink),
+      ),
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(color: ink),
+        child: Builder(builder: _content),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final script = context.watch<ScriptLanguageProvider>().currentScript;
     String inScript(String roman) =>
         PaliScript.getScriptOf(script: script, romanText: roman);
@@ -131,15 +155,14 @@ class _XrayLinksViewState extends State<XrayLinksView> {
                 ),
             ],
           ),
-          if (_open != null) _panel(_linksOf(_open!), inScript, small),
+          if (_open != null) _panel(_linksOf(_open!), inScript, small, theme),
         ],
       ),
     );
   }
 
-  Widget _panel(
-      List<XrayLink> links, String Function(String) inScript, double small) {
-    final theme = Theme.of(context);
+  Widget _panel(List<XrayLink> links, String Function(String) inScript,
+      double small, ThemeData theme) {
     final script = context.read<ScriptLanguageProvider>().currentScript;
     // The languages the page shows, each with its own font and colour.
     var paliShown = true;
