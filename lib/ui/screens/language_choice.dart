@@ -193,7 +193,9 @@ class _LanguageChoiceScreenState extends State<LanguageChoiceScreen> {
                     ),
                   Expanded(
                     child: _done
-                        ? Center(
+                        // Scrolls on a short window, which the message
+                        // overflowed.
+                        ? SingleChildScrollView(
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Column(

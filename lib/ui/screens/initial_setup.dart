@@ -261,9 +261,14 @@ class _InitialSetupState extends State<InitialSetup> {
       DatabaseHelper.sentenceDataAvailable ||
       await DatabaseHelper.hasTranslations();
 
+  /// Home replaces everything under it. Pushed on top, it left the splash
+  /// route below, and the splash, rebuilt by anything that rebuilds the app
+  /// (a theme or size change, a rotation), now found the database there and
+  /// built a second Home. The two then fought over the side pane's
+  /// navigator keys, and Search, Settings and AI went blank until a restart
+  /// (#259).
   void _openHomePage(context) {
-    //Navigator.of(context).pop();
-    Navigator.of(context).pushNamed('/home');
+    Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
   }
 
   List<File> getExtensionFiles() {
