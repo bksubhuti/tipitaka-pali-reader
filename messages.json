@@ -3,7 +3,8 @@
     "message": "TPR Build 85+ is available for Android, iOS, Windows, Mac and Linux .\n\nWhat's New? AI Context window.  Add Key, highlight and right click.  \n\nMay this dhammadāna be a cause for Nibbāna for the programmers and volunteers of this app and also for all beings and past relatives.",
     "messageDate": "20250507",
     "peuDate": "March, 2025",
-    "dpdDate": "March, 2025"
+    "dpdDate": "March, 2025",
+    "tprResearchVersion": "1.1.8"
   },
   "android": {
     "currentVersion": "3.1.4+135",
