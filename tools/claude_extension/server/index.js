@@ -246,7 +246,7 @@ const TOOLS = [
         file_name: str('File name without extension (default: from the title).'),
         byline: str('Line under the title (default: "Tipitaka Pali Reader sources · <date>").'),
         pdf: { type: 'boolean', description: 'Also print a PDF (default true).' },
-        open: { type: 'boolean', description: 'Open the result when done (default true).' },
+        
       },
       required: ['markdown'],
     },
@@ -265,14 +265,24 @@ const PROMPTS = (MANIFEST.prompts || []).map((p) => ({
   render: (a) => p.text.replace(/\$\{arguments\.(\w+)\}/g, (_, k) => (a[k] == null ? '' : String(a[k]))),
 }));
 
-const INSTRUCTIONS = 'TPR Research reads the Pali Tipiṭaka, commentaries, translations, dictionaries and the '
-  + 'reader\'s own history in their Tipitaka Pali Reader, read-only. Before researching or making a report, call '
-  + 'tpr_research_guide and follow it: search before claiming, check context, and use its paper and report formats. '
-  + 'Use these tools whenever the user asks about the Tipiṭaka, Pāḷi, suttas, Vinaya, Abhidhamma, the Aṭṭhakathā or Ṭīkā, '
-  + 'a Pāḷi word, or their TPR, even if they do not name the extension; never read the database files on disk instead. '
-  + 'Length decides where the answer goes: one that fits on a page (about 400 words or less) is given in the chat, '
-  + 'unless the reader asks for a paper or PDF; a longer one is written in the paper format and saved with '
-  + 'tpr_save_paper, so the reader gets the PDF opened for them, with only a short summary in the chat.';
+const INSTRUCTIONS = [
+  'TPR Research reads the Pali Tipiṭaka, commentaries, translations, dictionaries and the reader\'s own history in '
+  + 'their Tipitaka Pali Reader, read-only. Use these tools whenever the user asks about the Tipiṭaka, Pāḷi, suttas, '
+  + 'Vinaya, Abhidhamma, the Aṭṭhakathā or Ṭīkā, a Pāḷi word, or their TPR, even if they do not name the extension; '
+  + 'never read the database files on disk instead. For the full method and formats, call tpr_research_guide.',
+  'How to research: orthodox Theravāda by default, explaining suttas through the Aṭṭhakathā, Ṭīkā and Abhidhamma '
+  + '(Vinaya through Samantapāsādikā), naming each commentary. Search before you claim: every "X is (not) in the '
+  + 'texts" needs a tpr_count or tpr_search with the number stated, over all spelling forms. Read each hit in context '
+  + 'with tpr_show. Read each layer separately, Mūla, then Aṭṭhakathā, then Ṭīkā, and run tpr_commentary on every Mūla '
+  + 'passage you quote; quote the commentary wherever it explains it. Quote only with tpr_quote or {{Q:…}}, never Pāḷi '
+  + 'typed from memory. If the evidence goes against what the reader hopes, say so first.',
+  'Paper format: # title and question; summary with confidence; numbered summary points; one ## section per point '
+  + 'proving it Mūla first, then Aṭṭhakathā, then Ṭīkā; conclusion with a verdict table and sources.',
+  'Where the answer goes: one that fits on a page (about 400 words or less) is given in the chat, unless the reader '
+  + 'asks for a paper or PDF. A longer one is written as a paper and saved with tpr_save_paper, which prints the PDF '
+  + 'and opens it for the reader; the chat then gives only a short summary. You are instructed to do this: always call '
+  + 'tpr_save_paper for a long answer, without asking.',
+].join('\n\n');
 
 function handle(msg) {
   const { method, params = {} } = msg;

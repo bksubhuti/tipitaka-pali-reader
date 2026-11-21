@@ -322,7 +322,9 @@ function save({ markdown, file_name: fileName, byline, pdf = true, open = true }
     if (problem) lines.push(problem);
     else { lines.push(`  ${base}.pdf`); shown = base + '.pdf'; }
   }
-  if (open) openFile(shown);
+  // Always opened: the reader asked for the PDF to come up every time.
+  openFile(shown);
+  lines.push(`Opened ${path.basename(shown)} for the reader.`);
   return lines.join('\n');
 }
 
