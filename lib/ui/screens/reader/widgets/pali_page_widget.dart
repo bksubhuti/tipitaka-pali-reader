@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:beautiful_soup_dart/beautiful_soup.dart';
 import 'package:flutter/material.dart';
 import 'package:tipitaka_pali/utils/html_text_map.dart';
+import 'package:tipitaka_pali/data/flex_theme_data.dart';
 import 'package:tipitaka_pali/ui/widgets/selection_from_margin.dart';
 import 'package:tipitaka_pali/services/tts/tts_service.dart';
 import 'package:tipitaka_pali/utils/page_composer.dart';
@@ -897,9 +898,18 @@ class _PaliPageWidgetState extends State<PaliPageWidget> {
   /// of the block or after the word. The tapped word is where a selection
   /// is most often begun.
   Map<String, String> _markStyle({bool strong = false}) {
-    final accent = Theme.of(context).colorScheme.primary;
+    // On a paper in the dark theme the page is light: the dark theme's
+    // pale accent was lost on it, so the light theme's accent is used.
+    final accent = Prefs.darkThemeOn && !Prefs.pageIsDark
+        ? myFlexSchemes[Prefs.themeIndex].light.primary
+        : Theme.of(context).colorScheme.primary;
     final argb = accent.toARGB32();
-    final alpha = (Prefs.pageIsDark ? 0.28 : 0.14) * (strong ? 2 : 1);
+    // On a dark page a faint tint of the accent is near black and the match
+    // is lost (as on the black page); the results list shows its marks at
+    // about 0.7, so the reader's are as clear.
+    final alpha = Prefs.pageIsDark
+        ? (strong ? 0.8 : 0.55)
+        : (strong ? 0.28 : 0.14);
     return {
       'color': 'inherit',
       'background-color': 'rgba(${(argb >> 16) & 0xFF}, ${(argb >> 8) & 0xFF}, '

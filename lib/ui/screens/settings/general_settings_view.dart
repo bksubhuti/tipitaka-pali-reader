@@ -258,7 +258,11 @@ class SettingInfoButton extends StatelessWidget {
       onPressed: () => showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          content: Text(text),
+          // a readable column on wide desktop windows, not a strip
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Text(text),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
