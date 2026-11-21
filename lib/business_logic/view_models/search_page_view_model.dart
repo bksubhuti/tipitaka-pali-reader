@@ -46,6 +46,8 @@ class SearchPageViewModel extends ChangeNotifier {
   void init() {
     int index = Prefs.queryModeIndex;
     _queryMode = QueryMode.values[index];
+    // AI search is on the rail now, not a mode of this page.
+    if (_queryMode == QueryMode.ai) _queryMode = QueryMode.exact;
     _wordDistance = Prefs.wordDistance;
     isFuzzy = Prefs.isFuzzy;
     // load histories

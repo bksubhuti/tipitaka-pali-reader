@@ -426,7 +426,7 @@ class ReaderView extends StatelessWidget implements Searchable {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  AppLocalizations.of(context)!.aiContext,
+                                  'AI: ${AppLocalizations.of(context)!.explainGrammar}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -523,7 +523,7 @@ class ReaderView extends StatelessWidget implements Searchable {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        AppLocalizations.of(context)!.aiContext,
+                        'AI: ${AppLocalizations.of(context)!.explainGrammar}',
                         style: TextStyle(
                           fontStyle: FontStyle.italic,
                           color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -730,7 +730,7 @@ class ReaderView extends StatelessWidget implements Searchable {
     if (text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('No text selected for translation.'),
+          content: const Text('No text selected.'),
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -749,14 +749,17 @@ class ReaderView extends StatelessWidget implements Searchable {
         truncatedText = truncatedText.substring(0, 1000);
         truncationNote = '''
 <div style="color: orange; font-style: italic; margin-bottom: 8px;"> 
-Note: Only the first 1000 characters were sent for translation. 
+Note: Only the first 1000 characters were sent. 
 </div> // 
 ''';
       }
 
+      // The one AI action in the reader: explain the grammar. Translations
+      // come from the translation packages; this is what they don't give.
+      final prompt = AppLocalizations.of(context)!.explainGrammarPrompt;
       final Map<String, dynamic> result = Prefs.activeAiProviderMode == 0
-          ? await _translateWithGemini(truncatedText)
-          : await _translateWithOpenRouter(context, truncatedText);
+          ? await _translateWithGemini(truncatedText, prompt)
+          : await _translateWithOpenRouter(context, truncatedText, prompt);
 
       final htmlOutput = result['text'] ?? '';
 
@@ -773,7 +776,7 @@ Note: Only the first 1000 characters were sent for translation.
   }
 
   Future<Map<String, dynamic>> _translateWithOpenRouter(
-      BuildContext context, String inputText) async {
+      BuildContext context, String inputText, String instruction) async {
     String apiKey = '';
     String endpoint = 'https://openrouter.ai/api/v1/chat/completions';
     String modelName = '';
@@ -794,7 +797,7 @@ Note: Only the first 1000 characters were sent for translation.
           : 'deepseek/deepseek-v4-pro';
     }
 
-    final prompt = '${Prefs.openRouterPrompt.trim()}\n\nText:\n\n$inputText';
+    final prompt = '${instruction.trim()}\n\nText:\n\n$inputText';
 
     final requestBody = {
       "model": modelName,
@@ -861,7 +864,8 @@ Note: Only the first 1000 characters were sent for translation.
     }
   }
 
-  Future<Map<String, dynamic>> _translateWithGemini(String inputText) async {
+  Future<Map<String, dynamic>> _translateWithGemini(
+      String inputText, String instruction) async {
     final apiKey = Prefs.geminiDirectApiKey;
     final model = Prefs.aiHeavyModel;
 
@@ -872,7 +876,7 @@ Note: Only the first 1000 characters were sent for translation.
       "contents": [
         {
           "parts": [
-            {"text": Prefs.openRouterPrompt.trim()},
+            {"text": instruction.trim()},
             {"text": inputText}
           ]
         }

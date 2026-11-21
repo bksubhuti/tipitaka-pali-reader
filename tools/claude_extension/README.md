@@ -15,12 +15,17 @@ Claude Desktop can install with a click: no VS Code, no terminal, no Python.
 2. Install Claude Desktop (claude.ai/download) and sign in.
 3. Open `tpr-research.mcpb`. Claude Desktop shows an install dialog: click
    **Install**.
-4. In a new chat, ask for example: *"Find where the suttas describe the four
+4. In a new chat, just ask, with "TPR" in the question; nothing has to be
+   switched on. For example: *"Find where the suttas describe the four
    great elements. Give me a paper with quotes."* Or pick **Research paper**
    from the prompts menu.
 
-Papers are saved in `Documents/TPR Research` as Markdown, HTML and, when
-Chrome or Edge is installed, PDF, and opened when done. The folder can be
+Papers and reports are saved in `~/TPR` (the home folder) as Markdown, HTML and, when
+Chrome or Edge is installed, PDF, and opened when done.
+
+Besides research papers it makes reports from the reader's own TPR (prompts
+menu): a reading report, a vocabulary review of the words looked up, a sutta
+or chapter exported as Pāḷi with the translation, and word studies. The folder can be
 changed in the extension's settings.
 
 On a Mac with TPR from the App Store, macOS asks once whether Claude may
@@ -40,7 +45,13 @@ every database read-only, so SQLite refuses any write.
 | `tpr_quote` | A ready quote: bold Pāḷi, translation, TPR link |
 | `tpr_link` | The TPR link and page for a line |
 | `tpr_commentary` | Commentary passages TPR links to a paragraph |
-| `tpr_save_paper` | Saves the paper as Markdown, HTML and PDF |
+| `tpr_query` | Read-only SQL on the books, for what search and count miss |
+| `tpr_lookup` | Grammar, word split and entries from the dictionaries turned on in TPR |
+| `tpr_activity` | Pages recently opened, searches and look-ups |
+| `tpr_vocabulary` | Words looked up, with DPD meaning, grammar and the sentence met in |
+| `tpr_chapters` | A book's headings with their paragraphs |
+| `tpr_export` | A book, chapter or sutta as Markdown, Pāḷi with translation |
+| `tpr_save_paper` | Saves a paper or report as Markdown, HTML and PDF; `{{Q:…}}` becomes a quote box and every plain reference a TPR link |
 
 The method and paper format are in `server/guide.md`, taken from the skill.
 
@@ -48,7 +59,7 @@ The method and paper format are in `server/guide.md`, taken from the skill.
 
 - `server/tpr.js` is a port of the skill's `tpr.py`. Links, pages, searches
   and counts match it exactly; check again after changing either.
-- `server/paper.js` is a port of `md2html.py`.
+- `server/paper.js` is a port of `md2html.py` and `expand.py`.
 - `server/index.js` speaks MCP over stdio with no packages. Claude Desktop
   runs it with the Node it ships, which has `node:sqlite`. Node 22.13 or later
   is needed.

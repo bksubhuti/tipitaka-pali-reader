@@ -13,6 +13,7 @@ const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 
 const HOME = os.homedir();
+const LANG_NAMES = { en: 'English', my: 'Myanmar', si: 'Sinhala', th: 'Thai', zh: 'Chinese', vi: 'Vietnamese', lo: 'Lao', km: 'Khmer', hi: 'Hindi', de: 'German', fr: 'French', es: 'Spanish', ru: 'Russian', id: 'Indonesian', ja: 'Japanese', ko: 'Korean' };
 const LAYERS = { mula: 'Mūla', attha: 'Aṭṭhakathā', tika: 'Ṭīkā', anna: 'Añña' };
 const TAG = /<[^>]*>/g;
 const VARIANT = /\s*\[[^\]]*\]/g;
@@ -35,6 +36,8 @@ function candidates() {
   const appData = process.env.APPDATA || '';
   const local = process.env.LOCALAPPDATA || '';
   return [
+    // TPR's copy for Claude: outside every protected folder, so no prompt.
+    path.join(HOME, 'TPR', 'db'),
     // macOS (App Store / notarized build is sandboxed)
     `${HOME}/Library/Containers/org.americanmonk.tpp/Data/Library/Application Support/org.americanmonk.tpp`,
     `${HOME}/Library/Application Support/org.americanmonk.tpp`,
@@ -102,14 +105,39 @@ function connect() {
   if (!fs.existsSync(epi)) {
     fail('epitaka.db (the sentence-level Pali) is missing. Open TPR and let it finish its first-run setup.');
   }
-  const db = new DatabaseSync(path.join(d, 'tipitaka_pali.db'), { readOnly: true });
+  let db;
+  try {
+    db = new DatabaseSync(path.join(d, 'tipitaka_pali.db'), { readOnly: true });
+  } catch (e) {
+    e.message = `${e.message} (${path.join(d, 'tipitaka_pali.db')})`;
+    // The App Store TPR keeps its data in its container. macOS asks once
+    // whether Claude may read other apps' data; after "Don't Allow" it
+    // refuses silently and SQLite only says it can't open the file.
+    if (process.platform === 'darwin' && d.includes('/Library/Containers/')) {
+      fail(`macOS is not letting Claude read Tipitaka Pali Reader's data in ${d}.\n`
+        + 'Easiest fix: in TPR open the Script Converter, type "skill" and choose Install. TPR then puts a copy '
+        + 'of its books in your home folder (TPR/db), where Claude can read them.\n'
+        + 'Or let Claude read TPR\'s own folder:\n'
+        + 'Probably "Don\'t Allow" was clicked when macOS asked whether Claude may access data from other apps.\n'
+        + 'To ask again: open Terminal and run\n'
+        + '  tccutil reset SystemPolicyAppData com.anthropic.claudefordesktop\n'
+        + 'then quit Claude (Cmd+Q), open it, try again and click Allow.\n'
+        + 'Or: System Settings > Privacy & Security > Full Disk Access > add Claude.');
+    }
+    throw e;
+  }
   // Attached databases share the connection's read-only mode.
   db.prepare('ATTACH DATABASE ? AS epi').run(epi);
   for (const f of fs.readdirSync(d).sort()) {
     const m = /^lang_([a-z]{2,3})\.db$/.exec(f);
     if (m) db.prepare(`ATTACH DATABASE ? AS lang_${m[1]}`).run(path.join(d, f));
   }
-  cached = { db, dir: d };
+  // In TPR's copy for Claude (~/TPR/db) the history is kept current in a
+  // small history.db; the copied tipitaka_pali.db holds an old one.
+  const hist = path.join(d, 'history.db');
+  const history = fs.existsSync(hist) ? 'hist.' : '';
+  if (history) db.prepare('ATTACH DATABASE ? AS hist').run(hist);
+  cached = { db, dir: d, history };
   return cached;
 }
 
@@ -342,4 +370,242 @@ function commentary({ book, para }) {
   }).join('\n');
 }
 
-module.exports = { TprError, status, books, search, count, show, link, quote, commentary, clean };
+// ------------------------------------------------------------------ reports
+// The reader's own history and TPR's dictionaries, read-only like the rest.
+
+/** Link that opens TPR on a page of one of its own books (mula_ma_01 etc.). */
+function pageLink(bookId, page, text = '') {
+  const b = get('SELECT name FROM books WHERE id=?', bookId);
+  if (!b) return null;
+  const q = new URLSearchParams({
+    book_id: bookId, page_number: String(page), name: b.name, note: '',
+    selected_text: Buffer.from(text, 'utf8').toString('base64'),
+  });
+  return { url: `https://tpr.pali.tools/open?${q}`, name: b.name };
+}
+
+/** The sutta or chapter a TPR page falls in: the last title at or before it. */
+function pageTitle(bookId, page) {
+  const r = get("SELECT name FROM tocs WHERE book_id=? AND page_number<=? AND type IN ('title','chapter') "
+    + 'ORDER BY page_number DESC, rowid DESC LIMIT 1', bookId, page);
+  return r ? r.name : '';
+}
+
+const since = (days) => (days ? new Date(Date.now() - days * 864e5).toISOString().slice(0, 19) : '');
+/** History tables: in history.db when TPR keeps one, else in the main database. */
+const H = (table) => `${connect().history}${table}`;
+const day = (iso) => String(iso || '').slice(0, 10);
+
+/** Text of a dictionary entry: tags gone, rows kept apart, cut to [max]. */
+function plain(html, max = 600, cellSep = ': ') {
+  const t = String(html || '')
+    .replace(/<\/(tr|p|div|li|summary|h\d)>|<br\s*\/?>/gi, '\n')
+    .replace(/<\/t[hd]>/gi, cellSep)
+    .replace(TAG, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .split('\n').map((l) => l.replace(/\s+/g, ' ').replace(/:\s*$/, '').trim()).filter(Boolean)
+    .join('\n');
+  return t.length > max ? t.slice(0, max).replace(/\s+\S*$/, '') + ' …' : t;
+}
+
+function activity({ days = 30, limit = 30 } = {}) {
+  const from = since(days);
+  const out = [`Reading activity${days ? ` in the last ${days} days` : ''} (TPR keeps no dates for opened pages).`, ''];
+  const seenPage = new Set();
+  const opened = all(`SELECT book_id, page_number FROM ${H('recent')} ORDER BY rowid DESC LIMIT ?`, limit * 2)
+    .filter((r) => !seenPage.has(`${r.book_id} ${r.page_number}`) && seenPage.add(`${r.book_id} ${r.page_number}`))
+    .slice(0, limit);
+  out.push(`## Recently opened (${opened.length}, newest first)`);
+  for (const r of opened) {
+    const l = pageLink(r.book_id, r.page_number);
+    const t = pageTitle(r.book_id, r.page_number);
+    out.push(`- ${l ? l.name : r.book_id}, p. ${r.page_number}${t ? ` (${t})` : ''}${l ? `  ${l.url}` : ''}`);
+  }
+  const searches = all(`SELECT word, date, query_mode FROM ${H('search_history')} WHERE date>=? ORDER BY date DESC LIMIT ?`,
+    from, limit * 3);
+  out.push('', `## Searches (${searches.length})`);
+  for (const r of searches) out.push(`- ${day(r.date)}  ${r.word}`);
+  const words = all(`SELECT word, count(*) AS n, max(date) AS last FROM ${H('dictionary_history')} WHERE date>=? `
+    + 'GROUP BY word ORDER BY last DESC LIMIT ?', from, limit * 3);
+  out.push('', `## Words looked up (${words.length}; tpr_vocabulary gives meanings)`);
+  for (const r of words) out.push(`- ${day(r.last)}  ${r.word}${r.n > 1 ? `  ×${r.n}` : ''}`);
+  return out.join('\n');
+}
+
+/** DPD headwords for a word as written in the text (any inflection). */
+function headwords(word) {
+  const w = String(word).trim().toLowerCase();
+  const r = get('SELECT headwords FROM dpd_inflections_to_headwords WHERE inflection=?', w);
+  return r ? r.headwords.split(',').map((x) => x.trim()).filter(Boolean) : [];
+}
+
+/** Dictionaries the reader has turned on in TPR, in their order. */
+function chosenDictionaries() {
+  return all('SELECT id, name FROM dictionary_books WHERE user_choice=1 ORDER BY user_order');
+}
+
+function lookup({ word, full = false }) {
+  if (!word || !String(word).trim()) fail('Give a word.');
+  const w = String(word).trim().toLowerCase();
+  const max = full ? 4000 : 500;
+  const out = [`# ${w}`];
+  const g = get('SELECT definition FROM dpd_grammar WHERE word=?', w);
+  if (g) out.push('', 'Grammar:', plain(g.definition, 800, ' '));
+  const split = get('SELECT breakup FROM dpd_word_split WHERE word=?', w);
+  if (split && split.breakup) out.push('', `Word split: ${plain(split.breakup, 300)}`);
+  const heads = headwords(w);
+  const dicts = chosenDictionaries();
+  for (const d of dicts) {
+    let rows;
+    if (d.id === 11) {
+      const names = heads.length ? heads : [w];
+      rows = all(`SELECT word, definition FROM dpd WHERE word IN (${names.map(() => '?').join(',')}) ORDER BY id`, ...names)
+        .slice(0, full ? 12 : 4);
+    } else {
+      const stems = [w, ...new Set(heads.map((h) => h.replace(/\s+\d+$/, '')))];
+      rows = all(`SELECT word, definition FROM dictionary WHERE book_id=? AND word IN (${stems.map(() => '?').join(',')}) LIMIT ?`,
+        d.id, ...stems, full ? 6 : 2);
+    }
+    if (!rows.length) continue;
+    out.push('', `## ${d.name}`);
+    for (const r of rows) out.push('', `${r.word}:`, plain(r.definition, max));
+  }
+  if (out.length === 1) out.push('', 'Not found in the dictionaries turned on in TPR (Settings › Dictionaries).');
+  return out.join('\n');
+}
+
+function vocabulary({ days = 30, limit = 40 } = {}) {
+  const rows = all(`SELECT word, count(*) AS n, max(date) AS last FROM ${H('dictionary_history')} WHERE date>=? `
+    + 'GROUP BY word ORDER BY n DESC, last DESC LIMIT ?', since(days), limit);
+  if (!rows.length) return `No dictionary look-ups${days ? ` in the last ${days} days` : ''}.`;
+  const out = [`${rows.length} words looked up${days ? ` in the last ${days} days` : ''}, most looked-up first.`];
+  for (const r of rows) {
+    const ctx = get(`SELECT context, book_id, page_number FROM ${H('dictionary_history')} WHERE word=? AND context<>'' `
+      + 'ORDER BY date DESC LIMIT 1', r.word);
+    const heads = headwords(r.word);
+    const d = heads.length ? get('SELECT definition FROM dpd WHERE word=?', heads[0]) : null;
+    const meaning = d ? plain((/<summary>([\s\S]*?)<\/summary>/.exec(d.definition) || [])[1] || d.definition, 220) : '';
+    const g = get('SELECT definition FROM dpd_grammar WHERE word=?', r.word.toLowerCase());
+    out.push('', `## ${r.word}  (×${r.n}, last ${day(r.last)})`);
+    if (heads.length) out.push(`Headwords: ${heads.slice(0, 6).join(', ')}`);
+    if (meaning) out.push(`DPD: ${meaning.replace(/\n/g, ' ')}`);
+    if (g) out.push(`Grammar: ${plain(g.definition, 200, ' ').replace(/\n/g, '; ')}`);
+    if (ctx) {
+      const l = ctx.book_id ? pageLink(ctx.book_id, ctx.page_number) : null;
+      out.push(`Seen in: ${clean(ctx.context).slice(0, 220)}${l ? `  (${l.name}, p. ${ctx.page_number}: ${l.url})` : ''}`);
+    }
+  }
+  out.push('', 'Use tpr_lookup for a full entry.');
+  return out.join('\n');
+}
+
+function chapters({ book, depth = 5 }) {
+  if (!get('SELECT 1 AS x FROM epi.books WHERE book_id=?', book)) fail(`No book ${book} (see tpr_books).`);
+  const rows = all('SELECT para_id, level, title FROM epi.headings WHERE book_id=? AND level<=? ORDER BY para_id, level',
+    book, depth);
+  if (!rows.length) return 'No headings in this book; export it by paragraph range.';
+  return rows.map((r) => `${String(r.para_id).padStart(6)}  ${'  '.repeat(Math.max(0, r.level - 1))}${clean(r.title)}`).join('\n')
+    + '\n\nPARA is where each heading starts. Pass it as from_para to tpr_export.';
+}
+
+/** The texts' spaced quote marks (‘‘ bhikkhavo ’’ ti) as they are printed. */
+const quotes = (t) => t.replace(/‘‘\s*/g, '“').replace(/\s*’’/g, '”')
+  .replace(/‘\s+/g, '‘').replace(/\s+’/g, '’');
+
+/** The book (or a part of it) as Markdown: headings, then each paragraph's
+ *  Pali with the translation under it, ready for tpr_save_paper. */
+function exportText({ book, from_para: fromPara, to_para: toPara, lang, layout = 'paragraph' }) {
+  const b = get('SELECT book_name FROM epi.books WHERE book_id=?', book);
+  if (!b) fail(`No book ${book} (see tpr_books).`);
+  const l = defaultLang(lang);
+  let from = Number(fromPara) || 1;
+  let to = Number(toPara) || 0;
+  if (fromPara && !toPara) {
+    // To the next heading at the same or a higher level.
+    const h = get('SELECT level FROM epi.headings WHERE book_id=? AND para_id=? ORDER BY level LIMIT 1', book, from);
+    if (h) {
+      const next = get('SELECT para_id FROM epi.headings WHERE book_id=? AND para_id>? AND level<=? ORDER BY para_id LIMIT 1',
+        book, from, h.level);
+      if (next) to = next.para_id - 1;
+    }
+  }
+  if (!to) to = get('SELECT max(para_id) AS m FROM epi.sentences WHERE book_id=?', book).m;
+  const rows = all('SELECT s.para_id, s.line_id, s.pali' + (l ? ', e.translation' : '') + ' FROM epi.sentences s'
+    + (l ? ` LEFT JOIN lang_${l}.sentences e USING(book_id, para_id, line_id)` : '')
+    + ' WHERE s.book_id=? AND s.para_id BETWEEN ? AND ? ORDER BY s.para_id, s.line_id', book, from, to);
+  if (!rows.length) fail(`No text in ${book} ${from}-${to}.`);
+  if (rows.length > 6000) fail(`${rows.length} lines is too long for one export; give a smaller range (tpr_chapters lists the parts).`);
+  const heads = new Map();
+  for (const h of all('SELECT para_id, level, title FROM epi.headings WHERE book_id=? AND para_id BETWEEN ? AND ? AND level<10 '
+    + 'ORDER BY para_id, level', book, from, to)) {
+    if (!heads.has(h.para_id)) heads.set(h.para_id, []);
+    heads.get(h.para_id).push(h);
+  }
+  const top = heads.get(from)?.[0];
+  const title = top ? clean(top.title) : `${b.book_name} ${from}–${to}`;
+  const link0 = tprLink(book, from, rows[0].line_id, rows[0].pali);
+  const out = [`# ${title}`, '', `${b.book_name}, paragraphs ${from}–${to}`
+    + `${l ? ` · Pāḷi with the installed ${LANG_NAMES[l] || l} translation` : ' · Pāḷi'}`
+    + `${link0 ? ` · [Open in TPR](${link0.url})` : ''}`];
+  let para = null;
+  let pali = [];
+  let trans = [];
+  const flush = () => {
+    if (pali.length) {
+      out.push('', `**${pali.join(' ')}**`);
+      if (trans.length) out.push('', trans.join(' '));
+    }
+    pali = []; trans = [];
+  };
+  for (const r of rows) {
+    if (r.para_id !== para) {
+      flush();
+      para = r.para_id;
+      for (const h of heads.get(para) || []) {
+        if (h === top) continue;
+        out.push('', `${'#'.repeat(Math.min(4, Math.max(2, h.level - (top ? top.level - 2 : 0))))} ${clean(h.title)}`);
+      }
+    }
+    const p = quotes(clean(r.pali));
+    if ((heads.get(r.para_id) || []).some((h) => quotes(clean(h.title)) === p)) continue;
+    if (layout === 'lines') {
+      out.push('', `**${p}**`);
+      if (l && r.translation) out.push(`${clean(r.translation)}`);
+    } else {
+      pali.push(p);
+      if (l && r.translation) trans.push(clean(r.translation));
+    }
+  }
+  flush();
+  return out.join('\n');
+}
+
+/** Any read-only query, for what the fixed tools can't ask. The databases
+ *  are opened read-only, so SQLite refuses every write whatever is sent. */
+function query({ sql, limit = 50 }) {
+  const text = String(sql || '').trim().replace(/;\s*$/, '');
+  if (!/^(select|with)\b/i.test(text)) fail('Only SELECT (or WITH … SELECT) queries.');
+  if (text.includes(';')) fail('One query at a time.');
+  const max = Math.min(Math.max(Number(limit) || 50, 1), 500);
+  let rows;
+  try {
+    const it = connect().db.prepare(text).iterate();
+    rows = [];
+    for (const r of it) { rows.push(r); if (rows.length >= max) break; }
+  } catch (e) {
+    fail(`Query failed: ${e.message}`);
+  }
+  if (!rows.length) return 'No rows.';
+  const cols = Object.keys(rows[0]);
+  const cell = (v) => (v == null ? '' : String(v).replace(/\s+/g, ' ').slice(0, 400));
+  return [cols.join('\t'), ...rows.map((r) => cols.map((c) => cell(r[c])).join('\t'))].join('\n')
+    + (rows.length >= max ? `\n(first ${max} rows; raise limit or narrow the query)` : '');
+}
+
+module.exports = {
+  query,
+  TprError, status, books, search, count, show, link, quote, commentary, clean,
+  activity, vocabulary, lookup, chapters, exportText, refLink: tprLink, lines, parseRef, defaultLang,
+  bookIds: () => all('SELECT book_id FROM epi.books').map((r) => r.book_id),
+  bookName: (id) => (get('SELECT book_name FROM epi.books WHERE book_id=?', id) || {}).book_name,
+};

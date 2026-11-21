@@ -4,6 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
+import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
+import 'package:tipitaka_pali/services/claude_share.dart';
+import 'package:tipitaka_pali/services/update_check.dart';
+import 'package:tipitaka_pali/ui/screens/settings/general_settings_view.dart'
+    show SettingInfoButton;
 
 class AiSettingsView extends StatefulWidget {
   const AiSettingsView({super.key});
@@ -14,11 +19,13 @@ class AiSettingsView extends StatefulWidget {
 
 class _AiSettingsViewState extends State<AiSettingsView> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _promptController;
   late final TextEditingController _geminiKeyController;
   late final TextEditingController _openRouterKeyController;
   late final TextEditingController _openRouterHeavyModelController;
   late final TextEditingController _openRouterLightModelController;
+
+  /// TPR Research's installed version, read once as the settings open.
+  final Future<String?> _claudeExtension = ClaudeShare.extensionVersion();
 
   bool _isFetchingModels = false;
   List<String> _geminiModels = [];
@@ -28,7 +35,6 @@ class _AiSettingsViewState extends State<AiSettingsView> {
   @override
   void initState() {
     super.initState();
-    _promptController = TextEditingController(text: Prefs.openRouterPrompt);
     _geminiKeyController =
         TextEditingController(text: Prefs.geminiDirectApiKey);
     _openRouterKeyController = TextEditingController(text: Prefs.openRouterKey);
@@ -123,7 +129,6 @@ class _AiSettingsViewState extends State<AiSettingsView> {
 
   @override
   void dispose() {
-    _promptController.dispose();
     _geminiKeyController.dispose();
     _openRouterKeyController.dispose();
     _openRouterHeavyModelController.dispose();
@@ -429,21 +434,6 @@ class _AiSettingsViewState extends State<AiSettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    final promptOptions = {
-      'line_by_line': AppLocalizations.of(context)!.translatePaliLineByLine,
-      'translate': AppLocalizations.of(context)!.translatePali,
-      'grammar': AppLocalizations.of(context)!.explainGrammar,
-      'summarize': AppLocalizations.of(context)!.summarize,
-    };
-
-    final promptValues = {
-      'line_by_line':
-          AppLocalizations.of(context)!.translatePaliLineByLinePrompt,
-      'translate': AppLocalizations.of(context)!.translatePaliPrompt,
-      'grammar': AppLocalizations.of(context)!.explainGrammarPrompt,
-      'summarize': AppLocalizations.of(context)!.summarizePrompt,
-    };
-
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.psychology),
@@ -749,68 +739,51 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16.0),
-                  DropdownButtonFormField<String>(
-                    value: Prefs.openRouterPromptKey, // e.g., "translate"
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.chooseAiPrompt,
-                    ),
-                    onChanged: (String? key) {
-                      if (key != null) {
-                        setState(() {
-                          Prefs.openRouterPromptKey = key;
-                          Prefs.openRouterPrompt = promptValues[key]!;
-                          _promptController.text = Prefs.openRouterPrompt;
-                        });
-                      }
-                    },
-                    items: promptOptions.entries.map((entry) {
-                      return DropdownMenuItem(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _promptController,
-                    maxLines: null,
-                    style: const TextStyle(fontFamily: 'monospace'),
-                    decoration: InputDecoration(
-                      labelText:
-                          AppLocalizations.of(context)!.customAiPromptLabel,
-                      alignLabelWithHint: true,
-                      border: const OutlineInputBorder(),
-                    ),
-                    onChanged: (value) {
-                      Prefs.openRouterPrompt = value;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.refresh),
-                      label: Text(
-                          AppLocalizations.of(context)!.resetAiPromptDefault),
-                      onPressed: () {
-                        setState(() {
-                          Prefs.openRouterPrompt = defaultOpenRouterPrompt;
-                          _promptController.text = defaultOpenRouterPrompt;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(AppLocalizations.of(context)!
-                                .resetAiPromptDefault),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
+          // Desktop only: Claude Desktop runs on macOS and Windows.
+          if (ClaudeExtensionDialog.available)
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: Row(
+                children: [
+                  const Flexible(child: Text('Claude Desktop setup')),
+                  const SettingInfoButton(
+                      'Adds TPR Research to the Claude Desktop app '
+                      '(claude.ai/download). Claude can then read the books '
+                      'in this TPR and make research papers with Pāḷi quotes '
+                      'and TPR links, reading reports, and vocabulary reviews '
+                      'of the words you looked up. TPR\'s files are only read, '
+                      'never changed.\n\nWorks with a free Claude account; a '
+                      'paid plan gives more room for long papers.'),
+                ],
+              ),
+              subtitle: FutureBuilder<String?>(
+                future: _claudeExtension,
+                builder: (context, snap) {
+                  final have = snap.data;
+                  if (have == null) return const SizedBox.shrink();
+                  final latest = UpdateCheck.tprResearchLatest;
+                  return Text(UpdateCheck.isOlder(have, latest)
+                      ? 'Update available: $latest (you have $have)'
+                      : 'Set up ✓ (TPR Research $have)');
+                },
+              ),
+              trailing: FutureBuilder<String?>(
+                future: _claudeExtension,
+                builder: (context, snap) {
+                  final have = snap.data;
+                  final update = have != null &&
+                      UpdateCheck.isOlder(have, UpdateCheck.tprResearchLatest);
+                  return OutlinedButton(
+                    onPressed: () => ClaudeExtensionDialog.show(context),
+                    child: Text(update ? 'Update' : 'Set up'),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

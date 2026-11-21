@@ -45,6 +45,12 @@ class UpdateCheck {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
           final latest = _buildOf('${data[_platform]?['currentVersion']}');
           if (latest != null) Prefs.latestBuild = latest;
+          // The newest TPR Research extension for Claude Desktop, so the
+          // AI settings can offer an update without a new TPR.
+          final research = data['general']?['tprResearchVersion'];
+          if (research is String && research.isNotEmpty) {
+            Prefs.instance.setString(tprResearchLatestPref, research);
+          }
           Prefs.updateCheckedOn = today;
         }
       } catch (e) {
@@ -56,6 +62,24 @@ class UpdateCheck {
         Prefs.latestBuild > Prefs.updateDismissedBuild) {
       storePage.value = page;
     }
+  }
+
+  static const tprResearchLatestPref = 'tprResearchLatest';
+
+  /// The newest TPR Research version messages.json named, if read yet.
+  static String get tprResearchLatest =>
+      Prefs.instance.getString(tprResearchLatestPref) ?? '';
+
+  /// Whether version [a] (1.1.7) is older than [b].
+  static bool isOlder(String a, String b) {
+    List<int> parts(String v) =>
+        v.split('.').map((x) => int.tryParse(x.trim()) ?? 0).toList();
+    final x = parts(a), y = parts(b);
+    for (var i = 0; i < 3; i++) {
+      final m = i < x.length ? x[i] : 0, n = i < y.length ? y[i] : 0;
+      if (m != n) return m < n;
+    }
+    return false;
   }
 
   /// Puts the button away until a build newer than the latest is out.

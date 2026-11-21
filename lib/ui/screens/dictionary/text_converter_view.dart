@@ -4,6 +4,7 @@ import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/utils/script_detector.dart';
+import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
 
 class TextConverterView extends StatefulWidget {
   const TextConverterView({super.key});
@@ -29,6 +30,13 @@ class TextConverterViewState extends State<TextConverterView> {
 
   void updateOutputText() {
     String? inputText = inputController.text;
+    if (ClaudeExtensionDialog.available &&
+        inputText.trim().toLowerCase() == ClaudeExtensionDialog.trigger) {
+      inputController.clear();
+      outputController.clear();
+      ClaudeExtensionDialog.show(context);
+      return;
+    }
     Script inputScript = ScriptDetector.getLanguage(inputText);
 
     if (inputText.isNotEmpty && inputText.isNotEmpty) {

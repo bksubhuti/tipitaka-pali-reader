@@ -425,8 +425,7 @@ class _VerticalBookViewState extends State<VerticalBookView>
                                       widget.onAiContextRightClick
                                           ?.call(fullText);
                                     },
-                                    label: AppLocalizations.of(context)!
-                                        .aiContext),
+                                    label: 'AI: ${AppLocalizations.of(context)!.explainGrammar}'),
                                 ContextMenuButtonItem(
                                     onPressed: () {
                                       ContextMenuController.removeAny();

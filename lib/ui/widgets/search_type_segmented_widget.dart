@@ -23,14 +23,15 @@ class SearchTypeSegmentedControl extends StatefulWidget {
 
 class _SearchTypeSegmentedControlState
     extends State<SearchTypeSegmentedControl> {
-  int _selectedIndex = Prefs.queryModeIndex;
+  // A saved AI mode (from before AI left this bar) shows as exact.
+  int _selectedIndex = Prefs.queryModeIndex > 3 ? 0 : Prefs.queryModeIndex;
 
   final Map<int, String> _segmentValues = {
     0: 'exact',
     1: 'prefix',
     2: 'distance',
     3: 'any part',
-    4: 'AI ✨',
+    // AI search has its own button on the rail; not repeated here.
   };
 
   late bool isDistanceMoe;
@@ -46,7 +47,6 @@ class _SearchTypeSegmentedControlState
     _segmentValues[1] = AppLocalizations.of(context)!.prefix;
     _segmentValues[2] = AppLocalizations.of(context)!.distance;
     _segmentValues[3] = AppLocalizations.of(context)!.anyPart;
-    _segmentValues[4] = 'AI';
   }
 
   @override

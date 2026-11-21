@@ -14,6 +14,8 @@ import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
+import 'package:tipitaka_pali/services/claude_share.dart';
 
 class AiSearchPage extends StatefulWidget {
   final String query;
@@ -26,6 +28,9 @@ class AiSearchPage extends StatefulWidget {
 
 class _AiSearchPageState extends State<AiSearchPage> {
   late final TextEditingController _queryController;
+
+  /// TPR Research's version when it is set up in Claude Desktop.
+  String? _claudeVersion;
   final List<String> _logs = [];
   bool _isSearching = false;
   bool _hasSearched = false;
@@ -49,6 +54,11 @@ class _AiSearchPageState extends State<AiSearchPage> {
     });
 
     _queryController = TextEditingController(text: widget.query);
+    if (ClaudeExtensionDialog.available) {
+      ClaudeShare.extensionVersion().then((v) {
+        if (mounted && v != null) setState(() => _claudeVersion = v);
+      });
+    }
     _focusNode = FocusNode(
       onKeyEvent: (FocusNode node, KeyEvent event) {
         if (event is KeyDownEvent) {
@@ -101,6 +111,30 @@ class _AiSearchPageState extends State<AiSearchPage> {
       if (widget.query.trim().isNotEmpty) {
         _runAiSearch();
       }
+    }
+  }
+
+  /// Opens Claude Desktop with the question typed in, asking it to answer
+  /// from the reader's TPR books (TPR Research extension). Claude in the
+  /// browser if the app is not there.
+  void _sendToTpr() {
+    FocusScope.of(context).unfocus();
+    _runAiSearch();
+  }
+
+  Future<void> _askClaude() async {
+    final query = _queryController.text.trim();
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Type a question first.')));
+      return;
+    }
+    final prompt = 'Using TPR Research, search my TPR books and answer: '
+        '$query\n\nQuote the Pāḷi with its translation and TPR links.';
+    final q = Uri.encodeQueryComponent(prompt);
+    if (!await launchUrl(Uri.parse('claude://claude.ai/new?q=$q'))) {
+      await launchUrl(Uri.parse('https://claude.ai/new?q=$q'),
+          mode: LaunchMode.externalApplication);
     }
   }
 
@@ -506,15 +540,45 @@ No App Liability: The developer of this application is not responsible for any a
                             ),
                           if (!_isSearching && _hasSearched)
                             const SizedBox(height: 8),
-                          IconButton.filled(
-                            icon: const Icon(Icons.send),
-                            onPressed: _isSearching
-                                ? null
-                                : () {
-                                    FocusScope.of(context).unfocus();
-                                    _runAiSearch();
-                                  },
-                          ),
+                          // With TPR Research set up in Claude Desktop: two
+                          // ways to ask, TPR's own AI search above, Claude
+                          // below. Otherwise the one send button.
+                          if (_claudeVersion == null)
+                            IconButton.filled(
+                              icon: const Icon(Icons.send),
+                              onPressed: _isSearching ? null : _sendToTpr,
+                            )
+                          else ...[
+                            Tooltip(
+                              message: 'Search inside TPR',
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  minimumSize: const Size(80, 36),
+                                ),
+                                onPressed: _isSearching ? null : _sendToTpr,
+                                child: const Text('TPR'),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Tooltip(
+                              message: 'Search with Claude Desktop',
+                              // the name only: Anthropic's logo needs their
+                              // approval
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFFD97757),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12),
+                                  minimumSize: const Size(80, 36),
+                                ),
+                                onPressed: _askClaude,
+                                child: const Text('Claude'),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],

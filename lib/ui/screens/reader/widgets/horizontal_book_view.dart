@@ -209,7 +209,8 @@ class _HorizontalBookViewState extends State<HorizontalBookView> {
                                 // : fullText;
                                 widget.onAiContextRightClick?.call(fullText);
                               },
-                              label: AppLocalizations.of(context)!.aiContext),
+                              label:
+                                  'AI: ${AppLocalizations.of(context)!.explainGrammar}'),
                           ContextMenuButtonItem(
                               onPressed: () {
                                 ContextMenuController.removeAny();

@@ -17,6 +17,18 @@ const paper = require('./paper');
 const VERSION = require('../manifest.json').version;
 const GUIDE = fs.readFileSync(path.join(__dirname, 'guide.md'), 'utf8');
 
+// Tells TPR the extension is installed: Claude Desktop starts this server
+// each time it opens, so a fresh note means it is set up. TPR reads
+// ~/TPR/.tpr-research (its sandbox cannot see Claude's own folders).
+try {
+  const dir = path.join(require('node:os').homedir(), 'TPR');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '.tpr-research'),
+    JSON.stringify({ version: VERSION, seen: new Date().toISOString() }) + '\n');
+} catch (e) {
+  process.stderr.write(`could not write ~/TPR/.tpr-research: ${e.message}\n`);
+}
+
 const str = (description) => ({ type: 'string', description });
 const readOnly = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 const LANG = str('Translation code, e.g. "en" (the default when installed), "my", "zh"; "none" for Pali only.');
@@ -124,11 +136,109 @@ const TOOLS = [
     run: (a) => tpr.commentary(a),
   },
   {
+    name: 'tpr_query',
+    title: 'Query',
+    description: 'A read-only SQL query on TPR\'s books, for what the other tools cannot find: odd spellings, '
+      + 'two words in one line, a simile by its image words. Tables: epi.sentences(book_id, para_id, line_id, pali) '
+      + '(the Pāḷi, one row per sentence, may hold <b> tags); lang_en.sentences(book_id, para_id, line_id, translation) '
+      + '(other installed languages likewise, e.g. lang_my); epi.books(book_id, category, book_name) with category '
+      + 'Mūla/Aṭṭhakathā/Ṭīkā/Añña; epi.headings(book_id, para_id, level, title); '
+      + 'epi.book_links(src_book, src_para, dst_book, dst_para) (commentary links). Join on book_id, para_id, line_id. '
+      + 'Example: SELECT s.book_id, s.para_id, s.line_id, s.pali, t.translation FROM epi.sentences s '
+      + 'LEFT JOIN lang_en.sentences t USING(book_id, para_id, line_id) WHERE s.pali LIKE \'%pubbaṇh%\' AND s.pali LIKE \'%piṇḍ%\'. '
+      + 'Results give BOOK PARA:LINE for tpr_show and tpr_quote.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: str('One SELECT query.'),
+        limit: { type: 'integer', description: 'Most rows (default 50, at most 500).', minimum: 1, maximum: 500 },
+      },
+      required: ['sql'],
+    },
+    annotations: readOnly,
+    run: (a) => tpr.query(a),
+  },
+  {
+    name: 'tpr_lookup',
+    title: 'Dictionary',
+    description: 'A Pāḷi word as written in the text (any inflection): grammar, word split, and the entries in the '
+      + 'dictionaries the reader turned on in TPR (DPD first).',
+    inputSchema: {
+      type: 'object',
+      properties: { word: str('The word, e.g. "jāto", "paṭisandhiṃ".'), full: { type: 'boolean', description: 'Longer entries.' } },
+      required: ['word'],
+    },
+    annotations: readOnly,
+    run: (a) => tpr.lookup(a),
+  },
+  {
+    name: 'tpr_activity',
+    title: 'Reading activity',
+    description: 'What the reader recently opened, searched and looked up in TPR, with links. For a reading report.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        days: { type: 'integer', description: 'Searches and look-ups from the last N days (default 30; 0 = all).', minimum: 0 },
+        limit: { type: 'integer', description: 'Most pages to list (default 30).', minimum: 1, maximum: 200 },
+      },
+    },
+    annotations: readOnly,
+    run: (a) => tpr.activity(a),
+  },
+  {
+    name: 'tpr_vocabulary',
+    title: 'Vocabulary',
+    description: 'Words the reader looked up in TPR, most looked-up first, each with its DPD meaning, grammar and '
+      + 'the sentence it was met in. For a vocabulary review or flashcards.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        days: { type: 'integer', description: 'From the last N days (default 30; 0 = all).', minimum: 0 },
+        limit: { type: 'integer', description: 'Most words (default 40).', minimum: 1, maximum: 300 },
+      },
+    },
+    annotations: readOnly,
+    run: (a) => tpr.vocabulary(a),
+  },
+  {
+    name: 'tpr_chapters',
+    title: 'Chapters',
+    description: 'The headings of a book (vaggas, suttas, sections) with the paragraph each starts at.',
+    inputSchema: {
+      type: 'object',
+      properties: { book: BOOK, depth: { type: 'integer', description: 'Heading levels to show (default 5).', minimum: 1, maximum: 9 } },
+      required: ['book'],
+    },
+    annotations: readOnly,
+    run: (a) => tpr.chapters(a),
+  },
+  {
+    name: 'tpr_export',
+    title: 'Export text',
+    description: 'A book, chapter or sutta as Markdown: headings, each paragraph in bold Pāḷi with the translation '
+      + 'under it. Give from_para (a heading from tpr_chapters) to export to the next heading of the same level. '
+      + 'Save the result with tpr_save_paper.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        book: BOOK,
+        from_para: { type: 'integer', description: 'First paragraph (a heading from tpr_chapters).' },
+        to_para: { type: 'integer', description: 'Last paragraph (default: the end of that heading\'s part).' },
+        lang: LANG,
+        layout: { type: 'string', enum: ['paragraph', 'lines'], description: '"paragraph" (default) or "lines": each sentence with its translation.' },
+      },
+      required: ['book'],
+    },
+    annotations: readOnly,
+    run: (a) => tpr.exportText(a),
+  },
+  {
     name: 'tpr_save_paper',
     title: 'Save paper',
-    description: 'Saves a finished Markdown paper in the papers folder (Documents/TPR Research by default) '
+    description: 'Saves a finished Markdown paper or report in the papers folder (the TPR folder in the home folder by default) '
       + 'as .md, a styled .html page with grey quote boxes and the TPR logo, and a .pdf when Chrome or Edge '
-      + 'is installed, then opens it. Follow the paper format in tpr_research_guide.',
+      + 'is installed, then opens it. {{Q:BOOK PARA:L1-L2}} becomes a quote box and every plain reference '
+      + '(M-i 1036:1) a TPR link. Follow the paper format in tpr_research_guide.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -145,19 +255,24 @@ const TOOLS = [
   },
 ];
 
-const PROMPTS = [
-  {
-    name: 'research_paper',
-    title: 'Research paper',
-    description: 'Research a question in your TPR library and write a paper with Pali quotes and TPR links.',
-    arguments: [{ name: 'question', description: 'What to research or prove.', required: true }],
-    render: (a) => `${GUIDE}\n\n---\n\nResearch this and write the paper, then save it with tpr_save_paper:\n\n${a.question || ''}`,
-  },
-];
+// The prompts exactly as the manifest declares them: Claude Desktop rejects
+// a prompt whose text differs from the manifest's, as a possible injection.
+const MANIFEST = require('../manifest.json');
+const PROMPTS = (MANIFEST.prompts || []).map((p) => ({
+  name: p.name,
+  description: p.description,
+  arguments: (p.arguments || []).map((name) => ({ name, required: false })),
+  render: (a) => p.text.replace(/\$\{arguments\.(\w+)\}/g, (_, k) => (a[k] == null ? '' : String(a[k]))),
+}));
 
-const INSTRUCTIONS = 'TPR Research reads the Pali Tipiṭaka, commentaries and translations in the user\'s '
-  + 'Tipitaka Pali Reader, read-only. Before researching, call tpr_research_guide and follow it: '
-  + 'search before claiming, quote only with tpr_quote, check context, and use its paper format.';
+const INSTRUCTIONS = 'TPR Research reads the Pali Tipiṭaka, commentaries, translations, dictionaries and the '
+  + 'reader\'s own history in their Tipitaka Pali Reader, read-only. Before researching or making a report, call '
+  + 'tpr_research_guide and follow it: search before claiming, check context, and use its paper and report formats. '
+  + 'Use these tools whenever the user asks about the Tipiṭaka, Pāḷi, suttas, Vinaya, Abhidhamma, the Aṭṭhakathā or Ṭīkā, '
+  + 'a Pāḷi word, or their TPR, even if they do not name the extension; never read the database files on disk instead. '
+  + 'Length decides where the answer goes: one that fits on a page (about 400 words or less) is given in the chat, '
+  + 'unless the reader asks for a paper or PDF; a longer one is written in the paper format and saved with '
+  + 'tpr_save_paper, so the reader gets the PDF opened for them, with only a short summary in the chat.';
 
 function handle(msg) {
   const { method, params = {} } = msg;

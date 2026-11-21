@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "tpr-research",
   "display_name": "TPR Research",
-  "version": "1.0.0",
-  "description": "Research the Pāḷi Tipiṭaka, commentaries and translations in your Tipitaka Pali Reader, and write papers with quotes and links that open TPR.",
-  "long_description": "TPR Research lets Claude read the books in your Tipitaka Pali Reader (TPR): the Pāḷi canon, the Aṭṭhakathā and Ṭīkā, later handbooks, and the translations you have installed.\n\nAsk a question such as *\"Where do the suttas mention the heart-base? Show me with quotes\"* and Claude searches TPR's own index, counts occurrences, reads each passage in context with its commentary, and writes a paper: Pāḷi quotes in grey boxes, the English under each, and a link that opens TPR on the right page. Papers are saved as Markdown, HTML and PDF in Documents/TPR Research.\n\nTPR's files are only read, never changed. You need Tipitaka Pali Reader, opened once so it finishes setting up, with at least one search run so its index is built. Install the English translation in TPR (Settings → Download) for English under the quotes.\n\nOn a Mac, the first time Claude reads TPR's data macOS asks whether Claude may access another app's data. Allow it: the extension opens every database read-only.",
+  "version": "1.1.9",
+  "description": "Research the Pāḷi Tipiṭaka, commentaries and translations in your Tipitaka Pali Reader, and make papers and reports with quotes and links that open TPR.",
+  "long_description": "TPR Research lets Claude read the books in your Tipitaka Pali Reader (TPR): the Pāḷi canon, the Aṭṭhakathā and Ṭīkā, later handbooks, and the translations you have installed.\n\nAsk a question such as *\"Where do the suttas mention the heart-base? Show me with quotes\"* and Claude searches TPR's own index, counts occurrences, reads each passage in context with its commentary, and writes a paper: Pāḷi quotes in grey boxes, the English under each, and a link that opens TPR on the right page. It also makes reports from your own TPR: what you have been reading, a vocabulary review of the words you looked up, a sutta or chapter exported as a Pāḷi page with the translation, and word studies. Papers and reports are saved as Markdown, HTML and PDF in the TPR folder in your home folder.\n\nTPR's files are only read, never changed. You need Tipitaka Pali Reader, opened once so it finishes setting up, with at least one search run so its index is built. Install the English translation in TPR (Settings → Download) for English under the quotes.\n\nOn a Mac, the first time Claude reads TPR's data macOS asks whether Claude may access another app's data. Allow it: the extension opens every database read-only.",
   "author": {
     "name": "Tipitaka Pali Reader",
     "url": "https://americanmonk.org/tipitaka-pali-reader"
@@ -33,9 +33,9 @@
     "papers_dir": {
       "type": "directory",
       "title": "Folder for papers",
-      "description": "Where finished papers are saved.",
+      "description": "Where finished papers and reports are saved.",
       "required": false,
-      "default": "${DOCUMENTS}/TPR Research"
+      "default": "${HOME}/TPR"
     },
     "tpr_data_dir": {
       "type": "directory",
@@ -82,8 +82,32 @@
       "description": "Commentary passages TPR links to a paragraph"
     },
     {
+      "name": "tpr_query",
+      "description": "A read-only SQL query on the books, for what the other tools cannot find"
+    },
+    {
+      "name": "tpr_lookup",
+      "description": "Grammar and dictionary entries for a Pāḷi word"
+    },
+    {
+      "name": "tpr_activity",
+      "description": "What you recently opened, searched and looked up in TPR"
+    },
+    {
+      "name": "tpr_vocabulary",
+      "description": "The words you looked up, with meanings and where you met them"
+    },
+    {
+      "name": "tpr_chapters",
+      "description": "The headings of a book, with where each starts"
+    },
+    {
+      "name": "tpr_export",
+      "description": "A sutta, chapter or book as Pāḷi with the translation"
+    },
+    {
       "name": "tpr_save_paper",
-      "description": "Save a paper as Markdown, HTML and PDF, and open it"
+      "description": "Save a paper or report as Markdown, HTML and PDF, and open it"
     }
   ],
   "prompts": [
@@ -93,7 +117,39 @@
       "arguments": [
         "question"
       ],
-      "text": "Research this in my Tipitaka Pali Reader and write a paper with Pāḷi quotes and TPR links, following tpr_research_guide, then save it with tpr_save_paper: ${arguments.question}"
+      "text": "Call tpr_research_guide first and follow it. Then research this in my Tipitaka Pali Reader with the TPR Research tools (not files on disk), write the paper with Pāḷi quotes and TPR links, and save it with tpr_save_paper: ${arguments.question}"
+    },
+    {
+      "name": "reading_report",
+      "description": "A report of what you have been reading, searching and looking up in TPR",
+      "arguments": [
+        "days"
+      ],
+      "text": "Call tpr_research_guide first and follow its Reports section. Then make my TPR reading report with tpr_activity (days back: ${arguments.days}; 30 if empty) and save it with tpr_save_paper."
+    },
+    {
+      "name": "vocabulary_review",
+      "description": "The Pāḷi words you looked up in TPR, with meanings and where you met them",
+      "arguments": [
+        "days"
+      ],
+      "text": "Call tpr_research_guide first and follow its Reports section. Then make my vocabulary review with tpr_vocabulary (days back: ${arguments.days}; 30 if empty) and save it with tpr_save_paper."
+    },
+    {
+      "name": "export_text",
+      "description": "A sutta, chapter or book as a Pāḷi page with the translation",
+      "arguments": [
+        "what"
+      ],
+      "text": "Call tpr_research_guide first. Then export ${arguments.what} from my TPR with tpr_books, tpr_chapters and tpr_export, and save it unchanged with tpr_save_paper."
+    },
+    {
+      "name": "word_study",
+      "description": "One Pāḷi word through the dictionaries, the canon and the commentaries",
+      "arguments": [
+        "word"
+      ],
+      "text": "Call tpr_research_guide first and follow its Reports section. Then make a word study of ${arguments.word} with the TPR Research tools and save it with tpr_save_paper."
     }
   ],
   "keywords": [
@@ -102,7 +158,9 @@
     "buddhism",
     "theravada",
     "research",
-    "tpr"
+    "tpr",
+    "dictionary",
+    "vocabulary"
   ],
   "compatibility": {
     "platforms": [

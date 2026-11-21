@@ -11,6 +11,7 @@ import 'package:tipitaka_pali/app.dart';
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:devicelocale/devicelocale.dart';
 
+import 'package:tipitaka_pali/services/claude_share.dart';
 import 'package:tipitaka_pali/services/setup_firestore.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:window_manager/window_manager.dart';
@@ -145,6 +146,8 @@ void main(List<String> args) async {
     Prefs.selectedMainCategoryFilters = defaultSelectedMainCategoryFilters;
     Prefs.selectedSubCategoryFilters = defultSelectedSubCategoryFilters;
   }
+  // Keeps ~/TPR/db current for Claude, if the reader set it up (Mac only).
+  ClaudeShare.start();
   runApp(App(
       rxPref: rxPref,
       initialUrl: _initialUrl,
