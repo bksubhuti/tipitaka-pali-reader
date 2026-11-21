@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/services/database/database_helper.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -369,6 +370,17 @@ class _DownloadViewState extends State<DownloadView> {
     DownloadService downloadService = DownloadService(
         downloadNotifier: dn, downloadListItem: downloadListItem);
 
+    // A web page, not a file (such as where to get a newer TPR): opened in
+    // the browser. Downloaded, it was unzipped as a zip and crashed.
+    final path = Uri.tryParse(downloadListItem.url)?.path.toLowerCase() ?? '';
+    if (downloadListItem.url.startsWith('http') &&
+        !path.endsWith('.zip') &&
+        !path.endsWith('.db')) {
+      await launchUrl(Uri.parse(downloadListItem.url),
+          mode: LaunchMode.externalApplication);
+      return;
+    }
+
     dn.downloading = true;
 
     // A package: a database that carries its own install steps.
@@ -628,7 +640,13 @@ class _DownloadViewState extends State<DownloadView> {
       item.filename.contains('epitaka_viet_full');
 
   Future<List<DownloadListItem>> _fetchDownloadItems() async {
-    final items = await _fetchAllDownloadItems();
+    // items made for a newer app than this one are left out
+    final build = int.tryParse(Prefs.versionNumber.split('+').last) ?? 0;
+    final items = (await _fetchAllDownloadItems())
+        .where((item) =>
+            item.compatibilityVer <= build &&
+            (item.maxCompatibilityVer == 0 || build <= item.maxCompatibilityVer))
+        .toList();
     if (!DatabaseHelper.sentenceDataAvailable) return items;
     return items.where((item) => !_isRetiredTranslation(item)).toList();
   }
