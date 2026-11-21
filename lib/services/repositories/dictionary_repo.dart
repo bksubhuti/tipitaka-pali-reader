@@ -17,14 +17,15 @@ import '../../utils/pali_tools.dart';
 
 abstract class DictionaryRepository {
   Future<List<Definition>> getDefinition(String id);
-  Future<Definition> getDpdDefinition(String headwords);
+  Future<List<Definition>> getDpdDefinition(String headwords);
   Future<Definition> getDpdGrammarDefinition(String word);
   Future<List<String>> getSuggestions(String word);
   Future<String> getDpdWordSplit(String word);
   Future<String> getDprStem(String word);
   Future<DpdInflection?> getDpdInflection(int wordId);
-  Future<DpdRootFamily?> getDpdRootFamily(int wordId);
-  Future<List<DpdCompoundFamily>?> getDpdCompoundFamilies(int wordId);
+  Future<DpdRootFamily?> getDpdRootFamily(int wordId, {String lang = ''});
+  Future<List<DpdCompoundFamily>?> getDpdCompoundFamilies(int wordId,
+      {String lang = ''});
   Future<Freq?> getFrequencyDataForHeadword(int wordID);
 
   Future<String> getDpdHeadwords(String word);
@@ -79,19 +80,17 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
     return _adjustPEU(word, defs);
   }
 
+  /// DPD definitions of [headwords], one per DPD dictionary the reader has
+  /// switched on (English, and each translation installed as its own
+  /// dictionary book), in the reader's dictionary order.
   @override
-  Future<Definition> getDpdDefinition(String headwords) async {
+  Future<List<Definition>> getDpdDefinition(String headwords) async {
     final db = await databaseHelper.database;
 
     String line = headwords.replaceAll('[', "");
     line = line.replaceAll(']', "");
     line = line.replaceAll('\'', "");
-    String htmlDefs = "";
-    String stripDefs = '';
-    String word = "";
     List<String> words = line.split(',');
-    String bookName = '';
-    int order = 0;
 
     // if the word is not set to 1 then there is no install or it was overwritten by the dpd update extension
     // we will prompt them to reinstall .. Now added  run queries again if the table exists and the flag is not found word is
@@ -110,78 +109,84 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
 
     bool hasExtras = hasInflectionTables;
 
+    // book_id -> that dictionary's definitions of all the headwords
+    final byBook = <int, Definition>{};
     for (var element in words) {
-      word = element.trimLeft();
-      final sql = '''
-      SELECT dpd.id as id, word, definition, user_order, name, has_inflections, has_root_family, has_compound_family, has_freq from dpd, dictionary_books
-      WHERE word = '$word' AND user_choice =1  AND dictionary_books.id = dpd.book_id
+      final word = element.trimLeft();
+      if (word.isEmpty) continue;
+      const sql = '''
+      SELECT dpd.id as id, word, definition, user_order, name, book_id, has_inflections, has_root_family, has_compound_family, has_freq from dpd, dictionary_books
+      WHERE word = ? AND user_choice = 1 AND dictionary_books.id = dpd.book_id
     ''';
-      List<Map<String, dynamic>> maps = await db.rawQuery(sql);
-      List<Definition> defs = maps.map((x) => Definition.fromJson(x)).toList();
-      if (defs.isNotEmpty) {
-        String def = defs[0].definition;
-        if (hasExtras) {
-          // Include "Inflect" and "Root Family" links
-
-          // The extension is installed, now check for records for the wordId
-          Map<String, String> extras = {};
-
-          // Check for 'inflect'
-          if (defs[0].hasInflections == 1) {
-            extras['inflect'] = 'Inflect';
-          }
-
-          if (defs[0].hasRootFamily == 1) {
-            extras['root-family'] = '√ family';
-          }
-
-          if (defs[0].hasCompoundFamily == 1) {
-            extras['compound-family'] = 'Samāsas';
-          }
-
-          if (defs[0].hasFreq == 1) {
-            extras['freq'] = 'Frequency';
-          }
-
-          //final extras = {"inflect": "Inflect", "root-family": "Root Family"};
-          final links = extras.entries
-              .map((entry) =>
-                  '<a href="dpd://${entry.key}:${defs[0].id}">${entry.value}</a>')
-              .join(' ');
-          def = replaceLast(
-            def,
-            '<tr><td colspan="2">',
-            '<tr><td><b>Extras</b></td><td>$links</td></tr><tr><td colspan="2">',
-          );
+      final maps = await db.rawQuery(sql, [word]);
+      for (final row in maps) {
+        final d = Definition.fromJson(row);
+        final bookId = row['book_id'] as int;
+        final def = _withDpdExtras(d, hasExtras, bookId);
+        final soFar = byBook[bookId];
+        if (soFar == null) {
+          byBook[bookId] = Definition(
+              word: word,
+              definition: def,
+              bookName: d.bookName,
+              userOrder: d.userOrder);
         } else {
-          // Table does not exist; include "Get Extras" link
-          final getExtrasLink =
-              '<a href="dpd://get-extras:${defs[0].id}"><b>Get Extras</b></a>';
-          def = replaceLast(
-            def,
-            '<tr><td colspan="2">',
-            '<tr><td colspan="2" style="text-align: center;">$getExtrasLink</td></tr><tr><td colspan="2">',
-          );
+          soFar
+            ..word = word
+            ..definition += def;
         }
-
-        htmlDefs = def;
-        stripDefs += htmlDefs;
-        order = maps.first['user_order'];
-        bookName = maps.first['name'];
       }
     }
 
-    // We will build a list from the headwords (if mulitple headwords)
-    // Then we will do a raw query for each word and add to definition
-    //
+    return byBook.values.toList()
+      ..sort((a, b) => a.userOrder.compareTo(b.userOrder));
+  }
 
-    Definition def = Definition(
-        word: word, //line,
-        definition: stripDefs,
-        bookName: bookName,
-        userOrder: order);
+  /// The Extras row's words in each DPD translation's language (book id);
+  /// English for English DPD (11) and any other.
+  static const _dpdExtrasLabels = {
+    111: ['අමතර', 'වරනැගිලි', '√ පවුල', 'සමාස', 'භාවිත වාර'],
+    112: ['เพิ่มเติม', 'การแจกวิภัตติ', 'ตระกูล √', 'สมาส', 'ความถี่'],
+    113: ['अतिरिक्त', 'रूप-सारणी', '√ परिवार', 'समास', 'आवृत्ति'],
+    114: ['ထပ်ဆောင်း', 'ဝိဘတ်ပုံစံ', '√ မိသားစု', 'သမာသ်', 'အကြိမ်ရေ'],
+  };
 
-    return def;
+  /// [d]'s html with the Extras row (or the Get Extras link) added.
+  String _withDpdExtras(Definition d, bool hasExtras, int bookId) {
+    final words = _dpdExtrasLabels[bookId] ??
+        const ['Extras', 'Inflect', '√ family', 'Samāsas', 'Frequency'];
+    if (hasExtras) {
+      Map<String, String> extras = {};
+      if (d.hasInflections == 1) {
+        extras['inflect'] = words[1];
+      }
+      if (d.hasRootFamily == 1) {
+        extras['root-family'] = words[2];
+      }
+      if (d.hasCompoundFamily == 1) {
+        extras['compound-family'] = words[3];
+      }
+      if (d.hasFreq == 1) {
+        extras['freq'] = words[4];
+      }
+      final links = extras.entries
+          .map((entry) =>
+              '<a href="dpd://${entry.key}:${d.id}/$bookId">${entry.value}</a>')
+          .join(' ');
+      return replaceLast(
+        d.definition,
+        '<tr><td colspan="2">',
+        '<tr><td><b>${words[0]}</b></td><td>$links</td></tr><tr><td colspan="2">',
+      );
+    }
+    // Table does not exist; include "Get Extras" link
+    final getExtrasLink =
+        '<a href="dpd://get-extras:${d.id}"><b>Get Extras</b></a>';
+    return replaceLast(
+      d.definition,
+      '<tr><td colspan="2">',
+      '<tr><td colspan="2" style="text-align: center;">$getExtrasLink</td></tr><tr><td colspan="2">',
+    );
   }
 
   @override
@@ -217,9 +222,22 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
     return null;
   }
 
+  /// [base] in [lang] (dpd__family_root_si …) when a DPD translation put
+  /// one in, else the English [base].
+  Future<String> _familyTable(dynamic db, String base, String lang) async {
+    if (lang.isEmpty) return base;
+    final rows = await db.rawQuery(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?",
+        ['${base}_$lang']);
+    return rows.isEmpty ? base : '${base}_$lang';
+  }
+
   @override
-  Future<List<DpdCompoundFamily>?> getDpdCompoundFamilies(int wordId) async {
+  Future<List<DpdCompoundFamily>?> getDpdCompoundFamilies(int wordId,
+      {String lang = ''}) async {
     final db = await databaseHelper.database;
+    final compoundTable =
+        await _familyTable(db, 'dpd__family_compound', lang);
     // =========================================================================
     // Get word
     // =========================================================================
@@ -272,11 +290,11 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
       final cleanLemma = mappedWord['word'].replaceAll(RegExp(r" \d.*$"), '');
       final sql = '''
         SELECT
-          dpd__family_compound.*
+          $compoundTable.*
         FROM
-          dpd__family_compound 
+          $compoundTable 
         WHERE 
-          dpd__family_compound.compound_family = '$cleanLemma';
+          $compoundTable.compound_family = '$cleanLemma';
       ''';
       try {
         List<Map<String, dynamic>> maps = await db.rawQuery(sql);
@@ -293,11 +311,11 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
           .join(", ");
       final sql = '''
         SELECT
-          dpd__family_compound.*
+          $compoundTable.*
         FROM
-          dpd__family_compound 
+          $compoundTable 
         WHERE 
-          dpd__family_compound.compound_family IN ($familyList);
+          $compoundTable.compound_family IN ($familyList);
       ''';
       try {
         List<Map<String, dynamic>> maps = await db.rawQuery(sql);
@@ -312,18 +330,20 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
   }
 
   @override
-  Future<DpdRootFamily?> getDpdRootFamily(int wordId) async {
+  Future<DpdRootFamily?> getDpdRootFamily(int wordId,
+      {String lang = ''}) async {
     final db = await databaseHelper.database;
+    final fr = await _familyTable(db, 'dpd__family_root', lang);
     final sql = '''
       SELECT 
         dpd.word as word,
-        dpd__family_root.*
+        $fr.*
       FROM
         dpd 
       JOIN 
         dpd__word_family_root on dpd__word_family_root.id = dpd.id
       JOIN
-        dpd__family_root on dpd__family_root.root_family = dpd__word_family_root.family_root
+        $fr on $fr.root_family = dpd__word_family_root.family_root
       WHERE dpd.id = '$wordId';
     ''';
 
@@ -418,8 +438,8 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
 
     // if dpd is selected
     sql = '''
-  SELECT dpd.word as word , length(word) as si from dictionary_books, dpd
-      WHERE dpd.word LIKE ? AND dictionary_books.id = 11
+  SELECT DISTINCT dpd.word as word , length(word) as si from dictionary_books, dpd
+      WHERE dpd.word LIKE ? AND dictionary_books.id = dpd.book_id
       AND dictionary_books.user_choice = 1
       ORDER by si
 	    LIMIT 80

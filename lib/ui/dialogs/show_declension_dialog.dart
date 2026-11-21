@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/dpd_pali.dart';
+import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/dpd_inflection.dart';
 import 'package:tipitaka_pali/routes.dart';
@@ -12,7 +14,8 @@ import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/utils/display_utils.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 
-showDeclensionDialog(BuildContext context, int wordId) async {
+showDeclensionDialog(BuildContext context, int wordId, {int book = 11}) async {
+  final pali = DpdPali(context, book);
   var dictionaryController = context.read<DictionaryController>();
   DpdInflection? inflection =
       await dictionaryController.getDpdInflection(wordId);
@@ -102,6 +105,14 @@ showDeclensionDialog(BuildContext context, int wordId) async {
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: getDpdHeaderColor())));
+              } else if (value.isNotEmpty && pali.script != Script.roman) {
+                // In another script the stem and ending are converted as one
+                // word: apart, a letter split between them came out wrong.
+                spans.add(TextSpan(
+                    text: pali(stem + value),
+                    style: TextStyle(
+                        fontSize: Prefs.dictionaryFontSize.toDouble(),
+                        fontWeight: FontWeight.bold)));
               } else if (value.isNotEmpty) {
                 spans.add(TextSpan(
                     text: stem,
@@ -147,7 +158,7 @@ showDeclensionDialog(BuildContext context, int wordId) async {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(superscripterUni(inflection.word)),
+      title: Text(superscripterUni(pali(inflection.word))),
       contentPadding: isMobile ? EdgeInsets.zero : null,
       insetPadding: isMobile ? const EdgeInsets.all(insetPadding) : null,
       content: content,

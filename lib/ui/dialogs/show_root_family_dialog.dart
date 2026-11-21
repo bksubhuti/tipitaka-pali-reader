@@ -7,13 +7,16 @@ import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_contro
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/utils/display_utils.dart';
+import 'package:tipitaka_pali/utils/dpd_pali.dart';
+import 'package:tipitaka_pali/business_logic/models/dictionary_book.dart';
 
 import '../../../../services/prefs.dart';
 
-showRootFamilyDialog(BuildContext context, int wordId) async {
+showRootFamilyDialog(BuildContext context, int wordId, {int book = 11}) async {
   var dictionaryController = context.read<DictionaryController>();
-  DpdRootFamily? rootFamily =
-      await dictionaryController.getDpdRootFamily(wordId);
+  final pali = DpdPali(context, book);
+  DpdRootFamily? rootFamily = await dictionaryController
+      .getDpdRootFamily(wordId, lang: DictionaryBook.dpdLang(book) ?? '');
 
   // Prevent using context across async gaps
   if (!context.mounted) return;
@@ -35,20 +38,20 @@ showRootFamilyDialog(BuildContext context, int wordId) async {
   final content = isMobile
       ? SizedBox(
           width: MediaQuery.of(context).size.width - 2 * insetPadding,
-          child: _getRootFamilyWidget(rootFamily, jsonData),
+          child: _getRootFamilyWidget(rootFamily, jsonData, pali),
         )
       : Container(
           constraints: const BoxConstraints(
             maxHeight: 400,
             maxWidth: 800,
           ),
-          child: _getRootFamilyWidget(rootFamily, jsonData),
+          child: _getRootFamilyWidget(rootFamily, jsonData, pali),
         );
 
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(superscripterUni(rootFamily.word)),
+      title: Text(superscripterUni(pali(rootFamily.word))),
       contentPadding: isMobile ? EdgeInsets.zero : null,
       insetPadding: isMobile ? const EdgeInsets.all(insetPadding) : null,
       content: content,
@@ -62,7 +65,7 @@ showRootFamilyDialog(BuildContext context, int wordId) async {
 }
 
 Scrollbar _getRootFamilyWidget(
-    DpdRootFamily rootFamily, List<dynamic> jsonData) {
+    DpdRootFamily rootFamily, List<dynamic> jsonData, DpdPali pali) {
   final horizontal = ScrollController();
   final vertical = ScrollController();
 
@@ -83,8 +86,8 @@ Scrollbar _getRootFamilyWidget(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _getRootFamilyHeader(rootFamily),
-              _getRootFamilyTable(jsonData),
+              _getRootFamilyHeader(rootFamily, pali),
+              _getRootFamilyTable(jsonData, pali),
             ],
           ),
         ),
@@ -93,7 +96,7 @@ Scrollbar _getRootFamilyWidget(
   );
 }
 
-SelectableText _getRootFamilyHeader(DpdRootFamily rootFamily) {
+SelectableText _getRootFamilyHeader(DpdRootFamily rootFamily, DpdPali pali) {
   return SelectableText.rich(
     TextSpan(children: [
       TextSpan(
@@ -101,7 +104,7 @@ SelectableText _getRootFamilyHeader(DpdRootFamily rootFamily) {
           style: const TextStyle(fontWeight: FontWeight.bold)),
       const TextSpan(text: ' words belong to the root family '),
       TextSpan(
-          text: rootFamily.rootFamily,
+          text: pali(rootFamily.rootFamily),
           style: TextStyle(
               fontSize: Prefs.dictionaryFontSize.toDouble(),
               fontWeight: FontWeight.bold)),
@@ -113,7 +116,7 @@ SelectableText _getRootFamilyHeader(DpdRootFamily rootFamily) {
   );
 }
 
-Table _getRootFamilyTable(List<dynamic> jsonData) {
+Table _getRootFamilyTable(List<dynamic> jsonData, DpdPali pali) {
   return Table(
     border: TableBorder.all(),
     defaultColumnWidth: const IntrinsicColumnWidth(),
@@ -124,7 +127,7 @@ Table _getRootFamilyTable(List<dynamic> jsonData) {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: SelectableText(
-                item[0],
+                pali(item[0]),
                 style: TextStyle(
                     fontSize: Prefs.dictionaryFontSize.toDouble(),
                     color: getDpdHeaderColor(),

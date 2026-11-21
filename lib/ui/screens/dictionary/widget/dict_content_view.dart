@@ -151,6 +151,12 @@ class DictionaryContentView extends StatelessWidget {
                                     Uri parsedUri = Uri.parse(href);
                                     String extra = parsedUri.host;
                                     int id = parsedUri.port;
+                                    // the DPD it came from (111 Sinhala …);
+                                    // English (11) for older links
+                                    final book = int.tryParse(parsedUri
+                                                .pathSegments.firstOrNull ??
+                                            '') ??
+                                        11;
 
                                     return InlineCustomWidget(
                                       child: ElevatedButton(
@@ -177,7 +183,8 @@ class DictionaryContentView extends StatelessWidget {
                                               .contains(extra)) {
                                             debugPrint(
                                                 'DPD "$extra" extra operation for: $id');
-                                            showDpdExtra(context, extra, id);
+                                            showDpdExtra(
+                                                context, extra, id, book);
                                           } else {
                                             debugPrint(
                                                 'Unhandled DPD link: $extra');
@@ -233,19 +240,19 @@ class DictionaryContentView extends StatelessWidget {
             ));
   }
 
-  showDpdExtra(BuildContext context, String extra, int wordId) async {
+  showDpdExtra(BuildContext context, String extra, int wordId, int book) async {
     switch (extra) {
       case "inflect":
-        showDeclensionDialog(context, wordId);
+        showDeclensionDialog(context, wordId, book: book);
         break;
       case "root-family":
-        showRootFamilyDialog(context, wordId);
+        showRootFamilyDialog(context, wordId, book: book);
         break;
       case "compound-family":
-        showCompoundFamilyDialog(context, wordId);
+        showCompoundFamilyDialog(context, wordId, book: book);
         break;
       case "freq":
-        showFreqDialog(context, wordId);
+        showFreqDialog(context, wordId, book: book);
         break;
     }
   }

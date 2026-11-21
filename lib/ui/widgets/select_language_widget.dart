@@ -1,3 +1,4 @@
+import 'package:tipitaka_pali/ui/dialogs/dpd_language_offer.dart';
 import 'package:tipitaka_pali/services/provider/locale_change_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -33,6 +34,9 @@ class SelectLanguageWidget extends StatelessWidget {
           final localeProvider =
               Provider.of<LocaleChangeNotifier>(context, listen: false);
           localeProvider.localeVal = Prefs.localeVal;
+          // DPD in this language, if there is one (not during the first
+          // setup: the database is not there yet)
+          if (Prefs.isDatabaseSaved) DpdLanguageOffer.offerIfWanted(context);
         },
         items: _languageItmes.map<DropdownMenuItem<String>>(
           (String value) {

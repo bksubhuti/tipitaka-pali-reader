@@ -283,16 +283,21 @@ class DictionaryController with ChangeNotifier {
     // separate table and process for dpd
     if (Prefs.isDpdOn) {
       if (dpdHeadWords.isNotEmpty) {
-        Definition dpdDefinition =
+        // one per DPD dictionary switched on (English and translations)
+        final dpdDefinitions =
             await dictionaryProvider.getDpdDefinition(dpdHeadWords);
         if (Prefs.isDpdGrammarOn) {
           Definition grammarDef =
               await dictionaryProvider.getDpdGrammarDefinition(originalWord);
           if (grammarDef.word.isNotEmpty) {
-            dpdDefinition.definition += grammarDef.definition;
+            if (dpdDefinitions.isEmpty) {
+              dpdDefinitions.add(grammarDef);
+            } else {
+              dpdDefinitions.first.definition += grammarDef.definition;
+            }
           }
         }
-        definitions.insert(0, dpdDefinition);
+        definitions.insertAll(0, dpdDefinitions);
         definitions.sort((a, b) => a.userOrder.compareTo(b.userOrder));
       }
     }
@@ -327,9 +332,8 @@ class DictionaryController with ChangeNotifier {
       debugPrint('dpdHeadWord: $dpdHeadWord for "$word"');
 
       if (dpdHeadWord.isNotEmpty) {
-        Definition dpdDefinition =
-            await dictionaryProvider.getDpdDefinition(dpdHeadWord);
-        definitions.insert(0, dpdDefinition);
+        definitions.insertAll(
+            0, await dictionaryProvider.getDpdDefinition(dpdHeadWord));
       }
 
       if (definitions.isNotEmpty) {
@@ -621,16 +625,16 @@ class DictionaryController with ChangeNotifier {
     return dictionaryProvider.getDpdInflection(wordId);
   }
 
-  getDpdRootFamily(int wordId) {
+  getDpdRootFamily(int wordId, {String lang = ''}) {
     final dictionaryProvider =
         DictionarySerice(DictionaryDatabaseRepository(DatabaseHelper()));
-    return dictionaryProvider.getDpdRootFamily(wordId);
+    return dictionaryProvider.getDpdRootFamily(wordId, lang: lang);
   }
 
-  getDpdCompoundFamilies(int wordId) {
+  getDpdCompoundFamilies(int wordId, {String lang = ''}) {
     final dictionaryProvider =
         DictionarySerice(DictionaryDatabaseRepository(DatabaseHelper()));
-    return dictionaryProvider.getDpdCompoundFamilies(wordId);
+    return dictionaryProvider.getDpdCompoundFamilies(wordId, lang: lang);
   }
 
   getDpdFreq(int wordId) {

@@ -6,14 +6,18 @@ import 'package:tipitaka_pali/ui/screens/dictionary/controller/dictionary_contro
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/utils/display_utils.dart';
+import 'package:tipitaka_pali/utils/dpd_pali.dart';
+import 'package:tipitaka_pali/business_logic/models/dictionary_book.dart';
 
 import '../../../../business_logic/models/dpd_compound_family.dart';
 import '../../../../services/prefs.dart';
 
-showCompoundFamilyDialog(BuildContext context, int wordId) async {
+showCompoundFamilyDialog(BuildContext context, int wordId,
+    {int book = 11}) async {
   var dictionaryController = context.read<DictionaryController>();
-  List<DpdCompoundFamily>? compoundFamilies =
-      await dictionaryController.getDpdCompoundFamilies(wordId);
+  final pali = DpdPali(context, book);
+  List<DpdCompoundFamily>? compoundFamilies = await dictionaryController
+      .getDpdCompoundFamilies(wordId, lang: DictionaryBook.dpdLang(book) ?? '');
 
   // prevent using context across asynch gaps
   if (!context.mounted) return;
@@ -43,21 +47,21 @@ showCompoundFamilyDialog(BuildContext context, int wordId) async {
   final content = isMobile
       ? SizedBox(
           width: MediaQuery.of(context).size.width - 2 * insetPadding,
-          child:
-              _getCompoundFamilyWidget(count, word, jsonData, compoundFamily),
+          child: _getCompoundFamilyWidget(
+              count, pali(word), jsonData, compoundFamily, pali),
         )
       : Container(
           constraints: const BoxConstraints(
             maxHeight: 400,
             maxWidth: 800,
           ),
-          child:
-              _getCompoundFamilyWidget(count, word, jsonData, compoundFamily));
+          child: _getCompoundFamilyWidget(
+              count, pali(word), jsonData, compoundFamily, pali));
 
   showDialog(
       context: context,
       builder: (context) => AlertDialog(
-            title: Text(superscripterUni(first.word)),
+            title: Text(superscripterUni(pali(first.word))),
             contentPadding: isMobile ? EdgeInsets.zero : null,
             insetPadding: isMobile ? const EdgeInsets.all(insetPadding) : null,
             content: content,
@@ -69,7 +73,8 @@ showCompoundFamilyDialog(BuildContext context, int wordId) async {
           ));
 }
 
-Scrollbar _getCompoundFamilyWidget(count, word, jsonData, compoundFamily) {
+Scrollbar _getCompoundFamilyWidget(
+    count, word, jsonData, compoundFamily, DpdPali pali) {
   final horizontal = ScrollController();
   final vertical = ScrollController();
   return Scrollbar(
@@ -90,7 +95,7 @@ Scrollbar _getCompoundFamilyWidget(count, word, jsonData, compoundFamily) {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _getCompoundFamilyHeader(count, compoundFamily),
-                _getCompoundFamilyTable(jsonData)
+                _getCompoundFamilyTable(jsonData, pali)
               ],
             )),
       ),
@@ -114,7 +119,7 @@ SelectableText _getCompoundFamilyHeader(count, compoundFamily) {
   );
 }
 
-Table _getCompoundFamilyTable(List<dynamic> jsonData) {
+Table _getCompoundFamilyTable(List<dynamic> jsonData, DpdPali pali) {
   return Table(
     border: TableBorder.all(),
     defaultColumnWidth: const IntrinsicColumnWidth(),
@@ -125,7 +130,7 @@ Table _getCompoundFamilyTable(List<dynamic> jsonData) {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: SelectableText(
-                item[0],
+                pali(item[0]),
                 style: TextStyle(
                     fontSize: Prefs.dictionaryFontSize.toDouble(),
                     color: getDpdHeaderColor(),

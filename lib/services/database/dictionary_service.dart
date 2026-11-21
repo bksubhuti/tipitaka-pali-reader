@@ -15,17 +15,19 @@ class DictionarySerice {
   DictionarySerice(this.dictionaryRepository);
   final DictionaryRepository dictionaryRepository;
 
-  Future<Definition> getDpdDefinition(String headword) async {
-    Definition definition =
-        await dictionaryRepository.getDpdDefinition(headword);
-    if (Prefs.hideIPA) {
-      definition.definition = removeIPA(definition.definition);
+  /// One definition per DPD dictionary switched on, in dictionary order.
+  Future<List<Definition>> getDpdDefinition(String headword) async {
+    final definitions = await dictionaryRepository.getDpdDefinition(headword);
+    for (final definition in definitions) {
+      if (Prefs.hideIPA) {
+        definition.definition = removeIPA(definition.definition);
+      }
+      if (Prefs.hideSanskrit) {
+        definition.definition = removeSanskritItems(definition.definition);
+      }
+      definition.definition = removeNotes(definition.definition);
     }
-    if (Prefs.hideSanskrit) {
-      definition.definition = removeSanskritItems(definition.definition);
-    }
-    definition.definition = removeNotes(definition.definition);
-    return definition;
+    return definitions;
   }
 
   Future<Definition> getDpdGrammarDefinition(String word) async {
@@ -67,12 +69,14 @@ class DictionarySerice {
     return dictionaryRepository.getDpdInflection(wordId);
   }
 
-  Future<List<DpdCompoundFamily>?> getDpdCompoundFamilies(int wordId) async {
-    return dictionaryRepository.getDpdCompoundFamilies(wordId);
+  Future<List<DpdCompoundFamily>?> getDpdCompoundFamilies(int wordId,
+      {String lang = ''}) async {
+    return dictionaryRepository.getDpdCompoundFamilies(wordId, lang: lang);
   }
 
-  Future<DpdRootFamily?> getDpdRootFamily(int wordId) async {
-    return dictionaryRepository.getDpdRootFamily(wordId);
+  Future<DpdRootFamily?> getDpdRootFamily(int wordId,
+      {String lang = ''}) async {
+    return dictionaryRepository.getDpdRootFamily(wordId, lang: lang);
   }
 
   Future<Freq?> getFrequencyDataForHeadword(int wordId) async {

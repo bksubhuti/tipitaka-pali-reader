@@ -1,3 +1,4 @@
+import 'package:tipitaka_pali/ui/dialogs/dpd_language_offer.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -36,6 +37,7 @@ class _HomeState extends State<Home> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _offerTranslation();
       await _offerRestoreTabs();
+      if (mounted) await DpdLanguageOffer.offerIfWanted(context);
     });
     HardwareKeyboard.instance.addHandler(_onFontSizeKey);
   }

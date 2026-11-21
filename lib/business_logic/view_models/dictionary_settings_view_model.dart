@@ -40,8 +40,11 @@ class DictionarySettingController extends ChangeNotifier {
       // peu
       Prefs.isPeuOn = value;
     }
-    if (bookID == 11) {
-      Prefs.isDpdOn = value;
+    if (DictionaryBook.isDpd(bookID)) {
+      // DPD lookups run while any DPD dictionary (English or a translation)
+      // is switched on
+      Prefs.isDpdOn = userDicts
+          .any((d) => DictionaryBook.isDpd(d.bookID) && d.userChoice);
     }
 
     notifyListeners();

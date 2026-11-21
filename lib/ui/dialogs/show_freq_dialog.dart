@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:tipitaka_pali/utils/dpd_pali.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:tipitaka_pali/business_logic/models/freq.dart';
@@ -47,7 +48,8 @@ const List<Map<String, String>> expectedFrequencies = [
   {'section': 'Sihaḷa', 'book': 'Aññā'},
 ];
 
-void showFreqDialog(BuildContext context, int wordId) async {
+void showFreqDialog(BuildContext context, int wordId, {int book = 11}) async {
+  final pali = DpdPali(context, book);
   freqFontSize = 15 * 15 / MediaQuery.of(context).textScaler.scale(14);
   var dictionaryController = context.read<DictionaryController>();
   Freq? freq = await dictionaryController.getDpdFreq(wordId);
@@ -100,7 +102,7 @@ void showFreqDialog(BuildContext context, int wordId) async {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text("CST Data For ${superscripterUni(freq.headword)}"),
+      title: Text("CST Data For ${superscripterUni(pali(freq.headword))}"),
       contentPadding: isMobile ? EdgeInsets.zero : null,
       insetPadding: isMobile ? const EdgeInsets.all(10) : null,
       content: content,
