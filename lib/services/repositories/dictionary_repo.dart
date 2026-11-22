@@ -294,10 +294,10 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
         FROM
           $compoundTable 
         WHERE 
-          $compoundTable.compound_family = '$cleanLemma';
+          $compoundTable.compound_family = ?;
       ''';
       try {
-        List<Map<String, dynamic>> maps = await db.rawQuery(sql);
+        List<Map<String, dynamic>> maps = await db.rawQuery(sql, [cleanLemma]);
         return maps
             .map((x) => DpdCompoundFamily.fromJson(x)..word = word)
             .toList();
@@ -305,20 +305,23 @@ class DictionaryDatabaseRepository implements DictionaryRepository {
         return null;
       }
     } else {
-      final familyList = familyCompound['family_compound']
+      // As parameters: "dhamma" in double quotes was read as a column name
+      // by newer SQLite, the query failed and Samāsas did not open.
+      final families = (familyCompound['family_compound'] as String)
           .split(' ')
-          .map((s) => '"$s"')
-          .join(", ");
+          .where((s) => s.isNotEmpty)
+          .toList();
+      final marks = List.filled(families.length, '?').join(', ');
       final sql = '''
         SELECT
           $compoundTable.*
         FROM
           $compoundTable 
         WHERE 
-          $compoundTable.compound_family IN ($familyList);
+          $compoundTable.compound_family IN ($marks);
       ''';
       try {
-        List<Map<String, dynamic>> maps = await db.rawQuery(sql);
+        List<Map<String, dynamic>> maps = await db.rawQuery(sql, families);
         return maps
             .map((x) => DpdCompoundFamily.fromJson(x)..word = word)
             .toList();

@@ -13,6 +13,9 @@ import '../../utils/font_utils.dart';
 
 double freqFontSize = 14.0;
 
+/// The script the open frequency dialog shows Pāḷi in (see DpdPali).
+DpdPali? _freqPali;
+
 // Define `expectedFrequencies` at the global level**
 const List<Map<String, String>> expectedFrequencies = [
   {'section': 'Pārājika', 'book': 'Vinaya'},
@@ -50,6 +53,7 @@ const List<Map<String, String>> expectedFrequencies = [
 
 void showFreqDialog(BuildContext context, int wordId, {int book = 11}) async {
   final pali = DpdPali(context, book);
+  _freqPali = pali;
   freqFontSize = 15 * 15 / MediaQuery.of(context).textScaler.scale(14);
   var dictionaryController = context.read<DictionaryController>();
   Freq? freq = await dictionaryController.getDpdFreq(wordId);
@@ -393,7 +397,8 @@ Widget _getFreqTable(BuildContext context, List<List<dynamic>> freqMatrix,
               decoration: borderDecoration,
               child: Padding(
                 padding: const EdgeInsets.all(padding),
-                child: Text(section, style: sectionStyle),
+                child: Text(_freqPali?.call(section) ?? section,
+                    style: sectionStyle),
               )),
           ...freqData.map((e) => _buildFrequencyCell(context, e['freq'],
               e['grad'], e['isTotal'], isFirst, isLast, e['totalGrad']))
