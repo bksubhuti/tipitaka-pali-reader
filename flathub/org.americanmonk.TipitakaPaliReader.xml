@@ -30,6 +30,20 @@
   </description>
 
   <releases>
+    <release version="3.1.8+139" date="2026-11-21">
+      <description>
+        <p>
+          The Digital Pāḷi Dictionary in Sinhala, Thai, Hindi and Myanmar, beside the English one.
+        </p>
+        <ul>
+          <li>DPD translations install next to English DPD, each switched on or off in the dictionary settings</li>
+          <li>Inflections, families and frequency show Pāḷi in the dictionary's script</li>
+          <li>Right-click "AI: Explain grammar" explains the grammar of the selected Pāḷi</li>
+          <li>Clearer search highlights on a dark page</li>
+          <li>Samāsas (compound families) open again</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.1.7+138" date="2026-11-12">
       <description>
         <p>
