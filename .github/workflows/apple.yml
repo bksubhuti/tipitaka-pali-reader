@@ -61,8 +61,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # From April 2027 App Store Connect takes only apps built with the
+      # iOS 27 SDK (ITMS-90725). The runner's default Xcode can be older,
+      # so the newest Xcode 27 on it is used; without one, the default, and
+      # a warning in the run.
       - name: Xcode version
-        run: xcodebuild -version
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then
+            sudo xcode-select -s "$XCODE/Contents/Developer"
+          else
+            echo "::warning::No Xcode 27 on this runner; building with the default Xcode"
+          fi
+          xcodebuild -version
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
