@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
@@ -93,14 +95,49 @@ class ClaudeExtensionDialog {
       }
       final file = File(p.join(tpr, 'tpr-research.mcpb'));
       await file.writeAsBytes(response.bodyBytes, flush: true);
-      if (!await launchUrl(Uri.file(file.path))) {
-        say('Saved in $tpr. Open tpr-research.mcpb to install it.');
+      // Said every time: on Windows the folder is made without a picker, and
+      // readers looked for it and could not tell where it was.
+      say('Saved as ${file.path}');
+      if (!await _openInClaude(file)) {
+        if (Platform.isWindows) {
+          // Show the file, so it can be installed in Claude by hand.
+          await Process.start('explorer.exe', ['/select,', file.path],
+              mode: ProcessStartMode.detached);
+        }
+        say('Saved as ${file.path}. In Claude Desktop: Settings › '
+            'Extensions, and install this file.');
         return;
       }
       if (context.mounted) await _howToUse(context);
     } catch (e) {
       say('Could not install the extension: $e');
     }
+  }
+
+  /// Hands the extension to Claude Desktop, which shows its install dialog.
+  ///
+  /// On Windows Claude is started with the file itself, as "Open with" does:
+  /// the .mcpb type is often not registered there, and Windows then asked
+  /// which app should open it.
+  static Future<bool> _openInClaude(File file) async {
+    if (Platform.isWindows) {
+      final local = Platform.environment['LOCALAPPDATA'] ?? '';
+      final claude = [
+        p.join(local, 'AnthropicClaude', 'claude.exe'),
+        p.join(local, 'Programs', 'Claude', 'Claude.exe'),
+        p.join(local, 'Programs', 'claude', 'Claude.exe'),
+      ].where((e) => File(e).existsSync()).firstOrNull;
+      if (claude != null) {
+        try {
+          await Process.start(claude, [file.path],
+              mode: ProcessStartMode.detached);
+          return true;
+        } catch (_) {
+          // fall back to the file type below
+        }
+      }
+    }
+    return launchUrl(Uri.file(file.path));
   }
 
   /// ~/TPR, made if needed. The Mac app is sandboxed: it may write only where
