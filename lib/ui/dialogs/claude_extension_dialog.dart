@@ -108,8 +108,11 @@ class ClaudeExtensionDialog {
           await Process.start('explorer.exe', ['/select,', file.path],
               mode: ProcessStartMode.detached);
         }
-        say('Saved as ${file.path}. In Claude Desktop: Settings › '
-            'Extensions, and install this file.');
+        say(Platform.isWindows
+            ? 'Open Claude Desktop, then press Set up again. (Saved as '
+                '${file.path}.)'
+            : 'Saved as ${file.path}. In Claude Desktop: Settings › '
+                'Extensions, and install this file.');
         return;
       }
       if (context.mounted) await _howToUse(context);
@@ -125,12 +128,7 @@ class ClaudeExtensionDialog {
   /// which app should open it.
   static Future<bool> _openInClaude(File file) async {
     if (Platform.isWindows) {
-      final local = Platform.environment['LOCALAPPDATA'] ?? '';
-      final claude = [
-        p.join(local, 'AnthropicClaude', 'claude.exe'),
-        p.join(local, 'Programs', 'Claude', 'Claude.exe'),
-        p.join(local, 'Programs', 'claude', 'Claude.exe'),
-      ].where((e) => File(e).existsSync()).firstOrNull;
+      final claude = await _findClaudeWindows();
       if (claude != null) {
         try {
           await Process.start(claude, [file.path],
@@ -142,6 +140,41 @@ class ClaudeExtensionDialog {
       }
     }
     return launchUrl(Uri.file(file.path));
+  }
+
+  /// Claude Desktop's claude.exe on Windows, or null.
+  ///
+  /// Claude for Windows is a packaged app: it lives in the locked
+  /// WindowsApps folder and does not register .mcpb, so Windows asked
+  /// "Select an app". Its exe can still be started by its full path, found
+  /// as claude-connector-installer (MIT) finds it: the running Claude's
+  /// path, else the package's install folder. The older per-user installs
+  /// are looked for too.
+  static Future<String?> _findClaudeWindows() async {
+    try {
+      final r = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        r"$p = Get-Process claude -ErrorAction SilentlyContinue | "
+            r"Select-Object -First 1 -ExpandProperty Path; "
+            r"if (-not $p) { $pkg = Get-AppxPackage -Name '*Claude*' | "
+            r"Select-Object -First 1; "
+            r"if ($pkg) { $p = Join-Path $pkg.InstallLocation 'app\claude.exe' } }; "
+            r"$p",
+      ]);
+      final path = '${r.stdout}'.trim();
+      if (path.isNotEmpty && File(path).existsSync()) return path;
+    } catch (_) {
+      // no PowerShell: the older installs below
+    }
+    final local = Platform.environment['LOCALAPPDATA'] ?? '';
+    return [
+      p.join(local, 'AnthropicClaude', 'claude.exe'),
+      p.join(local, 'Programs', 'Claude', 'Claude.exe'),
+      p.join(local, 'Programs', 'claude', 'Claude.exe'),
+    ].where((e) => File(e).existsSync()).firstOrNull;
   }
 
   /// ~/TPR, made if needed. The Mac app is sandboxed: it may write only where
