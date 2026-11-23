@@ -213,10 +213,9 @@ class ClaudeExtensionDialog {
             child: Text(
               'Claude Desktop now asks you to install TPR Research: click '
               'Install.\n\n'
-              'The first time Claude uses each TPR tool (about ten: '
-              'search, quote, show and so on) it asks your permission. '
-              'Choose "Always allow" each time; after the first few papers '
-              'it stops asking.\n\n'
+              'Claude may ask your permission the first time it uses each '
+              'TPR tool (search, quote, show and so on). If it does, choose '
+              '"Always allow"; it then stops asking.\n\n'
               'Then start a new chat and just ask, with "TPR" in the '
               'question, for example:\n'
               '• Using TPR, where do the suttas compare the mind to a '
