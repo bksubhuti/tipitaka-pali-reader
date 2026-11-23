@@ -161,12 +161,34 @@ function indexWords(t) {
   return t ? t.split(' ').length : 0;
 }
 
+const REF_FORMS = 'use 1036 (a paragraph), 1036:2 (a line), 1036:1-5 (lines) or 1785-1787 '
+  + '(paragraphs, as tpr_search prints them)';
+
 /** '1036' or '1036:1' or '1036:1-5' -> [para, firstLine or null, lastLine or null]. */
 function parseRef(ref) {
   const m = /^(\d+)(?::(\d+)(?:-(\d+))?)?$/.exec(String(ref).trim());
-  if (!m) fail(`Bad reference "${ref}"; use PARA, PARA:LINE or PARA:L1-L2`);
+  if (!m) fail(`Bad reference "${ref}"; ${REF_FORMS}.`);
   const a = m[2] ? Number(m[2]) : null;
   return [Number(m[1]), a, m[3] ? Number(m[3]) : a];
+}
+
+/** The lines a reference names, each with its para_id. Takes everything
+ *  parseRef takes, and a paragraph range '1785-1787' (as search prints a hit
+ *  that spans paragraphs), at most 20 paragraphs. */
+function refLines(book, ref, lang) {
+  const range = /^(\d+)-(\d+)$/.exec(String(ref).trim());
+  if (range) {
+    const [p1, p2] = [Number(range[1]), Number(range[2])];
+    if (p2 < p1 || p2 - p1 > 19) fail(`Bad reference "${ref}"; a paragraph range is 1 to 20 paragraphs, first one first.`);
+    const rows = [];
+    for (let p = p1; p <= p2; p++) {
+      try { rows.push(...lines(book, p, null, null, lang).map((r) => ({ ...r, para_id: p }))); } catch { /* a gap */ }
+    }
+    if (!rows.length) fail(`No text at ${book} ${ref} (check the id with tpr_books).`);
+    return rows;
+  }
+  const [para, a, b] = parseRef(ref);
+  return lines(book, para, a, b, lang).map((r) => ({ ...r, para_id: para }));
 }
 
 function lines(book, para, a, b, lang) {
@@ -327,30 +349,28 @@ function count({ pattern, layer, lang }) {
 
 function show({ book, ref, lang, keep_variants: keep }) {
   const l = defaultLang(lang);
-  const [para, a, b] = parseRef(ref);
   const out = [];
-  for (const r of lines(book, para, a, b, l)) {
-    out.push(`${para}:${r.line_id}  ${clean(r.pali, !keep)}`);
-    if (l) out.push(`${' '.repeat(String(para).length + String(r.line_id).length + 3)}${l.toUpperCase()}: ${clean(r.translation || '-')}`);
+  for (const r of refLines(book, ref, l)) {
+    out.push(`${r.para_id}:${r.line_id}  ${clean(r.pali, !keep)}`);
+    if (l) out.push(`${' '.repeat(String(r.para_id).length + String(r.line_id).length + 3)}${l.toUpperCase()}: ${clean(r.translation || '-')}`);
   }
   return out.join('\n');
 }
 
 function link({ book, ref }) {
-  const [para, a] = parseRef(ref);
-  const rows = lines(book, para, a ?? 1, a ?? 1, null);
-  const r = tprLink(book, para, a ?? rows[0].line_id, rows[0].pali);
+  const rows = refLines(book, ref, null);
+  const para = rows[0].para_id;
+  const r = tprLink(book, para, rows[0].line_id, rows[0].pali);
   if (!r) fail(`${book} ${para} is not in TPR's search index; no link can be made.`);
   return `${r.url}\n${r.name}, p. ${r.page}`;
 }
 
 function quote({ book, ref, lang }) {
   const l = defaultLang(lang);
-  const [para, a, b] = parseRef(ref);
-  const rows = lines(book, para, a, b, l);
+  const rows = refLines(book, ref, l);
   const pali = rows.map((r) => clean(r.pali)).join(' ');
   const trans = l ? rows.filter((r) => r.translation).map((r) => clean(r.translation)).join(' ').trim() : '';
-  const r = tprLink(book, para, rows[0].line_id, rows[0].pali);
+  const r = tprLink(book, rows[0].para_id, rows[0].line_id, rows[0].pali);
   const name = get('SELECT book_name FROM epi.books WHERE book_id=?', book).book_name;
   const out = [`> **${pali}**`, '>'];
   if (trans) out.push(`> ${trans}`, '>');
@@ -605,7 +625,7 @@ function query({ sql, limit = 50 }) {
 module.exports = {
   query,
   TprError, status, books, search, count, show, link, quote, commentary, clean,
-  activity, vocabulary, lookup, chapters, exportText, refLink: tprLink, lines, parseRef, defaultLang,
+  activity, vocabulary, lookup, chapters, exportText, refLink: tprLink, lines, parseRef, refLines, defaultLang,
   bookIds: () => all('SELECT book_id FROM epi.books').map((r) => r.book_id),
   bookName: (id) => (get('SELECT book_name FROM epi.books WHERE book_id=?', id) || {}).book_name,
 };

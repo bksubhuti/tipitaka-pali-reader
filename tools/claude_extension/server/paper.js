@@ -214,11 +214,10 @@ function papersDir() {
 function quoteBox(spec) {
   const [ref, over = ''] = spec.split('|');
   const [book, r] = ref.trim().split(/\s+/);
-  const [para, a, b] = tpr.parseRef(r);
-  const rows = tpr.lines(book, para, a, b, langOrNull());
+  const rows = tpr.refLines(book, r, langOrNull());
   const pali = rows.map((x) => tpr.clean(x.pali)).join(' ');
   const trans = over.trim() || rows.filter((x) => x.translation).map((x) => tpr.clean(x.translation)).join(' ').trim();
-  const ln = tpr.refLink(book, para, rows[0].line_id, rows[0].pali);
+  const ln = tpr.refLink(book, rows[0].para_id, rows[0].line_id, rows[0].pali);
   const name = tpr.bookName(book);
   const src = ln ? `[${name}, p. ${ln.page} (TPR)](${ln.url})` : `${name} ${r}`;
   return `> **${pali}**\n>\n${trans ? `> ${trans}\n>\n` : ''}> ${src}`;

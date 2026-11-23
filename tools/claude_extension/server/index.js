@@ -33,7 +33,7 @@ const str = (description) => ({ type: 'string', description });
 const readOnly = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 const LANG = str('Translation code, e.g. "en" (the default when installed), "my", "zh"; "none" for Pali only.');
 const BOOK = str('ePitaka book id, e.g. "M-i", "S-ii", "Vism-ii", "As" (see tpr_books).');
-const REF = str('Paragraph, optionally with lines: "1036", "1036:1" or "1036:1-5".');
+const REF = str('"1036" (a paragraph), "1036:1" (a line), "1036:1-5" (lines) or "1785-1787" (paragraphs, as tpr_search prints them).');
 const LAYER = str('Limit to layers, comma separated: mula, attha, tika, anna.');
 
 const TOOLS = [
