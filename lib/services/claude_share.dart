@@ -28,7 +28,27 @@ class ClaudeShare {
   static const _folder = 'tpr';
   static const _stampPref = 'claudeShareStamp';
 
-  static bool get _supported => Platform.isMacOS;
+  static bool get _supported => Platform.isMacOS || Platform.isWindows;
+
+  /// On Windows ~/TPR needs no permission; this records that the reader
+  /// set Claude up, so the copy is kept only for them (it takes the books'
+  /// space again: Windows cannot clone a file as APFS does).
+  static const _windowsPref = 'claudeShareWindows';
+
+  /// ~/TPR, opened for writing; null if the reader never set Claude up.
+  static Future<String?> _open() async {
+    if (Platform.isWindows) {
+      if (!(Prefs.instance.getBool(_windowsPref) ?? false)) return null;
+      return p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR');
+    }
+    return _channel.invokeMethod<String>('start', {'name': _folder});
+  }
+
+  static Future<void> _close() async {
+    if (Platform.isMacOS) {
+      await _channel.invokeMethod('stop', {'name': _folder});
+    }
+  }
 
   static Timer? _timer;
   static Future<void>? _running;
@@ -45,13 +65,17 @@ class ClaudeShare {
       {required String directory,
       required String button,
       required String message}) async {
-    if (!_supported) return null;
+    if (!Platform.isMacOS) return null;
     return _channel.invokeMethod<String>('pick',
         {'directory': directory, 'button': button, 'message': message});
   }
 
   /// Remembers ~/TPR (just picked by the reader), so it stays writable.
   static Future<void> remember(String tprDir) async {
+    if (Platform.isWindows) {
+      await Prefs.instance.setBool(_windowsPref, true);
+      return;
+    }
     if (!_supported) return;
     await _channel.invokeMethod('remember', {'name': _folder, 'path': tprDir});
   }
@@ -126,7 +150,7 @@ class ClaudeShare {
   static Future<void> _refresh({required bool books}) async {
     String? tpr;
     try {
-      tpr = await _channel.invokeMethod<String>('start', {'name': _folder});
+      tpr = await _open();
       if (tpr == null) return; // never set up
       final db = Directory(p.join(tpr, 'db'));
       await db.create(recursive: true);
@@ -135,9 +159,7 @@ class ClaudeShare {
     } catch (e) {
       myLogger.e('Claude share: $e');
     } finally {
-      if (tpr != null) {
-        await _channel.invokeMethod('stop', {'name': _folder});
-      }
+      if (tpr != null) await _close();
     }
   }
 

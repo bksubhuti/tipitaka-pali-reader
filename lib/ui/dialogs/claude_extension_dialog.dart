@@ -45,7 +45,8 @@ class ClaudeExtensionDialog {
                 'home folder, with a copy of its books for Claude (it takes no '
                 'extra space). macOS opens your home folder next: click '
                 'Create.\n\n' : 'TPR will create a folder named TPR in your home '
-                'folder.\n\n'}'
+                'folder, with a copy of its books for Claude (about 1.5 GB). '
+                'TPR keeps it up to date.\n\n'}'
             'Claude will show a red warning that the extension can access '
             'your computer. Every extension of this kind shows it.\n\n'
             'To remove it later: Claude › Settings › Extensions.',
@@ -77,7 +78,10 @@ class ClaudeExtensionDialog {
     try {
       final tpr = await _tprFolder(say);
       if (tpr == null) return;
-      if (Platform.isMacOS) {
+      // The books and history go to ~/TPR/db for Claude: on the Mac it
+      // cannot read the sandboxed app's own folder, on Windows the Store
+      // app's. The same place on both.
+      {
         if (!context.mounted) return;
         await _whileBusy(context, 'Copying the books for Claude…', () async {
           await ClaudeShare.remember(tpr);
