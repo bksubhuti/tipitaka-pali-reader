@@ -16,6 +16,7 @@ import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
 import 'package:tipitaka_pali/services/claude_share.dart';
+import 'package:tipitaka_pali/services/update_check.dart';
 
 class AiSearchPage extends StatefulWidget {
   final String query;
@@ -583,6 +584,20 @@ No App Liability: The developer of this application is not responsible for any a
                       ),
                     ],
                   ),
+                  // A newer TPR Research is out (messages.json): offered
+                  // here too, where the Claude button is used.
+                  if (_claudeVersion != null &&
+                      UpdateCheck.isOlder(
+                          _claudeVersion!, UpdateCheck.tprResearchLatest))
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.system_update_alt, size: 18),
+                        label: Text('Update TPR Research '
+                            '(${UpdateCheck.tprResearchLatest})'),
+                        onPressed: () => ClaudeExtensionDialog.show(context),
+                      ),
+                    ),
                 ],
               ),
             ),
