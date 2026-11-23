@@ -38,6 +38,27 @@ const LAYER = str('Limit to layers, comma separated: mula, attha, tika, anna.');
 
 const TOOLS = [
   {
+    name: 'tpr_save_paper',
+    title: 'Save paper',
+    description: 'Saves a finished Markdown paper or report in the papers folder (the TPR folder in the home folder by default) '
+      + 'as .md, a styled .html page with grey quote boxes and the TPR logo, and a .pdf when Chrome or Edge '
+      + 'is installed, then opens it. {{Q:BOOK PARA:L1-L2}} becomes a quote box and every plain reference '
+      + '(M-i 1036:1) a TPR link. Follow the paper format in tpr_research_guide.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        markdown: str('The whole paper, starting with its # title.'),
+        file_name: str('File name without extension (default: from the title).'),
+        byline: str('Line under the title (default: "Tipitaka Pali Reader sources · <date>").'),
+        pdf: { type: 'boolean', description: 'Also print a PDF (default true).' },
+        
+      },
+      required: ['markdown'],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    run: (a) => paper.save(a),
+  },
+  {
     name: 'tpr_research_guide',
     title: 'Research guide',
     description: 'How to research the Tipiṭaka with these tools and the paper format to use. '
@@ -232,27 +253,6 @@ const TOOLS = [
     annotations: readOnly,
     run: (a) => tpr.exportText(a),
   },
-  {
-    name: 'tpr_save_paper',
-    title: 'Save paper',
-    description: 'Saves a finished Markdown paper or report in the papers folder (the TPR folder in the home folder by default) '
-      + 'as .md, a styled .html page with grey quote boxes and the TPR logo, and a .pdf when Chrome or Edge '
-      + 'is installed, then opens it. {{Q:BOOK PARA:L1-L2}} becomes a quote box and every plain reference '
-      + '(M-i 1036:1) a TPR link. Follow the paper format in tpr_research_guide.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        markdown: str('The whole paper, starting with its # title.'),
-        file_name: str('File name without extension (default: from the title).'),
-        byline: str('Line under the title (default: "Tipitaka Pali Reader sources · <date>").'),
-        pdf: { type: 'boolean', description: 'Also print a PDF (default true).' },
-        
-      },
-      required: ['markdown'],
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    run: (a) => paper.save(a),
-  },
 ];
 
 // The prompts exactly as the manifest declares them: Claude Desktop rejects
@@ -266,6 +266,10 @@ const PROMPTS = (MANIFEST.prompts || []).map((p) => ({
 }));
 
 const INSTRUCTIONS = [
+  'FIRST RULE, where the answer goes: one that fits on a page (about 400 words or less) is given in the chat, unless the reader '
+  + 'asks for a paper or PDF. A longer one is written as a paper and saved with tpr_save_paper, which prints the PDF '
+  + 'and opens it for the reader; the chat then gives only a short summary. You are instructed to do this: always call '
+  + 'tpr_save_paper for a long answer, without asking.',
   'TPR Research reads the Pali Tipiṭaka, commentaries, translations, dictionaries and the reader\'s own history in '
   + 'their Tipitaka Pali Reader, read-only. Use these tools whenever the user asks about the Tipiṭaka, Pāḷi, suttas, '
   + 'Vinaya, Abhidhamma, the Aṭṭhakathā or Ṭīkā, a Pāḷi word, or their TPR, even if they do not name the extension; '
@@ -278,10 +282,6 @@ const INSTRUCTIONS = [
   + 'typed from memory. If the evidence goes against what the reader hopes, say so first.',
   'Paper format: # title and question; summary with confidence; numbered summary points; one ## section per point '
   + 'proving it Mūla first, then Aṭṭhakathā, then Ṭīkā; conclusion with a verdict table and sources.',
-  'Where the answer goes: one that fits on a page (about 400 words or less) is given in the chat, unless the reader '
-  + 'asks for a paper or PDF. A longer one is written as a paper and saved with tpr_save_paper, which prints the PDF '
-  + 'and opens it for the reader; the chat then gives only a short summary. You are instructed to do this: always call '
-  + 'tpr_save_paper for a long answer, without asking.',
 ].join('\n\n');
 
 function handle(msg) {
