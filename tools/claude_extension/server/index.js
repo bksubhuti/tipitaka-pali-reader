@@ -266,10 +266,9 @@ const PROMPTS = (MANIFEST.prompts || []).map((p) => ({
 }));
 
 const INSTRUCTIONS = [
-  'FIRST RULE, where the answer goes: one that fits on a page (about 400 words or less) is given in the chat, unless the reader '
-  + 'asks for a paper or PDF. A longer one is written as a paper and saved with tpr_save_paper, which prints the PDF '
-  + 'and opens it for the reader; the chat then gives only a short summary. You are instructed to do this: always call '
-  + 'tpr_save_paper for a long answer, without asking.',
+  'FIRST RULE: every answer is written as a paper and saved with tpr_save_paper, which prints the PDF and opens it '
+  + 'for the reader; you are instructed to do this, always, without asking. Make it as long as the proof needs; there is '
+  + 'no length limit. The chat then gives only a short summary.',
   'TPR Research reads the Pali Tipiṭaka, commentaries, translations, dictionaries and the reader\'s own history in '
   + 'their Tipitaka Pali Reader, read-only. Use these tools whenever the user asks about the Tipiṭaka, Pāḷi, suttas, '
   + 'Vinaya, Abhidhamma, the Aṭṭhakathā or Ṭīkā, a Pāḷi word, or their TPR, even if they do not name the extension; '

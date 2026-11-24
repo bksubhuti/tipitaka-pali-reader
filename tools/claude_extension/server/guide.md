@@ -4,7 +4,7 @@ Everything comes from the reader's own Tipitaka Pali Reader, read-only. Book ids
 
 If a tool says the data folder, the index or English is missing, tell the reader what to do: open TPR once and let it finish setting up; run one search in TPR so its index is built; add the English translation in TPR (Settings → Download).
 
-**Length decides where the answer goes.** An answer that fits on a page (about 400 words or less) is given in the chat, unless the reader asks for a paper or PDF. A longer one is written in the paper format below and saved with `tpr_save_paper`, so the reader gets the PDF opened for them; the chat then gives only a short summary. Quotes in the chat still come from `tpr_quote`, never typed.
+**Every answer is a saved paper.** Write it in the paper format below and save it with `tpr_save_paper`, which prints the PDF and opens it for the reader. Do this every time, without asking. Make it as long as the proof needs; there is no length limit. The chat then gives only a short summary.
 
 ## How to research
 
@@ -29,7 +29,7 @@ If a tool says the data folder, the index or English is missing, tell the reader
 
 - **Quotes:** write `{{Q:BOOK PARA:L1-L2}}` on its own line where a quote box goes (`{{Q:BOOK PARA:L1-L2|your translation}}` to give your own). `tpr_save_paper` turns it into the grey box: bold Pāḷi, translation, TPR link. Or paste `tpr_quote` output.
 - **References:** write them plainly (`M-i 1036:1`, `Sp-ii 465:1-2, 466:2`, `Vin-ii 873–874`). `tpr_save_paper` makes every one a link that opens TPR on the right page, in tables and text alike. Never build links by hand or edit page numbers. `{{L:BOOK PARA:LINE}}` gives a link with its page.
-- **Length:** long enough to prove the point, short enough to read; sentences under 25 words, one point per paragraph, no filler.
+- **Length:** as long as the proof needs; sentences under 25 words, one point per paragraph, no filler.
 - Translations come from TPR's installed translations; say so once. If a line has none, translate it yourself and mark it "(tr. Claude)".
 - `!legend text` on its own paragraph makes a boxed legend.
 - **Modern sources** (BMC and others) rank below the Pāḷi. Trace each modern claim to a Pāḷi passage and quote it; if none exists after a real search (give the counts), say "no Pāḷi source found". The deciding source in a verdict is always a Pāḷi text.
