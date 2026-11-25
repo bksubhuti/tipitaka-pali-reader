@@ -90,6 +90,14 @@ class CodexExtensionDialog {
     void say(String text) => messenger.showSnackBar(
         SnackBar(content: Text(text), duration: const Duration(seconds: 6)));
     try {
+      // The server runs on Node. On Windows Codex does not bring one that
+      // stays put (its Store folder changes with each update), so it must
+      // be installed; say so before copying anything.
+      final node = await _node();
+      if (node == null) {
+        if (context.mounted) await _needNode(context);
+        return;
+      }
       final tpr = await ClaudeExtensionDialog.tprFolder(say, app: 'Codex');
       if (tpr == null) return;
       final home = p.dirname(tpr);
@@ -111,7 +119,7 @@ class CodexExtensionDialog {
       }
       final server = await _unpack(response.bodyBytes, p.join(tpr, 'codex'));
       await _addSkill(home, p.join(tpr, 'codex', 'SKILL.md'));
-      await _register(home, server);
+      await _register(home, server, node);
       await _markSetUp(tpr);
       // Settings shows "Set up ✓" only once Codex has started the server, so
       // say plainly that it worked.
@@ -166,7 +174,7 @@ class CodexExtensionDialog {
 
   /// Adds (or replaces) the tpr-research server in ~/.codex/config.toml.
   /// Other settings are kept; the first change keeps a backup copy.
-  static Future<void> _register(String home, String server) async {
+  static Future<void> _register(String home, String server, String node) async {
     final file = File(p.join(home, '.codex', 'config.toml'));
     await file.parent.create(recursive: true);
     var text = file.existsSync() ? await file.readAsString() : '';
@@ -179,7 +187,7 @@ class CodexExtensionDialog {
     final block = '''
 # TPR Research, added by Tipitaka Pali Reader (Settings › AI › ChatGPT (Codex) setup).
 [mcp_servers.tpr-research]
-command = '${_node()}'
+command = '$node'
 args = ['$server']
 startup_timeout_sec = 60
 
@@ -211,9 +219,16 @@ TPR_HOST = 'codex'
   }
 
   /// The Node that runs the server: the Codex app's own when it is there
-  /// (it has node:sqlite), else an installed one, else `node` on the PATH
-  /// (Windows).
-  static String _node() {
+  /// (it has node:sqlite), else an installed one; null on Windows when
+  /// none is installed.
+  static Future<String?> _node() async {
+    // Windows: the Codex app's own Node, in its runtime package. Its folder
+    // name holds the version, so it is asked for, not written in here
+    // (ordinary apps may not list the WindowsApps folder).
+    if (Platform.isWindows) {
+      final runtime = await _codexRuntimeNode();
+      if (runtime != null) return runtime;
+    }
     final candidates = Platform.isMacOS
         ? [
             '/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node',
@@ -224,12 +239,97 @@ TPR_HOST = 'codex'
         : [
             p.join(Platform.environment['ProgramFiles'] ?? r'C:\Program Files',
                 'nodejs', 'node.exe'),
+            p.join(Platform.environment['LOCALAPPDATA'] ?? '', 'Programs',
+                'nodejs', 'node.exe'),
+            // Any other install (nvm, Scoop…) that is on the PATH; the full
+            // path is written, as the Codex app may not have that PATH.
+            for (final dir in (Platform.environment['PATH'] ?? '').split(';'))
+              if (dir.trim().isNotEmpty) p.join(dir.trim(), 'node.exe'),
           ];
     // If the sandbox cannot see any of them, the Codex app's own is still
     // the best guess on the Mac: the app may not have `node` on its PATH.
     return candidates.firstWhereOrNull((e) => File(e).existsSync()) ??
-        (Platform.isMacOS ? candidates.first : 'node');
+        (Platform.isMacOS ? candidates.first : null);
   }
+
+  /// node.exe in the Codex app's runtime package on Windows
+  /// (OpenAI.CodexPrimaryRuntime…\dependencies\node\bin), newest first;
+  /// null if Codex is not installed.
+  static Future<String?> _codexRuntimeNode() async {
+    try {
+      final r = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        r"Get-AppxPackage -Name 'OpenAI.CodexPrimaryRuntime*' | "
+            r"Sort-Object { [version]$_.Version } -Descending | "
+            r"ForEach-Object { Join-Path $_.InstallLocation "
+            r"'dependencies\node\bin\node.exe' }",
+      ]);
+      return '${r.stdout}'
+          .split(RegExp(r'\r?\n'))
+          .map((e) => e.trim())
+          .firstWhereOrNull((e) => e.isNotEmpty && File(e).existsSync());
+    } catch (_) {
+      return null; // no PowerShell
+    }
+  }
+
+  /// At TPR's start on Windows: when Codex has updated, the Node written in
+  /// its settings is gone with the old runtime folder; write the new one.
+  /// Does nothing unless TPR set Codex up.
+  static Future<void> keepNodeCurrent() async {
+    if (!Platform.isWindows) return;
+    try {
+      final file = File(p.join(
+          Platform.environment['USERPROFILE'] ?? '', '.codex', 'config.toml'));
+      if (!file.existsSync()) return;
+      final text = await file.readAsString();
+      final ours = RegExp(
+              r"^\[mcp_servers\.tpr-research\]\s*\ncommand = '([^']*)'",
+              multiLine: true)
+          .firstMatch(text);
+      if (ours == null || File(ours.group(1)!).existsSync()) return;
+      final node = await _node();
+      if (node == null) return;
+      await file.writeAsString(
+          text.replaceRange(ours.start, ours.end,
+              "[mcp_servers.tpr-research]\ncommand = '$node'"),
+          flush: true);
+    } catch (_) {
+      // Codex set up by hand, or not readable: left alone
+    }
+  }
+
+  static Future<void> _needNode(BuildContext context) => showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          constraints: const BoxConstraints(maxWidth: 480),
+          title: const Text('Node is needed first'),
+          content: const Text(
+            'TPR Research runs on Node, which comes with the ChatGPT app. '
+            'If ChatGPT is installed, open it once, then press Set up '
+            'again. Otherwise install Node from '
+            'nodejs.org (the LTS version, with the default settings), then '
+            'press Set up again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                launchUrl(Uri.parse('https://nodejs.org/en/download'),
+                    mode: LaunchMode.externalApplication);
+              },
+              child: const Text('Get Node'),
+            ),
+          ],
+        ),
+      );
 
   static Future<void> _howToUse(BuildContext context) => showDialog<void>(
         context: context,

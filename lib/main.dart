@@ -12,6 +12,7 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:devicelocale/devicelocale.dart';
 
 import 'package:tipitaka_pali/services/claude_share.dart';
+import 'package:tipitaka_pali/ui/dialogs/codex_extension_dialog.dart';
 import 'package:tipitaka_pali/services/setup_firestore.dart';
 import 'package:tipitaka_pali/utils/platform_info.dart';
 import 'package:window_manager/window_manager.dart';
@@ -148,6 +149,7 @@ void main(List<String> args) async {
   }
   // Keeps ~/TPR/db current for Claude, if the reader set it up (Mac only).
   ClaudeShare.start();
+  CodexExtensionDialog.keepNodeCurrent();
   runApp(App(
       rxPref: rxPref,
       initialUrl: _initialUrl,
