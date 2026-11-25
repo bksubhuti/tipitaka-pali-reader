@@ -30,7 +30,7 @@ If a tool says the data folder, the index or English is missing, tell the reader
 - **Quotes:** write `{{Q:BOOK PARA:L1-L2}}` on its own line where a quote box goes (`{{Q:BOOK PARA:L1-L2|your translation}}` to give your own). `tpr_save_paper` turns it into the grey box: bold Pāḷi, translation, TPR link. Or paste `tpr_quote` output.
 - **References:** write them plainly (`M-i 1036:1`, `Sp-ii 465:1-2, 466:2`, `Vin-ii 873–874`). `tpr_save_paper` makes every one a link that opens TPR on the right page, in tables and text alike. Never build links by hand or edit page numbers. `{{L:BOOK PARA:LINE}}` gives a link with its page.
 - **Length:** as long as the proof needs; sentences under 25 words, one point per paragraph, no filler.
-- Translations come from TPR's installed translations; say so once. If a line has none, translate it yourself and mark it "(tr. Claude)".
+- Translations come from TPR's installed translations; say so once. If a line has none, translate it yourself and mark it "(tr. AI)".
 - `!legend text` on its own paragraph makes a boxed legend.
 - **Modern sources** (BMC and others) rank below the Pāḷi. Trace each modern claim to a Pāḷi passage and quote it; if none exists after a real search (give the counts), say "no Pāḷi source found". The deciding source in a verdict is always a Pāḷi text.
 

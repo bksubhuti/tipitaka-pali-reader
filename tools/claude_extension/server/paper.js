@@ -284,9 +284,23 @@ function printPdf(htmlPath, pdfPath) {
   const exe = browser();
   if (!exe) return 'No Chrome or Edge found for the PDF. Open the HTML in a browser and use Print > Save as PDF.';
   const url = 'file:///' + htmlPath.replace(/\\/g, '/').replace(/^\/+/, '');
-  spawnSync(exe, ['--headless', '--disable-gpu', '--no-pdf-header-footer', `--print-to-pdf=${pdfPath}`, url],
-    { timeout: 120000, stdio: 'ignore' });
-  return fs.existsSync(pdfPath) ? null : 'The PDF was not written. Open the HTML in a browser and use Print > Save as PDF.';
+  const args = ['--headless', '--disable-gpu', '--no-pdf-header-footer', `--print-to-pdf=${pdfPath}`];
+  const written = () => fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 0;
+  fs.rmSync(pdfPath, { force: true }); // an old copy must not pass for a new one
+  spawnSync(exe, [...args, url], { timeout: 120000, stdio: 'ignore' });
+  if (written()) return null;
+  // Codex runs this server in a sandbox: Chrome may not write its usual
+  // profile there, nor start its own sandbox inside Codex's. Again with an
+  // empty throwaway profile (none of the reader's cookies or logins) and
+  // without Chrome's sandbox; it only opens this local page.
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'tpr-chrome-'));
+  try {
+    spawnSync(exe, [...args, `--user-data-dir=${profile}`, '--no-sandbox', url],
+      { timeout: 120000, stdio: 'ignore' });
+  } finally {
+    fs.rmSync(profile, { recursive: true, force: true });
+  }
+  return written() ? null : 'The PDF was not written. Open the HTML in a browser and use Print > Save as PDF.';
 }
 
 function openFile(p) {

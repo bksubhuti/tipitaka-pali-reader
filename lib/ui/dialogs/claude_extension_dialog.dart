@@ -76,14 +76,14 @@ class ClaudeExtensionDialog {
     void say(String text) => messenger.showSnackBar(
         SnackBar(content: Text(text), duration: const Duration(seconds: 6)));
     try {
-      final tpr = await _tprFolder(say);
+      final tpr = await tprFolder(say);
       if (tpr == null) return;
       // The books and history go to ~/TPR/db for Claude: on the Mac it
       // cannot read the sandboxed app's own folder, on Windows the Store
       // app's. The same place on both.
       {
         if (!context.mounted) return;
-        await _whileBusy(context, 'Copying the books for Claude…', () async {
+        await whileBusy(context, 'Copying the books for Claude…', () async {
           await ClaudeShare.remember(tpr);
           await ClaudeShare.refresh(books: true);
         });
@@ -178,10 +178,14 @@ class ClaudeExtensionDialog {
   }
 
   /// ~/TPR, made if needed. The Mac app is sandboxed: it may write only where
-  /// the reader chooses, so they pick their home folder once.
-  static Future<String?> _tprFolder(void Function(String) say) async {
+  /// the reader chooses, so they pick their home folder once. Until TPR
+  /// quits it may then write anywhere in the home folder (the Codex setup
+  /// writes ~/.codex).
+  static Future<String?> tprFolder(void Function(String) say,
+      {String app = 'Claude'}) async {
     if (Platform.isWindows) {
-      final dir = Directory(p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR'));
+      final dir =
+          Directory(p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR'));
       await dir.create(recursive: true);
       return dir.path;
     }
@@ -189,7 +193,8 @@ class ClaudeExtensionDialog {
     final picked = await ClaudeShare.pickFolder(
       directory: home,
       button: 'Create',
-      message: 'TPR will create a TPR folder here, with a copy of its books for Claude.',
+      message:
+          'TPR will create a TPR folder here, with a copy of its books for $app.',
     );
     if (picked == null) return null;
     if (p.normalize(picked) != p.normalize(home)) {
@@ -237,8 +242,9 @@ class ClaudeExtensionDialog {
         ),
       );
 
-  static Future<void> _whileBusy(
-      BuildContext context, String message, Future<void> Function() work) async {
+  /// A spinner with [message] while [work] runs.
+  static Future<void> whileBusy(BuildContext context, String message,
+      Future<void> Function() work) async {
     showDialog<void>(
       context: context,
       barrierDismissible: false,

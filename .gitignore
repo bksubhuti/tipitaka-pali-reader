@@ -155,3 +155,4 @@ tools/extension_packages/*.zip
 
 # Built from tools/claude_extension by build.sh
 tools/claude_extension/*.mcpb
+tools/claude_extension/*.zip

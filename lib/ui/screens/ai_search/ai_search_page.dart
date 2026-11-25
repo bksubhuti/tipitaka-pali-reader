@@ -15,6 +15,7 @@ import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
+import 'package:tipitaka_pali/ui/dialogs/codex_extension_dialog.dart';
 import 'package:tipitaka_pali/services/claude_share.dart';
 import 'package:tipitaka_pali/services/update_check.dart';
 
@@ -32,6 +33,9 @@ class _AiSearchPageState extends State<AiSearchPage> {
 
   /// TPR Research's version when it is set up in Claude Desktop.
   String? _claudeVersion;
+
+  /// The same when it is set up in Codex.
+  String? _codexVersion;
   final List<String> _logs = [];
   bool _isSearching = false;
   bool _hasSearched = false;
@@ -58,6 +62,11 @@ class _AiSearchPageState extends State<AiSearchPage> {
     if (ClaudeExtensionDialog.available) {
       ClaudeShare.extensionVersion().then((v) {
         if (mounted && v != null) setState(() => _claudeVersion = v);
+      });
+    }
+    if (CodexExtensionDialog.available) {
+      ClaudeShare.extensionVersion(codex: true).then((v) {
+        if (mounted && v != null) setState(() => _codexVersion = v);
       });
     }
     _focusNode = FocusNode(
@@ -136,6 +145,20 @@ class _AiSearchPageState extends State<AiSearchPage> {
     if (!await launchUrl(Uri.parse('claude://claude.ai/new?q=$q'))) {
       await launchUrl(Uri.parse('https://claude.ai/new?q=$q'),
           mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// Opens Codex with the question typed in, as [_askClaude] does.
+  Future<void> _askCodex() async {
+    final query = _queryController.text.trim();
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Type a question first.')));
+      return;
+    }
+    if (!await CodexExtensionDialog.ask(query) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open ChatGPT.')));
     }
   }
 
@@ -544,7 +567,7 @@ No App Liability: The developer of this application is not responsible for any a
                           // With TPR Research set up in Claude Desktop: two
                           // ways to ask, TPR's own AI search above, Claude
                           // below. Otherwise the one send button.
-                          if (_claudeVersion == null)
+                          if (_claudeVersion == null && _codexVersion == null)
                             IconButton.filled(
                               icon: const Icon(Icons.send),
                               onPressed: _isSearching ? null : _sendToTpr,
@@ -562,23 +585,43 @@ No App Liability: The developer of this application is not responsible for any a
                                 child: const Text('TPR'),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Tooltip(
-                              message: 'Search with Claude Desktop',
-                              // the name only: Anthropic's logo needs their
-                              // approval
-                              child: FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFD97757),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
-                                  minimumSize: const Size(80, 36),
+                            if (_claudeVersion != null) ...[
+                              const SizedBox(height: 8),
+                              Tooltip(
+                                message: 'Search with Claude Desktop',
+                                // the name only: Anthropic's logo needs their
+                                // approval
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFFD97757),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    minimumSize: const Size(80, 36),
+                                  ),
+                                  onPressed: _askClaude,
+                                  child: const Text('Claude'),
                                 ),
-                                onPressed: _askClaude,
-                                child: const Text('Claude'),
                               ),
-                            ),
+                            ],
+                            if (_codexVersion != null) ...[
+                              const SizedBox(height: 8),
+                              Tooltip(
+                                message: 'Search with ChatGPT (Codex)',
+                                // the name only, as for Claude
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    minimumSize: const Size(80, 36),
+                                  ),
+                                  onPressed: _askCodex,
+                                  child: const Text('ChatGPT'),
+                                ),
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -596,6 +639,18 @@ No App Liability: The developer of this application is not responsible for any a
                         label: Text('Update TPR Research '
                             '(${UpdateCheck.tprResearchLatest})'),
                         onPressed: () => ClaudeExtensionDialog.show(context),
+                      ),
+                    ),
+                  if (_codexVersion != null &&
+                      UpdateCheck.isOlder(
+                          _codexVersion!, UpdateCheck.tprResearchLatest))
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.system_update_alt, size: 18),
+                        label: Text('Update TPR Research for ChatGPT '
+                            '(${UpdateCheck.tprResearchLatest})'),
+                        onPressed: () => CodexExtensionDialog.show(context),
                       ),
                     ),
                 ],

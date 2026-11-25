@@ -66,8 +66,8 @@ class ClaudeShare {
       required String button,
       required String message}) async {
     if (!Platform.isMacOS) return null;
-    return _channel.invokeMethod<String>('pick',
-        {'directory': directory, 'button': button, 'message': message});
+    return _channel.invokeMethod<String>(
+        'pick', {'directory': directory, 'button': button, 'message': message});
   }
 
   /// Remembers ~/TPR (just picked by the reader), so it stays writable.
@@ -81,9 +81,9 @@ class ClaudeShare {
   }
 
   /// The TPR Research version when the extension is set up in Claude
-  /// Desktop, else null. The extension writes ~/TPR/.tpr-research each time
+  /// Desktop (or, with [codex], in Codex), else null. The extension writes ~/TPR/.tpr-research each time
   /// Claude starts it; a note a month old or more is taken as removed.
-  static Future<String?> extensionVersion() async {
+  static Future<String?> extensionVersion({bool codex = false}) async {
     if (!Platform.isMacOS && !Platform.isWindows) return null;
     String? tpr;
     var opened = false;
@@ -95,7 +95,10 @@ class ClaudeShare {
       } else {
         tpr = p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR');
       }
-      final note = File(p.join(tpr, '.tpr-research'));
+      // Codex starts the same server with TPR_HOST=codex, which writes
+      // its own note.
+      final note =
+          File(p.join(tpr, codex ? '.tpr-research-codex' : '.tpr-research'));
       if (!note.existsSync()) return null;
       final data = jsonDecode(await note.readAsString()) as Map;
       final seen = DateTime.tryParse('${data['seen']}');
@@ -117,8 +120,8 @@ class ClaudeShare {
     if (!_supported || _timer != null) return;
     // The books are checked too: cheap when unchanged, and it catches the
     // search index finishing or a translation added.
-    _timer = Timer.periodic(
-        const Duration(minutes: 5), (_) => refresh(books: true));
+    _timer =
+        Timer.periodic(const Duration(minutes: 5), (_) => refresh(books: true));
     // Lives as long as the app; it registers itself with the binding.
     AppLifecycleListener(
       onHide: refresh,
@@ -206,7 +209,9 @@ class ClaudeShare {
     // A translation removed in TPR goes from the copy too.
     for (final f in Directory(to).listSync().whereType<File>()) {
       final name = p.basename(f.path);
-      if (name.startsWith('lang_') && name.endsWith('.db') && !names.contains(name)) {
+      if (name.startsWith('lang_') &&
+          name.endsWith('.db') &&
+          !names.contains(name)) {
         await f.delete();
       }
     }
@@ -216,8 +221,10 @@ class ClaudeShare {
 
   static Future<void> _writeHistory(String to) async {
     final main = await DatabaseHelper().database;
-    final recent = await main.rawQuery('SELECT book_id, page_number FROM recent ORDER BY rowid');
-    final searches = await main.rawQuery('SELECT word, date, query_mode FROM search_history');
+    final recent = await main
+        .rawQuery('SELECT book_id, page_number FROM recent ORDER BY rowid');
+    final searches = await main
+        .rawQuery('SELECT word, date, query_mode FROM search_history');
     final words = await main.rawQuery(
         'SELECT word, context, date, book_id, page_number FROM dictionary_history');
     final part = p.join(to, 'history.db.part');
@@ -226,8 +233,10 @@ class ClaudeShare {
     final db = await openDatabase(part);
     try {
       await db.transaction((t) async {
-        await t.execute('CREATE TABLE recent (book_id TEXT, page_number INTEGER)');
-        await t.execute('CREATE TABLE search_history (word TEXT, date TEXT, query_mode INTEGER)');
+        await t
+            .execute('CREATE TABLE recent (book_id TEXT, page_number INTEGER)');
+        await t.execute(
+            'CREATE TABLE search_history (word TEXT, date TEXT, query_mode INTEGER)');
         await t.execute('CREATE TABLE dictionary_history '
             '(word TEXT, context TEXT, date TEXT, book_id TEXT, page_number INTEGER)');
         final b = t.batch();
