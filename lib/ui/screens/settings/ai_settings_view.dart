@@ -836,9 +836,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
               leading: const Icon(Icons.auto_stories_outlined),
               title: Row(
                 children: [
-                  const Flexible(child: Text('Antigravity setup')),
+                  const Flexible(child: Text('Gemini (Antigravity) setup')),
                   const SettingInfoButton(
-                      'Adds TPR Research to Google Antigravity '
+                      'Adds TPR Research to Gemini in Google Antigravity '
                       '(antigravity.google). It can then read the books in '
                       'this TPR and make research papers with Pāḷi quotes '
                       'and TPR links, reading reports, and vocabulary reviews '

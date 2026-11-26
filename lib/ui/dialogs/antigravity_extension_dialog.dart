@@ -20,8 +20,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// Antigravity is an Electron app, so its own program runs the server as
 /// Node (ELECTRON_RUN_AS_NODE; it has node:sqlite): nothing else to install.
 class AntigravityExtensionDialog {
-  /// Typed in the script converter: either name opens this.
-  static const triggers = ['antigravity', 'agy'];
+  /// Typed in the script converter: any of these opens this. Readers know
+  /// Gemini, so TPR calls it "Gemini (Antigravity)".
+  static const triggers = ['gemini', 'antigravity', 'agy'];
   static const _url =
       'https://github.com/bksubhuti/tpr_downloads/releases/download/packages/tpr-research-codex.zip';
 
@@ -70,14 +71,17 @@ class AntigravityExtensionDialog {
       context: context,
       builder: (context) => AlertDialog(
         constraints: const BoxConstraints(maxWidth: 480),
-        title: const Text('TPR Research for Antigravity'),
+        title: const Text('TPR Research for Gemini'),
         content: SingleChildScrollView(
           child: Text(
-            'Adds TPR Research to Google Antigravity. It can then read the '
+            'Adds TPR Research to Gemini in Google Antigravity, Google\'s '
+            'desktop app where Gemini can use tools on your computer. It can '
+            'then read the '
             'books in this TPR, and make research papers with Pāḷi quotes, '
             'reading reports, vocabulary reviews of the words you looked '
             'up, and suttas exported with their translation.\n\n'
-            'It needs the Antigravity app (Mac or Windows). '
+            'It needs the Antigravity app (Mac or Windows). Ordinary Gemini '
+            'chats, on the web or a phone, cannot use TPR. '
             'TPR\'s files are only read, never changed. Papers are saved in '
             'a TPR folder in your home folder.\n\n'
             '${Platform.isMacOS ? 'TPR will create a folder named TPR in your '
@@ -114,20 +118,19 @@ class AntigravityExtensionDialog {
     void say(String text) => messenger.showSnackBar(
         SnackBar(content: Text(text), duration: const Duration(seconds: 6)));
     try {
-      final tpr =
-          await ClaudeExtensionDialog.tprFolder(say, app: 'Antigravity');
+      final tpr = await ClaudeExtensionDialog.tprFolder(say, app: 'Gemini');
       if (tpr == null) return;
       final home = p.dirname(tpr);
       // The same copy in ~/TPR/db as for Claude and Codex.
       if (!context.mounted) return;
       await ClaudeExtensionDialog.whileBusy(
-          context, 'Copying the books for Antigravity…', () async {
+          context, 'Copying the books for Gemini…', () async {
         await ClaudeShare.remember(tpr);
         await ClaudeShare.refresh(books: true);
       });
       if (!File(p.join(tpr, 'db', 'tipitaka_pali.db')).existsSync()) {
         say('TPR is still setting up its search. The books will be copied '
-            'for Antigravity when it is done.');
+            'for Gemini when it is done.');
       }
       final runner = await _runner();
       if (runner == null) {
@@ -148,11 +151,12 @@ class AntigravityExtensionDialog {
       await File(p.join(tpr, 'antigravity', 'SKILL.md')).copy(skill.path);
       await _register(p.join(config, 'mcp_config.json'), server, runner);
       await CodexExtensionDialog.markSetUp(tpr, 'antigravity');
-      say('TPR Research is added to Antigravity. Quit Antigravity and open '
+      say('TPR Research is added to Gemini (Antigravity). Quit Antigravity '
+          'and open '
           'it again.');
       if (context.mounted) await _howToUse(context);
     } catch (e) {
-      say('Could not set up TPR Research for Antigravity: $e');
+      say('Could not set up TPR Research for Gemini: $e');
     }
   }
 
@@ -214,7 +218,8 @@ class AntigravityExtensionDialog {
           title: const Text('How to use it'),
           content: const SingleChildScrollView(
             child: Text(
-              'TPR Research is added to Antigravity. If Antigravity is open, '
+              'TPR Research is added to Gemini in Antigravity. If Antigravity '
+              'is open, '
               'quit it completely first, then open it again.\n\n'
               'Start a new chat and ask, with "TPR" in the question, for '
               'example:\n'
@@ -223,7 +228,7 @@ class AntigravityExtensionDialog {
               'monkey? Make a paper with quotes.\n'
               '• Make my TPR vocabulary review.\n\n'
               'Or type your question in TPR\'s AI search and press '
-              'Antigravity.\n\n'
+              'Gemini.\n\n'
               'Antigravity may ask before it runs a TPR tool. Allow only TPR '
               'Research\'s own tools.\n\n'
               'Papers are saved as PDF in the TPR folder in your home '

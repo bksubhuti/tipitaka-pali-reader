@@ -183,7 +183,7 @@ class _AiSearchPageState extends State<AiSearchPage> {
     final opened = await AntigravityExtensionDialog.ask(query);
     messenger.showSnackBar(SnackBar(
         content: Text(opened
-            ? 'Opening Antigravity. If the question is not filled in, '
+            ? 'Opening Gemini (Antigravity). If the question is not filled in, '
                 'paste it: it is copied.'
             : 'Could not open Antigravity. The question is copied.')));
   }
@@ -653,7 +653,7 @@ No App Liability: The developer of this application is not responsible for any a
                             if (_antigravityVersion != null) ...[
                               const SizedBox(height: 8),
                               Tooltip(
-                                message: 'Search with Antigravity',
+                                message: 'Search with Gemini (Antigravity)',
                                 child: FilledButton(
                                   style: FilledButton.styleFrom(
                                     backgroundColor: const Color(0xFF4285F4),
@@ -663,7 +663,7 @@ No App Liability: The developer of this application is not responsible for any a
                                     minimumSize: const Size(80, 36),
                                   ),
                                   onPressed: _askAntigravity,
-                                  child: const Text('Antigravity'),
+                                  child: const Text('Gemini'),
                                 ),
                               ),
                             ],
@@ -705,7 +705,7 @@ No App Liability: The developer of this application is not responsible for any a
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         icon: const Icon(Icons.system_update_alt, size: 18),
-                        label: Text('Update TPR Research for Antigravity '
+                        label: Text('Update TPR Research for Gemini '
                             '(${UpdateCheck.tprResearchLatest})'),
                         onPressed: () =>
                             AntigravityExtensionDialog.show(context),
