@@ -20,9 +20,12 @@ name: Build Apple (iOS & macOS) and upload to App Store Connect
 # After the upload the build shows in App Store Connect / TestFlight; the
 # What's New text and the submission are still done there by hand.
 #
-# platform 'dmg' needs none of this: it makes a .dmg of the macOS app signed
-# only to run, not by the team, so macOS asks once to allow it (Privacy &
-# Security > Open Anyway).
+# Every macOS build (both, macos, dmg) also makes a .dmg for people who do
+# not use the App Store: the app signed only to run, not by the team, so
+# macOS asks once to allow it (Privacy & Security > Open Anyway). It needs
+# none of the secrets above, and with 'release' on it is attached to the
+# GitHub release v<pubspec version>, the one the Linux build fills (made if
+# it is not there yet). platform 'dmg' makes only the DMG.
 
 on:
   workflow_dispatch:
@@ -42,9 +45,14 @@ on:
         required: true
         default: true
         type: boolean
+      release:
+        description: 'Attach the DMG to the GitHub release v<pubspec version>'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   TEAM_ID: 4456F3J27A
@@ -298,7 +306,7 @@ jobs:
       # Without a provisioning profile the associated-domains entitlement
       # would stop the app from opening, so it is left out here.
       - name: Build macOS DMG
-        if: inputs.platform == 'dmg'
+        if: inputs.platform != 'ios'
         run: |
           set -euo pipefail
           flutter build macos --release --config-only
@@ -314,19 +322,35 @@ jobs:
           APP=$(find build/macos/dd/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           codesign -dv --entitlements - "$APP"
           VERSION=$(awk '/^version:/ {print $2}' pubspec.yaml)
+          echo "TAG_NAME=v${VERSION}" >> "$GITHUB_ENV"
+          # '+' in a release file name is changed by GitHub, so '_'.
+          DMG="build/dmg/TipitakaPaliReader-${VERSION/+/_}.dmg"
+          echo "DMG=$DMG" >> "$GITHUB_ENV"
           mkdir -p build/dmg/src
           cp -R "$APP" build/dmg/src/
           ln -s /Applications build/dmg/src/Applications
           hdiutil create -volname 'Tipitaka Pali Reader' -srcfolder build/dmg/src \
-            -format UDZO "build/dmg/TipitakaPaliReader-${VERSION}.dmg"
+            -format UDZO "$DMG"
           rm -rf build/dmg/src
 
       - name: Keep the DMG
-        if: inputs.platform == 'dmg'
+        if: inputs.platform != 'ios'
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
           path: build/dmg/*.dmg
+
+      # Added to the release beside the AppImage and Flathub files; its text
+      # is left as the Linux build wrote it.
+      - name: Attach the DMG to release ${{ env.TAG_NAME }}
+        if: inputs.release && inputs.platform != 'ios'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
+          draft: false
+          prerelease: false
+          files: ${{ env.DMG }}
 
       - name: Remove the key and keychain
         if: always()

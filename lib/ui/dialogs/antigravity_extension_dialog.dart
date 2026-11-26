@@ -36,8 +36,33 @@ class AntigravityExtensionDialog {
         'TPR books and answer: $question\n\nQuote the Pāḷi with its '
         'translation and TPR links.';
     await Clipboard.setData(ClipboardData(text: prompt));
-    return launchUrl(Uri.parse(
-        'antigravity://open?prompt=${Uri.encodeQueryComponent(prompt)}'));
+    return _open('open?prompt=${Uri.encodeQueryComponent(prompt)}');
+  }
+
+  /// Opens antigravity://[link]. On Windows a link that starts Antigravity
+  /// opens two windows, the empty one in front; so when it is not running it
+  /// is started first with a bare link, and the prompt follows once it is
+  /// up (an open Antigravity takes the link in its own window).
+  static Future<bool> _open(String link) async {
+    if (Platform.isWindows && !await _running()) {
+      if (!await launchUrl(Uri.parse('antigravity://'))) return false;
+      for (var i = 0; i < 30 && !await _running(); i++) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      // Running is not yet ready for links: give its window time to load.
+      await Future.delayed(const Duration(seconds: 4));
+    }
+    return launchUrl(Uri.parse('antigravity://$link'));
+  }
+
+  static Future<bool> _running() async {
+    try {
+      final r = await Process.run(
+          'tasklist', ['/FI', 'IMAGENAME eq Antigravity.exe', '/NH']);
+      return '${r.stdout}'.toLowerCase().contains('antigravity.exe');
+    } catch (_) {
+      return true; // cannot tell: just send the link
+    }
   }
 
   static Future<void> show(BuildContext context) async {
@@ -213,8 +238,8 @@ class AntigravityExtensionDialog {
             FilledButton(
               onPressed: () {
                 Navigator.pop(context);
-                launchUrl(Uri.parse('antigravity://open?prompt='
-                    '${Uri.encodeQueryComponent('Using TPR Research, run tpr_status and tell me what my TPR has.')}'));
+                _open('open?prompt='
+                    '${Uri.encodeQueryComponent('Using TPR Research, run tpr_status and tell me what my TPR has.')}');
               },
               child: const Text('Open Antigravity'),
             ),
