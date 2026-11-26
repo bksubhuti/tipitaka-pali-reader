@@ -93,7 +93,7 @@ class CodexExtensionDialog {
       // The server runs on Node. On Windows Codex does not bring one that
       // stays put (its Store folder changes with each update), so it must
       // be installed; say so before copying anything.
-      final node = await _node();
+      final node = await findNode();
       if (node == null) {
         if (context.mounted) await _needNode(context);
         return;
@@ -117,10 +117,10 @@ class CodexExtensionDialog {
         say('Could not download TPR Research (${response.statusCode}).');
         return;
       }
-      final server = await _unpack(response.bodyBytes, p.join(tpr, 'codex'));
+      final server = await unpack(response.bodyBytes, p.join(tpr, 'codex'));
       await _addSkill(home, p.join(tpr, 'codex', 'SKILL.md'));
       await _register(home, server, node);
-      await _markSetUp(tpr);
+      await markSetUp(tpr, 'codex');
       // Settings shows "Set up ✓" only once Codex has started the server, so
       // say plainly that it worked.
       say('TPR Research is added to ChatGPT (Codex). Quit ChatGPT and open '
@@ -132,8 +132,8 @@ class CodexExtensionDialog {
   }
 
   /// Unpacks the download into [dir] (replacing an older one) and returns
-  /// the server's index.js.
-  static Future<String> _unpack(List<int> zip, String dir) async {
+  /// the server's index.js. Antigravity's setup uses it too.
+  static Future<String> unpack(List<int> zip, String dir) async {
     final folder = Directory(dir);
     if (folder.existsSync()) await folder.delete(recursive: true);
     for (final entry in ZipDecoder().decodeBytes(zip)) {
@@ -150,14 +150,15 @@ class CodexExtensionDialog {
   /// Writes the note the server writes each time Codex starts it, so the
   /// Codex button and "Set up ✓" show at once: unlike Claude Desktop, TPR
   /// itself did the install. The server keeps it current from then on.
-  static Future<void> _markSetUp(String tpr) async {
+  /// [host] is both the folder in ~/TPR and the note's name.
+  static Future<void> markSetUp(String tpr, String host) async {
     var version = '';
     try {
       final manifest = jsonDecode(
-          await File(p.join(tpr, 'codex', 'manifest.json')).readAsString());
+          await File(p.join(tpr, host, 'manifest.json')).readAsString());
       version = '${(manifest as Map)['version'] ?? ''}';
     } catch (_) {}
-    await File(p.join(tpr, '.tpr-research-codex')).writeAsString(jsonEncode({
+    await File(p.join(tpr, '.tpr-research-$host')).writeAsString(jsonEncode({
       'version': version,
       'seen': DateTime.now().toUtc().toIso8601String()
     }));
@@ -221,7 +222,7 @@ TPR_HOST = 'codex'
   /// The Node that runs the server: the Codex app's own when it is there
   /// (it has node:sqlite), else an installed one; null on Windows when
   /// none is installed.
-  static Future<String?> _node() async {
+  static Future<String?> findNode() async {
     // Windows: the Codex app's own Node, in its runtime package. Its folder
     // name holds the version, so it is asked for, not written in here
     // (ordinary apps may not list the WindowsApps folder).
@@ -291,7 +292,7 @@ TPR_HOST = 'codex'
               multiLine: true)
           .firstMatch(text);
       if (ours == null || File(ours.group(1)!).existsSync()) return;
-      final node = await _node();
+      final node = await findNode();
       if (node == null) return;
       await file.writeAsString(
           text.replaceRange(ours.start, ours.end,

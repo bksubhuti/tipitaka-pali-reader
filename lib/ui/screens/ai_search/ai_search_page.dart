@@ -15,6 +15,7 @@ import 'package:tipitaka_pali/utils/pali_script.dart';
 import 'package:tipitaka_pali/services/provider/script_language_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
+import 'package:tipitaka_pali/ui/dialogs/antigravity_extension_dialog.dart';
 import 'package:tipitaka_pali/ui/dialogs/codex_extension_dialog.dart';
 import 'package:tipitaka_pali/services/claude_share.dart';
 import 'package:tipitaka_pali/services/update_check.dart';
@@ -36,6 +37,9 @@ class _AiSearchPageState extends State<AiSearchPage> {
 
   /// The same when it is set up in Codex.
   String? _codexVersion;
+
+  /// The same when it is set up in Antigravity.
+  String? _antigravityVersion;
   final List<String> _logs = [];
   bool _isSearching = false;
   bool _hasSearched = false;
@@ -65,8 +69,13 @@ class _AiSearchPageState extends State<AiSearchPage> {
       });
     }
     if (CodexExtensionDialog.available) {
-      ClaudeShare.extensionVersion(codex: true).then((v) {
+      ClaudeShare.extensionVersion(host: 'codex').then((v) {
         if (mounted && v != null) setState(() => _codexVersion = v);
+      });
+    }
+    if (AntigravityExtensionDialog.available) {
+      ClaudeShare.extensionVersion(host: 'antigravity').then((v) {
+        if (mounted && v != null) setState(() => _antigravityVersion = v);
       });
     }
     _focusNode = FocusNode(
@@ -160,6 +169,23 @@ class _AiSearchPageState extends State<AiSearchPage> {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open ChatGPT.')));
     }
+  }
+
+  /// Opens Antigravity with the question typed in, as [_askCodex] does.
+  Future<void> _askAntigravity() async {
+    final query = _queryController.text.trim();
+    final messenger = ScaffoldMessenger.of(context);
+    if (query.isEmpty) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Type a question first.')));
+      return;
+    }
+    final opened = await AntigravityExtensionDialog.ask(query);
+    messenger.showSnackBar(SnackBar(
+        content: Text(opened
+            ? 'Opening Antigravity. If the question is not filled in, '
+                'paste it: it is copied.'
+            : 'Could not open Antigravity. The question is copied.')));
   }
 
   Future<void> _runAiSearch() async {
@@ -567,7 +593,9 @@ No App Liability: The developer of this application is not responsible for any a
                           // With TPR Research set up in Claude Desktop: two
                           // ways to ask, TPR's own AI search above, Claude
                           // below. Otherwise the one send button.
-                          if (_claudeVersion == null && _codexVersion == null)
+                          if (_claudeVersion == null &&
+                              _codexVersion == null &&
+                              _antigravityVersion == null)
                             IconButton.filled(
                               icon: const Icon(Icons.send),
                               onPressed: _isSearching ? null : _sendToTpr,
@@ -622,6 +650,23 @@ No App Liability: The developer of this application is not responsible for any a
                                 ),
                               ),
                             ],
+                            if (_antigravityVersion != null) ...[
+                              const SizedBox(height: 8),
+                              Tooltip(
+                                message: 'Search with Antigravity',
+                                child: FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFF4285F4),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12),
+                                    minimumSize: const Size(80, 36),
+                                  ),
+                                  onPressed: _askAntigravity,
+                                  child: const Text('Antigravity'),
+                                ),
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -651,6 +696,19 @@ No App Liability: The developer of this application is not responsible for any a
                         label: Text('Update TPR Research for ChatGPT '
                             '(${UpdateCheck.tprResearchLatest})'),
                         onPressed: () => CodexExtensionDialog.show(context),
+                      ),
+                    ),
+                  if (_antigravityVersion != null &&
+                      UpdateCheck.isOlder(
+                          _antigravityVersion!, UpdateCheck.tprResearchLatest))
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.system_update_alt, size: 18),
+                        label: Text('Update TPR Research for Antigravity '
+                            '(${UpdateCheck.tprResearchLatest})'),
+                        onPressed: () =>
+                            AntigravityExtensionDialog.show(context),
                       ),
                     ),
                 ],

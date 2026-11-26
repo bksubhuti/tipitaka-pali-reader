@@ -20,10 +20,12 @@ const GUIDE = fs.readFileSync(path.join(__dirname, 'guide.md'), 'utf8');
 // Tells TPR the extension is installed: Claude Desktop starts this server
 // each time it opens, so a fresh note means it is set up. TPR reads
 // ~/TPR/.tpr-research (its sandbox cannot see Claude's own folders).
-// Codex starts the same server with TPR_HOST=codex (TPR's Codex setup puts
-// it in ~/.codex/config.toml): its note is .tpr-research-codex, so TPR can
-// tell which app has it.
-const NOTE = process.env.TPR_HOST === 'codex' ? '.tpr-research-codex' : '.tpr-research';
+// Other apps start the same server with TPR_HOST set by TPR's setup
+// (codex in ~/.codex/config.toml, antigravity in ~/.gemini/config/
+// mcp_config.json): their note is .tpr-research-<host>, so TPR can tell
+// which app has it.
+const HOST = /^[a-z]+$/.test(process.env.TPR_HOST || '') ? process.env.TPR_HOST : '';
+const NOTE = HOST ? `.tpr-research-${HOST}` : '.tpr-research';
 try {
   const dir = path.join(require('node:os').homedir(), 'TPR');
   fs.mkdirSync(dir, { recursive: true });

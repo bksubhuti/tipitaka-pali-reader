@@ -5,6 +5,7 @@ import 'package:tipitaka_pali/utils/pali_script_converter.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/utils/script_detector.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
+import 'package:tipitaka_pali/ui/dialogs/antigravity_extension_dialog.dart';
 import 'package:tipitaka_pali/ui/dialogs/codex_extension_dialog.dart';
 
 class TextConverterView extends StatefulWidget {
@@ -44,6 +45,14 @@ class TextConverterViewState extends State<TextConverterView> {
       inputController.clear();
       outputController.clear();
       CodexExtensionDialog.show(context);
+      return;
+    }
+    if (AntigravityExtensionDialog.available &&
+        AntigravityExtensionDialog.triggers
+            .contains(inputText.trim().toLowerCase())) {
+      inputController.clear();
+      outputController.clear();
+      AntigravityExtensionDialog.show(context);
       return;
     }
     Script inputScript = ScriptDetector.getLanguage(inputText);

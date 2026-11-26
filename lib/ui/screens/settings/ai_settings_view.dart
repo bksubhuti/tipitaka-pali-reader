@@ -5,6 +5,7 @@ import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
+import 'package:tipitaka_pali/ui/dialogs/antigravity_extension_dialog.dart';
 import 'package:tipitaka_pali/ui/dialogs/codex_extension_dialog.dart';
 import 'package:tipitaka_pali/services/claude_share.dart';
 import 'package:tipitaka_pali/services/update_check.dart';
@@ -28,7 +29,9 @@ class _AiSettingsViewState extends State<AiSettingsView> {
   /// TPR Research's installed version, read once as the settings open.
   final Future<String?> _claudeExtension = ClaudeShare.extensionVersion();
   final Future<String?> _codexExtension =
-      ClaudeShare.extensionVersion(codex: true);
+      ClaudeShare.extensionVersion(host: 'codex');
+  final Future<String?> _antigravityExtension =
+      ClaudeShare.extensionVersion(host: 'antigravity');
 
   bool _isFetchingModels = false;
   List<String> _geminiModels = [];
@@ -822,6 +825,46 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                       UpdateCheck.isOlder(have, UpdateCheck.tprResearchLatest);
                   return OutlinedButton(
                     onPressed: () => CodexExtensionDialog.show(context),
+                    child: Text(update ? 'Update' : 'Set up'),
+                  );
+                },
+              ),
+            ),
+          // The same, for Google Antigravity.
+          if (AntigravityExtensionDialog.available)
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: Row(
+                children: [
+                  const Flexible(child: Text('Antigravity setup')),
+                  const SettingInfoButton(
+                      'Adds TPR Research to Google Antigravity '
+                      '(antigravity.google). It can then read the books in '
+                      'this TPR and make research papers with Pāḷi quotes '
+                      'and TPR links, reading reports, and vocabulary reviews '
+                      'of the words you looked up. TPR\'s files are only read, '
+                      'never changed.'),
+                ],
+              ),
+              subtitle: FutureBuilder<String?>(
+                future: _antigravityExtension,
+                builder: (context, snap) {
+                  final have = snap.data;
+                  if (have == null) return const SizedBox.shrink();
+                  final latest = UpdateCheck.tprResearchLatest;
+                  return Text(UpdateCheck.isOlder(have, latest)
+                      ? 'Update available: $latest (you have $have)'
+                      : 'Set up ✓ (TPR Research $have)');
+                },
+              ),
+              trailing: FutureBuilder<String?>(
+                future: _antigravityExtension,
+                builder: (context, snap) {
+                  final have = snap.data;
+                  final update = have != null &&
+                      UpdateCheck.isOlder(have, UpdateCheck.tprResearchLatest);
+                  return OutlinedButton(
+                    onPressed: () => AntigravityExtensionDialog.show(context),
                     child: Text(update ? 'Update' : 'Set up'),
                   );
                 },

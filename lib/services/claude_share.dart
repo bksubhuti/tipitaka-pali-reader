@@ -81,9 +81,9 @@ class ClaudeShare {
   }
 
   /// The TPR Research version when the extension is set up in Claude
-  /// Desktop (or, with [codex], in Codex), else null. The extension writes ~/TPR/.tpr-research each time
+  /// Desktop (or, with [host], in that app: 'codex', 'antigravity'), else null. The extension writes ~/TPR/.tpr-research each time
   /// Claude starts it; a note a month old or more is taken as removed.
-  static Future<String?> extensionVersion({bool codex = false}) async {
+  static Future<String?> extensionVersion({String? host}) async {
     if (!Platform.isMacOS && !Platform.isWindows) return null;
     String? tpr;
     var opened = false;
@@ -95,10 +95,10 @@ class ClaudeShare {
       } else {
         tpr = p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR');
       }
-      // Codex starts the same server with TPR_HOST=codex, which writes
-      // its own note.
-      final note =
-          File(p.join(tpr, codex ? '.tpr-research-codex' : '.tpr-research'));
+      // Other apps start the same server with TPR_HOST=<host>, which
+      // writes its own note.
+      final note = File(p.join(
+          tpr, host == null ? '.tpr-research' : '.tpr-research-$host'));
       if (!note.existsSync()) return null;
       final data = jsonDecode(await note.readAsString()) as Map;
       final seen = DateTime.tryParse('${data['seen']}');
