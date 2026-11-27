@@ -144,33 +144,148 @@ function papers() {
   return out.sort((a, b) => String(b.saved).localeCompare(String(a.saved)));
 }
 
-const PAGE_CSS = `body{font:16px/1.5 Georgia,serif;max-width:760px;margin:2em auto;padding:0 16px;color:#222;background:#fffdf8}
-h1{font-weight:normal}a{color:#7a4b00}li{margin:.6em 0}small{color:#777}
-form{display:inline}button{font:inherit;font-size:13px;margin-left:.4em}
-@media (prefers-color-scheme:dark){body{background:#1d1b18;color:#ddd}a{color:#e0b060}}`;
+const PAGE_CSS = `
+:root{--ink:#1f1f1f;--muted:#5f5f5f;--rule:#e2ddd3;--bg:#fbf8f2;--card:#fff;--qbg:#efefef;--link:#1a5fb4;--accent:#8a5a14}
+@media (prefers-color-scheme:dark){:root{--ink:#e8e4dc;--muted:#a59f94;--rule:#3a362f;--bg:#1b1916;--card:#24211d;
+ --qbg:#2e2b26;--link:#8ab4f8;--accent:#e0b060}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Noto Serif","Gentium Plus",Georgia,serif}
+main{max-width:46rem;margin:0 auto;padding:1.5rem 16px 3rem}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:14px;margin:.5rem 0 1.2rem}
+header img{width:64px;height:64px}
+header h1{font-size:1.7rem;line-height:1.15;margin:0}
+header p{margin:.15rem 0 0;color:var(--muted);font-size:.95rem}
+.box{background:var(--qbg);border-left:4px solid var(--accent);border-radius:6px;padding:.8rem 1rem;margin:1rem 0}
+.box p{margin:.35rem 0}
+.url{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:.5rem 0}
+.url code{font:15px ui-monospace,Menlo,monospace;background:var(--card);border:1px solid var(--rule);border-radius:6px;
+ padding:.35rem .6rem;word-break:break-all}
+button,.btn{font:600 13px system-ui,-apple-system,"Segoe UI",sans-serif;border:1px solid var(--rule);background:var(--card);
+ color:var(--ink);border-radius:6px;padding:.35rem .7rem;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.danger{color:#c62828}
+input[type=search]{width:100%;font:16px system-ui,sans-serif;padding:.55rem .8rem;border:1px solid var(--rule);
+ border-radius:8px;background:var(--card);color:var(--ink);margin:.4rem 0 1rem}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:.9rem 1.1rem;margin:.8rem 0}
+.card h2{font-size:1.15rem;line-height:1.3;margin:0 0 .3rem}
+.card p{margin:.2rem 0;color:var(--muted);font-size:.95rem}
+.meta{font:13px system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--muted);margin-top:.5rem;display:flex;
+ gap:.9rem;flex-wrap:wrap;align-items:center}
+.pill{font:700 11px system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#1b5e20;background:#e6f4e8;
+ border-radius:999px;padding:.1rem .5rem}
+form{display:inline}
+details{margin:.5rem 0;border-top:1px solid var(--rule);padding-top:.45rem}
+summary{cursor:pointer}
+details ol,details ul{margin:.4rem 0 .4rem 1.2rem;padding:0}
+details li{margin:.25rem 0}
+details p{font-size:.92rem;color:var(--muted)}
+code{font:14px ui-monospace,Menlo,monospace;background:var(--card);border-radius:4px;padding:0 .25em}
+footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--rule);color:var(--muted);font-size:.85rem;text-align:center}
+.empty{color:var(--muted);font-style:italic}
+`;
 
-const page = (title, body) => `<!doctype html><html><head><meta charset="utf-8">
+const page = (title, body) => `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(title)}</title>
-<style>${PAGE_CSS}</style></head><body>${body}</body></html>`;
+<link rel="icon" href="/logo.png"><style>${PAGE_CSS}</style></head><body><main>${body}
+<footer><a href="https://americanmonk.org/tipitaka-pali-reader/">Tipitaka Pali Reader</a> ·
+<a href="/library">Library</a> · <a href="${PRIVACY_URL}">Privacy</a></footer></main></body></html>`;
 
-function paperLinks(p) {
+const head = (title, sub) => `<header><img src="/logo.png" alt=""><div><h1>${html(title)}</h1>
+${sub ? `<p>${sub}</p>` : ''}</div></header>`;
+
+const sendHtml = (res, body, extra = {}) => reply(res, 200, body, { 'Content-Type': 'text/html; charset=utf-8', ...extra });
+
+/** The paper's first paragraph of text, for the library card. */
+const excerpts = new Map();
+function excerptOf(p) {
+  if (excerpts.has(p.id)) return excerpts.get(p.id);
+  let text = '';
+  try {
+    const md = fs.readFileSync(path.join(PAPERS, p.id, p.file + '.md'), 'utf8');
+    const para = md.split(/\n\s*\n/).map((x) => x.trim())
+      .find((x) => x && !/^(#|>|\||[-*]\s|\d+\.\s|\{\{|<)/.test(x) && x.length > 40) || '';
+    text = para.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim();
+    if (text.length > 240) text = text.slice(0, 240).replace(/\s+\S*$/, '') + '…';
+  } catch {}
+  excerpts.set(p.id, text);
+  return text;
+}
+
+function card(p, extra = '') {
   const f = encodeURIComponent(p.file);
-  return `<a href="/p/${p.id}/${f}.html">${html(p.title)}</a> `
-    + (p.pdf ? `<small>(<a href="/p/${p.id}/${f}.pdf">PDF</a>)</small> ` : '')
-    + `<small>${html(String(p.saved).slice(0, 10))}</small>`;
+  const ex = excerptOf(p);
+  return `<article class="card" data-text="${html((p.title + ' ' + ex).toLowerCase())}">
+<h2><a href="/p/${p.id}/${f}.html">${html(p.title)}</a></h2>${ex ? `<p>${html(ex)}</p>` : ''}
+<div class="meta"><span>${html(String(p.saved).slice(0, 10))}</span>
+${p.pdf ? `<a href="/p/${p.id}/${f}.pdf">PDF</a>` : ''}<a href="/p/${p.id}/${f}.md">Markdown</a>${extra}</div></article>`;
+}
+
+const FILTER = `<input type="search" placeholder="Search the papers…" oninput="
+for(const c of document.querySelectorAll('.card'))c.hidden=!c.dataset.text.includes(this.value.toLowerCase())">`;
+
+const connectBox = () => {
+  const url = (process.env.TPR_PUBLIC_URL || '') + '/mcp';
+  const step = (title, open, body) => `<details${open ? ' open' : ''}><summary><b>${title}</b></summary>${body}</details>`;
+  return `<div class="box"><p><b>Research the Tipiṭaka with your AI app.</b> Add this address to it as a custom
+connector:</p>
+<div class="url"><code>${html(url)}</code><button onclick="navigator.clipboard.writeText('${url}');
+this.textContent='Copied'">Copy</button></div>
+${step('Claude (claude.ai, desktop and phone)', true, `<ol>
+<li>On claude.ai, open <b>Customize › Connectors</b> (older layout: Settings › Connectors).</li>
+<li>Click <b>Add custom connector</b>. Name: <i>TPR Research</i>; URL: the address above.</li>
+<li>Authentication: <b>No sign-in</b>. Click <b>Add</b>.</li>
+<li>In a new chat, turn TPR Research on in the tools menu (<b>+</b>) and ask. It then works in the Claude phone app too.</li>
+</ol><p>The free plan allows one custom connector.</p>`)}
+${step('ChatGPT', false, `<ol>
+<li>Open <b>Settings › Apps</b> (or Apps &amp; Connectors) <b>› Advanced settings</b> and turn on <b>Developer mode</b>.</li>
+<li>Back in Apps, click <b>Create</b>. Name: <i>TPR Research</i>; MCP server URL: the address above;
+authentication: <b>None</b>. Tick that you trust it, then <b>Create</b>.</li>
+<li>In a new chat, choose TPR Research from the <b>+</b> menu (Developer mode) and ask.</li>
+</ol><p>Needs a paid plan (Plus, Pro, Business…). On a work account the admin may have to allow developer mode.
+Some plans allow only read-only tools: if ChatGPT cannot save the paper, ask it to give the paper in the chat.</p>`)}
+${step('Grok', false, `<ol>
+<li>Go to <b>grok.com/connectors</b>, click <b>New Connector › Custom</b>.</li>
+<li>Enter the address above, with no authentication, and save.</li>
+<li>In a new chat, turn the connector on and ask.</li>
+</ol><p>Custom connectors may need a paid Grok plan.</p>`)}
+${step('Gemini', false, `<p>The Gemini website and phone app cannot add connectors yet. Use Google's
+<b>Antigravity</b> app or the <b>Gemini CLI</b>:</p><ul>
+<li><b>Antigravity:</b> in <code>~/.gemini/config/mcp_config.json</code>, under <code>"mcpServers"</code>, add
+<code>"tpr-research": { "serverUrl": "${html(url)}" }</code>, then restart Antigravity. (Or use
+<b>Settings › AI › Gemini (Antigravity) setup</b> in Tipitaka Pali Reader on a computer.)</li>
+<li><b>Gemini CLI:</b> <code>gemini mcp add --transport http tpr-research ${html(url)}</code></li>
+</ul>`)}
+<p>Then ask about a sutta, a word or a teaching, and ask for a paper: quotes come with their translation and links
+that open <a href="https://americanmonk.org/tipitaka-pali-reader/">Tipitaka Pali Reader</a> on the right page.</p></div>`;
+};
+
+function homePage(res) {
+  const n = published().size;
+  sendHtml(res, page('TPR Research', `${head('TPR Research', 'Pāḷi Tipiṭaka research tools for AI apps')}
+${connectBox()}
+<p>TPR Research searches the Pāḷi canon, the Aṭṭhakathā and Ṭīkā, translations and the Digital Pāḷi Dictionary, and
+writes research papers with every claim quoted from the texts.</p>
+<div class="card"><p style="margin:0 0 .3rem;font:700 11px system-ui,sans-serif;letter-spacing:.05em;
+text-transform:uppercase">Sample paper</p><h2><a href="/p/xIZ0RW2L7EFL/venerable-subhuti-tpr-report.html">How great was
+Venerable Subhūti? A Tipiṭaka report</a></h2><p>His two titles as foremost disciple, explained from the Mūla, Aṭṭhakathā
+and Ṭīkā, with every quote linked to TPR.</p><div class="meta"><a href="/p/xIZ0RW2L7EFL/venerable-subhuti-tpr-report.pdf">PDF</a>
+<a href="/p/xIZ0RW2L7EFL/venerable-subhuti-tpr-report.html">Web page</a></div></div>
+<p><a href="/library">The library</a>${n ? ` has ${n} paper${n === 1 ? '' : 's'}` : ''}: papers chosen after review.</p>
+<p style="color:var(--muted);font-size:.9rem">Papers are kept on this server and may be shared, without names, in the
+library after review. <a href="${PRIVACY_URL}">Privacy</a></p>`));
 }
 
 function libraryPage(res) {
   const on = published();
   const list = papers().filter((p) => on.has(p.id));
-  reply(res, 200, page('TPR Research library', `<h1>TPR Research library</h1>
-<p>Research papers on the Pāḷi Tipiṭaka and its commentaries, written by AI with TPR Research from the texts in
-<a href="https://americanmonk.org/tipitaka-pali-reader/">Tipitaka Pali Reader</a>, and chosen after review.
-AI can make mistakes: check the quotes, which link to the texts.</p>
-${list.length ? `<ul>${list.map((p) => `<li>${paperLinks(p)}</li>`).join('')}</ul>` : '<p>No papers yet.</p>'}
-<p><small><a href="${PRIVACY_URL}">Privacy</a></small></p>`), { 'Content-Type': 'text/html; charset=utf-8' });
+  sendHtml(res, page('TPR Research library', `${head('TPR Research library',
+    'Research papers on the Pāḷi Tipiṭaka and its commentaries')}
+<p>Written by AI with TPR Research from the texts in Tipitaka Pali Reader, and chosen after review. AI can make
+mistakes: every quote links to its text, so check what matters to you.</p>
+${list.length ? FILTER + list.map((p) => card(p)).join('') : '<p class="empty">No papers yet.</p>'}
+${connectBox()}`));
 }
-
 /** True when the request carries the admin password (any user name). */
 function isAdmin(req) {
   const pw = process.env.TPR_ADMIN_PASSWORD || '';
@@ -186,14 +301,14 @@ function isAdmin(req) {
 function adminPage(res) {
   const on = published();
   const list = papers();
-  const row = (p) => `<li>${paperLinks(p)}
+  const row = (p) => card(p, `${on.has(p.id) ? '<span class="pill">In library</span>' : ''}
 <form method="post" action="/admin"><input type="hidden" name="id" value="${p.id}">
-<button name="do" value="${on.has(p.id) ? 'hide' : 'publish'}">${on.has(p.id) ? 'Hide from library' : 'Publish'}</button>
-<button name="do" value="delete" onclick="return confirm('Delete this paper for good?')">Delete</button></form>
-${on.has(p.id) ? ' <small>✓ in library</small>' : ''}</li>`;
-  reply(res, 200, page('TPR Research papers', `<h1>All papers (${list.length})</h1>
-<p><a href="/library">Public library</a> · ${on.size} published</p><ul>${list.map(row).join('')}</ul>`),
-  { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+<button name="do" value="${on.has(p.id) ? 'hide' : 'publish'}">${on.has(p.id) ? 'Hide' : 'Publish'}</button>
+<button class="danger" name="do" value="delete" onclick="return confirm('Delete this paper for good?')">Delete</button>
+</form>`);
+  sendHtml(res, page('TPR Research papers', `${head('All papers', `${list.length} saved · ${on.size} in the
+<a href="/library">library</a>`)}${list.length ? FILTER + list.map(row).join('') : '<p class="empty">No papers yet.</p>'}`),
+  { 'Cache-Control': 'no-store' });
 }
 
 function adminPost(req, res) {
@@ -273,11 +388,10 @@ const server = http.createServer((req, res) => {
     if (req.method === 'POST') return adminPost(req, res);
     return adminPage(res);
   }
-  if (url.pathname === '/' && req.method === 'GET') {
-    return reply(res, 200, `TPR Research ${VERSION}: Pāḷi Tipiṭaka research tools for AI apps.\n\n`
-      + 'Add this server in your AI app as a custom connector: ' + (process.env.TPR_PUBLIC_URL || '') + '/mcp\n\n'
-      + 'Papers made with it are kept on this server and may be shared, without names, in the library after '
-      + `review: ${(process.env.TPR_PUBLIC_URL || '')}/library\nPrivacy: ${PRIVACY_URL}\n`);
+  if (url.pathname === '/' && req.method === 'GET') return homePage(res);
+  if (url.pathname === '/logo.png' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=604800' });
+    return fs.createReadStream(path.join(__dirname, '..', 'icon.png')).pipe(res);
   }
   if (url.pathname !== '/mcp') return reply(res, 404, 'Not found');
   // No server-to-client stream: everything is answered in the POST's reply.
