@@ -234,7 +234,7 @@ this.textContent='Copied'">Copy</button></div>
 <ul class="apps">
 <li><b>Claude:</b> Customize › Connectors › Add custom connector. Paste the address, choose No sign-in.</li>
 <li><b>ChatGPT:</b> Settings › Apps › Advanced settings › Developer mode on. Then Create and paste the address.</li>
-<li><b>Gemini:</b> turn on Developer mode, then add the address as an MCP server.</li>
+<li><b>Gemini:</b> the Gemini website cannot use it yet. In Google's Antigravity app or the Gemini CLI, add the address as an MCP server.</li>
 <li><b>Grok:</b> grok.com/connectors › New Connector › Custom. Paste the address.</li>
 </ul>
 <p>Then ask, for example: <i>Using TPR, how great was Venerable Subhūti? Make a paper.</i></p></div>`;
