@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "tpr-research",
   "display_name": "TPR Research",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Research the Pāḷi Tipiṭaka, commentaries and translations in your Tipitaka Pali Reader, and make papers and reports with quotes and links that open TPR.",
   "long_description": "TPR Research lets Claude read the books in your Tipitaka Pali Reader (TPR): the Pāḷi canon, the Aṭṭhakathā and Ṭīkā, later handbooks, and the translations you have installed.\n\nAsk a question such as *\"Where do the suttas mention the heart-base? Show me with quotes\"* and Claude searches TPR's own index, counts occurrences, reads each passage in context with its commentary, and writes a paper: Pāḷi quotes in grey boxes, the English under each, and a link that opens TPR on the right page. It also makes reports from your own TPR: what you have been reading, a vocabulary review of the words you looked up, a sutta or chapter exported as a Pāḷi page with the translation, and word studies. Papers and reports are saved as Markdown, HTML and PDF in the TPR folder in your home folder.\n\nTPR's files are only read, never changed. You need Tipitaka Pali Reader, opened once so it finishes setting up, with at least one search run so its index is built. Install the English translation in TPR (Settings → Download) for English under the quotes.\n\nOn a Mac, the first time Claude reads TPR's data macOS asks whether Claude may access another app's data. Allow it: the extension opens every database read-only.",
   "author": {

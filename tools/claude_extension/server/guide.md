@@ -28,7 +28,7 @@ If a tool says the data folder, the index or English is missing, tell the reader
 ## Writing it up
 
 - **Quotes:** write `{{Q:BOOK PARA:L1-L2}}` on its own line where a quote box goes (`{{Q:BOOK PARA:L1-L2|your translation}}` to give your own). `tpr_save_paper` turns it into the grey box: bold Pāḷi, translation, TPR link. Or paste `tpr_quote` output.
-- **References:** write them plainly (`M-i 1036:1`, `Sp-ii 465:1-2, 466:2`, `Vin-ii 873–874`). `tpr_save_paper` makes every one a link that opens TPR on the right page, in tables and text alike. Never build links by hand or edit page numbers. `{{L:BOOK PARA:LINE}}` gives a link with its page.
+- **References:** write them plainly (`M-i 1036:1`, `Sp-ii 465:1-2, 466:2`, `Vin-ii 873–874`). `tpr_save_paper` makes every one a link that opens TPR on the right page, in tables and text alike. Never build links by hand or edit page numbers. `{{L:BOOK PARA:LINE}}` gives a link with its page. In verse books (Dhammapada, Sutta Nipāta, Thera- and Therīgāthā, Petavatthu) the paragraph numbers are not verse numbers: still write the reference exactly as the tools print it (`Dhp 1290:1`), never a verse number from memory (`Dhp 399`); the paper labels it with the verse number by itself, and the tools show that label in brackets.
 - **Length:** as long as the proof needs; sentences under 25 words, one point per paragraph, no filler.
 - Translations come from TPR's installed translations; say so once. If a line has none, translate it yourself and mark it "(tr. AI)".
 - `!legend text` on its own paragraph makes a boxed legend.

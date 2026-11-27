@@ -219,7 +219,9 @@ function quoteBox(spec) {
   const trans = over.trim() || rows.filter((x) => x.translation).map((x) => tpr.clean(x.translation)).join(' ').trim();
   const ln = tpr.refLink(book, rows[0].para_id, rows[0].line_id, rows[0].pali);
   const name = tpr.bookName(book);
-  const src = ln ? `[${name}, p. ${ln.page} (TPR)](${ln.url})` : `${name} ${r}`;
+  const label = tpr.cite(book, r);
+  const v = label !== `${book} ${r}` ? `, ${label}` : '';
+  const src = ln ? `[${name}${v}, p. ${ln.page} (TPR)](${ln.url})` : `${name} ${r}`;
   return `> **${pali}**\n>\n${trans ? `> ${trans}\n>\n` : ''}> ${src}`;
 }
 
@@ -245,14 +247,18 @@ function expand(md) {
   md = md.replace(/\{\{L:(.+?)\}\}/g, (all, spec) => {
     const [book, r] = spec.trim().split(/\s+/);
     const ln = refUrl(book, r);
-    return ln ? `[${book} ${r} (p. ${ln.page})](${ln.url})` : `${book} ${r}`;
+    return ln ? `[${tpr.cite(book, r)} (p. ${ln.page})](${ln.url})` : tpr.cite(book, r);
   });
   const ids = tpr.bookIds().sort((x, y) => y.length - x.length).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const REF = '\\d+(?::\\d+(?:-\\d+)?|[–-]\\d+)';
   const bare = new RegExp(`(?<![\\w\\-\\[])(${ids.join('|')}) (${REF})((?:[,;] ${REF})*)`, 'g');
   const one = (book, r, text) => { const ln = refUrl(book, r); return ln ? `[${text}](${ln.url})` : text; };
-  const auto = (_, book, first, rest) => one(book, first, `${book} ${first}`)
-    + rest.replace(new RegExp(`([,;] )(${REF})`, 'g'), (m, sep, r) => sep + one(book, r, r));
+  // Verse books are labelled with verse numbers (Dhp 1290:1 shows as Dhp 399).
+  const auto = (_, book, first, rest) => one(book, first, tpr.cite(book, first))
+    + rest.replace(new RegExp(`([,;] )(${REF})`, 'g'), (m, sep, r) => {
+      const c = tpr.cite(book, r);
+      return sep + one(book, r, c === `${book} ${r}` ? r : c);
+    });
   return md.split('\n').map((line) => {
     if (/^[>#]/.test(line)) return line;
     return line.split(/(\[[^\]]*\]\([^)]*\))/).map((part, k) => (k % 2 ? part : part.replace(bare, auto))).join('');

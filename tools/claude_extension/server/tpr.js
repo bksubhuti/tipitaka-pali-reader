@@ -229,6 +229,33 @@ function tprLink(book, para, line = 1, firstWords = '') {
   return { url: `https://tpr.pali.tools/open?${q}`, name: u.name, page };
 }
 
+// Verse books: ePitaka keeps one line of verse per paragraph, so its
+// paragraph numbers (Dhp 1290) are not the verse numbers readers cite
+// (Dhp 399). ePitaka marks each verse with a level-10 heading whose title
+// is its number; these books number their verses straight through.
+const VERSE_BOOKS = { Dhp: 'Dhp', Sn: 'Sn', Th: 'Thag', Thī: 'Thig', Pv: 'Pv' };
+
+/** The verse number of a paragraph in a verse book, else null. */
+function verseOf(book, para) {
+  if (!VERSE_BOOKS[book]) return null;
+  const r = get('SELECT title FROM epi.headings WHERE book_id=? AND level=10 AND para_id<=? AND para_id>?-15 '
+    + 'ORDER BY para_id DESC LIMIT 1', book, para, para);
+  const n = r && /^\d+$/.test(String(r.title).trim()) ? Number(r.title) : null;
+  return n;
+}
+
+/** A reference as readers cite it: "Dhp 399" in a verse book, else as given. */
+function cite(book, ref) {
+  const m = VERSE_BOOKS[book] && /^(\d+)(?::\d+)?(?:\s*[–-]\s*(\d+))?/.exec(String(ref));
+  if (!m) return `${book} ${ref}`;
+  const a = Number(m[1]);
+  const b = m[2] && Number(m[2]) > a ? Number(m[2]) : a;
+  const v1 = verseOf(book, a);
+  if (!v1) return `${book} ${ref}`;
+  const v2 = verseOf(book, b);
+  return `${VERSE_BOOKS[book]} ${v1}${v2 && v2 > v1 ? `–${v2}` : ''}`;
+}
+
 function defaultLang(want) {
   const have = langs();
   if (!want) return have.includes('en') ? 'en' : (have[0] || null);
@@ -320,7 +347,8 @@ function search({ query, lang = 'pali', layer, book, limit = 20 }) {
     const key = `${h.epi_book} ${where}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(`${key}  [${h.category}]  ${best ? clean(best.text).slice(0, 160) : ''}`);
+    const v = best && VERSE_BOOKS[h.epi_book] ? ` (${cite(h.epi_book, best.para_id)})` : '';
+    out.push(`${key}${v}  [${h.category}]  ${best ? clean(best.text).slice(0, 160) : ''}`);
   }
   return out.join('\n') || 'No matches.';
 }
@@ -350,6 +378,7 @@ function count({ pattern, layer, lang }) {
 function show({ book, ref, lang, keep_variants: keep }) {
   const l = defaultLang(lang);
   const out = [];
+  if (VERSE_BOOKS[book]) out.push(`(${cite(book, ref)}; write the reference as ${book} ${ref}, the paper labels it)`);
   for (const r of refLines(book, ref, l)) {
     out.push(`${r.para_id}:${r.line_id}  ${clean(r.pali, !keep)}`);
     if (l) out.push(`${' '.repeat(String(r.para_id).length + String(r.line_id).length + 3)}${l.toUpperCase()}: ${clean(r.translation || '-')}`);
@@ -362,7 +391,7 @@ function link({ book, ref }) {
   const para = rows[0].para_id;
   const r = tprLink(book, para, rows[0].line_id, rows[0].pali);
   if (!r) fail(`${book} ${para} is not in TPR's search index; no link can be made.`);
-  return `${r.url}\n${r.name}, p. ${r.page}`;
+  return `${r.url}\n${r.name}${VERSE_BOOKS[book] ? `, ${cite(book, ref)}` : ''}, p. ${r.page}`;
 }
 
 function quote({ book, ref, lang }) {
@@ -374,7 +403,8 @@ function quote({ book, ref, lang }) {
   const name = get('SELECT book_name FROM epi.books WHERE book_id=?', book).book_name;
   const out = [`> **${pali}**`, '>'];
   if (trans) out.push(`> ${trans}`, '>');
-  out.push(r ? `> [${name}, p. ${r.page} (TPR)](${r.url})` : `> ${name} ${ref}`);
+  const v = VERSE_BOOKS[book] ? `, ${cite(book, ref)}` : '';
+  out.push(r ? `> [${name}${v}, p. ${r.page} (TPR)](${r.url})` : `> ${name} ${ref}`);
   return out.join('\n');
 }
 
@@ -623,7 +653,7 @@ function query({ sql, limit = 50 }) {
 }
 
 module.exports = {
-  query,
+  query, cite,
   TprError, status, books, search, count, show, link, quote, commentary, clean,
   activity, vocabulary, lookup, chapters, exportText, refLink: tprLink, lines, parseRef, refLines, defaultLang,
   bookIds: () => all('SELECT book_id FROM epi.books').map((r) => r.book_id),
