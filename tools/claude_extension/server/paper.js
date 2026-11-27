@@ -364,7 +364,7 @@ function saveWeb({ pdf = true, ...paper }) {
   fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({
     title, file: path.basename(base), pdf: hasPdf, saved: new Date().toISOString(),
   }));
-  const lines = ['Saved. Give the reader these links:'];
+  const lines = ['Saved. Give the reader all of these links:'];
   if (hasPdf) lines.push(`PDF: ${url}${name}.pdf`);
   lines.push(`Web page: ${url}${name}.html`, `Markdown: ${url}${name}.md`, '',
     'Also tell the reader, in one short line: papers are kept on the TPR Research server and may be shared, '

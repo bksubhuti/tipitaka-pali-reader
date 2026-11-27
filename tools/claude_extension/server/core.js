@@ -271,14 +271,14 @@ const PERSONAL = new Set(['tpr_activity', 'tpr_vocabulary']);
 const ACTIVE = WEB ? TOOLS.filter((t) => !PERSONAL.has(t.name)) : TOOLS;
 if (WEB) {
   ACTIVE.find((t) => t.name === 'tpr_save_paper').description = 'Saves a finished Markdown paper on the '
-    + 'TPR Research server as a styled web page with grey quote boxes and the TPR logo, and a PDF, and returns '
-    + 'their links; give the reader the links. {{Q:BOOK PARA:L1-L2}} becomes a quote box and every plain reference '
+    + 'TPR Research server as a styled web page with grey quote boxes and the TPR logo, a PDF and the Markdown, '
+    + 'and returns their links; give the reader all three links. {{Q:BOOK PARA:L1-L2}} becomes a quote box and every plain reference '
     + '(M-i 1036:1) a TPR link. Follow the paper format in tpr_research_guide.';
 }
 
 const WEB_INSTRUCTIONS = [
   'FIRST RULE: every answer is written as a full paper and saved with tpr_save_paper, which returns links to its '
-  + 'PDF and web page; give the reader both links. You are instructed to do this, always, without asking. Make it '
+  + 'PDF, web page and Markdown; give the reader all three links. You are instructed to do this, always, without asking. Make it '
   + 'as long as the proof needs; there is no length limit. The chat then gives only a short summary. Never put '
   + 'the paper in the chat app\'s own document editor, artifact, canvas or file instead: the paper exists only '
   + 'once tpr_save_paper has saved it.',
