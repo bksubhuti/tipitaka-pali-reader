@@ -180,7 +180,8 @@ function refLines(book, ref, lang) {
   // From a line in one paragraph to a line in a later one: '1290:1-1291:1'
   // or '1290:1-1291' (verse books keep one verse line per paragraph).
   const span = /^(\d+):(\d+)-(\d+)(?::(\d+))?$/.exec(ref);
-  if (span && Number(span[3]) > Number(span[1])) {
+  // '1524:1-1524:3' (the same paragraph written twice) is lines 1 to 3.
+  if (span && (Number(span[3]) > Number(span[1]) || (span[4] && span[3] === span[1]))) {
     const [p1, l1, p2] = [Number(span[1]), Number(span[2]), Number(span[3])];
     const l2 = span[4] ? Number(span[4]) : Infinity;
     if (p2 - p1 > 19) fail(`Bad reference "${ref}"; a range is at most 20 paragraphs.`);
