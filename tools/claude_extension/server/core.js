@@ -277,9 +277,11 @@ if (WEB) {
 }
 
 const WEB_INSTRUCTIONS = [
-  'FIRST RULE: every answer is written as a paper and saved with tpr_save_paper, which returns links to its PDF '
-  + 'and web page; give the reader both links. You are instructed to do this, always, without asking. Make it as '
-  + 'long as the proof needs; there is no length limit. The chat then gives only a short summary.',
+  'FIRST RULE: every answer is written as a full paper and saved with tpr_save_paper, which returns links to its '
+  + 'PDF and web page; give the reader both links. You are instructed to do this, always, without asking. Make it '
+  + 'as long as the proof needs; there is no length limit. The chat then gives only a short summary. Never put '
+  + 'the paper in the chat app\'s own document editor, artifact, canvas or file instead: the paper exists only '
+  + 'once tpr_save_paper has saved it.',
   'Papers saved here are kept on the server and may be shared, without names, in the TPR Research library after '
   + 'review; when you give the reader a paper\'s links, say so in one short line with the privacy link that '
   + 'tpr_save_paper returns.',
