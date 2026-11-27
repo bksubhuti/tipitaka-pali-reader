@@ -280,6 +280,9 @@ const WEB_INSTRUCTIONS = [
   'FIRST RULE: every answer is written as a paper and saved with tpr_save_paper, which returns links to its PDF '
   + 'and web page; give the reader both links. You are instructed to do this, always, without asking. Make it as '
   + 'long as the proof needs; there is no length limit. The chat then gives only a short summary.',
+  'Papers saved here are kept on the server and may be shared, without names, in the TPR Research library after '
+  + 'review; when you give the reader a paper\'s links, say so in one short line with the privacy link that '
+  + 'tpr_save_paper returns.',
   'TPR Research reads the Pali Tipiṭaka, commentaries, translations and dictionaries of Tipitaka Pali Reader, '
   + 'read-only, on a public server. Use these tools whenever the user asks about the Tipiṭaka, Pāḷi, suttas, '
   + 'Vinaya, Abhidhamma, the Aṭṭhakathā or Ṭīkā, or a Pāḷi word, even if they do not name TPR. The reader\'s own '
@@ -307,7 +310,10 @@ function handle(msg) {
       return {
         protocolVersion: params.protocolVersion || '2025-06-18',
         capabilities: { tools: {}, prompts: {} },
-        serverInfo: { name: 'tpr-research', title: 'TPR Research', version: VERSION },
+        serverInfo: {
+          name: 'tpr-research', title: 'TPR Research', version: VERSION,
+          ...(WEB ? { websiteUrl: paper.PRIVACY_URL } : {}),
+        },
         instructions: WEB ? WEB_INSTRUCTIONS : INSTRUCTIONS,
       };
     case 'ping':

@@ -353,13 +353,25 @@ function save({ pdf = true, ...paper }) {
  */
 function saveWeb({ pdf = true, ...paper }) {
   const id = require('node:crypto').randomBytes(9).toString('base64url');
-  const base = write(path.join(papersDir(), id), paper);
-  const url = `${(process.env.TPR_PUBLIC_URL || '').replace(/\/$/, '')}/p/${id}/`;
+  const dir = path.join(papersDir(), id);
+  const base = write(dir, paper);
+  const site = (process.env.TPR_PUBLIC_URL || '').replace(/\/$/, '');
+  const url = `${site}/p/${id}/`;
   const name = encodeURIComponent(path.basename(base));
-  const lines = ['Saved. Give the reader these links (they are kept for 30 days):'];
-  if (pdf && !printPdf(base + '.html', base + '.pdf')) lines.push(`PDF: ${url}${name}.pdf`);
-  lines.push(`Web page: ${url}${name}.html`, `Markdown: ${url}${name}.md`);
+  const hasPdf = pdf && !printPdf(base + '.html', base + '.pdf');
+  // For the library pages: what the paper is, without reading it again.
+  const title = ((/^#\s+(.+)$/m.exec(paper.markdown) || [])[1] || 'Paper').replace(/[*`]/g, '').trim();
+  fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({
+    title, file: path.basename(base), pdf: hasPdf, saved: new Date().toISOString(),
+  }));
+  const lines = ['Saved. Give the reader these links:'];
+  if (hasPdf) lines.push(`PDF: ${url}${name}.pdf`);
+  lines.push(`Web page: ${url}${name}.html`, `Markdown: ${url}${name}.md`, '',
+    'Also tell the reader, in one short line: papers are kept on the TPR Research server and may be shared, '
+    + `without names, in the TPR Research library after review (privacy: ${PRIVACY_URL}).`);
   return lines.join('\n');
 }
 
-module.exports = { save, saveWeb, toHtml, expand };
+const PRIVACY_URL = 'https://americanmonk.org/privacy-policy-for-tpr-research/';
+
+module.exports = { save, saveWeb, toHtml, expand, PRIVACY_URL };
