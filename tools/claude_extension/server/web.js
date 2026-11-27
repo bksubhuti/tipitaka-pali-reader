@@ -175,6 +175,12 @@ input[type=search]{width:100%;font:16px system-ui,sans-serif;padding:.55rem .8re
 .pill{font:700 11px system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#1b5e20;background:#e6f4e8;
  border-radius:999px;padding:.1rem .5rem}
 form{display:inline}
+.big{font-size:1.2rem;margin:.1rem 0 .6rem}
+.appbtns{display:flex;flex-wrap:wrap;gap:10px;margin:.6rem 0 1rem}
+.appbtn{flex:1 1 120px;text-align:center;color:#fff !important;text-decoration:none !important;
+ font:700 17px system-ui,-apple-system,"Segoe UI",sans-serif;padding:.8rem 1rem;border-radius:10px;
+ box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.appbtn:hover{filter:brightness(1.1)}
 .recipe{margin:.8rem 0 1rem 1.3rem;padding:0}.recipe li{margin:.55rem 0}.recipe small{color:var(--muted)}
 .recipe .url{margin:.4rem 0}.notes{color:var(--muted);font-size:.92rem;margin-left:1.1rem;padding:0}
 img.shot{max-width:100%;border:1px solid var(--rule);border-radius:10px;display:block;margin:1rem auto}
@@ -230,12 +236,17 @@ for(const c of document.querySelectorAll('.card'))c.hidden=!c.dataset.text.inclu
 
 const connectBox = () => {
   const url = (process.env.TPR_PUBLIC_URL || '') + '/mcp';
-  return `<div class="box"><p><b>Research the Tipiṭaka with your AI app.</b> Add this address to it as a custom
-connector (MCP server):</p>
+  return `<div class="box"><p class="big"><b>Use TPR Research in your AI app</b></p>
+<p><b>1.</b> Copy this address:</p>
 <div class="url"><code>${html(url)}</code><button onclick="navigator.clipboard.writeText('${url}');
-this.textContent='Copied'">Copy</button></div>
-<p class="apps"><b>Step by step:</b> <a href="/claude">Claude</a> · <a href="/chatgpt">ChatGPT</a> ·
-<a href="/gemini">Gemini</a> · <a href="/grok">Grok</a></p>
+this.textContent='Copied ✓'">Copy</button></div>
+<p><b>2.</b> Pick your app for the steps:</p>
+<div class="appbtns">
+<a class="appbtn" style="background:#D97757" href="/claude">Claude</a>
+<a class="appbtn" style="background:#000;border:1px solid #444" href="/chatgpt">ChatGPT</a>
+<a class="appbtn" style="background:#4285F4" href="/gemini">Gemini</a>
+<a class="appbtn" style="background:#5b5f66" href="/grok">Grok</a>
+</div>
 <p>Then ask, for example: <i>Using TPR, how great was Venerable Subhūti? Make a paper.</i></p></div>`;
 };
 
