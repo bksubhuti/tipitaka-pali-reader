@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,6 +19,9 @@ class AiSettingsView extends StatefulWidget {
   @override
   State<AiSettingsView> createState() => _AiSettingsViewState();
 }
+
+/// TPR Research's web server (tools/claude_extension/server/web.js).
+const _webConnector = 'https://tpr.americanmonk.org/mcp';
 
 class _AiSettingsViewState extends State<AiSettingsView> {
   final _formKey = GlobalKey<FormState>();
@@ -747,6 +751,40 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                   ],
                 ],
               ),
+            ),
+          ),
+          // TPR Research on the web (tpr.americanmonk.org): any AI app that
+          // takes a custom connector, on any device, with nothing to install.
+          // The desktop setups below add the reader's own reports.
+          ListTile(
+            leading: const Icon(Icons.public),
+            title: const Row(
+              children: [
+                Flexible(child: Text('TPR Research on the web')),
+                SettingInfoButton(
+                    'Lets Claude, ChatGPT and other AI apps research the '
+                    'Tipiṭaka, commentaries and dictionaries of TPR and make '
+                    'papers with Pāḷi quotes and TPR links, on the web and on '
+                    'phones, with nothing to install.\n\n'
+                    'In your AI app, add a custom connector with this address '
+                    '(Claude: Customize › Connectors › Add custom connector, '
+                    'no sign-in).\n\n'
+                    'Papers are kept on the server and may be shared, without '
+                    'names, in the TPR Research library after review. '
+                    'Privacy: americanmonk.org/privacy-policy-for-tpr-research\n\n'
+                    'For reports of your own reading and vocabulary, use a '
+                    'desktop setup below instead.'),
+              ],
+            ),
+            subtitle: const SelectableText(_webConnector),
+            trailing: OutlinedButton(
+              onPressed: () {
+                Clipboard.setData(const ClipboardData(text: _webConnector));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Copied. Add it in your AI app as a custom '
+                        'connector.')));
+              },
+              child: const Text('Copy'),
             ),
           ),
           // Desktop only: Claude Desktop runs on macOS and Windows.
