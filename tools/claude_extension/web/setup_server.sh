@@ -47,6 +47,7 @@ fi
 # ---- the server
 id tpr >/dev/null 2>&1 || useradd --system --home /srv/tpr --shell /usr/sbin/nologin tpr
 mkdir -p /srv/tpr/db /srv/tpr/papers
+git config --system --add safe.directory /srv/tpr/repo
 if [ -d /srv/tpr/repo/.git ]; then
   git -C /srv/tpr/repo pull --ff-only
 else
