@@ -41,20 +41,32 @@ class AntigravityExtensionDialog {
   }
 
   /// Opens antigravity://[link]. On Windows a link that starts Antigravity
-  /// opens two windows, the empty one in front; so when it is not running it
-  /// is started first with a bare link, and the prompt follows once it is
-  /// up (an open Antigravity takes the link in its own window).
+  /// (even a bare antigravity://) opens two windows, the empty one in front;
+  /// so when it is not running its program is started as from the Start
+  /// menu, and the link follows once its window is up (an open Antigravity
+  /// takes the link in its own window).
   static Future<bool> _open(String link) async {
     if (Platform.isWindows && !await _running()) {
-      if (!await launchUrl(Uri.parse('antigravity://'))) return false;
-      for (var i = 0; i < 30 && !await _running(); i++) {
-        await Future.delayed(const Duration(milliseconds: 500));
+      final exe = _windowsApps().firstWhereOrNull((e) => File(e).existsSync());
+      if (exe != null) {
+        await Process.start(exe, [], mode: ProcessStartMode.detached);
+        for (var i = 0; i < 40 && !await _running(); i++) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+        // Running is not yet ready for links: give its window time to load.
+        await Future.delayed(const Duration(seconds: 6));
       }
-      // Running is not yet ready for links: give its window time to load.
-      await Future.delayed(const Duration(seconds: 4));
     }
     return launchUrl(Uri.parse('antigravity://$link'));
   }
+
+  /// Where Antigravity's program is on Windows.
+  static List<String> _windowsApps() => [
+        p.join(Platform.environment['LOCALAPPDATA'] ?? '', 'Programs',
+            'Antigravity', 'Antigravity.exe'),
+        p.join(Platform.environment['ProgramFiles'] ?? r'C:\Program Files',
+            'Antigravity', 'Antigravity.exe'),
+      ];
 
   static Future<bool> _running() async {
     try {
@@ -163,7 +175,6 @@ class AntigravityExtensionDialog {
   /// What runs the server: Antigravity's own program as Node, else an
   /// installed Node; null when neither is found.
   static Future<String?> _runner() async {
-    final local = Platform.environment['LOCALAPPDATA'] ?? '';
     final home = Platform.environment['HOME'] ?? '';
     final apps = Platform.isMacOS
         ? [
@@ -171,11 +182,7 @@ class AntigravityExtensionDialog {
             p.join(home, 'Applications', 'Antigravity.app', 'Contents', 'MacOS',
                 'Antigravity'),
           ]
-        : [
-            p.join(local, 'Programs', 'Antigravity', 'Antigravity.exe'),
-            p.join(Platform.environment['ProgramFiles'] ?? r'C:\Program Files',
-                'Antigravity', 'Antigravity.exe'),
-          ];
+        : _windowsApps();
     final app = apps.firstWhereOrNull((e) => File(e).existsSync());
     if (app != null) return app;
     // The Mac sandbox may not see /Applications: the usual place is still
