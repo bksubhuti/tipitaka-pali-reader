@@ -312,11 +312,11 @@ function openFile(p) {
 }
 
 /** Writes the paper and returns what was written, for the reply. */
-function save({ markdown, file_name: fileName, byline, pdf = true, open = true }) {
+/** Writes the .md and .html of a paper in [dir]; returns its path without extension. */
+function write(dir, { markdown, file_name: fileName, byline }) {
   if (!markdown || !markdown.trim()) throw new Error('The paper is empty.');
   markdown = expand(markdown);
   const title = (/^#\s+(.+)$/m.exec(markdown) || [])[1] || 'Paper';
-  const dir = papersDir();
   fs.mkdirSync(dir, { recursive: true });
   const base = path.join(dir, slug(fileName || title.replace(/[*`]/g, '')));
   const now = new Date();
@@ -328,6 +328,11 @@ function save({ markdown, file_name: fileName, byline, pdf = true, open = true }
   });
   fs.writeFileSync(base + '.md', markdown, 'utf8');
   fs.writeFileSync(base + '.html', html, 'utf8');
+  return base;
+}
+
+function save({ pdf = true, ...paper }) {
+  const base = write(papersDir(), paper);
   const lines = [`Saved:\n  ${base}.md\n  ${base}.html`];
   let shown = base + '.html';
   if (pdf) {
@@ -341,4 +346,20 @@ function save({ markdown, file_name: fileName, byline, pdf = true, open = true }
   return lines.join('\n');
 }
 
-module.exports = { save, toHtml, expand };
+/**
+ * The web server's save: each paper in its own folder with a random name
+ * under TPR_PAPERS_DIR, served at TPR_PUBLIC_URL/p/<id>/<file>; returns
+ * the links (nothing is opened: the reader is on another computer).
+ */
+function saveWeb({ pdf = true, ...paper }) {
+  const id = require('node:crypto').randomBytes(9).toString('base64url');
+  const base = write(path.join(papersDir(), id), paper);
+  const url = `${(process.env.TPR_PUBLIC_URL || '').replace(/\/$/, '')}/p/${id}/`;
+  const name = encodeURIComponent(path.basename(base));
+  const lines = ['Saved. Give the reader these links (they are kept for 30 days):'];
+  if (pdf && !printPdf(base + '.html', base + '.pdf')) lines.push(`PDF: ${url}${name}.pdf`);
+  lines.push(`Web page: ${url}${name}.html`, `Markdown: ${url}${name}.md`);
+  return lines.join('\n');
+}
+
+module.exports = { save, saveWeb, toHtml, expand };
