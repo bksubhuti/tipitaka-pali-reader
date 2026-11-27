@@ -183,6 +183,12 @@ class ClaudeExtensionDialog {
   /// writes ~/.codex).
   static Future<String?> tprFolder(void Function(String) say,
       {String app = 'Claude'}) async {
+    // Linux (AppImage, or Flatpak with ~/TPR allowed): no picker needed.
+    if (Platform.isLinux) {
+      final dir = Directory(p.join(Platform.environment['HOME'] ?? '', 'TPR'));
+      await dir.create(recursive: true);
+      return dir.path;
+    }
     if (Platform.isWindows) {
       final dir =
           Directory(p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR'));

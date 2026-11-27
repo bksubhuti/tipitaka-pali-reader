@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
-import 'package:tipitaka_pali/services/claude_share.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
 import 'package:tipitaka_pali/ui/dialogs/codex_extension_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,7 +25,8 @@ class AntigravityExtensionDialog {
   static const _url =
       'https://github.com/bksubhuti/tpr_downloads/releases/download/packages/tpr-research-codex.zip';
 
-  static bool get available => Platform.isMacOS || Platform.isWindows;
+  static bool get available =>
+      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 
   /// Opens a new Antigravity chat with the question typed in
   /// (antigravity://open?prompt=…, Antigravity 2.29+). The question is also
@@ -74,6 +74,29 @@ class AntigravityExtensionDialog {
     return launchUrl(Uri.parse('antigravity://$link'));
   }
 
+  /// Where Antigravity's program may be on Linux: its tarball is often
+  /// unpacked in ~/Applications, else in /opt (a Flatpak TPR cannot see
+  /// /opt; then Node runs the server).
+  static List<String> _linuxApps(String home) {
+    final dirs = <String>[];
+    try {
+      dirs.addAll(Directory(p.join(home, 'Applications'))
+          .listSync()
+          .whereType<Directory>()
+          .where(
+              (d) => p.basename(d.path).toLowerCase().startsWith('antigravity'))
+          .map((d) => d.path));
+    } catch (_) {}
+    dirs.addAll(
+        ['/opt/antigravity', '/opt/Antigravity', '/usr/share/antigravity']);
+    return [
+      for (final d in dirs) ...[
+        p.join(d, 'antigravity'),
+        p.join(d, 'Antigravity')
+      ]
+    ];
+  }
+
   /// Where Antigravity's program is on Windows.
   static List<String> _windowsApps() => [
         p.join(Platform.environment['LOCALAPPDATA'] ?? '', 'Programs',
@@ -110,7 +133,9 @@ class AntigravityExtensionDialog {
             'chats, on the web or a phone, cannot use TPR. '
             'TPR\'s files are only read, never changed. Papers are saved in '
             'a TPR folder in your home folder.\n\n'
-            '${Platform.isMacOS ? 'TPR will create a folder named TPR in your '
+            '${Platform.isLinux ? 'TPR will add TPR Research to Antigravity\'s '
+                'settings; it reads the books where TPR keeps them, so '
+                'nothing is copied.\n\n' : Platform.isMacOS ? 'TPR will create a folder named TPR in your '
                 'home folder, with a copy of its books (it takes no extra '
                 'space), and add TPR Research to Antigravity\'s settings. '
                 'macOS opens your home folder next: click Create.\n\n' : 'TPR '
@@ -149,15 +174,7 @@ class AntigravityExtensionDialog {
       final home = p.dirname(tpr);
       // The same copy in ~/TPR/db as for Claude and Codex.
       if (!context.mounted) return;
-      await ClaudeExtensionDialog.whileBusy(
-          context, 'Copying the books for Gemini…', () async {
-        await ClaudeShare.remember(tpr);
-        await ClaudeShare.refresh(books: true);
-      });
-      if (!File(p.join(tpr, 'db', 'tipitaka_pali.db')).existsSync()) {
-        say('TPR is still setting up its search. The books will be copied '
-            'for Gemini when it is done.');
-      }
+      await CodexExtensionDialog.copyBooks(context, tpr, 'Gemini', say);
       final runner = await _runner();
       if (runner == null) {
         say('Antigravity was not found. Install it, open it once, then '
@@ -196,7 +213,9 @@ class AntigravityExtensionDialog {
             p.join(home, 'Applications', 'Antigravity.app', 'Contents', 'MacOS',
                 'Antigravity'),
           ]
-        : _windowsApps();
+        : Platform.isLinux
+            ? _linuxApps(home)
+            : _windowsApps();
     final app = apps.firstWhereOrNull((e) => File(e).existsSync());
     if (app != null) return app;
     // The Mac sandbox may not see /Applications: the usual place is still
@@ -224,7 +243,12 @@ class AntigravityExtensionDialog {
     servers['tpr-research'] = {
       'command': runner,
       'args': [server],
-      'env': {'ELECTRON_RUN_AS_NODE': '1', 'TPR_HOST': 'antigravity'},
+      'env': {
+        'ELECTRON_RUN_AS_NODE': '1',
+        'TPR_HOST': 'antigravity',
+        if (CodexExtensionDialog.linuxDbDir != null)
+          'TPR_DB_DIR': CodexExtensionDialog.linuxDbDir,
+      },
     };
     config['mcpServers'] = servers;
     await file.writeAsString(

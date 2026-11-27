@@ -30,6 +30,18 @@
   </description>
 
   <releases>
+    <release version="3.1.9+140" date="2026-11-26">
+      <description>
+        <p>
+          TPR Research for ChatGPT (Codex) and Gemini (Antigravity): research papers with Pāḷi quotes from the books in TPR.
+        </p>
+        <ul>
+          <li>Settings › AI › ChatGPT (Codex) setup and Gemini (Antigravity) setup</li>
+          <li>AI search sends a question to ChatGPT or Gemini, answered from TPR's books</li>
+          <li>Papers are saved as PDF in a TPR folder in the home folder</li>
+        </ul>
+      </description>
+    </release>
     <release version="3.1.8+139" date="2026-11-21">
       <description>
         <p>

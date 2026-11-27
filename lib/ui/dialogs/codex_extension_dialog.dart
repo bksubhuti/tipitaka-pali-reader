@@ -6,7 +6,9 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:flutter/services.dart';
 import 'package:tipitaka_pali/services/claude_share.dart';
+import 'package:tipitaka_pali/services/prefs.dart';
 import 'package:tipitaka_pali/ui/dialogs/claude_extension_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,15 +27,46 @@ class CodexExtensionDialog {
   static const _url =
       'https://github.com/bksubhuti/tpr_downloads/releases/download/packages/tpr-research-codex.zip';
 
-  /// The Codex app runs on macOS and Windows, as Claude Desktop does.
-  static bool get available => Platform.isMacOS || Platform.isWindows;
+  /// The Codex app runs on macOS and Windows; on Linux there is the codex
+  /// command (Codex CLI), which needs Node.
+  static bool get available =>
+      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+
+  /// On Linux the server reads TPR's own data folder: there is no sandbox
+  /// in the way, so no copy in ~/TPR/db (the Flatpak's folder is
+  /// ~/.var/app/…, the same path inside and out). Null elsewhere.
+  static String? get linuxDbDir =>
+      Platform.isLinux && Prefs.databaseDirPath.isNotEmpty
+          ? Prefs.databaseDirPath
+          : null;
+
+  /// The books for [app] in ~/TPR/db, as for Claude; nothing on Linux.
+  static Future<void> copyBooks(BuildContext context, String tpr, String app,
+      void Function(String) say) async {
+    if (Platform.isLinux) return;
+    await ClaudeExtensionDialog.whileBusy(
+        context, 'Copying the books for $app…', () async {
+      await ClaudeShare.remember(tpr);
+      await ClaudeShare.refresh(books: true);
+    });
+    if (!File(p.join(tpr, 'db', 'tipitaka_pali.db')).existsSync()) {
+      say('TPR is still setting up its search. The books will be copied '
+          'for $app when it is done.');
+    }
+  }
 
   /// Opens a new Codex chat with the question typed in, asking it to answer
   /// from the reader's TPR books. Codex reads `prompt` from this link.
-  static Future<bool> ask(String question) {
+  /// On Linux (the codex command, no app) the question is only copied, and
+  /// this returns false.
+  static Future<bool> ask(String question) async {
     final prompt = 'Using TPR Research (the tpr-research tools), search my '
         'TPR books and answer: $question\n\nQuote the Pāḷi with its '
         'translation and TPR links.';
+    if (Platform.isLinux) {
+      await Clipboard.setData(ClipboardData(text: prompt));
+      return false;
+    }
     return launchUrl(Uri.parse(
         'codex://threads/new?prompt=${Uri.encodeQueryComponent(prompt)}'));
   }
@@ -51,19 +84,25 @@ class CodexExtensionDialog {
             'the books in this TPR, and make research papers with Pāḷi '
             'quotes, reading reports, vocabulary reviews of the words you '
             'looked up, and suttas exported with their translation.\n\n'
-            'It needs the ChatGPT desktop app (Mac or Windows): open Codex '
-            'in it. Ordinary ChatGPT chats, on the web or a phone, cannot use '
+            '${Platform.isLinux ? 'On Linux it needs the codex command '
+                '(Codex CLI, chatgpt.com/codex) and Node (nodejs.org). ' : 'It '
+                'needs the ChatGPT desktop app (Mac or Windows): open Codex '
+                'in it. '}'
+            'Ordinary ChatGPT chats, on the web or a phone, cannot use '
             'TPR. '
             'TPR\'s files are only read, never changed. Papers are saved in '
             'a TPR folder in your home folder.\n\n'
-            '${Platform.isMacOS ? 'TPR will create a folder named TPR in your '
+            '${Platform.isLinux ? 'TPR will add TPR Research to Codex\'s '
+                'settings; Codex reads the books where TPR keeps them, so '
+                'nothing is copied.\n\n' : Platform.isMacOS ? 'TPR will create a folder named TPR in your '
                 'home folder, with a copy of its books for Codex (it takes no '
                 'extra space), and add TPR Research to Codex\'s settings. '
                 'macOS opens your home folder next: click Create.\n\n' : 'TPR '
                 'will create a folder named TPR in your home folder, with a '
                 'copy of its books for Codex (about 1.5 GB), and add TPR '
                 'Research to Codex\'s settings.\n\n'}'
-            'Afterwards quit ChatGPT and open it again.',
+            '${Platform.isLinux ? 'Afterwards start codex again.' : 'Afterwards '
+                'quit ChatGPT and open it again.'}',
           ),
         ),
         actions: [
@@ -101,17 +140,8 @@ class CodexExtensionDialog {
       final tpr = await ClaudeExtensionDialog.tprFolder(say, app: 'Codex');
       if (tpr == null) return;
       final home = p.dirname(tpr);
-      // The books for Codex: the same copy in ~/TPR/db as for Claude.
       if (!context.mounted) return;
-      await ClaudeExtensionDialog.whileBusy(
-          context, 'Copying the books for Codex…', () async {
-        await ClaudeShare.remember(tpr);
-        await ClaudeShare.refresh(books: true);
-      });
-      if (!File(p.join(tpr, 'db', 'tipitaka_pali.db')).existsSync()) {
-        say('TPR is still setting up its search. The books will be copied '
-            'for Codex when it is done.');
-      }
+      await copyBooks(context, tpr, 'Codex', say);
       final response = await http.get(Uri.parse(_url));
       if (response.statusCode != 200) {
         say('Could not download TPR Research (${response.statusCode}).');
@@ -123,6 +153,11 @@ class CodexExtensionDialog {
       await markSetUp(tpr, 'codex');
       // Settings shows "Set up ✓" only once Codex has started the server, so
       // say plainly that it worked.
+      if (Platform.isLinux) {
+        say('TPR Research is added to Codex. Start codex again and ask, '
+            'with "TPR" in the question.');
+        return;
+      }
       say('TPR Research is added to ChatGPT (Codex). Quit ChatGPT and open '
           'it again.');
       if (context.mounted) await _howToUse(context);
@@ -194,7 +229,7 @@ startup_timeout_sec = 60
 
 [mcp_servers.tpr-research.env]
 TPR_HOST = 'codex'
-''';
+${linuxDbDir == null ? '' : "TPR_DB_DIR = '$linuxDbDir'\n"}''';
     await file.writeAsString(text.isEmpty ? block : '$text\n\n$block',
         flush: true);
   }
@@ -229,6 +264,13 @@ TPR_HOST = 'codex'
     if (Platform.isWindows) {
       final runtime = await _codexRuntimeNode();
       if (runtime != null) return runtime;
+    }
+    // Linux: the Flatpak cannot see the system's /usr, so an installed
+    // Node may not show; the codex command finds `node` on its PATH.
+    if (Platform.isLinux) {
+      return ['/usr/bin/node', '/usr/local/bin/node']
+              .firstWhereOrNull((e) => File(e).existsSync()) ??
+          'node';
     }
     final candidates = Platform.isMacOS
         ? [

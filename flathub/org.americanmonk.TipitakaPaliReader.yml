@@ -12,6 +12,11 @@ finish-args:
   - --share=network
   - --filesystem=xdg-documents
   - --filesystem=xdg-download
+  # TPR Research for ChatGPT (Codex) and Gemini (Antigravity): papers go in
+  # ~/TPR, and TPR adds its server to each app's settings.
+  - --filesystem=~/TPR:create
+  - --filesystem=~/.codex:create
+  - --filesystem=~/.gemini/config:create
 modules:
   - name: tipitaka_pali_reader
     buildsystem: simple

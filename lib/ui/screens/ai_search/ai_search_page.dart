@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:tipitaka_pali/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -166,8 +168,11 @@ class _AiSearchPageState extends State<AiSearchPage> {
       return;
     }
     if (!await CodexExtensionDialog.ask(query) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open ChatGPT.')));
+      // Linux has only the codex command: the question is copied.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(Platform.isLinux
+              ? 'Question copied: paste it into codex.'
+              : 'Could not open ChatGPT.')));
     }
   }
 

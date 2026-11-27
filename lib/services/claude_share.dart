@@ -84,7 +84,11 @@ class ClaudeShare {
   /// Desktop (or, with [host], in that app: 'codex', 'antigravity'), else null. The extension writes ~/TPR/.tpr-research each time
   /// Claude starts it; a note a month old or more is taken as removed.
   static Future<String?> extensionVersion({String? host}) async {
-    if (!Platform.isMacOS && !Platform.isWindows) return null;
+    // Linux has ChatGPT (Codex) and Gemini (Antigravity), not Claude Desktop.
+    if (Platform.isLinux && host == null) return null;
+    if (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux) {
+      return null;
+    }
     String? tpr;
     var opened = false;
     try {
@@ -92,13 +96,15 @@ class ClaudeShare {
         tpr = await _channel.invokeMethod<String>('start', {'name': _folder});
         if (tpr == null) return null; // never set up
         opened = true;
+      } else if (Platform.isLinux) {
+        tpr = p.join(Platform.environment['HOME'] ?? '', 'TPR');
       } else {
         tpr = p.join(Platform.environment['USERPROFILE'] ?? '', 'TPR');
       }
       // Other apps start the same server with TPR_HOST=<host>, which
       // writes its own note.
-      final note = File(p.join(
-          tpr, host == null ? '.tpr-research' : '.tpr-research-$host'));
+      final note = File(
+          p.join(tpr, host == null ? '.tpr-research' : '.tpr-research-$host'));
       if (!note.existsSync()) return null;
       final data = jsonDecode(await note.readAsString()) as Map;
       final seen = DateTime.tryParse('${data['seen']}');
