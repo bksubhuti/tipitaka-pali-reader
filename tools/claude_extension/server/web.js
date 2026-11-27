@@ -175,6 +175,7 @@ input[type=search]{width:100%;font:16px system-ui,sans-serif;padding:.55rem .8re
 .pill{font:700 11px system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#1b5e20;background:#e6f4e8;
  border-radius:999px;padding:.1rem .5rem}
 form{display:inline}
+.apps{margin:.5rem 0 .6rem 1.1rem;padding:0}.apps li{margin:.3rem 0}
 details{margin:.5rem 0;border-top:1px solid var(--rule);padding-top:.45rem}
 summary{cursor:pointer}
 details ol,details ul{margin:.4rem 0 .4rem 1.2rem;padding:0}
@@ -226,38 +227,17 @@ for(const c of document.querySelectorAll('.card'))c.hidden=!c.dataset.text.inclu
 
 const connectBox = () => {
   const url = (process.env.TPR_PUBLIC_URL || '') + '/mcp';
-  const step = (title, open, body) => `<details${open ? ' open' : ''}><summary><b>${title}</b></summary>${body}</details>`;
   return `<div class="box"><p><b>Research the Tipiṭaka with your AI app.</b> Add this address to it as a custom
-connector:</p>
+connector (MCP server):</p>
 <div class="url"><code>${html(url)}</code><button onclick="navigator.clipboard.writeText('${url}');
 this.textContent='Copied'">Copy</button></div>
-${step('Claude (claude.ai, desktop and phone)', true, `<ol>
-<li>On claude.ai, open <b>Customize › Connectors</b> (older layout: Settings › Connectors).</li>
-<li>Click <b>Add custom connector</b>. Name: <i>TPR Research</i>; URL: the address above.</li>
-<li>Authentication: <b>No sign-in</b>. Click <b>Add</b>.</li>
-<li>In a new chat, turn TPR Research on in the tools menu (<b>+</b>) and ask. It then works in the Claude phone app too.</li>
-</ol><p>The free plan allows one custom connector.</p>`)}
-${step('ChatGPT', false, `<ol>
-<li>Open <b>Settings › Apps</b> (or Apps &amp; Connectors) <b>› Advanced settings</b> and turn on <b>Developer mode</b>.</li>
-<li>Back in Apps, click <b>Create</b>. Name: <i>TPR Research</i>; MCP server URL: the address above;
-authentication: <b>None</b>. Tick that you trust it, then <b>Create</b>.</li>
-<li>In a new chat, choose TPR Research from the <b>+</b> menu (Developer mode) and ask.</li>
-</ol><p>Needs a paid plan (Plus, Pro, Business…). On a work account the admin may have to allow developer mode.
-Some plans allow only read-only tools: if ChatGPT cannot save the paper, ask it to give the paper in the chat.</p>`)}
-${step('Grok', false, `<ol>
-<li>Go to <b>grok.com/connectors</b>, click <b>New Connector › Custom</b>.</li>
-<li>Enter the address above, with no authentication, and save.</li>
-<li>In a new chat, turn the connector on and ask.</li>
-</ol><p>Custom connectors may need a paid Grok plan.</p>`)}
-${step('Gemini', false, `<p>The Gemini website and phone app cannot add connectors yet. Use Google's
-<b>Antigravity</b> app or the <b>Gemini CLI</b>:</p><ul>
-<li><b>Antigravity:</b> in <code>~/.gemini/config/mcp_config.json</code>, under <code>"mcpServers"</code>, add
-<code>"tpr-research": { "serverUrl": "${html(url)}" }</code>, then restart Antigravity. (Or use
-<b>Settings › AI › Gemini (Antigravity) setup</b> in Tipitaka Pali Reader on a computer.)</li>
-<li><b>Gemini CLI:</b> <code>gemini mcp add --transport http tpr-research ${html(url)}</code></li>
-</ul>`)}
-<p>Then ask about a sutta, a word or a teaching, and ask for a paper: quotes come with their translation and links
-that open <a href="https://americanmonk.org/tipitaka-pali-reader/">Tipitaka Pali Reader</a> on the right page.</p></div>`;
+<ul class="apps">
+<li><b>Claude:</b> Customize › Connectors › Add custom connector. Paste the address, choose No sign-in.</li>
+<li><b>ChatGPT:</b> Settings › Apps › Advanced settings › Developer mode on. Then Create and paste the address.</li>
+<li><b>Gemini:</b> turn on Developer mode, then add the address as an MCP server.</li>
+<li><b>Grok:</b> grok.com/connectors › New Connector › Custom. Paste the address.</li>
+</ul>
+<p>Then ask, for example: <i>Using TPR, how great was Venerable Subhūti? Make a paper.</i></p></div>`;
 };
 
 function homePage(res) {
