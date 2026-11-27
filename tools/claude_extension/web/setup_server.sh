@@ -73,6 +73,8 @@ Environment=TPR_DB_DIR=/srv/tpr/db
 Environment=TPR_PAPERS_DIR=/srv/tpr/papers
 Environment=TPR_PUBLIC_URL=https://$DOMAIN
 Environment=PORT=8787
+# Chrome (paper PDFs) writes in its home folder: the service's private /tmp.
+Environment=HOME=/tmp
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
