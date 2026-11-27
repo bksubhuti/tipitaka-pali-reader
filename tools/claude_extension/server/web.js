@@ -175,6 +175,9 @@ input[type=search]{width:100%;font:16px system-ui,sans-serif;padding:.55rem .8re
 .pill{font:700 11px system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#1b5e20;background:#e6f4e8;
  border-radius:999px;padding:.1rem .5rem}
 form{display:inline}
+.recipe{margin:.8rem 0 1rem 1.3rem;padding:0}.recipe li{margin:.55rem 0}.recipe small{color:var(--muted)}
+.recipe .url{margin:.4rem 0}.notes{color:var(--muted);font-size:.92rem;margin-left:1.1rem;padding:0}
+img.shot{max-width:100%;border:1px solid var(--rule);border-radius:10px;display:block;margin:1rem auto}
 .apps{margin:.5rem 0 .6rem 1.1rem;padding:0}.apps li{margin:.3rem 0}
 details{margin:.5rem 0;border-top:1px solid var(--rule);padding-top:.45rem}
 summary{cursor:pointer}
@@ -231,14 +234,70 @@ const connectBox = () => {
 connector (MCP server):</p>
 <div class="url"><code>${html(url)}</code><button onclick="navigator.clipboard.writeText('${url}');
 this.textContent='Copied'">Copy</button></div>
-<ul class="apps">
-<li><b>Claude:</b> Customize › Connectors › Add custom connector. Paste the address, choose No sign-in.</li>
-<li><b>ChatGPT:</b> Settings › Apps › Advanced settings › Developer mode on. Then Create and paste the address.</li>
-<li><b>Gemini:</b> the Gemini website cannot use it yet. In Google's Antigravity app or the Gemini CLI, add the address as an MCP server.</li>
-<li><b>Grok:</b> grok.com/connectors › New Connector › Custom. Paste the address.</li>
-</ul>
+<p class="apps"><b>Step by step:</b> <a href="/claude">Claude</a> · <a href="/chatgpt">ChatGPT</a> ·
+<a href="/gemini">Gemini</a> · <a href="/grok">Grok</a></p>
 <p>Then ask, for example: <i>Using TPR, how great was Venerable Subhūti? Make a paper.</i></p></div>`;
 };
+
+// ------------------------------------------------------- per-app recipes
+const urlBox = () => {
+  const url = (process.env.TPR_PUBLIC_URL || '') + '/mcp';
+  return `<div class="url"><code>${html(url)}</code><button onclick="navigator.clipboard.writeText('${url}');
+this.textContent='Copied'">Copy</button></div>`;
+};
+const ASK = '<i>Using TPR, how great was Venerable Subhūti? Make a paper.</i>';
+const shot = (file, alt) => `<p><img class="shot" src="/img/${file}" alt="${html(alt)}"></p>`;
+
+const RECIPES = {
+  claude: ['Claude', () => `<ol class="recipe">
+<li>Open <b>claude.ai</b> in your browser and sign in.</li>
+<li>In the left sidebar, click <b>Customize</b>, then <b>Connectors</b>.
+<small>(Older layout: your name › Settings › Connectors.)</small></li>
+<li>Click <b>Add custom connector</b>.</li>
+<li>Name: <b>TPR Research</b>. URL: paste this address:${urlBox()}</li>
+<li>Authentication: <b>No sign-in</b> (Claude finds this by itself). Leave Request headers empty.</li>
+<li>Click <b>Add</b>.</li>
+<li>Start a <b>new chat</b>. Click <b>+</b> and check that <b>TPR Research</b> is on.</li>
+<li>Ask, for example: ${ASK}</li>
+</ol>${shot('claude-add.png', 'Claude: Add custom connector, with No sign-in chosen')}
+<ul class="notes"><li>The free plan allows one custom connector.</li>
+<li>Once added on the web, it also works in the Claude phone and desktop apps.</li>
+<li>On a work or team account, the account's owner may have to allow custom connectors.</li></ul>`],
+  chatgpt: ['ChatGPT', () => `<ol class="recipe">
+<li>Open <b>chatgpt.com</b> in your browser and sign in.</li>
+<li>Open <b>Settings › Plugins</b> (or go straight to <b>chatgpt.com/plugins</b>), then <b>Browse directory</b>.</li>
+<li>Click <b>Add</b> (top right), then <b>Custom MCP server</b>.</li>
+<li>Name: <b>TPR Research</b>. Description (optional): <i>Pāḷi research and papers</i>.</li>
+<li>Connection: <b>Server URL</b>, and paste this address:${urlBox()}</li>
+<li>Authentication: <b>No authentication</b>.</li>
+<li>Click <b>I understand and want to continue</b>, then add it.</li>
+<li>Start a <b>new chat</b>, choose <b>TPR Research</b> from the <b>+</b> menu, and ask, for example: ${ASK}</li>
+</ol>${shot('chatgpt-add.png', 'ChatGPT: Add custom MCP server, with Server URL and No authentication')}
+<ul class="notes"><li>If ChatGPT cannot save the paper, ask it to give the paper in the chat instead.</li></ul>`],
+  gemini: ['Gemini', () => `<p>The Gemini website and phone app cannot use outside tools yet. Use Google's
+<b>Antigravity</b> app or the <b>Gemini CLI</b> on a computer:</p>
+<ol class="recipe">
+<li><b>Antigravity:</b> open the file <code>~/.gemini/config/mcp_config.json</code> and add, inside
+<code>"mcpServers"</code>:<br><code>"tpr-research": { "serverUrl": "${html((process.env.TPR_PUBLIC_URL || '') + '/mcp')}" }</code><br>
+Then quit Antigravity and open it again. (Or, on a computer with Tipitaka Pali Reader: Settings › AI ›
+Gemini (Antigravity) setup does it for you.)</li>
+<li><b>Gemini CLI:</b> run<br><code>gemini mcp add --transport http tpr-research ${html((process.env.TPR_PUBLIC_URL || '') + '/mcp')}</code></li>
+<li>Ask, for example: ${ASK}</li></ol>`],
+  grok: ['Grok', () => `<ol class="recipe">
+<li>Open <b>grok.com/connectors</b> in your browser and sign in.</li>
+<li>Click <b>New Connector</b>, then <b>Custom</b>.</li>
+<li>Paste this address, with no authentication:${urlBox()}</li>
+<li>Save it, start a <b>new chat</b> with the connector on, and ask, for example: ${ASK}</li>
+</ol><ul class="notes"><li>Custom connectors may need a paid Grok plan.</li></ul>`],
+};
+
+function recipePage(res, key) {
+  const [name, body] = RECIPES[key];
+  sendHtml(res, page(`TPR Research in ${name}`, `${head(`TPR Research in ${name}`,
+    'Pāḷi Tipiṭaka research tools for your AI app')}${body()}
+<p class="apps">Other apps: ${Object.entries(RECIPES).filter(([k]) => k !== key)
+    .map(([k, [n]]) => `<a href="/${k}">${n}</a>`).join(' · ')} · <a href="/">Home</a></p>`));
+}
 
 function homePage(res) {
   const n = published().size;
@@ -369,6 +428,13 @@ const server = http.createServer((req, res) => {
     return adminPage(res);
   }
   if (url.pathname === '/' && req.method === 'GET') return homePage(res);
+  if (RECIPES[url.pathname.slice(1)] && req.method === 'GET') return recipePage(res, url.pathname.slice(1));
+  if (/^\/img\/[\w-]+\.png$/.test(url.pathname) && req.method === 'GET') {
+    const p = path.join(__dirname, '..', 'web', 'img', path.basename(url.pathname));
+    if (!fs.existsSync(p)) return reply(res, 404, 'Not found');
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+    return fs.createReadStream(p).pipe(res);
+  }
   if (url.pathname === '/logo.png' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=604800' });
     return fs.createReadStream(path.join(__dirname, '..', 'icon.png')).pipe(res);
