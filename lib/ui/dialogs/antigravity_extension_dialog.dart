@@ -48,13 +48,27 @@ class AntigravityExtensionDialog {
   static Future<bool> _open(String link) async {
     if (Platform.isWindows && !await _running()) {
       final exe = _windowsApps().firstWhereOrNull((e) => File(e).existsSync());
-      if (exe != null) {
-        await Process.start(exe, [], mode: ProcessStartMode.detached);
+      try {
+        if (exe != null) {
+          await Process.start(exe, [], mode: ProcessStartMode.detached);
+        } else {
+          // Installed elsewhere: by name, as Windows finds it from Run or
+          // PowerShell.
+          await Process.run('powershell.exe', [
+            '-NoProfile',
+            '-Command',
+            'Start-Process antigravity',
+          ]);
+        }
         for (var i = 0; i < 40 && !await _running(); i++) {
           await Future.delayed(const Duration(milliseconds: 500));
         }
         // Running is not yet ready for links: give its window time to load.
-        await Future.delayed(const Duration(seconds: 6));
+        if (await _running()) {
+          await Future.delayed(const Duration(seconds: 6));
+        }
+      } catch (_) {
+        // could not start it: the link alone starts it
       }
     }
     return launchUrl(Uri.parse('antigravity://$link'));
