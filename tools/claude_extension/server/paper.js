@@ -242,7 +242,9 @@ function refUrl(book, ref) {
 
 function expand(md) {
   md = md.replace(/\{\{Q:([\s\S]+?)\}\}/g, (all, spec) => {
-    try { return quoteBox(spec); } catch (e) { return `${all} (${e.message})`; }
+    // A quote that cannot be made is shown as a note in a quote line, which
+    // the reference linking below leaves alone.
+    try { return quoteBox(spec); } catch (e) { return `> (Quote ${spec.trim()} could not be made: ${e.message})`; }
   });
   md = md.replace(/\{\{L:(.+?)\}\}/g, (all, spec) => {
     const [book, r] = spec.trim().split(/\s+/);

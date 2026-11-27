@@ -176,7 +176,25 @@ function parseRef(ref) {
  *  parseRef takes, and a paragraph range '1785-1787' (as search prints a hit
  *  that spans paragraphs), at most 20 paragraphs. */
 function refLines(book, ref, lang) {
-  const range = /^(\d+)-(\d+)$/.exec(String(ref).trim());
+  ref = String(ref).trim().replace(/\s*[–—]\s*/g, '-');
+  // From a line in one paragraph to a line in a later one: '1290:1-1291:1'
+  // or '1290:1-1291' (verse books keep one verse line per paragraph).
+  const span = /^(\d+):(\d+)-(\d+)(?::(\d+))?$/.exec(ref);
+  if (span && Number(span[3]) > Number(span[1])) {
+    const [p1, l1, p2] = [Number(span[1]), Number(span[2]), Number(span[3])];
+    const l2 = span[4] ? Number(span[4]) : Infinity;
+    if (p2 - p1 > 19) fail(`Bad reference "${ref}"; a range is at most 20 paragraphs.`);
+    const rows = [];
+    for (let p = p1; p <= p2; p++) {
+      try {
+        rows.push(...lines(book, p, null, null, lang).map((r) => ({ ...r, para_id: p }))
+          .filter((r) => (p > p1 || r.line_id >= l1) && (p < p2 || r.line_id <= l2)));
+      } catch { /* a gap */ }
+    }
+    if (!rows.length) fail(`No text at ${book} ${ref} (check the id with tpr_books).`);
+    return rows;
+  }
+  const range = /^(\d+)-(\d+)$/.exec(ref);
   if (range) {
     const [p1, p2] = [Number(range[1]), Number(range[2])];
     if (p2 < p1 || p2 - p1 > 19) fail(`Bad reference "${ref}"; a paragraph range is 1 to 20 paragraphs, first one first.`);
