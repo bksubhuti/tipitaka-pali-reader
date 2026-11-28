@@ -339,6 +339,28 @@ function write(dir, { markdown, file_name: fileName, byline }) {
   return base;
 }
 
+/**
+ * A note for the AI when a saved paper is thin: few quotes, or no
+ * commentary quoted. Weaker models describe the Aṭṭhakathā instead of
+ * quoting it; the note asks them to offer a fuller version.
+ */
+function qualityNote(base) {
+  let md = '';
+  try { md = fs.readFileSync(base + '.md', 'utf8'); } catch { return ''; }
+  const quotes = md.split('\n').filter((l) => /^> \[.*\]\(https:\/\/tpr\.pali\.tools\/open\?book_id=/.test(l));
+  const layer = (re) => quotes.filter((l) => re.test(l)).length;
+  const mula = layer(/book_id=mula_/);
+  const comm = layer(/book_id=(attha|tika|annya)_/);
+  const words = md.split(/\s+/).length;
+  const missing = [];
+  if (quotes.length < 8 && words > 800) missing.push(`only ${quotes.length} quotes`);
+  if (mula && !comm) missing.push('no Aṭṭhakathā or Ṭīkā quoted');
+  if (!missing.length) return '';
+  return `\nNote on this paper: ${missing.join(', ')}. The guide asks for each claim to be shown with the Mūla quote and `
+    + 'the commentary that explains it, quoted with {{Q:…}} (see "A model section" in tpr_research_guide). '
+    + 'Tell the reader in one line and offer to make a fuller version.';
+}
+
 function save({ pdf = true, ...paper }) {
   const base = write(papersDir(), paper);
   const lines = [`Saved:\n  ${base}.md\n  ${base}.html`];
@@ -351,7 +373,7 @@ function save({ pdf = true, ...paper }) {
   // Always opened: the reader asked for the PDF to come up every time.
   openFile(shown);
   lines.push(`Opened ${path.basename(shown)} for the reader.`);
-  return lines.join('\n');
+  return lines.join('\n') + qualityNote(base);
 }
 
 /**
@@ -377,7 +399,7 @@ function saveWeb({ pdf = true, ...paper }) {
   lines.push(`Web page: ${url}${name}.html`, `Markdown: ${url}${name}.md`, '',
     'Also tell the reader, in one short line: papers are kept on the TPR Research server and may be shared, '
     + `without names, in the TPR Research library after review (privacy: ${PRIVACY_URL}).`);
-  return lines.join('\n');
+  return lines.join('\n') + qualityNote(base);
 }
 
 const PRIVACY_URL = 'https://americanmonk.org/privacy-policy-for-tpr-research/';

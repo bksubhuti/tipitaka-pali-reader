@@ -25,6 +25,38 @@ If a tool says the data folder, the index or English is missing, tell the reader
 4. **The points, one by one.** One `## N. Point` section per summary point, same order and wording. State the point, then prove it: Mūla first, then Aṭṭhakathā, then Ṭīkā, each with Pāḷi quote boxes. The commentaries are the heart of the proof: wherever an Aṭṭhakathā or Ṭīkā explains the passage (check with `tpr_commentary`), quote it; don't leave a layer out to save space. Answer objections inside the point they bear on (a `**Objection:**` paragraph). Where the evidence is against a point, say so there.
 5. **Conclusion.** A short judgment, then a verdict table `| Claim | Verdict | Deciding source |` with verdicts **RIGHT**, **WRONG**, **HALF RIGHT** or **No textual support found** (start the cell with the bold word; the page colours it). One claim per row. After every **WRONG** or **HALF RIGHT**, add "Correction:" and what the texts actually say. End with a Sources table (layer, text, reference, passage).
 
+## A model section (copy this shape)
+
+From a finished paper, "Does mettā affect only oneself?", written as it was saved. Each claim: the Mūla quote, then the commentary that explains it, quoted too, then one line of reasoning. A paper has several such sections, 15 or more quotes in all, and ends with the verdict table.
+
+```
+## 1. The benefits are partly about others
+
+Of the eleven benefits in the Mettānisaṃsa Sutta, several are not inner states at all. They describe how humans, non-humans and devas respond.
+
+{{Q:A-xi 152:2}}
+
+The Visuddhimagga (Aṭṭhakathā layer) glosses "dear to humans" with an image: others value him like a necklace or garland.
+
+{{Q:Vism-i 1898:1}}
+
+{{Q:Vism-i 1910:1}}
+
+**Objection:** "Dear to others" might only mean the practitioner feels better about them. No: the commentary describes others' affection and the devas' protection, events in other beings.
+```
+
+and at the end:
+
+```
+| Claim | Verdict | Deciding source |
+|---|---|---|
+| Mettā affects only the one who develops it | **WRONG** Correction: mettā directed at others softens their minds. | Vism-i 709:5-10 |
+| Mettā benefits the practitioner himself | **RIGHT** | A-xi 152:2 |
+| Mettā protects at all times, once developed | **HALF RIGHT** Correction: only while one is in it. | Mil 1069:5 |
+```
+
+Not like this: a commentary described but not quoted ("The Aṭṭhakathā explains…"), four quotes for a whole paper, or "practical meaning" advice in place of the texts.
+
 ## Writing it up
 
 - **Quotes:** write `{{Q:BOOK PARA:L1-L2}}` on its own line where a quote box goes (`{{Q:BOOK PARA:L1-L2|your translation}}` to give your own). `tpr_save_paper` turns it into the grey box: bold Pāḷi, translation, TPR link. Or paste `tpr_quote` output.
