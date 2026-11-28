@@ -381,21 +381,22 @@ function save({ pdf = true, ...paper }) {
  * under TPR_PAPERS_DIR, served at TPR_PUBLIC_URL/p/<id>/<file>; returns
  * the links (nothing is opened: the reader is on another computer).
  */
-function saveWeb({ pdf = true, ...paper }) {
+function saveWeb({ pdf, ...paper }) { // the PDF is always made on the web: readers expect it
   const id = require('node:crypto').randomBytes(9).toString('base64url');
   const dir = path.join(papersDir(), id);
   const base = write(dir, paper);
   const site = (process.env.TPR_PUBLIC_URL || '').replace(/\/$/, '');
   const url = `${site}/p/${id}/`;
   const name = encodeURIComponent(path.basename(base));
-  const hasPdf = pdf && !printPdf(base + '.html', base + '.pdf');
+  const hasPdf = !printPdf(base + '.html', base + '.pdf');
   // For the library pages: what the paper is, without reading it again.
   const title = ((/^#\s+(.+)$/m.exec(paper.markdown) || [])[1] || 'Paper').replace(/[*`]/g, '').trim();
   fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({
     title, file: path.basename(base), pdf: hasPdf, saved: new Date().toISOString(),
   }));
-  const lines = ['Saved. Give the reader all of these links:'];
-  if (hasPdf) lines.push(`PDF: ${url}${name}.pdf`);
+  const lines = ['Saved. Show the reader ALL THREE links below, exactly as written, each on its own line '
+    + '(do not drop any, do not shorten them):'];
+  lines.push(hasPdf ? `PDF: ${url}${name}.pdf` : 'PDF: (could not be printed this time; the web page has a Print button in the browser)');
   lines.push(`Web page: ${url}${name}.html`, `Markdown: ${url}${name}.md`, '',
     'Also tell the reader, in one short line: papers are kept on the TPR Research server and may be shared, '
     + `without names, in the TPR Research library after review (privacy: ${PRIVACY_URL}).`);
