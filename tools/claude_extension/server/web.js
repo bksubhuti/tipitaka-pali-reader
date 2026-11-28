@@ -226,7 +226,7 @@ function card(p, extra = '') {
   const f = encodeURIComponent(p.file);
   const ex = excerptOf(p);
   return `<article class="card" data-text="${html((p.title + ' ' + ex).toLowerCase())}">
-<h2><a href="/p/${p.id}/${f}.html">${html(p.title)}</a></h2>${ex ? `<p>${html(ex)}</p>` : ''}
+<h2><a href="/p/${p.id}/${f}.${p.html === false ? 'pdf' : 'html'}">${html(p.title)}</a></h2>${ex ? `<p>${html(ex)}</p>` : ''}
 <div class="meta"><span>${html(String(p.saved).slice(0, 10))}</span>
 ${p.pdf ? `<a href="/p/${p.id}/${f}.pdf">PDF</a>` : ''}<a href="/p/${p.id}/${f}.md">Markdown</a>${extra}</div></article>`;
 }
