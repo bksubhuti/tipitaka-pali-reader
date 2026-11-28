@@ -247,7 +247,7 @@ this.textContent='Copied ✓'">Copy</button></div>
 <a class="appbtn" style="background:#4285F4" href="/gemini">Gemini</a>
 <a class="appbtn" style="background:#5b5f66" href="/grok">Grok</a>
 </div>
-<p>Then ask, for example: <i>Using TPR, how great was Venerable Subhūti? Make a paper.</i></p></div>`;
+<p>Then ask, for example: <i>Using TPR, does the word abhidhamma in the suttas mean the Abhidhamma Piṭaka? Make a paper.</i></p></div>`;
 };
 
 // ------------------------------------------------------- per-app recipes
@@ -256,7 +256,7 @@ const urlBox = () => {
   return `<div class="url"><code>${html(url)}</code><button onclick="navigator.clipboard.writeText('${url}');
 this.textContent='Copied'">Copy</button></div>`;
 };
-const ASK = '<i>Using TPR, how great was Venerable Subhūti? Make a paper.</i>';
+const ASK = '<i>Using TPR, does the word abhidhamma in the suttas mean the Abhidhamma Piṭaka? Make a paper.</i>';
 const shot = (file, alt) => `<p><img class="shot" src="/img/${file}" alt="${html(alt)}"></p>`;
 
 const RECIPES = {
@@ -317,10 +317,11 @@ ${connectBox()}
 <p>TPR Research searches the Pāḷi canon, the Aṭṭhakathā and Ṭīkā, translations and the Digital Pāḷi Dictionary, and
 writes research papers with every claim quoted from the texts.</p>
 <div class="card"><p style="margin:0 0 .3rem;font:700 11px system-ui,sans-serif;letter-spacing:.05em;
-text-transform:uppercase">Sample paper</p><h2><a href="/p/xIZ0RW2L7EFL/venerable-subhuti-tpr-report.html">How great was
-Venerable Subhūti? A Tipiṭaka report</a></h2><p>His two titles as foremost disciple, explained from the Mūla, Aṭṭhakathā
-and Ṭīkā, with every quote linked to TPR.</p><div class="meta"><a href="/p/xIZ0RW2L7EFL/venerable-subhuti-tpr-report.pdf">PDF</a>
-<a href="/p/xIZ0RW2L7EFL/venerable-subhuti-tpr-report.html">Web page</a></div></div>
+text-transform:uppercase">Sample paper</p><h2><a href="/p/ptufJcYPjJvV/Abhidhamma-the-Word.pdf">The word "Abhidhamma"
+in the Suttas and Vinaya: does it mean the Abhidhamma Piṭaka?</a></h2><p>Scholars often say the suttas' word
+abhidhamma only means "about the Dhamma". This paper reads every use in the Suttas and Vinaya, with the commentaries,
+and every quote linked to TPR.</p><div class="meta"><a href="/p/ptufJcYPjJvV/Abhidhamma-the-Word.pdf">PDF</a>
+<a href="/p/ptufJcYPjJvV/Abhidhamma-the-Word.md">Markdown</a></div></div>
 <p><a href="/library">The library</a>${n ? ` has ${n} paper${n === 1 ? '' : 's'}` : ''}: papers chosen after review.</p>
 <p style="color:var(--muted);font-size:.9rem">Papers are kept on this server and may be shared, without names, in the
 library after review. <a href="${PRIVACY_URL}">Privacy</a></p>`));
